@@ -1,0 +1,9 @@
+[package]
+name = "optyx"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mark Koch <mark.koch@quantinuum.com>"]
+
+[dependencies]
+quizx = { git = "https://github.com/Quantomatic/quizx" }
+num = "0.3.1"
