@@ -50,20 +50,21 @@ def permanent(M):
 def occupation_numbers(n_photons, m_modes):
     """
     Returns vectors of occupation numbers for n_photons in m_modes.
+
     Example
     -------
     >>> occupation_numbers(3, 2)
-    [[3, 0], [2, 1], [1, 2], [0, 3]]
+    [(3, 0), (2, 1), (1, 2), (0, 3)]
     >>> occupation_numbers(2, 3)
-    [[2, 0, 0], [1, 1, 0], [1, 0, 1], [0, 2, 0], [0, 1, 1], [0, 0, 2]]
+    [(2, 0, 0), (1, 1, 0), (1, 0, 1), (0, 2, 0), (0, 1, 1), (0, 0, 2)]
     """
     if not n_photons:
-        return [m_modes * [0]]
+        return [m_modes * (0,)]
     if not m_modes:
-        raise ValueError(f"Can't put {n_photons} in zero modes!")
-    if m_modes <= 1:
-        return m_modes * [[n_photons]]
-    return [[head] + tail for head in range(n_photons, -1, -1)
+        raise ValueError(f"Can't put {n_photons} photons in zero modes!")
+    if m_modes == 1:
+        return [(n_photons, )]
+    return [(head,) + tail for head in range(n_photons, -1, -1)
             for tail in occupation_numbers(n_photons - head, m_modes - 1)]
 
 
@@ -114,32 +115,36 @@ class Path(Matrix[complex]):
             + f", creations={self.creations}, deletions={self.deletions})"
 
     def make_square(self):
-        diff = self.udom < self.ucod
+        diff = self.udom - self.ucod
         if diff < 0:
             creations = self.creations + -diff * (0,)
-            array = np.stack([
+            array = np.concatenate([
                 self.array[:len(self.creations)],
-                np.zeros(diff, self.ucod),
+                np.zeros((-diff, self.ucod), complex),
                 self.array[len(self.creations):]], axis=0)
             return Path(array, self.dom, self.cod, creations, self.deletions)
         if diff > 0:
             deletions = self.deletions + diff * (0,)
-            array = np.stack([
+            array = np.concatenate([
                 self.array[:, :len(self.deletions)],
-                np.zeros(self.udom, diff),
-                self.array[:, len(self.creations):]], axis=1)
+                np.zeros((self.udom, diff), complex),
+                self.array[:, len(self.deletions):]], axis=1)
             return Path(array, self.dom, self.cod, self.creations, deletions)
         return self
 
     def eval(self, n_photons=0, permanent=permanent):
-        self = self.make_square()
+        if self.udom != self.ucod:
+            return self.make_square().eval(n_photons, permanent)
         dom_basis = occupation_numbers(n_photons, self.dom)
-        cod_basis = occupation_numbers(n_photons, self.cod)
+        n_photons_out = n_photons - sum(self.deletions) + sum(self.creations)
+        if n_photons_out < 0:
+            raise ValueError("Expected a positive number of photons out.")
+        cod_basis = occupation_numbers(n_photons_out, self.cod)
         result = Matrix[complex].zero(len(dom_basis), len(cod_basis))
         for i, open_creations in enumerate(dom_basis):
             for j, open_deletions in enumerate(cod_basis):
-                creations = self.creations + tuple(open_creations)
-                deletions = self.deletions + tuple(open_deletions)
+                creations = self.creations + open_creations
+                deletions = self.deletions + open_deletions
                 matrix = np.stack([
                     self.array[:, m]
                     for m, n in enumerate(deletions)
@@ -153,6 +158,18 @@ class Path(Matrix[complex]):
                 result.array[i, j] = permanent(matrix) / divisor
         return result
 
+    def get_amplitudes(self, n_photons=0, permanent=permanent):
+        if self.dom != 0:
+            raise ValueError("Expected a state, got a process.")
+        n_photons_out = n_photons - sum(self.deletions) + sum(self.creations)
+        basis = occupation_numbers(n_photons_out, self.cod)
+        counts = self.eval(n_photons, permanent).array[0]
+        return {key: value for key, value in zip(basis, counts) if value}
+
+    def get_probabilities(self, n_photons=0, permanent=permanent):
+        amplitudes = self.get_amplitudes(n_photons, permanent).items()
+        return {key: abs(value) ** 2 for key, value in amplitudes}
+
 
 @factory
 class Diagram(symmetric.Diagram):
@@ -165,6 +182,13 @@ class Diagram(symmetric.Diagram):
 
     def eval(self, n_photons=0, permanent=permanent):
         return self.to_path().eval(n_photons, permanent)
+
+    def get_amplitudes(self, n_photons=0, permanent=permanent):
+        return self.to_path().get_amplitudes(n_photons, permanent)
+
+    def get_probabilities(self, n_photons=0, permanent=permanent):
+        return self.to_path().get_probabilities(n_photons, permanent)
+
 
 class Box(symmetric.Box, Diagram):
     def to_path(self):
@@ -185,6 +209,8 @@ class Create(Box):
     Example
     -------
     >>> assert Create() == Create(1)
+    >>> Create(1, 2, 3).get_probabilities()
+    {(1, 2, 3): 1.0}
     """
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
@@ -218,6 +244,15 @@ class Delete(Box):
 
 
 class Merge(Box):
+    """
+    Path merging.
+
+    Example
+    -------
+    >>> sqrt2 = Create() >> Scale(2 ** -.5) >> Delete()
+    >>> assert (sqrt2 @ Create() @ Create() >> Merge()).eval()\\
+    ...     == Create(2).eval()
+    """
     def __init__(self, n=2):
         self.n = n
         super().__init__("Merge()" if n == 2 else f"Merge({n})", n, 1)
@@ -227,6 +262,14 @@ class Merge(Box):
 
 
 class Split(Box):
+    """
+    Path spliting.
+
+    Example
+    -------
+    >>> (Create() >> Split()).get_probabilities()
+    {(1, 0): 1.0, (0, 1): 1.0}
+    """
     def __init__(self, n=2):
         self.n = n
         super().__init__("Split()" if n == 2 else f"Split({n})", 1, n)
