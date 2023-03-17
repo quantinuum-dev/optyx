@@ -6,16 +6,65 @@ Example
 >>> HongOuMandel = Create() @ Create() >> Split() @ Split()\\
 ...     >> Scale(1j) @ SWAP @ Scale(1j)\\
 ...     >> Merge() @ Merge() >> Delete() @ Delete()
->>> HongOuMandel.to_path()
+>>> HongOuMandel.eval()
+Matrix[complex]([0.+0.j], dom=1, cod=1)
 """
 
 from __future__ import annotations
+
+import numpy as np
+from math import factorial
 
 from discopy import symmetric
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy.matrix import Matrix
 from discopy.utils import mmap
+
+
+def permanent(M):
+    """
+    Numpy code for computing the permanent of a matrix,
+    from https://github.com/scipy/scipy/issues/7151.
+    """
+    n = M.shape[0]
+    d = np.ones(n)
+    j = 0
+    s = 1
+    f = np.arange(n)
+    v = M.sum(axis=0)
+    p = np.prod(v)
+    while (j < n - 1):
+        v -= 2 * d[j] * M[j]
+        d[j] = -d[j]
+        s = -s
+        prod = np.prod(v)
+        p += s * prod
+        f[0] = 0
+        f[j] = f[j + 1]
+        f[j + 1] = j + 1
+        j = f[0]
+    return p / 2 ** (n - 1)
+
+
+def occupation_numbers(n_photons, m_modes):
+    """
+    Returns vectors of occupation numbers for n_photons in m_modes.
+    Example
+    -------
+    >>> occupation_numbers(3, 2)
+    [[3, 0], [2, 1], [1, 2], [0, 3]]
+    >>> occupation_numbers(2, 3)
+    [[2, 0, 0], [1, 1, 0], [1, 0, 1], [0, 2, 0], [0, 1, 1], [0, 0, 2]]
+    """
+    if not n_photons:
+        return [m_modes * [0]]
+    if not m_modes:
+        raise ValueError(f"Can't put {n_photons} in zero modes!")
+    if m_modes <= 1:
+        return m_modes * [[n_photons]]
+    return [[head] + tail for head in range(n_photons, -1, -1)
+            for tail in occupation_numbers(n_photons - head, m_modes - 1)]
 
 
 class Path(Matrix[complex]):
@@ -37,8 +86,8 @@ class Path(Matrix[complex]):
         M = Matrix[complex]
         a, b = len(self.creations), len(other.creations)
         c, d = len(self.deletions), len(other.deletions)
-        umatrix = a @ M.swap(c, self.dom) >> self.umatrix @ c\
-            >> b @ M.swap(self.cod, c) >> b @ other.umatrix
+        umatrix = a @ M.swap(b, self.dom) >> self.umatrix @ b\
+            >> c @ M.swap(self.cod, b) >> c @ other.umatrix
         creations = self.creations + other.creations
         deletions = self.deletions + other.deletions
         return Path(umatrix.array, self.dom, other.cod, creations, deletions)
@@ -64,6 +113,46 @@ class Path(Matrix[complex]):
         return super().__repr__()[:-1]\
             + f", creations={self.creations}, deletions={self.deletions})"
 
+    def make_square(self):
+        diff = self.udom < self.ucod
+        if diff < 0:
+            creations = self.creations + -diff * (0,)
+            array = np.stack([
+                self.array[:len(self.creations)],
+                np.zeros(diff, self.ucod),
+                self.array[len(self.creations):]], axis=0)
+            return Path(array, self.dom, self.cod, creations, self.deletions)
+        if diff > 0:
+            deletions = self.deletions + diff * (0,)
+            array = np.stack([
+                self.array[:, :len(self.deletions)],
+                np.zeros(self.udom, diff),
+                self.array[:, len(self.creations):]], axis=1)
+            return Path(array, self.dom, self.cod, self.creations, deletions)
+        return self
+
+    def eval(self, n_photons=0, permanent=permanent):
+        self = self.make_square()
+        dom_basis = occupation_numbers(n_photons, self.dom)
+        cod_basis = occupation_numbers(n_photons, self.cod)
+        result = Matrix[complex].zero(len(dom_basis), len(cod_basis))
+        for i, open_creations in enumerate(dom_basis):
+            for j, open_deletions in enumerate(cod_basis):
+                creations = self.creations + tuple(open_creations)
+                deletions = self.deletions + tuple(open_deletions)
+                matrix = np.stack([
+                    self.array[:, m]
+                    for m, n in enumerate(deletions)
+                    for _ in range(n)], axis=1)
+                matrix = np.stack([
+                    matrix[m]
+                    for m, n in enumerate(creations)
+                    for _ in range(n)], axis=0)
+                divisor = np.sqrt(np.prod([
+                    factorial(n) for n in creations + deletions]))
+                result.array[i, j] = permanent(matrix) / divisor
+        return result
+
 
 @factory
 class Diagram(symmetric.Diagram):
@@ -73,6 +162,9 @@ class Diagram(symmetric.Diagram):
         return symmetric.Functor(
             ob=len, ar=lambda f: f.to_path(),
             cod=symmetric.Category(int, Path))(self)
+
+    def eval(self, n_photons=0, permanent=permanent):
+        return self.to_path().eval(n_photons, permanent)
 
 class Box(symmetric.Box, Diagram):
     def to_path(self):
@@ -93,15 +185,14 @@ class Create(Box):
     Example
     -------
     >>> assert Create() == Create(1)
-    >>> Create(1, 2, 3).to_path()
     """
     def __init__(self, *photons: int):
-        name = "Create()" if not photons else f"Create({photons})"
-        self.photons = photons or (1, )
+        self.photons = photons or (1,)
+        name = "Create()" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
     def to_path(self):
-        array = Matrix[complex].id(len(self.photons))
+        array = Matrix[complex].id(len(self.photons)).array
         return Path(array, 0, len(self.photons), creations=self.photons)
 
 
@@ -117,12 +208,12 @@ class Delete(Box):
     >>> assert Delete() == Delete(1)
     """
     def __init__(self, *photons: int):
-        name = "Delete()" if not photons else f"Delete({photons})"
-        self.photons = photons or (1, )
+        self.photons = photons or (1,)
+        name = "Delete()" if self.photons == (1,) else f"Delete({photons})"
         super().__init__(name, len(self.photons), 0)
 
     def to_path(self):
-        array = Matrix[complex].id(len(self.photons))
+        array = Matrix[complex].id(len(self.photons)).array
         return Path(array, len(self.photons), 0, deletions=self.photons)
 
 
