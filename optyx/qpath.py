@@ -75,7 +75,8 @@ class Path(Matrix[sp.Expr]):
     >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Delete()
     >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
     >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
-    >>> assert (Create(3, 0) >> num_op @ Id(1) >> Delete(3, 0)).eval() == (Create(3) >> num_op >> Delete(3)).eval()
+    >>> assert (Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Delete(1)).eval(3) == num_op.eval(3)
+    >>> assert (num_op @ (Create(1) >> Delete(1))).eval(3) == num_op.eval(3)
     """
     def __new__(cls, array, dom, cod, creations=(), deletions=()):
         return Matrix[sp.Expr].__new__(cls, array, dom, cod)
