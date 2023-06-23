@@ -69,7 +69,7 @@ def occupation_numbers(n_photons, m_modes):
             for tail in occupation_numbers(n_photons - head, m_modes - 1)]
 
 
-class Path(Matrix[sp.Expr]):
+class Path(Matrix):
     """
     >>> num_op = Split() >> Delete() @ Id(1) >> Create() @ Id(1) >> Merge()
     >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Delete()
@@ -77,8 +77,10 @@ class Path(Matrix[sp.Expr]):
     >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
     >>> assert (Create(3, 0) >> num_op @ Id(1) >> Delete(3, 0)).eval() == (Create(3) >> num_op >> Delete(3)).eval()
     """
+    dtype = sp.Expr
+
     def __new__(cls, array, dom, cod, creations=(), deletions=()):
-        return Matrix[sp.Expr].__new__(cls, array, dom, cod)
+        return Matrix.__new__(cls, array, dom, cod)
 
     def __init__(self, array, dom: int, cod: int,
                  creations: tuple[int, ...] = (),
