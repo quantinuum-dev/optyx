@@ -78,6 +78,9 @@ class Path(Matrix[sp.Expr]):
     >>> assert (Create(3, 0) >> number_op @ Id(1) >> Delete(3, 0)).eval() ==\
     ...     (Create(3) >> number_op >> Delete(3)).eval()
     """
+    def __new__(cls, array, dom, cod, creations=(), deletions=()):
+        return Matrix[sp.Expr].__new__(cls, array, dom, cod)
+
     def __init__(self, array, dom: int, cod: int,
                  creations: tuple[int, ...] = (),
                  deletions: tuple[int, ...] = ()):
