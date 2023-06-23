@@ -7,19 +7,20 @@ Example
 ...     >> Scale(1j) @ SWAP @ Scale(1j)\\
 ...     >> Merge() @ Merge() >> Delete() @ Delete()
 >>> HongOuMandel.eval()
-Matrix[complex]([0.+0.j], dom=1, cod=1)
+Matrix[Expr]([0j], dom=1, cod=1)
 """
 
 from __future__ import annotations
 
 import numpy as np
 from math import factorial
+import sympy as sp
 
 from discopy import symmetric
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy.matrix import Matrix
-from discopy.utils import mmap
+from discopy.utils import unbiased
 
 
 def permanent(M):
@@ -68,23 +69,29 @@ def occupation_numbers(n_photons, m_modes):
             for tail in occupation_numbers(n_photons - head, m_modes - 1)]
 
 
-class Path(Matrix[complex]):
+class Path(Matrix[sp.Expr]):
+    """
+    >>> num_op = Split() >> Delete() @ Id(1) >> Create() @ Id(1) >> Merge()
+    >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Delete()
+    >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
+    >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
+    """
     def __init__(self, array, dom: int, cod: int,
                  creations: tuple[int, ...] = (),
                  deletions: tuple[int, ...] = ()):
-       self.udom, self.ucod = len(creations) + dom, len(deletions) + cod
-       super().__init__(array, self.udom, self.ucod)
-       self.dom, self.cod = dom, cod
-       self.creations, self.deletions = creations, deletions
+        self.udom, self.ucod = len(creations) + dom, len(deletions) + cod
+        super().__init__(array, self.udom, self.ucod)
+        self.dom, self.cod = dom, cod
+        self.creations, self.deletions = creations, deletions
 
     @property
-    def umatrix(self) -> Matrix[complex]:
-        return Matrix[complex](self.array, self.udom, self.ucod)
+    def umatrix(self) -> Matrix[sp.Expr]:
+        return Matrix[sp.Expr](self.array, self.udom, self.ucod)
 
-    @mmap
+    @unbiased
     def then(self, other: Path) -> Path:
         assert_iscomposable(self, other)
-        M = Matrix[complex]
+        M = Matrix[sp.Expr]
         a, b = len(self.creations), len(other.creations)
         c, d = len(self.deletions), len(other.deletions)
         umatrix = a @ M.swap(b, self.dom) >> self.umatrix @ b\
@@ -93,12 +100,12 @@ class Path(Matrix[complex]):
         deletions = self.deletions + other.deletions
         return Path(umatrix.array, self.dom, other.cod, creations, deletions)
 
-    @mmap
+    @unbiased
     def tensor(self, other: Path) -> Path:
-        M = Matrix[complex]
+        M = Matrix[sp.Expr]
         a, b = len(self.creations), len(other.creations)
         c, d = len(self.deletions), len(other.deletions)
-        umatrix = a @ M.swap(self.dom, b) @ other.dom\
+        umatrix = a @ M.swap(b, self.dom) @ other.dom\
             >> self.umatrix @ other.umatrix\
             >> c @ M.swap(self.cod, d) @ other.cod
         dom, cod = self.dom + other.dom, self.cod + other.cod
@@ -140,7 +147,7 @@ class Path(Matrix[complex]):
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
-        result = Matrix[complex].zero(len(dom_basis), len(cod_basis))
+        result = Matrix[sp.Expr].zero(len(dom_basis), len(cod_basis))
         for i, open_creations in enumerate(dom_basis):
             for j, open_deletions in enumerate(cod_basis):
                 creations = self.creations + open_creations
@@ -218,7 +225,7 @@ class Create(Box):
         super().__init__(name, 0, len(self.photons))
 
     def to_path(self):
-        array = Matrix[complex].id(len(self.photons)).array
+        array = Matrix[sp.Expr].id(len(self.photons)).array
         return Path(array, 0, len(self.photons), creations=self.photons)
 
 
@@ -239,7 +246,7 @@ class Delete(Box):
         super().__init__(name, len(self.photons), 0)
 
     def to_path(self):
-        array = Matrix[complex].id(len(self.photons)).array
+        array = Matrix[sp.Expr].id(len(self.photons)).array
         return Path(array, len(self.photons), 0, deletions=self.photons)
 
 
