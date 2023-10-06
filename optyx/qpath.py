@@ -7,7 +7,10 @@ Example
 >>> HOM.eval()
 Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
 >>> HOM.prob()
-Probabilities([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
+Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
+>>> left = Create(1, 1) >> BS >> Select(2, 0)
+>>> left.prob()
+Probabilities([0.5], dom=1, cod=1)
 """
 
 from __future__ import annotations
@@ -205,12 +208,14 @@ class Probabilities(underlying.Matrix):
     """
     Stochastic matrix of probabilities for given input and output Fock states.
 
-    >>> BS.eval(1)
-    Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
-     0.    +0.70710678j], dom=2, cod=2)
-    >>> assert isinstance(BS.eval(2), Amplitudes)
+    >>> BS.prob(1)
+    Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
+    >>> BS.prob(2)
+    Probabilities([0.25, 0.5 , 0.25, 0.5 , 0. , 0.5 , 0.25, 0.5 , 0.25], dom=3, cod=3)
+    >>> (Create(1, 1) >> BS).prob()
+    Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
     """
-    dtype = complex
+    dtype = float
 
     def __new__(cls, array, dom, cod):
         return underlying.Matrix.__new__(cls, array, dom, cod)
