@@ -1,3 +1,3 @@
 from optyx import qpath
 from optyx.qpath import (
-    Path, Diagram, Box, Swap, SWAP, Id, Split, Merge, Create, Delete, Rescale)
+    Matrix, Amplitudes, Diagram, Box, Swap, SWAP, Id, Split, Merge, Create, Select, Rescale)
