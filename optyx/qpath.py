@@ -4,22 +4,21 @@ The category QPath.
 Example
 -------
 >>> HongOuMandel = Create() @ Create() >> Split() @ Split()\\
-...     >> Scale(1j) @ SWAP @ Scale(1j)\\
+...     >> Rescale(1j) @ SWAP @ Rescale(1j)\\
 ...     >> Merge() @ Merge() >> Delete() @ Delete()
 >>> HongOuMandel.eval()
-Matrix[Expr]([0j], dom=1, cod=1)
+Matrix[complex]([0.+0.j], dom=1, cod=1)
 """
 
 from __future__ import annotations
 
 import numpy as np
 from math import factorial
-import sympy as sp
 
 from discopy import symmetric
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
-from discopy.matrix import Matrix
+from discopy import matrix as underlying
 from discopy.utils import unbiased
 
 
@@ -69,7 +68,7 @@ def occupation_numbers(n_photons, m_modes):
             for tail in occupation_numbers(n_photons - head, m_modes - 1)]
 
 
-class Path(Matrix):
+class Path(underlying.Matrix):
     """
     >>> num_op = Split() >> Delete() @ Id(1) >> Create() @ Id(1) >> Merge()
     >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Delete()
@@ -77,44 +76,46 @@ class Path(Matrix):
     >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
     >>> assert (Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Delete(1)).eval(3) == num_op.eval(3)
     >>> assert (num_op @ (Create(1) >> Delete(1))).eval(3) == num_op.eval(3)
+    >>> assert (Create(1) @ Id(1) >> Id(1) @ Split() >> Delete(1) @ Id(2)).eval(3) == Split().eval(3)
     """
-    dtype = sp.Expr
+    # >>> assert (Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Delete(1)).eval(3) == num_op.eval(3)
+    # >>> assert (num_op @ (Create(1) >> Delete(1))).eval(3) == num_op.eval(3)
+    dtype = complex
 
     def __new__(cls, array, dom, cod, creations=(), deletions=()):
-        return Matrix.__new__(cls, array, dom, cod)
+        return underlying.Matrix.__new__(cls, array, dom, cod)
 
     def __init__(self, array, dom: int, cod: int,
                  creations: tuple[int, ...] = (),
                  deletions: tuple[int, ...] = ()):
-        self.udom, self.ucod = len(creations) + dom, len(deletions) + cod
+        self.udom, self.ucod = dom + len(creations), cod + len(deletions)
         super().__init__(array, self.udom, self.ucod)
         self.dom, self.cod = dom, cod
         self.creations, self.deletions = creations, deletions
 
     @property
-    def umatrix(self) -> Matrix[sp.Expr]:
-        return Matrix[sp.Expr](self.array, self.udom, self.ucod)
+    def umatrix(self) -> underlying.Matrix[self.dtype]:
+        return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
 
     @unbiased
     def then(self, other: Path) -> Path:
         assert_iscomposable(self, other)
-        M = Matrix[sp.Expr]
+        M = underlying.Matrix[self.dtype]
         a, b = len(self.creations), len(other.creations)
         c, d = len(self.deletions), len(other.deletions)
-        umatrix = a @ M.swap(b, self.dom) >> self.umatrix @ b\
-            >> c @ M.swap(self.cod, b) >> c @ other.umatrix
+        umatrix = self.umatrix @ b >> self.cod @ M.swap(c, b) >> other.umatrix @ c
         creations = self.creations + other.creations
-        deletions = self.deletions + other.deletions
+        deletions = other.deletions + self.deletions
         return Path(umatrix.array, self.dom, other.cod, creations, deletions)
 
     @unbiased
     def tensor(self, other: Path) -> Path:
-        M = Matrix[sp.Expr]
+        M = underlying.Matrix[self.dtype]
         a, b = len(self.creations), len(other.creations)
         c, d = len(self.deletions), len(other.deletions)
-        umatrix = a @ M.swap(b, self.dom) @ other.dom\
+        umatrix = self.dom @ M.swap(other.dom, a) @ b\
             >> self.umatrix @ other.umatrix\
-            >> c @ M.swap(self.cod, d) @ other.cod
+            >> self.cod @ M.swap(c, other.cod) @ d
         dom, cod = self.dom + other.dom, self.cod + other.cod
         creations = self.creations + other.creations
         deletions = self.deletions + other.deletions
@@ -147,18 +148,16 @@ class Path(Matrix):
         return self
 
     def eval(self, n_photons=0, permanent=permanent):
-        if self.udom != self.ucod:
-            return self.make_square().eval(n_photons, permanent)
         dom_basis = occupation_numbers(n_photons, self.dom)
         n_photons_out = n_photons - sum(self.deletions) + sum(self.creations)
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
-        result = Matrix[sp.Expr].zero(len(dom_basis), len(cod_basis))
+        result = underlying.Matrix[self.dtype].zero(len(dom_basis), len(cod_basis))
         for i, open_creations in enumerate(dom_basis):
             for j, open_deletions in enumerate(cod_basis):
-                creations = self.creations + open_creations
-                deletions = self.deletions + open_deletions
+                creations = open_creations + self.creations
+                deletions = open_deletions + self.deletions
                 matrix = np.stack([
                     self.array[:, m]
                     for m, n in enumerate(deletions)
@@ -189,10 +188,10 @@ class Path(Matrix):
 class Diagram(symmetric.Diagram):
     ty_factory = PRO
 
-    def to_path(self):
+    def to_path(self, dtype=complex):
         return symmetric.Functor(
-            ob=len, ar=lambda f: f.to_path(),
-            cod=symmetric.Category(int, Path))(self)
+            ob=len, ar=lambda f: f.to_path(dtype=dtype),
+            cod=symmetric.Category(int, Path[dtype]))(self)
 
     def eval(self, n_photons=0, permanent=permanent):
         return self.to_path().eval(n_photons, permanent)
@@ -231,8 +230,8 @@ class Create(Box):
         name = "Create()" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
-    def to_path(self):
-        array = Matrix[sp.Expr].id(len(self.photons)).array
+    def to_path(self, dtype=complex):
+        array = np.eye(len(self.photons))
         return Path(array, 0, len(self.photons), creations=self.photons)
 
 
@@ -252,8 +251,8 @@ class Delete(Box):
         name = "Delete()" if self.photons == (1,) else f"Delete({photons})"
         super().__init__(name, len(self.photons), 0)
 
-    def to_path(self):
-        array = Matrix[sp.Expr].id(len(self.photons)).array
+    def to_path(self, dtype=complex):
+        array = np.eye(len(self.photons))
         return Path(array, len(self.photons), 0, deletions=self.photons)
 
 
@@ -263,7 +262,7 @@ class Merge(Box):
 
     Example
     -------
-    >>> sqrt2 = Create() >> Scale(2 ** -.5) >> Delete()
+    >>> sqrt2 = Create() >> Rescale(2 ** -.5) >> Delete()
     >>> assert (sqrt2 @ Create() @ Create() >> Merge()).eval()\\
     ...     == Create(2).eval()
     """
@@ -271,8 +270,10 @@ class Merge(Box):
         self.n = n
         super().__init__("Merge()" if n == 2 else f"Merge({n})", n, 1)
 
-    def to_path(self):
-        return Path.merge(1, self.n)
+    def to_path(self, dtype=complex):
+        # array = underlying.Matrix[dtype].ones(self.n).array
+        array = np.ones(self.n)
+        return Path(array, self.n, 1)
 
 
 class Split(Box):
@@ -288,16 +289,19 @@ class Split(Box):
         self.n = n
         super().__init__("Split()" if n == 2 else f"Split({n})", 1, n)
 
-    def to_path(self):
-        return Path.copy(1, self.n)
+    def to_path(self, dtype=complex):
+        # array = underlying.Matrix[dtype].ones(self.n).array
+        array = np.ones(self.n)
+        # print(array)
+        return Path(array, 1, self.n)
 
 
-class Scale(Box):
+class Rescale(Box):
     def __init__(self, scalar: complex):
         self.scalar = scalar
-        super().__init__(f"Scalar({scalar})", 1, 1)
+        super().__init__(f"Rescale({scalar})", 1, 1)
 
-    def to_path(self):
+    def to_path(self, dtype=complex):
         return Path([self.scalar], 1, 1)
 
 
