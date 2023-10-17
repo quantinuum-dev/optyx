@@ -130,32 +130,6 @@ class Matrix(underlying.Matrix):
         return super().__repr__()[:-1]\
             + f", creations={self.creations}, selections={self.selections})"
 
-    def make_square(self):
-        """
-        Adds empty mode creations or selections in order to make the underlying matrix square.
-
-        >>> diagram = BS >> Merge()
-        >>> diagram.to_path().make_square()
-        Matrix([0.    +0.j    , 0.70710678+0.70710678j, 0.    +0.j    ,
-         0.70710678+0.70710678j], dom=2, cod=1, creations=(), selections=(0,))
-        """
-        diff = self.udom - self.ucod
-        if diff < 0:
-            creations = self.creations + -diff * (0,)
-            array = np.concatenate([
-                self.array[:len(self.creations)],
-                np.zeros((-diff, self.ucod), complex),
-                self.array[len(self.creations):]], axis=0)
-            return Matrix(array, self.dom, self.cod, creations, self.selections)
-        if diff > 0:
-            selections = self.selections + diff * (0,)
-            array = np.concatenate([
-                self.array[:, :len(self.selections)],
-                np.zeros((self.udom, diff), complex),
-                self.array[:, len(self.selections):]], axis=1)
-            return Matrix(array, self.dom, self.cod, self.creations, selections)
-        return self
-
     def eval(self, n_photons=0, permanent=permanent):
         """ Evaluates the ``Amplitudes'' of a QPath diagram """
         dom_basis = occupation_numbers(n_photons, self.dom)
