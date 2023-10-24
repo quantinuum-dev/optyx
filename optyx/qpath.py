@@ -3,6 +3,9 @@ The category ``qpath.Matrix'' of matrices with creations and annihilations, and 
 
 Example
 -------
+
+We can check the Hong-Ou-Mandel effect:
+
 >>> HOM = Create(1, 1) >> BS
 >>> HOM.eval()
 Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
@@ -11,6 +14,14 @@ Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.prob()
 Probabilities([0.5], dom=1, cod=1)
+
+We can construct a Bell state in dual rail encoding:
+>>> plus = Create() >> Split()
+>>> state = plus >> Id(1) @ plus @ Id(1)
+>>> bell = state @ state >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
+>>> H, V = Select(1, 0), Select(0, 1)
+>>> assert np.allclose((bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
+>>> assert np.allclose((bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
 """
 
 from __future__ import annotations
@@ -216,12 +227,19 @@ class Box(symmetric.Box, Diagram):
 
 
 class Gate(Box):
-    def __init__(self, name: str, dom: int, cod: int, array):
+    def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
         self.array = array
-        super().__init__(f"{name}({array})", dom, cod)
+        # self.is_dagger = is_dagger
+        super().__init__(f"{name}({array}, is_dagger={is_dagger})", dom, cod, is_dagger=is_dagger)
 
     def to_path(self, dtype=complex):
-        return Matrix(self.array, len(self.dom), len(self.cod))
+        if self.is_dagger:
+            return Matrix(self.array, len(self.dom), len(self.cod)).dagger()
+        else:
+            return Matrix(self.array, len(self.dom), len(self.cod))
+
+    def dagger(self) -> Gate:
+        return Gate(self.name, self.dom, self.cod, self.array, is_dagger= not self.is_dagger)
 
 
 class Swap(symmetric.Swap, Box):
@@ -250,6 +268,9 @@ class Create(Box):
         array = np.eye(len(self.photons))
         return Matrix(array, 0, len(self.photons), creations=self.photons)
 
+    def dagger(self) -> Diagram:
+        return Select(*self.photons)
+
 
 class Select(Box):
     """
@@ -271,6 +292,9 @@ class Select(Box):
         array = np.eye(len(self.photons))
         return Matrix(array, len(self.photons), 0, selections=self.photons)
 
+    def dagger(self) -> Diagram:
+        return Create(*self.photons)
+
 
 class Merge(Box):
     """
@@ -278,7 +302,7 @@ class Merge(Box):
 
     Example
     -------
-    >>> sqrt2 = Create() >> Rescale(2 ** -.5) >> Select()
+    >>> sqrt2 = Create() >> Scale(2 ** -.5) >> Select()
     >>> assert (sqrt2 @ Create() @ Create() >> Merge()).eval()\\
     ...     == Create(2).eval()
     """
@@ -290,6 +314,8 @@ class Merge(Box):
         array = np.ones(self.n)
         return Matrix(array, self.n, 1)
 
+    def dagger(self) -> Diagram:
+        return Split(n=self.n)
 
 class Split(Box):
     """
@@ -308,23 +334,46 @@ class Split(Box):
         array = np.ones(self.n)
         return Matrix(array, 1, self.n)
 
+    def dagger(self) -> Diagram:
+        return Merge(n=self.n)
 
-class Rescale(Box):
+
+class Scale(Box):
     """
+    Scale endomorphism with one input and one output.
 
     Example
     -------
-    >>> (Create(2) >> Split() >> Id(1) @ Rescale(0.5)).to_path()
+    >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).to_path()
     Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=())
-    >>> (Create(2) >> Split() >> Id(1) @ Rescale(0.5)).eval()
+    >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).eval()
     Amplitudes([1.    +0.j, 0.70710678+0.j, 0.25   +0.j], dom=1, cod=3)
     """
     def __init__(self, scalar: complex):
         self.scalar = scalar
-        super().__init__(f"Rescale({scalar})", 1, 1)
+        super().__init__(f"Scale({scalar})", 1, 1)
 
     def to_path(self, dtype=complex):
         return Matrix([self.scalar], 1, 1)
+
+
+class Phase(Box):
+    """ 
+    Phase shift with angle parameter between 0 and 1
+
+    Example
+    -------
+    >>> Phase(1/8).to_path()
+    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=())
+    >>> Phase(1/2).eval(1).array.round(3)
+    array([[-1.+0.j]])
+    """
+    def __init__(self, angle: float):
+        self.angle = angle
+        super().__init__(f"Phase({angle})", 1, 1)
+
+    def to_path(self, dtype=complex):
+        return Matrix([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
 
 
 Diagram.swap_factory = Swap
