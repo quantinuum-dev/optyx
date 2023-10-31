@@ -143,13 +143,14 @@ class Matrix(underlying.Matrix):
 
     def __repr__(self):
         return super().__repr__()[:-1]\
-            + f", creations={self.creations}, selections={self.selections}), normalisation={self.normalisation})"
+            + f", creations={self.creations}, selections={self.selections}, normalisation={self.normalisation})"
 
     def dilate(self):
         """
         >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
         >>> d = num_op.to_path()
-        >>> d.dilate()
+        >>> U = d.dilate()
+        >>> assert (U.umatrix >> U.umatrix.dagger()).array[0][0] == 1
         """
         A = self.umatrix.array
         U, S, Vh = np.linalg.svd(A)
@@ -169,6 +170,7 @@ class Matrix(underlying.Matrix):
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
         result = Amplitudes[self.dtype].zero(len(dom_basis), len(cod_basis))
+        normalisation = self.normalisation ** (n_photons + sum(self.creations))
         for i, open_creations in enumerate(dom_basis):
             for j, open_selections in enumerate(cod_basis):
                 creations = open_creations + self.creations
@@ -183,7 +185,7 @@ class Matrix(underlying.Matrix):
                     for _ in range(n)], axis=0)
                 divisor = np.sqrt(np.prod([
                     factorial(n) for n in creations + selections]))
-                result.array[i, j] = self.normalisation ** n_photons * permanent(matrix) / divisor
+                result.array[i, j] = normalisation * permanent(matrix) / divisor
         return result
 
     def prob(self, n_photons=0, permanent=permanent):
@@ -365,7 +367,7 @@ class Scale(Box):
     Example
     -------
     >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).to_path()
-    Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=())
+    Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=(), normalisation=1)
     >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).eval()
     Amplitudes([1.    +0.j, 0.70710678+0.j, 0.25   +0.j], dom=1, cod=3)
     """
@@ -384,7 +386,7 @@ class Phase(Box):
     Example
     -------
     >>> Phase(1/8).to_path()
-    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=())
+    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=(), normalisation=1)
     >>> Phase(1/2).eval(1).array.round(3)
     array([[-1.+0.j]])
     """
