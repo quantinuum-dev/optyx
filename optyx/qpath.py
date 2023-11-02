@@ -152,12 +152,15 @@ class Matrix(underlying.Matrix):
         >>> U = d.dilate()
         >>> assert (U.umatrix >> U.umatrix.dagger()).array[0][0] == 1
         """
+        dom, cod = self.umatrix.dom, self.umatrix.cod
         A = self.umatrix.array
         U, S, Vh = np.linalg.svd(A)
         s = max(S) if max(S) > 1 else 1
-        DA = U.dot(np.diag(np.sqrt( 1 - (S/s) ** 2))).dot(U.conj().T)
-        DAh = (Vh.conj().T).dot(np.diag(np.sqrt( 1 - (S/s) ** 2))).dot(Vh)
-        unitary = np.block([[A/s, DA], [DAh, A.conj().T/s]])
+        D0 = np.concatenate([np.sqrt( 1 - (S/s) ** 2), [0 for _ in range(dom - len(S))]])
+        D1 = np.concatenate([np.sqrt( 1 - (S/s) ** 2), [0 for _ in range(cod - len(S))]])
+        DA = U.dot(np.diag(D0)).dot(U.conj().T)
+        DAh = (Vh.conj().T).dot(np.diag(D1)).dot(Vh)
+        unitary = np.block([[A/s, DA], [DAh, - A.conj().T/s]])
         creations = self.creations + self.umatrix.cod * (0, )
         selections = self.selections + self.umatrix.dom * (0, )
         return Matrix(unitary, self.dom, self.cod, creations, selections, normalisation=s)
