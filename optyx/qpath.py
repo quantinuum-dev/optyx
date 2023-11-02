@@ -151,22 +151,22 @@ class Matrix(underlying.Matrix):
         >>> U = num_op.to_path().dilate()
         >>> assert np.allclose((U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
         >>> assert np.allclose(U.eval(5).array, num_op.eval(5).array)
-        >>> M = Matrix([1, 2, 1, 1, 1, 1], dom=2, cod=3)
+        >>> M = Matrix([1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0], dom=2, cod=3, creations=(1, ), selections=(2, ))
         >>> U1 = M.dilate()
-        >>> assert np.allclose((U1.umatrix >> U1.umatrix.dagger()).array, np.eye(M.dom + M.cod))
+        >>> assert np.allclose((U1.umatrix >> U1.umatrix.dagger()).array, np.eye(U1.umatrix.dom))
         >>> assert np.allclose(U1.eval(5).array, M.eval(5).array)
         """
         dom, cod = self.umatrix.dom, self.umatrix.cod
         A = self.umatrix.array
         U, S, Vh = np.linalg.svd(A)
         s = max(S) if max(S) > 1 else 1
-        D0 = np.concatenate([np.sqrt( 1 - (S/s) ** 2), [1 for _ in range(dom - len(S))]])
-        D1 = np.concatenate([np.sqrt( 1 - (S/s) ** 2), [1 for _ in range(cod - len(S))]])
+        D0 = np.concatenate([np.sqrt(1 - (S/s) ** 2), [1 for _ in range(dom - len(S))]])
+        D1 = np.concatenate([np.sqrt(1 - (S/s) ** 2), [1 for _ in range(cod - len(S))]])
         DA = U.dot(np.diag(D0)).dot(U.conj().T)
         DAh = (Vh.conj().T).dot(np.diag(D1)).dot(Vh)
         unitary = np.block([[A/s, DA], [DAh, - A.conj().T/s]])
-        creations = self.creations + self.umatrix.cod * (0, )
-        selections = self.selections + self.umatrix.dom * (0, )
+        creations = self.creations + cod * (0, )
+        selections = self.selections + dom * (0, )
         return Matrix(unitary, self.dom, self.cod, creations, selections, normalisation=s)
 
     def eval(self, n_photons=0, permanent=permanent):
