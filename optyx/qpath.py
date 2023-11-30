@@ -33,7 +33,7 @@ from discopy import symmetric
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy import matrix as underlying
-from discopy.utils import unbiased
+from discopy.utils import unbiased, factory_name, messages, assert_isparallel
 
 
 def permanent(M):
@@ -205,6 +205,7 @@ class Probabilities(underlying.Matrix):
     def __new__(cls, array, dom, cod):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
+
 @factory
 class Diagram(symmetric.Diagram):
     ty_factory = PRO
@@ -220,10 +221,46 @@ class Diagram(symmetric.Diagram):
     def prob(self, n_photons=0, permanent=permanent):
         return self.to_path().prob(n_photons, permanent)
 
+    def grad(self, var, **params):
+        """ Gradient with respect to :code:`var`. """
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        left, box, right, tail = tuple(self.inside[0]) + (self[1:], )
+        t1 = self.id(left) @ box.grad(var, **params) @ self.id(right) >> tail
+        t2 = self.id(left) @ box @ self.id(right) >> tail.grad(var, **params)
+        return t1 + t2
+
 
 class Box(symmetric.Box, Diagram):
     def to_path(self):
         raise NotImplementedError
+
+    def lambdify(self, *symbols, **kwargs):
+        # Non-symbolic gates can be returned directly
+        return lambda *xs: self
+
+    def subs(self, *args) -> Box:
+        syms, exprs = zip(*args)
+        return self.lambdify(*syms)(*exprs)
+
+
+class Sum(symmetric.Sum, Box):
+    __ambiguous_inheritance__ = (symmetric.Sum, )
+    ty_factory = PRO
+
+    def eval(self, n_photons=0, permanent=permanent):
+        return sum(term.eval(n_photons, permanent) for term in self.terms)
+
+    def prob(self, n_photons=0, permanent=permanent):
+        amplitudes = self.eval(n_photons, permanent)
+        probabilities = np.abs(amplitudes.array) ** 2
+        return Probabilities(probabilities, amplitudes.dom, amplitudes.cod)
+
+    def grad(self, var, **params):
+        """ Gradient with respect to :code:`var`. """
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return sum(term.grad(var, **params) for term in self.terms)
 
 
 class Gate(Box):
@@ -350,11 +387,31 @@ class Scale(Box):
     Amplitudes([1.    +0.j, 0.70710678+0.j, 0.25   +0.j], dom=1, cod=3)
     """
     def __init__(self, scalar: complex):
+        try:
+            scalar = complex(scalar)
+        except TypeError:
+            pass
         self.scalar = scalar
-        super().__init__(f"Scale({scalar})", 1, 1)
+        super().__init__(f"Scale({scalar})", 1, 1, data=scalar)
 
     def to_path(self, dtype=complex):
         return Matrix([self.scalar], 1, 1)
+
+    def dagger(self) -> Diagram:
+        return Scale(self.scalar.conjugate())
+
+    def grad(self, var):
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        s = self.scalar.diff(var) / self.scalar
+        num_op = Split() >> Id(1) @ Scale(s) >>\
+                            Id(1) @ (Select() >> Create()) >> Merge()
+        d = self >> num_op
+        return d
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+        return lambda *xs: type(self)(lambdify(symbols, self.scalar, **kwargs)(*xs))
 
 
 class Phase(Box):
@@ -370,10 +427,26 @@ class Phase(Box):
     """
     def __init__(self, angle: float):
         self.angle = angle
-        super().__init__(f"Phase({angle})", 1, 1)
+        super().__init__(f"Phase({angle})", 1, 1, data=angle)
 
     def to_path(self, dtype=complex):
         return Matrix([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+
+    def dagger(self) -> Diagram:
+        return Phase(-self.angle)
+
+    def grad(self, var):
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        s = 2j * np.pi * self.angle.diff(var)
+        num_op = Split() >> Id(1) @ Scale(s) >>\
+                            Id(1) @ (Select() >> Create()) >> Merge()
+        d = self >> num_op
+        return d
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+        return lambda *xs: type(self)(lambdify(symbols, self.angle, **kwargs)(*xs))
 
 
 Diagram.swap_factory = Swap
@@ -382,3 +455,5 @@ Id = Diagram.id
 
 bs_array = (1/2) ** (1/2) * np.array([[1j, 1], [1, 1j]])
 BS = Gate('BS', 2, 2, bs_array)
+
+Diagram.sum_factory = Sum
