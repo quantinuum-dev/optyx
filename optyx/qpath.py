@@ -1,5 +1,5 @@
 """
-The category ``qpath.Matrix'' of matrices with creations and annihilations, and the syntax ``qpath.Diagram''.
+The class ``qpath.Matrix'' of matrices with creations and annihilations, and the syntax ``qpath.Diagram''.
 
 Example
 -------
@@ -16,12 +16,34 @@ Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
 Probabilities([0.5], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
+
 >>> plus = Create() >> Split()
 >>> state = plus >> Id(1) @ plus @ Id(1)
 >>> bell = state @ state >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose((bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
 >>> assert np.allclose((bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
+
+We can define the number operator and compute its expectation.
+
+>>> num_op = Split() >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge()
+>>> expectation = lambda n: Create(n) >> num_op >> Select(n)
+>>> assert np.allclose(expectation(5).eval().array, np.array([5.]))
+
+We can differentiate the expectation values of optical circuits.
+
+>>> from sympy.abc import psi
+>>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
+>>> state = Create(2, 0) >> circuit
+>>> observable = num_op @ Id(1)
+>>> expectation = state >> observable >> state.dagger()
+>>> assert np.allclose(expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
+>>> assert np.allclose(expectation.subs((psi, 0)).eval().array, np.array([2.]))
+>>> assert np.allclose(expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(expectation.grad(psi).subs((psi, 1/4)).eval().array, np.array([-2*np.pi]))
+>>> assert np.allclose(expectation.grad(psi).subs((psi, 0)).eval().array, np.array([0.]))
+>>> assert np.allclose(expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array, np.array([0.]))
 """
 
 from __future__ import annotations
@@ -84,13 +106,16 @@ def occupation_numbers(n_photons, m_modes):
 
 class Matrix(underlying.Matrix):
     """
+    Qpath.Matrix is the normal form of QPath diagrams: 
+    matrices with creations and selections (or annihilations). 
+    These have Fock space :class:``Amplitudes`` computed by permanent evaluation.
+
+    >>> array = np.array([[1, 1], [1, 0]])
+    >>> matrix = Matrix(array, 1, 1, creations=(1,), selections=(1,))
+    >>> matrix.eval(3)
+    Amplitudes([3.+0.j], dom=1, cod=1)
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
-    >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
-    >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
-    >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
-    >>> assert (Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Select(1)).eval(3) == num_op.eval(3)
-    >>> assert (num_op @ (Create(1) >> Select(1))).eval(3) == num_op.eval(3)
-    >>> assert (Create(1) @ Id(1) >> Id(1) @ Split() >> Select(1) @ Id(2)).eval(3) == Split().eval(3)
+    >>> assert np.allclose(num_op.eval(5).array, matrix.eval(5).array)
     """
     dtype = complex
 
@@ -267,7 +292,7 @@ class Gate(Box):
     def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
         self.array = array
         # self.is_dagger = is_dagger
-        super().__init__(f"{name}({array}, is_dagger={is_dagger})", dom, cod, is_dagger=is_dagger)
+        super().__init__(name, dom, cod, is_dagger=is_dagger)
 
     def to_path(self, dtype=complex):
         if self.is_dagger:
