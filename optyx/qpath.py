@@ -94,16 +94,18 @@ class Matrix(underlying.Matrix):
     """
     dtype = complex
 
-    def __new__(cls, array, dom, cod, creations=(), selections=()):
+    def __new__(cls, array, dom, cod, creations=(), selections=(), normalisation=1):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
     def __init__(self, array, dom: int, cod: int,
                  creations: tuple[int, ...] = (),
-                 selections: tuple[int, ...] = ()):
+                 selections: tuple[int, ...] = (),
+                 normalisation = 1):
         self.udom, self.ucod = dom + len(creations), cod + len(selections)
         super().__init__(array, self.udom, self.ucod)
         self.dom, self.cod = dom, cod
         self.creations, self.selections = creations, selections
+        self.normalisation = normalisation
 
     @property
     def umatrix(self) -> underlying.Matrix[self.dtype]:
@@ -118,7 +120,8 @@ class Matrix(underlying.Matrix):
         umatrix = self.umatrix @ b >> self.cod @ M.swap(c, b) >> other.umatrix @ c
         creations = self.creations + other.creations
         selections = other.selections + self.selections
-        return Matrix(umatrix.array, self.dom, other.cod, creations, selections)
+        normalisation = self.normalisation * other.normalisation
+        return Matrix(umatrix.array, self.dom, other.cod, creations, selections, normalisation)
 
     @unbiased
     def tensor(self, other: Matrix) -> Matrix:
@@ -131,15 +134,40 @@ class Matrix(underlying.Matrix):
         dom, cod = self.dom + other.dom, self.cod + other.cod
         creations = self.creations + other.creations
         selections = self.selections + other.selections
-        return Matrix(umatrix.array, dom, cod, creations, selections)
+        normalisation = self.normalisation * other.normalisation
+        return Matrix(umatrix.array, dom, cod, creations, selections, normalisation)
 
     def dagger(self) -> Matrix:
         array = self.umatrix.dagger().array
-        return Matrix(array, self.cod, self.dom, self.selections, self.creations)
+        return Matrix(array, self.cod, self.dom, self.selections, self.creations, self.normalisation.conjugate())
 
     def __repr__(self):
         return super().__repr__()[:-1]\
-            + f", creations={self.creations}, selections={self.selections})"
+            + f", creations={self.creations}, selections={self.selections}, normalisation={self.normalisation})"
+
+    def dilate(self):
+        """
+        >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
+        >>> U = num_op.to_path().dilate()
+        >>> assert np.allclose((U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
+        >>> assert np.allclose(U.eval(5).array, num_op.eval(5).array)
+        >>> M = Matrix([1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0], dom=2, cod=3, creations=(1, ), selections=(2, ))
+        >>> U1 = M.dilate()
+        >>> assert np.allclose((U1.umatrix >> U1.umatrix.dagger()).array, np.eye(U1.umatrix.dom))
+        >>> assert np.allclose(U1.eval(5).array, M.eval(5).array)
+        """
+        dom, cod = self.umatrix.dom, self.umatrix.cod
+        A = self.umatrix.array
+        U, S, Vh = np.linalg.svd(A)
+        s = max(S) if max(S) > 1 else 1
+        D0 = np.concatenate([np.sqrt(1 - (S/s) ** 2), [1 for _ in range(dom - len(S))]])
+        D1 = np.concatenate([np.sqrt(1 - (S/s) ** 2), [1 for _ in range(cod - len(S))]])
+        DA = U.dot(np.diag(D0)).dot(U.conj().T)
+        DAh = (Vh.conj().T).dot(np.diag(D1)).dot(Vh)
+        unitary = np.block([[A/s, DA], [DAh, - A.conj().T/s]])
+        creations = self.creations + cod * (0, )
+        selections = self.selections + dom * (0, )
+        return Matrix(unitary, self.dom, self.cod, creations, selections, normalisation=s)
 
     def eval(self, n_photons=0, permanent=permanent):
         """ Evaluates the ``Amplitudes'' of a QPath diagram """
@@ -149,6 +177,7 @@ class Matrix(underlying.Matrix):
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
         result = Amplitudes[self.dtype].zero(len(dom_basis), len(cod_basis))
+        normalisation = self.normalisation ** (n_photons + sum(self.creations))
         for i, open_creations in enumerate(dom_basis):
             for j, open_selections in enumerate(cod_basis):
                 creations = open_creations + self.creations
@@ -163,7 +192,7 @@ class Matrix(underlying.Matrix):
                     for _ in range(n)], axis=0)
                 divisor = np.sqrt(np.prod([
                     factorial(n) for n in creations + selections]))
-                result.array[i, j] = permanent(matrix) / divisor
+                result.array[i, j] = normalisation * permanent(matrix) / divisor
         return result
 
     def prob(self, n_photons=0, permanent=permanent):
@@ -345,7 +374,7 @@ class Scale(Box):
     Example
     -------
     >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).to_path()
-    Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=())
+    Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=(), normalisation=1)
     >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).eval()
     Amplitudes([1.    +0.j, 0.70710678+0.j, 0.25   +0.j], dom=1, cod=3)
     """
@@ -364,7 +393,7 @@ class Phase(Box):
     Example
     -------
     >>> Phase(1/8).to_path()
-    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=())
+    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=(), normalisation=1)
     >>> Phase(1/2).eval(1).array.round(3)
     array([[-1.+0.j]])
     """
