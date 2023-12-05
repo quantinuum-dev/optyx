@@ -89,6 +89,12 @@ We can differentiate the expectation values of optical circuits.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+
+import perceval as pcvl
+import perceval.components as comp
+
+import numpy as np
 from math import factorial
 import numpy as np
 
@@ -326,13 +332,104 @@ class Matrix(underlying.Matrix):
                 )
         return result
 
-    def prob(self, n_photons=0, permanent=npperm) -> Probabilities:
+    def prob(self, n_photons=0, permanent=npperm, with_perceval=False) -> Probabilities:
         """ Computes the Born rule of the amplitudes of the :class:`Matrix`"""
+        if with_perceval:
+            return self.prob_with_perceval(n_photons)
         amplitudes = self.eval(n_photons, permanent=npperm)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )
+
+    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS"):
+        """
+        Returns a :class:`perceval.algorithm.Analyzer` describing the probabilities of the :class:`Matrix`
+
+        Note
+        ----
+        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called to create a unitary.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> theta, phi = np.pi / 4, 0
+        >>> r = np.exp(1j * phi) * np.sin(theta)
+        >>> t = np.cos(theta)
+        >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
+        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) @ Scale(-np.conj(r)) >> Merge() @ Merge()
+        >>> analyzer = optyx_bs.prob_with_perceval(n_photons=1)
+        >>> analyzer.compute()["results"]
+        MatrixN([[0.5+0.j, 0.5+0.j],
+                 [0.5+0.j, 0.5+0.j]])
+        >>> z_spider = optyx_bs >> Scale(2) @ 1 >> optyx_bs
+        >>> analyzer = z_spider.prob_with_perceval(n_photons=1)
+        >>> analyzer.compute()["results"]
+        MatrixN([[0.1+0.j, 0.9+0.j],
+                 [0.9+0.j, 0.1+0.j]])
+        """
+        if not self._umatrix_is_is_unitary():
+            self = self.dilate()
+
+        p = self.to_perceval(simulator)
+        states = [
+            pcvl.BasicState(o) for o in occupation_numbers(n_photons, self.dom)
+        ]
+        return pcvl.algorithm.Analyzer(p, states, '*')
+
+    def _umatrix_to_perceval_Circuit(self) -> pcvl.Circuit:
+        _mzi_triangle = (pcvl.Circuit(2)
+                         // comp.BS()
+                         // (0, comp.PS(phi=pcvl.Parameter("phi_1")))
+                         // comp.BS()
+                         // (0, comp.PS(phi=pcvl.Parameter("phi_2"))))
+
+        m = pcvl.Matrix(self.array)
+        return pcvl.Circuit.decomposition(
+            m, _mzi_triangle, phase_shifter_fn=comp.PS, shape="triangle",
+            max_try=1)
+
+    def _to_perceval_PostSelect(self) -> pcvl.PostSelect:
+        post = pcvl.PostSelect()
+        for i, p in enumerate(self.selections):
+            post.eq(i, p)
+        return post
+
+    def _umatrix_is_is_unitary(self) -> bool:
+        m = self.umatrix.array
+        return np.allclose(np.eye(m.shape[0]), m.dot(m.conj().T))
+
+    def to_perceval(self, simulator: str = "SLOS") -> pcvl.Processor:
+        """
+        Returns a ``perceval.Processor'' corresponding to the ``Matrix''.
+
+        Note
+        ----
+        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called to create a unitary.
+
+        >>> import numpy as np
+        >>> theta, phi = np.pi / 4, 0
+        >>> r = np.exp(1j * phi) * np.sin(theta)
+        >>> t = np.cos(theta)
+        >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
+        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) @ Scale(-np.conj(r)) >> Merge() @ Merge()
+        >>> optyx_bs.to_perceval()
+        <perceval.components.processor.Processor object at ...>
+        """
+        if not self._umatrix_is_is_unitary():
+            self = self.dilate()
+
+        circ = self._umatrix_to_perceval_Circuit()
+        post = self._to_perceval_PostSelect()
+
+        proc = pcvl.Processor(simulator)
+        proc.set_circuit(circ)
+        proc.set_postselection(post)
+
+        for i, c in enumerate(self.creations):
+            proc.add_herald(i, c)
+
+        return proc
 
 
 class Amplitudes(underlying.Matrix):
@@ -391,16 +488,26 @@ class Diagram(symmetric.Diagram):
     def eval(self, n_photons=0, permanent=npperm, dtype=complex):
         return self.to_path(dtype).eval(n_photons, permanent)
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex):
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex, with_perceval=False):
         return self.to_path(dtype).prob(n_photons, permanent)
+
+    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS"):
+        return self.to_path().prob_with_perceval(n_photons, simulator)
 
     grad = tensor.Diagram.grad
 
+    def to_perceval(self) -> pcvl.Processor:
+        return self.to_path().to_perceval()
 
-class Box(symmetric.Box, Diagram):
+class Box(symmetric.Box, Diagram, ABC):
     """ Box in a :class:`Diagram`"""
+    @abstractmethod
     def to_path(self, dtype=complex):
-        raise NotImplementedError
+        pass
+
+    @abstractmethod
+    def dagger(self):
+        pass
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
@@ -447,6 +554,11 @@ class Sum(symmetric.Sum, Box):
 
 class Swap(symmetric.Swap, Box):
     """ Swap in a :class:`Diagram`"""
+    def to_path(self):
+        return Matrix([0, 1, 1, 0], 2, 2)
+
+    def dagger(self):
+        return self
 
 
 class Create(Box):
@@ -727,6 +839,7 @@ class Gate(Box):
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
 Id = Diagram.id
+ID = Id(PRO(1))
 
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 BS = Gate("BS", 2, 2, bs_array)
