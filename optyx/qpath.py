@@ -1,8 +1,8 @@
 """
 The class ``qpath.Matrix'' of matrices with creations and annihilations, and the syntax ``qpath.Diagram''.
 
-Example
--------
+Examples
+--------
 
 We can check the Hong-Ou-Mandel effect:
 
@@ -133,7 +133,7 @@ class Matrix(underlying.Matrix):
     @property
     def umatrix(self) -> underlying.Matrix[self.dtype]:
         return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
-
+    
     @unbiased
     def then(self, other: Matrix) -> Matrix:
         assert_iscomposable(self, other)
@@ -143,7 +143,7 @@ class Matrix(underlying.Matrix):
         umatrix = self.umatrix @ b >> self.cod @ M.swap(c, b) >> other.umatrix @ c
         creations = self.creations + other.creations
         selections = other.selections + self.selections
-        return Matrix(umatrix.array, self.dom, other.cod, creations, selections)
+        return Matrix[self.dtype](umatrix.array, self.dom, other.cod, creations, selections)
 
     @unbiased
     def tensor(self, other: Matrix) -> Matrix:
@@ -156,11 +156,11 @@ class Matrix(underlying.Matrix):
         dom, cod = self.dom + other.dom, self.cod + other.cod
         creations = self.creations + other.creations
         selections = self.selections + other.selections
-        return Matrix(umatrix.array, dom, cod, creations, selections)
+        return Matrix[self.dtype](umatrix.array, dom, cod, creations, selections)
 
     def dagger(self) -> Matrix:
         array = self.umatrix.dagger().array
-        return Matrix(array, self.cod, self.dom, self.selections, self.creations)
+        return Matrix[self.dtype](array, self.cod, self.dom, self.selections, self.creations)
 
     def __repr__(self):
         return super().__repr__()[:-1]\
@@ -194,7 +194,7 @@ class Matrix(underlying.Matrix):
     def prob(self, n_photons=0, permanent=permanent):
         amplitudes = self.eval(n_photons, permanent)
         probabilities = np.abs(amplitudes.array) ** 2
-        return Probabilities(probabilities, amplitudes.dom, amplitudes.cod)
+        return Probabilities[self.dtype](probabilities, amplitudes.dom, amplitudes.cod)
 
 
 class Amplitudes(underlying.Matrix):
@@ -240,11 +240,11 @@ class Diagram(symmetric.Diagram):
             ob=len, ar=lambda f: f.to_path(dtype=dtype),
             cod=symmetric.Category(int, Matrix[dtype]))(self)
 
-    def eval(self, n_photons=0, permanent=permanent):
-        return self.to_path().eval(n_photons, permanent)
+    def eval(self, n_photons=0, permanent=permanent, dtype=complex):
+        return self.to_path(dtype).eval(n_photons, permanent)
 
-    def prob(self, n_photons=0, permanent=permanent):
-        return self.to_path().prob(n_photons, permanent)
+    def prob(self, n_photons=0, permanent=permanent, dtype=complex):
+        return self.to_path(dtype).prob(n_photons, permanent)
 
     def grad(self, var, **params):
         """ Gradient with respect to :code:`var`. """
@@ -257,7 +257,7 @@ class Diagram(symmetric.Diagram):
 
 
 class Box(symmetric.Box, Diagram):
-    def to_path(self):
+    def to_path(self, dtype=complex):
         raise NotImplementedError
 
     def lambdify(self, *symbols, **kwargs):
@@ -273,13 +273,13 @@ class Sum(symmetric.Sum, Box):
     __ambiguous_inheritance__ = (symmetric.Sum, )
     ty_factory = PRO
 
-    def eval(self, n_photons=0, permanent=permanent):
-        return sum(term.eval(n_photons, permanent) for term in self.terms)
+    def eval(self, n_photons=0, permanent=permanent, dtype=complex):
+        return sum(term.eval(n_photons, permanent, dtype) for term in self.terms)
 
-    def prob(self, n_photons=0, permanent=permanent):
-        amplitudes = self.eval(n_photons, permanent)
+    def prob(self, n_photons=0, permanent=permanent, dtype=complex):
+        amplitudes = self.eval(n_photons, permanent, dtype)
         probabilities = np.abs(amplitudes.array) ** 2
-        return Probabilities(probabilities, amplitudes.dom, amplitudes.cod)
+        return Probabilities[dtype](probabilities, amplitudes.dom, amplitudes.cod)
 
     def grad(self, var, **params):
         """ Gradient with respect to :code:`var`. """
@@ -291,14 +291,13 @@ class Sum(symmetric.Sum, Box):
 class Gate(Box):
     def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
         self.array = array
-        # self.is_dagger = is_dagger
         super().__init__(name, dom, cod, is_dagger=is_dagger)
 
     def to_path(self, dtype=complex):
         if self.is_dagger:
-            return Matrix(self.array, len(self.dom), len(self.cod)).dagger()
+            return Matrix[dtype](self.array, len(self.dom), len(self.cod)).dagger()
         else:
-            return Matrix(self.array, len(self.dom), len(self.cod))
+            return Matrix[dtype](self.array, len(self.dom), len(self.cod))
 
     def dagger(self) -> Gate:
         return Gate(self.name, self.dom, self.cod, self.array, is_dagger= not self.is_dagger)
@@ -328,7 +327,7 @@ class Create(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix(array, 0, len(self.photons), creations=self.photons)
+        return Matrix[dtype](array, 0, len(self.photons), creations=self.photons)
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
@@ -352,7 +351,7 @@ class Select(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix(array, len(self.photons), 0, selections=self.photons)
+        return Matrix[dtype](array, len(self.photons), 0, selections=self.photons)
 
     def dagger(self) -> Diagram:
         return Create(*self.photons)
@@ -374,7 +373,7 @@ class Merge(Box):
 
     def to_path(self, dtype=complex):
         array = np.ones(self.n)
-        return Matrix(array, self.n, 1)
+        return Matrix[dtype](array, self.n, 1)
 
     def dagger(self) -> Diagram:
         return Split(n=self.n)
@@ -394,7 +393,7 @@ class Split(Box):
 
     def to_path(self, dtype=complex):
         array = np.ones(self.n)
-        return Matrix(array, 1, self.n)
+        return Matrix[dtype](array, 1, self.n)
 
     def dagger(self) -> Diagram:
         return Merge(n=self.n)
@@ -420,7 +419,7 @@ class Scale(Box):
         super().__init__(f"Scale({scalar})", 1, 1, data=scalar)
 
     def to_path(self, dtype=complex):
-        return Matrix([self.scalar], 1, 1)
+        return Matrix[dtype]([self.scalar], 1, 1)
 
     def dagger(self) -> Diagram:
         return Scale(self.scalar.conjugate())
@@ -455,7 +454,7 @@ class Phase(Box):
         super().__init__(f"Phase({angle})", 1, 1, data=angle)
 
     def to_path(self, dtype=complex):
-        return Matrix([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+        return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
 
     def dagger(self) -> Diagram:
         return Phase(-self.angle)
