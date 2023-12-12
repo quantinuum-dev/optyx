@@ -8,9 +8,8 @@ description = "optyx"
 readme = "README.md"
 requires-python = ">=3.9"
 keywords = [
-    "category theory",
-    "string diagrams",
-    "quantum computing"
+    "quantum computing",
+    "string diagrams"
 ]
 authors = [
   {name = "Giovanni de Felice"},
