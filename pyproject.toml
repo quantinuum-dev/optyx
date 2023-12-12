@@ -80,4 +80,4 @@ pythonpath = [
 testpaths = [
     "optyx",
 ]
-addopts = "--doctest-modules --nbmake"
+addopts = "--doctest-modules"
