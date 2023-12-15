@@ -344,7 +344,7 @@ class Matrix(underlying.Matrix):
 
     def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS"):
         """
-        Returns a :class:`perceval.algorithm.Analyzer` describing the probabilities of the :class:`Matrix`
+        Returns a :class:`Probabilities` describing the probabilities of the :class:`Matrix`
 
         Note
         ----
@@ -358,15 +358,11 @@ class Matrix(underlying.Matrix):
         >>> t = np.cos(theta)
         >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
         ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) @ Scale(-np.conj(r)) >> Merge() @ Merge()
-        >>> analyzer = optyx_bs.prob_with_perceval(n_photons=1)
-        >>> analyzer.compute()["results"]
-        MatrixN([[0.5+0.j, 0.5+0.j],
-                 [0.5+0.j, 0.5+0.j]])
+        >>> optyx_bs.prob_with_perceval(n_photons=1)
+        Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
         >>> z_spider = optyx_bs >> Scale(2) @ 1 >> optyx_bs
-        >>> analyzer = z_spider.prob_with_perceval(n_photons=1)
-        >>> analyzer.compute()["results"]
-        MatrixN([[0.1+0.j, 0.9+0.j],
-                 [0.9+0.j, 0.1+0.j]])
+        >>> z_spider.prob_with_perceval(n_photons=1)
+        Probabilities([0.9, 0.1, 0.1, 0.9], dom=2, cod=2)
         """
         if not self._umatrix_is_is_unitary():
             self = self.dilate()
@@ -375,7 +371,13 @@ class Matrix(underlying.Matrix):
         states = [
             pcvl.BasicState(o) for o in occupation_numbers(n_photons, self.dom)
         ]
-        return pcvl.algorithm.Analyzer(p, states, '*')
+        analyzer = pcvl.algorithm.Analyzer(p, states, '*')
+        result = analyzer.compute()["results"]
+        ret = []
+        for o in occupation_numbers(1, 2):
+            ret += np.real(result[analyzer.col(pcvl.BasicState(o))]).tolist()
+        return Probabilities[float](ret, dom=self.dom, cod=self.cod)
+
 
     def _umatrix_to_perceval_Circuit(self) -> pcvl.Circuit:
         _mzi_triangle = (pcvl.Circuit(2)
@@ -469,6 +471,11 @@ class Probabilities(underlying.Matrix):
     def __new__(cls, array, dom, cod):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
+    @classmethod
+    def from_pcvl_Analyzer(cls, analizer: pcvl.algorithm.Analyzer) -> "Probabilities":
+        res = analizer.compute()
+        for occ in occupation_numbers(1, 1):
+            pass
 
 @factory
 class Diagram(symmetric.Diagram):
