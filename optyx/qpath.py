@@ -240,8 +240,8 @@ class Diagram(symmetric.Diagram):
 
     def to_path(self, dtype=complex):
         return symmetric.Functor(
-            ob=len, ar=lambda f: f.to_path(dtype=dtype),
-            cod=symmetric.Category(int, Matrix[dtype]))(self)
+            ob=len, ar=lambda f: f.to_path(),
+            cod=symmetric.Category(int, Matrix))(self)
 
     def eval(self, n_photons=0, permanent=permanent):
         return self.to_path().eval(n_photons, permanent)
@@ -259,7 +259,7 @@ class Gate(Box):
     def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
         self.array = array
         # self.is_dagger = is_dagger
-        super().__init__(f"{name}({array}, is_dagger={is_dagger})", dom, cod, is_dagger=is_dagger)
+        super().__init__(f"{name}", dom, cod, is_dagger=is_dagger)
 
     def to_path(self, dtype=complex):
         if self.is_dagger:
@@ -403,6 +403,18 @@ class Phase(Box):
 
     def to_path(self, dtype=complex):
         return Matrix([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+
+
+class Scalar(Box):
+    """ 
+    Scalar in a QPath diagram
+
+    Example
+    -------
+    """
+    def __init__(self, scalar: complex):
+        self.scalar = scalar
+        super().__init__(f"Scalar({scalar})", 0, 0)
 
 
 Diagram.swap_factory = Swap
