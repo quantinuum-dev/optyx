@@ -14,6 +14,7 @@ from optyx.qpath import (
     Select,
     Endo,
     Phase,
+    occupation_numbers,
 )
 
 from optyx._version import (
