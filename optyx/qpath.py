@@ -94,18 +94,19 @@ class Matrix(underlying.Matrix):
     """
     dtype = complex
 
-    def __new__(cls, array, dom, cod, creations=(), selections=(), normalisation=1):
+    def __new__(cls, array, dom, cod, creations=(), selections=(), normalisation=1, scalar=1):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
     def __init__(self, array, dom: int, cod: int,
                  creations: tuple[int, ...] = (),
                  selections: tuple[int, ...] = (),
-                 normalisation = 1):
+                 normalisation = 1, scalar = 1):
         self.udom, self.ucod = dom + len(creations), cod + len(selections)
         super().__init__(array, self.udom, self.ucod)
         self.dom, self.cod = dom, cod
         self.creations, self.selections = creations, selections
         self.normalisation = normalisation
+        self.scalar = scalar
 
     @property
     def umatrix(self) -> underlying.Matrix[self.dtype]:
@@ -121,7 +122,8 @@ class Matrix(underlying.Matrix):
         creations = self.creations + other.creations
         selections = other.selections + self.selections
         normalisation = self.normalisation * other.normalisation
-        return Matrix(umatrix.array, self.dom, other.cod, creations, selections, normalisation)
+        scalar = self.scalar * other.scalar
+        return Matrix(umatrix.array, self.dom, other.cod, creations, selections, normalisation, scalar)
 
     @unbiased
     def tensor(self, other: Matrix) -> Matrix:
@@ -135,15 +137,18 @@ class Matrix(underlying.Matrix):
         creations = self.creations + other.creations
         selections = self.selections + other.selections
         normalisation = self.normalisation * other.normalisation
-        return Matrix(umatrix.array, dom, cod, creations, selections, normalisation)
+        scalar = self.scalar * other.scalar
+        return Matrix(umatrix.array, dom, cod, creations, selections, normalisation, scalar)
 
     def dagger(self) -> Matrix:
         array = self.umatrix.dagger().array
-        return Matrix(array, self.cod, self.dom, self.selections, self.creations, self.normalisation.conjugate())
+        normalisation = self.normalisation.conjugate()
+        scalar = self.scalar.conjugate()
+        return Matrix(array, self.cod, self.dom, self.selections, self.creations, normalisation, scalar)
 
     def __repr__(self):
         return super().__repr__()[:-1]\
-            + f", creations={self.creations}, selections={self.selections}, normalisation={self.normalisation})"
+            + f", creations={self.creations}, selections={self.selections}, normalisation={self.normalisation}, scalar={self.scalar})"
 
     def dilate(self):
         """
@@ -151,7 +156,8 @@ class Matrix(underlying.Matrix):
         >>> U = num_op.to_path().dilate()
         >>> assert np.allclose((U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
         >>> assert np.allclose(U.eval(5).array, num_op.eval(5).array)
-        >>> M = Matrix([1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0], dom=2, cod=3, creations=(1, ), selections=(2, ))
+        >>> M = Matrix([1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0], \\
+        ...     dom=2, cod=3, creations=(1, ), selections=(2, ))
         >>> U1 = M.dilate()
         >>> assert np.allclose((U1.umatrix >> U1.umatrix.dagger()).array, np.eye(U1.umatrix.dom))
         >>> assert np.allclose(U1.eval(5).array, M.eval(5).array)
@@ -167,7 +173,7 @@ class Matrix(underlying.Matrix):
         unitary = np.block([[A/s, DA], [DAh, - A.conj().T/s]])
         creations = self.creations + cod * (0, )
         selections = self.selections + dom * (0, )
-        return Matrix(unitary, self.dom, self.cod, creations, selections, normalisation=s)
+        return Matrix(unitary, self.dom, self.cod, creations, selections, normalisation=s, scalar=self.scalar)
 
     def eval(self, n_photons=0, permanent=permanent):
         """ Evaluates the ``Amplitudes'' of a QPath diagram """
@@ -192,7 +198,7 @@ class Matrix(underlying.Matrix):
                     for _ in range(n)], axis=0)
                 divisor = np.sqrt(np.prod([
                     factorial(n) for n in creations + selections]))
-                result.array[i, j] = normalisation * permanent(matrix) / divisor
+                result.array[i, j] = self.scalar * normalisation * permanent(matrix) / divisor
         return result
 
     def prob(self, n_photons=0, permanent=permanent):
@@ -374,7 +380,7 @@ class Scale(Box):
     Example
     -------
     >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).to_path()
-    Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=(), normalisation=1)
+    Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=(), normalisation=1, scalar=1)
     >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).eval()
     Amplitudes([1.    +0.j, 0.70710678+0.j, 0.25   +0.j], dom=1, cod=3)
     """
@@ -393,7 +399,7 @@ class Phase(Box):
     Example
     -------
     >>> Phase(1/8).to_path()
-    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=(), normalisation=1)
+    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=(), normalisation=1, scalar=1)
     >>> Phase(1/2).eval(1).array.round(3)
     array([[-1.+0.j]])
     """
@@ -411,11 +417,17 @@ class Scalar(Box):
 
     Example
     -------
+    >>> Scalar(0.45).to_path()
+    Matrix([], dom=0, cod=0, creations=(), selections=(), normalisation=1, scalar=0.45)
+    >>> diagram = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> assert np.isclose(diagram.eval().array[0], 1) 
     """
     def __init__(self, scalar: complex):
         self.scalar = scalar
         super().__init__(f"Scalar({scalar})", 0, 0)
 
+    def to_path(self, dtype=complex):
+        return Matrix([], 0, 0, scalar=self.scalar)
 
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
