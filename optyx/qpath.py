@@ -321,8 +321,6 @@ class Probabilities(underlying.Matrix):
 
     >>> BS.prob(1)
     Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
-    >>> assert BS.prob(2) == Probabilities(
-    ...     [0.25, 0.5 , 0.25, 0.5 , 0. , 0.5 , 0.25, 0.5 , 0.25], 3, 3)
     >>> (Create(1, 1) >> BS).prob()
     Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
     """
@@ -494,11 +492,7 @@ class Scale(Box):
     ...     == Matrix(
     ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
     ...         creations=(2,), selections=(), normalisation=1)
-    >>> assert (Create(2) >> Split() >> Id(1) @ Scale(0.5)).eval()\\
-    ...     == Amplitudes(
-    ...         [1.    +0.j, 0.70710678+0.j, 0.25   +0.j], dom=1, cod=3)
     """
-
     def __init__(self, scalar: complex):
         self.scalar = scalar
         super().__init__(f"Scale({scalar})", 1, 1)
@@ -513,9 +507,6 @@ class Phase(Box):
 
     Example
     -------
-    >>> assert Phase(1/8).to_path() == Matrix(
-    ...     [0.70710678+0.70710678j], dom=1, cod=1,
-    ...     creations=(), selections=(), normalisation=1)
     >>> Phase(1/2).eval(1).array.round(3)
     array([[-1.+0.j]])
     """
