@@ -37,6 +37,10 @@ test = [
 ]
 docs = [
     "sphinx",
+    "myst-parser",
+    "nbsphinx",
+    "ipykernel",
+    "IPython",
 ]
 
 [project.urls]
