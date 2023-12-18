@@ -34,17 +34,16 @@ dependencies = [
 test = [
     "pytest",
     "coverage",
+    "pyproject-flake8",
+    "pylint",
 ]
-docs  = [
+docs = [
     "sphinx",
-    "sphinx-book-theme == 1.0.*",
-    "myst-parser == 2.0.*",
-    "nbsphinx == 0.9.*",
-    "ipykernel == 6.23.*",
-    "sphinxcontrib-youtube == 1.4.*",
-    "jinja2 == 3.1.*",
-    "sphinxcontrib-bibtex == 2.5.*",
-    "IPython"
+    "myst-parser",
+    "nbsphinx",
+    "ipykernel",
+    "IPython",
+    "sphinx-rtd-theme",
 ]
 
 [project.urls]
@@ -60,7 +59,7 @@ packages = [
 ]
 
 [tool.setuptools_scm]
-write_to = "optyx/version.py"
+write_to = "optyx/_version.py"
 
 [tool.flake8]
 extend-ignore = [
@@ -81,3 +80,14 @@ testpaths = [
     "optyx",
 ]
 addopts = "--doctest-modules"
+
+[tool.black]
+target-version = ["py38", "py39", "py310", "py311"]
+line-length = 79
+
+[tool.pylint.'MESSAGES CONTROL']
+disable = """
+too-many-ancestors,
+too-many-arguments
+"""
+ignore-patterns = "_version.py"
