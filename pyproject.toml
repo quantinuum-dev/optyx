@@ -34,6 +34,8 @@ dependencies = [
 test = [
     "pytest",
     "coverage",
+    "pyproject-flake8",
+    "pylint",
 ]
 docs = [
     "sphinx",
@@ -78,3 +80,14 @@ testpaths = [
     "optyx",
 ]
 addopts = "--doctest-modules"
+
+[tool.black]
+target-version = ["py38", "py39", "py310", "py311"]
+line-length = 79
+
+[tool.pylint.'MESSAGES CONTROL']
+disable = """
+too-many-ancestors,
+too-many-arguments
+"""
+ignore-patterns = "_version.py"
