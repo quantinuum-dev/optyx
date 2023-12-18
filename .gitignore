@@ -22,4 +22,4 @@ docs/_api/*
 build/*
 dist/*
 todo.md
-optyx/version.py
+optyx/_version.py
