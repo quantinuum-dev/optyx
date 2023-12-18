@@ -4,14 +4,21 @@ ZX diagrams and their mapping to :class:`qpath.Diagram`.
 Example
 -------
 
+>>> ket = lambda x: zx.X(0, 1, 0.5 if x == 1 else 0)
+>>> cnot = zx.Z(1, 2) @ zx.Id(1) >> zx.Id(1) @ zx.X(2, 1)
+>>> control = lambda x: ket(x) @ zx.Id(1) >> cnot >> ket(x).dagger() @ zx.Id(1)
+>>> assert np.allclose(zx_to_path(control(0)).eval(1).array, control(0).to_pyzx().to_tensor())
+>>> assert np.allclose(zx_to_path(control(1)).eval(1).array, control(1).to_pyzx().to_tensor())
+
+Corner case where `to_pyzx` and `zx_to_path` agree only up to global phase.
+
 >>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25) >> zx.Id(1) @ zx.Z(2, 1) >> zx.X(2, 0, 0.35)
 >>> print(decomp(diagram)[:3])
-X(0, 1) >> H >> Z(1, 1)
->>> print(zx2path(decomp(diagram))[:4])
-Create() >> PRO(1) @ Create((0,)) >> HBS >> Create() @ PRO(2)
->>> zx2path(decomp(diagram)).eval()
-Amplitudes([0.22699525-2.60208521e-17j], dom=1, cod=1)
-
+X(0, 1) >> H >> Z(1, 2)
+>>> print(zx_to_path(diagram)[:4])
+Create() >> PRO(1) @ Create((0,)) >> PRO(2) @ Scalar(1.4142135623730951) >> HBS
+>>> pyzx_prob = np.absolute(diagram.to_pyzx().to_tensor()) ** 2
+>>> assert np.allclose(pyzx_prob, zx_to_path(diagram).prob().array)
 """
 
 from optyx import qpath
@@ -67,25 +74,26 @@ def ar_zx2path(box):
     """ Mapping from ZX generators to QPath diagrams
     
     >>> zx2path(decomp(zx.X(0, 1) @ zx.X(0, 1) >> zx.Z(2, 1))).eval()
-    Amplitudes([1.+0.j, 0.+0.j], dom=1, cod=2)
+    Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
     >>> cnot = zx.Id(1) @ zx.X(1, 2) >> zx.Z(2, 1) @ zx.Id(1)
     >>> inp, out = zx.X(0, 1, 0.5) @ zx.X(0, 1), zx.X(1, 0, 0.5) @ zx.X(1, 0, 0.5)
-    >>> assert np.allclose(zx2path(decomp(inp >> cnot >> out)).eval().array[0], (1/2) ** (1/2))
+    >>> zx2path(decomp(inp >> cnot >> out)).eval().array
+    array([[2.82842712-0.j]])
     """
     n, m = len(box.dom), len(box.cod)
     if isinstance(box, zx.Scalar):
         return qpath.Scalar(box.data)
     if isinstance(box, zx.X):
-        phase = box.phase
-        # root2 = qpath.Scalar(2 ** 0.5)
+        phase = 1 + box.phase if box.phase < 0 else box.phase
+        root2 = qpath.Scalar(2 ** 0.5)
         if (n, m, phase) == (0, 1, 0):
-            return create @ unit
+            return create @ unit @ root2
         if (n, m, phase) == (0, 1, 0.5):
-            return unit @ create
+            return unit @ create @ root2
         if (n, m, phase) == (1, 0, 0):
-            return annil @ counit
+            return annil @ counit @ root2
         if (n, m, phase) == (1, 0, 0.5):
-            return counit @ annil
+            return counit @ annil @ root2
         if (n, m, phase) == (1, 1, 0.25):
             return BS.dagger()
         if (n, m, phase) == (1, 1, -0.25):
@@ -102,7 +110,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return qpath.Phase(-phase / 2) @ qpath.Phase(phase / 2)
+            return qpath.Id(1) @ qpath.Phase(phase)
         if (n, m, phase) == (2, 1, 0):
             return Id(1) @ (monoid >> annil) @ Id(1)
         if (n, m, phase) == (1, 2, 0):
@@ -120,3 +128,5 @@ def ar_zx2path(box):
 
 zx2path = symmetric.Functor(ob=lambda x: 2* len(x), ar=ar_zx2path, 
                             cod=symmetric.Category(int, qpath.Diagram))
+
+zx_to_path = lambda x: zx2path(decomp(x))
