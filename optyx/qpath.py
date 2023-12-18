@@ -1,7 +1,4 @@
 """
-<<<<<<< HEAD
-The class ``qpath.Matrix'' of matrices with creations and annihilations, and the syntax ``qpath.Diagram''.
-=======
 The category ``qpath.Matrix'' of matrices with creations and annihilations,
 and the syntax ``qpath.Diagram''.
 
@@ -33,7 +30,6 @@ and the syntax ``qpath.Diagram''.
 
         permanent
         occupation_numbers
->>>>>>> main
 
 Examples
 --------
@@ -44,10 +40,10 @@ We can check the Hong-Ou-Mandel effect:
 >>> HOM.eval()
 Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
 >>> HOM.prob()
-Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
+Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.prob()
-Probabilities([0.5], dom=1, cod=1)
+Probabilities[complex]([0.5+0.j], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
 
@@ -56,9 +52,10 @@ We can construct a Bell state in dual rail encoding:
 >>> bell = state @ state\\
 ...     >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
-<<<<<<< HEAD
->>> assert np.allclose((bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
->>> assert np.allclose((bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
+>>> assert np.allclose(
+...     (bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
+>>> assert np.allclose(
+...     (bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
 
 We can define the number operator and compute its expectation.
 
@@ -80,12 +77,6 @@ We can differentiate the expectation values of optical circuits.
 >>> assert np.allclose(expectation.grad(psi).subs((psi, 1/4)).eval().array, np.array([-2*np.pi]))
 >>> assert np.allclose(expectation.grad(psi).subs((psi, 0)).eval().array, np.array([0.]))
 >>> assert np.allclose(expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array, np.array([0.]))
-=======
->>> assert np.allclose(
-...     (bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
->>> assert np.allclose(
-...     (bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
->>>>>>> main
 """
 
 from __future__ import annotations
@@ -160,9 +151,7 @@ class Matrix(underlying.Matrix):
     >>> matrix.eval(3)
     Amplitudes([3.+0.j], dom=1, cod=1)
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
-<<<<<<< HEAD
     >>> assert np.allclose(num_op.eval(5).array, matrix.eval(5).array)
-=======
     >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
     >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
     >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
@@ -173,7 +162,6 @@ class Matrix(underlying.Matrix):
     >>> assert (
     ...     Create(1) @ Id(1) >> Id(1) @ Split() >> Select(1) @ Id(2)
     ...     ).eval(3) == Split().eval(3)
->>>>>>> main
     """
 
     dtype = complex
@@ -363,9 +351,9 @@ class Probabilities(underlying.Matrix):
     Stochastic matrix of probabilities for given input and output Fock states.
 
     >>> BS.prob(1)
-    Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
+    Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
     >>> (Create(1, 1) >> BS).prob()
-    Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
+    Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
     """
 
     dtype = float
@@ -632,12 +620,7 @@ Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
 Id = Diagram.id
 
-<<<<<<< HEAD
-bs_array = (1/2) ** (1/2) * np.array([[1j, 1], [1, 1j]])
-BS = Gate('BS', 2, 2, bs_array)
-
-Diagram.sum_factory = Sum
-=======
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 BS = Gate("BS", 2, 2, bs_array)
->>>>>>> main
+
+Diagram.sum_factory = Sum
