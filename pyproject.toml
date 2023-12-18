@@ -79,6 +79,7 @@ pythonpath = [
 ]
 testpaths = [
     "optyx",
+    "test",
 ]
 addopts = "--doctest-modules"
 

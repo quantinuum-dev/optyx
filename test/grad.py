@@ -8,8 +8,8 @@ import pytest
 
 param_circuits = [
     Phase(psi),
-    Phase(1/3 * psi ** 2),
-    BS >> Phase(psi) @ Id(1) >> BS
+    Phase(1 / 3 * psi**2),
+    BS >> Phase(psi) @ Id(1) >> BS,
 ]
 
 values = [x * 0.123 for x in range(10)]

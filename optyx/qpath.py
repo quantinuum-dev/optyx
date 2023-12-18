@@ -142,8 +142,8 @@ def occupation_numbers(n_photons, m_modes):
 
 class Matrix(underlying.Matrix):
     """
-    Qpath.Matrix is the normal form of QPath diagrams: 
-    matrices with creations and selections (or annihilations). 
+    Qpath.Matrix is the normal form of QPath diagrams:
+    matrices with creations and selections (or annihilations).
     These have Fock space :class:``Amplitudes`` computed by permanent evaluation.
 
     >>> array = np.array([[1, 1], [1, 0]])
@@ -189,7 +189,7 @@ class Matrix(underlying.Matrix):
     @property
     def umatrix(self) -> underlying.Matrix:
         return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
-    
+
     @unbiased
     def then(self, other: Matrix) -> Matrix:
         assert_iscomposable(self, other)
@@ -324,7 +324,9 @@ class Matrix(underlying.Matrix):
     def prob(self, n_photons=0, permanent=permanent):
         amplitudes = self.eval(n_photons, permanent)
         probabilities = np.abs(amplitudes.array) ** 2
-        return Probabilities[self.dtype](probabilities, amplitudes.dom, amplitudes.cod)
+        return Probabilities[self.dtype](
+            probabilities, amplitudes.dom, amplitudes.cod
+        )
 
 
 class Amplitudes(underlying.Matrix):
@@ -380,10 +382,10 @@ class Diagram(symmetric.Diagram):
         return self.to_path(dtype).prob(n_photons, permanent)
 
     def grad(self, var, **params):
-        """ Gradient with respect to :code:`var`. """
+        """Gradient with respect to :code:`var`."""
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
-        left, box, right, tail = tuple(self.inside[0]) + (self[1:], )
+        left, box, right, tail = tuple(self.inside[0]) + (self[1:],)
         t1 = self.id(left) @ box.grad(var, **params) @ self.id(right) >> tail
         t2 = self.id(left) @ box @ self.id(right) >> tail.grad(var, **params)
         return t1 + t2
@@ -403,19 +405,23 @@ class Box(symmetric.Box, Diagram):
 
 
 class Sum(symmetric.Sum, Box):
-    __ambiguous_inheritance__ = (symmetric.Sum, )
+    __ambiguous_inheritance__ = (symmetric.Sum,)
     ty_factory = PRO
 
     def eval(self, n_photons=0, permanent=permanent, dtype=complex):
-        return sum(term.eval(n_photons, permanent, dtype) for term in self.terms)
+        return sum(
+            term.eval(n_photons, permanent, dtype) for term in self.terms
+        )
 
     def prob(self, n_photons=0, permanent=permanent, dtype=complex):
         amplitudes = self.eval(n_photons, permanent, dtype)
         probabilities = np.abs(amplitudes.array) ** 2
-        return Probabilities[dtype](probabilities, amplitudes.dom, amplitudes.cod)
+        return Probabilities[dtype](
+            probabilities, amplitudes.dom, amplitudes.cod
+        )
 
     def grad(self, var, **params):
-        """ Gradient with respect to :code:`var`. """
+        """Gradient with respect to :code:`var`."""
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         return sum(term.grad(var, **params) for term in self.terms)
@@ -428,7 +434,9 @@ class Gate(Box):
 
     def to_path(self, dtype=complex):
         if self.is_dagger:
-            return Matrix[dtype](self.array, len(self.dom), len(self.cod)).dagger()
+            return Matrix[dtype](
+                self.array, len(self.dom), len(self.cod)
+            ).dagger()
         else:
             return Matrix[dtype](self.array, len(self.dom), len(self.cod))
 
@@ -467,7 +475,9 @@ class Create(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix[dtype](array, 0, len(self.photons), creations=self.photons)
+        return Matrix[dtype](
+            array, 0, len(self.photons), creations=self.photons
+        )
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
@@ -492,7 +502,9 @@ class Select(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix[dtype](array, len(self.photons), 0, selections=self.photons)
+        return Matrix[dtype](
+            array, len(self.photons), 0, selections=self.photons
+        )
 
     def dagger(self) -> Diagram:
         return Create(*self.photons)
@@ -554,6 +566,7 @@ class Scale(Box):
     ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
     ...         creations=(2,), selections=(), normalisation=1)
     """
+
     def __init__(self, scalar: complex):
         try:
             scalar = complex(scalar)
@@ -572,14 +585,21 @@ class Scale(Box):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         s = self.scalar.diff(var) / self.scalar
-        num_op = Split() >> Id(1) @ Scale(s) >>\
-                            Id(1) @ (Select() >> Create()) >> Merge()
+        num_op = (
+            Split()
+            >> Id(1) @ Scale(s)
+            >> Id(1) @ (Select() >> Create())
+            >> Merge()
+        )
         d = self >> num_op
         return d
 
     def lambdify(self, *symbols, **kwargs):
         from sympy import lambdify
-        return lambda *xs: type(self)(lambdify(symbols, self.scalar, **kwargs)(*xs))
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
 
 
 class Phase(Box):
@@ -606,14 +626,21 @@ class Phase(Box):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         s = 2j * np.pi * self.angle.diff(var)
-        num_op = Split() >> Id(1) @ Scale(s) >>\
-                            Id(1) @ (Select() >> Create()) >> Merge()
+        num_op = (
+            Split()
+            >> Id(1) @ Scale(s)
+            >> Id(1) @ (Select() >> Create())
+            >> Merge()
+        )
         d = self >> num_op
         return d
 
     def lambdify(self, *symbols, **kwargs):
         from sympy import lambdify
-        return lambda *xs: type(self)(lambdify(symbols, self.angle, **kwargs)(*xs))
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.angle, **kwargs)(*xs)
+        )
 
 
 Diagram.swap_factory = Swap
