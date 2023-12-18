@@ -70,13 +70,22 @@ We can differentiate the expectation values of optical circuits.
 >>> state = Create(2, 0) >> circuit
 >>> observable = num_op @ Id(1)
 >>> expectation = state >> observable >> state.dagger()
->>> assert np.allclose(expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
->>> assert np.allclose(expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
->>> assert np.allclose(expectation.subs((psi, 0)).eval().array, np.array([2.]))
->>> assert np.allclose(expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
->>> assert np.allclose(expectation.grad(psi).subs((psi, 1/4)).eval().array, np.array([-2*np.pi]))
->>> assert np.allclose(expectation.grad(psi).subs((psi, 0)).eval().array, np.array([0.]))
->>> assert np.allclose(expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
+>>> assert np.allclose(
+...     expectation.subs((psi, 0)).eval().array, np.array([2.]))
+>>> assert np.allclose(
+...     expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.grad(psi).subs((psi, 1/4)).eval().array,
+...     np.array([-2*np.pi]))
+>>> assert np.allclose(
+...     expectation.grad(psi).subs((psi, 0)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
+...     np.array([0.]))
 """
 
 from __future__ import annotations
@@ -88,7 +97,7 @@ from discopy import symmetric
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy import matrix as underlying
-from discopy.utils import unbiased, factory_name, messages, assert_isparallel
+from discopy.utils import unbiased
 
 
 def permanent(M):
@@ -144,7 +153,7 @@ class Matrix(underlying.Matrix):
     """
     Qpath.Matrix is the normal form of QPath diagrams:
     matrices with creations and selections (or annihilations).
-    These have Fock space :class:``Amplitudes`` computed by permanent evaluation.
+    These have Fock space :class:``Amplitudes`` computed by :func:``permanent``
 
     >>> array = np.array([[1, 1], [1, 0]])
     >>> matrix = Matrix(array, 1, 1, creations=(1,), selections=(1,))
