@@ -4,11 +4,18 @@ ZX diagrams and their mapping to :class:`qpath.Diagram`.
 Example
 -------
 
->>> ket = lambda x: zx.X(0, 1, 0.5 if x == 1 else 0)
+>>> ket = lambda *xs: zx.Id(0).tensor(*[zx.X(0, 1, 0.5 if x == 1 else 0) for x in xs])
 >>> cnot = zx.Z(1, 2) @ zx.Id(1) >> zx.Id(1) @ zx.X(2, 1)
 >>> control = lambda x: ket(x) @ zx.Id(1) >> cnot >> ket(x).dagger() @ zx.Id(1)
 >>> assert np.allclose(zx_to_path(control(0)).eval(1).array, control(0).to_pyzx().to_tensor())
 >>> assert np.allclose(zx_to_path(control(1)).eval(1).array, control(1).to_pyzx().to_tensor())
+
+>>> cz = lambda phi: cnot >> zx.Z(1, 1, phi) @ zx.H
+>>> amplitude = ket(1, 1) >> cz(0.7) >> ket(1, 1).dagger()
+>>> zx_to_path(amplitude).eval().array
+array([[-0.61803399-1.90211303j]])
+>>> amplitude.to_pyzx().to_tensor()
+array(-0.61803399-1.90211303j)
 
 Corner case where `to_pyzx` and `zx_to_path` agree only up to global phase.
 
