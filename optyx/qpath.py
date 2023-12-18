@@ -173,6 +173,7 @@ class Matrix(underlying.Matrix):
         )
         creations = self.creations + other.creations
         selections = other.selections + self.selections
+        scalar = self.scalar * other.scalar
         normalisation = self.normalisation * other.normalisation
         return Matrix(
             umatrix.array,
@@ -181,6 +182,7 @@ class Matrix(underlying.Matrix):
             creations,
             selections,
             normalisation,
+            scalar
         )
 
     @unbiased
@@ -197,8 +199,9 @@ class Matrix(underlying.Matrix):
         creations = self.creations + other.creations
         selections = self.selections + other.selections
         normalisation = self.normalisation * other.normalisation
+        scalar = self.scalar * other.scalar
         return Matrix(
-            umatrix.array, dom, cod, creations, selections, normalisation
+            umatrix.array, dom, cod, creations, selections, normalisation, scalar
         )
 
     def dagger(self) -> Matrix:
@@ -210,6 +213,7 @@ class Matrix(underlying.Matrix):
             self.selections,
             self.creations,
             self.normalisation.conjugate(),
+            self.scalar
         )
 
     def __repr__(self):
@@ -217,7 +221,8 @@ class Matrix(underlying.Matrix):
             super().__repr__()[:-1]
             + f", creations={self.creations}"
             + f", selections={self.selections}"
-            + f", normalisation={self.normalisation})"
+            + f", normalisation={self.normalisation}"
+            + f", scalar={self.scalar})"
         )
 
     def dilate(self):
@@ -288,7 +293,7 @@ class Matrix(underlying.Matrix):
                     np.prod([factorial(n) for n in creations + selections])
                 )
                 result.array[i, j] = (
-                    normalisation * permanent(matrix) / divisor
+                    self.scalar * normalisation * permanent(matrix) / divisor
                 )
         return result
 

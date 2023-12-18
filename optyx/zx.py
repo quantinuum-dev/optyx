@@ -12,18 +12,16 @@ Example
 
 >>> cz = lambda phi: cnot >> zx.Z(1, 1, phi) @ zx.H
 >>> amplitude = ket(1, 1) >> cz(0.7) >> ket(1, 1).dagger()
->>> zx_to_path(amplitude).eval().array
-array([[-0.61803399-1.90211303j]])
->>> amplitude.to_pyzx().to_tensor()
-array(-0.61803399-1.90211303j)
+>>> assert np.allclose(zx_to_path(amplitude).eval().array, \\
+...                    amplitude.to_pyzx().to_tensor())
 
 Corner case where `to_pyzx` and `zx_to_path` agree only up to global phase.
 
 >>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25) >> zx.Id(1) @ zx.Z(2, 1) >> zx.X(2, 0, 0.35)
 >>> print(decomp(diagram)[:3])
 X(0, 1) >> H >> Z(1, 2)
->>> print(zx_to_path(diagram)[:4])
-Create() >> PRO(1) @ Create((0,)) >> PRO(2) @ Scalar(1.4142135623730951) >> HBS
+>>> print(zx_to_path(diagram)[:2])
+Create() >> PRO(1) @ Create((0,))
 >>> pyzx_prob = np.absolute(diagram.to_pyzx().to_tensor()) ** 2
 >>> assert np.allclose(pyzx_prob, zx_to_path(diagram).prob().array)
 """
@@ -82,10 +80,8 @@ def ar_zx2path(box):
     
     >>> zx2path(decomp(zx.X(0, 1) @ zx.X(0, 1) >> zx.Z(2, 1))).eval()
     Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
-    >>> cnot = zx.Id(1) @ zx.X(1, 2) >> zx.Z(2, 1) @ zx.Id(1)
-    >>> inp, out = zx.X(0, 1, 0.5) @ zx.X(0, 1), zx.X(1, 0, 0.5) @ zx.X(1, 0, 0.5)
-    >>> zx2path(decomp(inp >> cnot >> out)).eval().array
-    array([[2.82842712-0.j]])
+    >>> zx2path(zx.Scalar(0.35))
+    optyx.qpath.Scalar('Scalar(0.35)', monoidal.PRO(0), monoidal.PRO(0))
     """
     n, m = len(box.dom), len(box.cod)
     if isinstance(box, zx.Scalar):
@@ -107,13 +103,6 @@ def ar_zx2path(box):
             return BS
     if isinstance(box, zx.Z):
         phase = box.phase
-        if (n, m, phase) == (0, 2, 0):
-            plus = create >> comonoid
-            fusion = plus >> Id(1) @ plus @ Id(1)
-            d = (fusion @ fusion
-                 >> Id(2) @ BS.dagger() @ BS @ Id(2)
-                 >> Id(2) @ fusion.dagger() @ Id(2))
-            return d
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
