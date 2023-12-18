@@ -1,5 +1,39 @@
 """
+<<<<<<< HEAD
 The class ``qpath.Matrix'' of matrices with creations and annihilations, and the syntax ``qpath.Diagram''.
+=======
+The category ``qpath.Matrix'' of matrices with creations and annihilations,
+and the syntax ``qpath.Diagram''.
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    Matrix
+    Amplitudes
+    Probabilities
+    Diagram
+    Box
+    Gate
+    Swap
+    Create
+    Select
+    Merge
+    Split
+    Scale
+    Phase
+
+.. admonition:: Functions
+
+    .. autosummary::
+        :template: function.rst
+        :nosignatures:
+        :toctree:
+
+        permanent
+        occupation_numbers
+>>>>>>> main
 
 Examples
 --------
@@ -19,8 +53,10 @@ We can construct a Bell state in dual rail encoding:
 
 >>> plus = Create() >> Split()
 >>> state = plus >> Id(1) @ plus @ Id(1)
->>> bell = state @ state >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
+>>> bell = state @ state\\
+...     >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
+<<<<<<< HEAD
 >>> assert np.allclose((bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
 >>> assert np.allclose((bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
 
@@ -44,6 +80,12 @@ We can differentiate the expectation values of optical circuits.
 >>> assert np.allclose(expectation.grad(psi).subs((psi, 1/4)).eval().array, np.array([-2*np.pi]))
 >>> assert np.allclose(expectation.grad(psi).subs((psi, 0)).eval().array, np.array([0.]))
 >>> assert np.allclose(expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array, np.array([0.]))
+=======
+>>> assert np.allclose(
+...     (bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
+>>> assert np.allclose(
+...     (bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
+>>>>>>> main
 """
 
 from __future__ import annotations
@@ -70,7 +112,7 @@ def permanent(M):
     f = np.arange(n)
     v = M.sum(axis=0)
     p = np.prod(v)
-    while (j < n - 1):
+    while j < n - 1:
         v -= 2 * d[j] * M[j]
         d[j] = -d[j]
         s = -s
@@ -99,9 +141,12 @@ def occupation_numbers(n_photons, m_modes):
     if not m_modes:
         raise ValueError(f"Can't put {n_photons} photons in zero modes!")
     if m_modes == 1:
-        return [(n_photons, )]
-    return [(head,) + tail for head in range(n_photons, -1, -1)
-            for tail in occupation_numbers(n_photons - head, m_modes - 1)]
+        return [(n_photons,)]
+    return [
+        (head,) + tail
+        for head in range(n_photons, -1, -1)
+        for tail in occupation_numbers(n_photons - head, m_modes - 1)
+    ]
 
 
 class Matrix(underlying.Matrix):
@@ -115,17 +160,38 @@ class Matrix(underlying.Matrix):
     >>> matrix.eval(3)
     Amplitudes([3.+0.j], dom=1, cod=1)
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
+<<<<<<< HEAD
     >>> assert np.allclose(num_op.eval(5).array, matrix.eval(5).array)
+=======
+    >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
+    >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
+    >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
+    >>> assert (
+    ...     Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Select(1)
+    ...     ).eval(3) == num_op.eval(3)
+    >>> assert (num_op @ (Create(1) >> Select(1))).eval(3) == num_op.eval(3)
+    >>> assert (
+    ...     Create(1) @ Id(1) >> Id(1) @ Split() >> Select(1) @ Id(2)
+    ...     ).eval(3) == Split().eval(3)
+>>>>>>> main
     """
+
     dtype = complex
 
-    def __new__(cls, array, dom, cod, creations=(), selections=(), normalisation=1):
+    def __new__(
+        cls, array, dom, cod, creations=(), selections=(), normalisation=1
+    ):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
-    def __init__(self, array, dom: int, cod: int,
-                 creations: tuple[int, ...] = (),
-                 selections: tuple[int, ...] = (),
-                 normalisation = 1):
+    def __init__(
+        self,
+        array,
+        dom: int,
+        cod: int,
+        creations: tuple[int, ...] = (),
+        selections: tuple[int, ...] = (),
+        normalisation=1,
+    ):
         self.udom, self.ucod = dom + len(creations), cod + len(selections)
         super().__init__(array, self.udom, self.ucod)
         self.dom, self.cod = dom, cod
@@ -133,69 +199,105 @@ class Matrix(underlying.Matrix):
         self.normalisation = normalisation
 
     @property
-    def umatrix(self) -> underlying.Matrix[self.dtype]:
+    def umatrix(self) -> underlying.Matrix:
         return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
     
     @unbiased
     def then(self, other: Matrix) -> Matrix:
         assert_iscomposable(self, other)
         M = underlying.Matrix[self.dtype]
-        a, b = len(self.creations), len(other.creations)
-        c, d = len(self.selections), len(other.selections)
-        umatrix = self.umatrix @ b >> self.cod @ M.swap(c, b) >> other.umatrix @ c
+        left, right = len(self.selections), len(other.creations)
+        umatrix = (
+            self.umatrix @ right
+            >> self.cod @ M.swap(left, right)
+            >> other.umatrix @ left
+        )
         creations = self.creations + other.creations
         selections = other.selections + self.selections
         normalisation = self.normalisation * other.normalisation
-        return Matrix[self.dtype](umatrix.array, self.dom, other.cod, creations, selections, normalisation)
+        return Matrix[self.dtype](
+            umatrix.array,
+            self.dom,
+            other.cod,
+            creations,
+            selections,
+            normalisation,
+        )
 
     @unbiased
     def tensor(self, other: Matrix) -> Matrix:
         M = underlying.Matrix[self.dtype]
         a, b = len(self.creations), len(other.creations)
         c, d = len(self.selections), len(other.selections)
-        umatrix = self.dom @ M.swap(other.dom, a) @ b\
-            >> self.umatrix @ other.umatrix\
+        umatrix = (
+            self.dom @ M.swap(other.dom, a) @ b
+            >> self.umatrix @ other.umatrix
             >> self.cod @ M.swap(c, other.cod) @ d
+        )
         dom, cod = self.dom + other.dom, self.cod + other.cod
         creations = self.creations + other.creations
         selections = self.selections + other.selections
         normalisation = self.normalisation * other.normalisation
-        return Matrix[self.dtype](umatrix.array, dom, cod, creations, selections, normalisation)
+        return Matrix[self.dtype](
+            umatrix.array, dom, cod, creations, selections, normalisation
+        )
 
     def dagger(self) -> Matrix:
         array = self.umatrix.dagger().array
-        return Matrix[self.dtype](array, self.cod, self.dom, self.selections, self.creations, self.normalisation.conjugate())
+        return Matrix[self.dtype](
+            array,
+            self.cod,
+            self.dom,
+            self.selections,
+            self.creations,
+            self.normalisation.conjugate(),
+        )
 
     def __repr__(self):
-        return super().__repr__()[:-1]\
-            + f", creations={self.creations}, selections={self.selections}, normalisation={self.normalisation})"
+        return (
+            super().__repr__()[:-1]
+            + f", creations={self.creations}"
+            + f", selections={self.selections}"
+            + f", normalisation={self.normalisation})"
+        )
 
     def dilate(self):
         """
         >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
         >>> U = num_op.to_path().dilate()
-        >>> assert np.allclose((U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
+        >>> assert np.allclose(
+        ...     (U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
         >>> assert np.allclose(U.eval(5).array, num_op.eval(5).array)
-        >>> M = Matrix([1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0], dom=2, cod=3, creations=(1, ), selections=(2, ))
+        >>> M = Matrix(
+        ...     [1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0],
+        ...     dom=2, cod=3, creations=(1, ), selections=(2, ))
         >>> U1 = M.dilate()
-        >>> assert np.allclose((U1.umatrix >> U1.umatrix.dagger()).array, np.eye(U1.umatrix.dom))
+        >>> assert np.allclose(
+        ...     (U1.umatrix >> U1.umatrix.dagger()).array,
+        ...     np.eye(U1.umatrix.dom))
         >>> assert np.allclose(U1.eval(5).array, M.eval(5).array)
         """
         dom, cod = self.umatrix.dom, self.umatrix.cod
         A = self.umatrix.array
         U, S, Vh = np.linalg.svd(A)
         s = max(S) if max(S) > 1 else 1
-        D0 = np.concatenate([np.sqrt(1 - (S/s) ** 2), [1 for _ in range(dom - len(S))]])
-        D1 = np.concatenate([np.sqrt(1 - (S/s) ** 2), [1 for _ in range(cod - len(S))]])
+        D0 = np.concatenate(
+            [np.sqrt(1 - (S / s) ** 2), [1 for _ in range(dom - len(S))]]
+        )
+        D1 = np.concatenate(
+            [np.sqrt(1 - (S / s) ** 2), [1 for _ in range(cod - len(S))]]
+        )
         DA = U.dot(np.diag(D0)).dot(U.conj().T)
         DAh = (Vh.conj().T).dot(np.diag(D1)).dot(Vh)
-        unitary = np.block([[A/s, DA], [DAh, - A.conj().T/s]])
-        creations = self.creations + cod * (0, )
-        selections = self.selections + dom * (0, )
-        return Matrix(unitary, self.dom, self.cod, creations, selections, normalisation=s)
+        unitary = np.block([[A / s, DA], [DAh, -A.conj().T / s]])
+        creations = self.creations + cod * (0,)
+        selections = self.selections + dom * (0,)
+        return Matrix(
+            unitary, self.dom, self.cod, creations, selections, normalisation=s
+        )
 
     def eval(self, n_photons=0, permanent=permanent):
-        """ Evaluates the ``Amplitudes'' of a QPath diagram """
+        """Evaluates the ``Amplitudes'' of a QPath diagram"""
         dom_basis = occupation_numbers(n_photons, self.dom)
         n_photons_out = n_photons - sum(self.selections) + sum(self.creations)
         if n_photons_out < 0:
@@ -207,17 +309,28 @@ class Matrix(underlying.Matrix):
             for j, open_selections in enumerate(cod_basis):
                 creations = open_creations + self.creations
                 selections = open_selections + self.selections
-                matrix = np.stack([
-                    self.array[:, m]
-                    for m, n in enumerate(selections)
-                    for _ in range(n)], axis=1)
-                matrix = np.stack([
-                    matrix[m]
-                    for m, n in enumerate(creations)
-                    for _ in range(n)], axis=0)
-                divisor = np.sqrt(np.prod([
-                    factorial(n) for n in creations + selections]))
-                result.array[i, j] = normalisation * permanent(matrix) / divisor
+                matrix = np.stack(
+                    [
+                        self.array[:, m]
+                        for m, n in enumerate(selections)
+                        for _ in range(n)
+                    ],
+                    axis=1,
+                )
+                matrix = np.stack(
+                    [
+                        matrix[m]
+                        for m, n in enumerate(creations)
+                        for _ in range(n)
+                    ],
+                    axis=0,
+                )
+                divisor = np.sqrt(
+                    np.prod([factorial(n) for n in creations + selections])
+                )
+                result.array[i, j] = (
+                    normalisation * permanent(matrix) / divisor
+                )
         return result
 
     def prob(self, n_photons=0, permanent=permanent):
@@ -228,7 +341,8 @@ class Matrix(underlying.Matrix):
 
 class Amplitudes(underlying.Matrix):
     """
-    Matrix of amplitudes for given input and output Fock states with at most n_photons in the input.
+    Matrix of amplitudes for given
+    input and output Fock states with at most n_photons in the input.
 
     >>> BS.eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
@@ -237,6 +351,7 @@ class Amplitudes(underlying.Matrix):
     >>> (BS >> Select(1) @ Id(1)).eval(2)
     Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=3, cod=1)
     """
+
     dtype = complex
 
     def __new__(cls, array, dom, cod):
@@ -249,11 +364,10 @@ class Probabilities(underlying.Matrix):
 
     >>> BS.prob(1)
     Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
-    >>> BS.prob(2)
-    Probabilities([0.25, 0.5 , 0.25, 0.5 , 0. , 0.5 , 0.25, 0.5 , 0.25], dom=3, cod=3)
     >>> (Create(1, 1) >> BS).prob()
     Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
     """
+
     dtype = float
 
     def __new__(cls, array, dom, cod):
@@ -266,8 +380,10 @@ class Diagram(symmetric.Diagram):
 
     def to_path(self, dtype=complex):
         return symmetric.Functor(
-            ob=len, ar=lambda f: f.to_path(dtype=dtype),
-            cod=symmetric.Category(int, Matrix[dtype]))(self)
+            ob=len,
+            ar=lambda f: f.to_path(dtype=dtype),
+            cod=symmetric.Category(int, Matrix[dtype]),
+        )(self)
 
     def eval(self, n_photons=0, permanent=permanent, dtype=complex):
         return self.to_path(dtype).eval(n_photons, permanent)
@@ -329,7 +445,13 @@ class Gate(Box):
             return Matrix[dtype](self.array, len(self.dom), len(self.cod))
 
     def dagger(self) -> Gate:
-        return Gate(self.name, self.dom, self.cod, self.array, is_dagger= not self.is_dagger)
+        return Gate(
+            self.name,
+            self.dom,
+            self.cod,
+            self.array,
+            is_dagger=not self.is_dagger,
+        )
 
 
 class Swap(symmetric.Swap, Box):
@@ -349,6 +471,7 @@ class Create(Box):
     >>> Create(1).eval()
     Amplitudes([1.+0.j], dom=1, cod=1)
     """
+
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
         name = "Create()" if self.photons == (1,) else f"Create({photons})"
@@ -373,6 +496,7 @@ class Select(Box):
     -------
     >>> assert Select() == Select(1)
     """
+
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
         name = "Select()" if self.photons == (1,) else f"Select({photons})"
@@ -396,6 +520,7 @@ class Merge(Box):
     >>> assert (sqrt2 @ Create() @ Create() >> Merge()).eval()\\
     ...     == Create(2).eval()
     """
+
     def __init__(self, n=2):
         self.n = n
         super().__init__("Merge()" if n == 2 else f"Merge({n})", n, 1)
@@ -407,6 +532,7 @@ class Merge(Box):
     def dagger(self) -> Diagram:
         return Split(n=self.n)
 
+
 class Split(Box):
     """
     Matrix spliting.
@@ -416,6 +542,7 @@ class Split(Box):
     >>> (Create() >> Split()).eval()
     Amplitudes([1.+0.j, 1.+0.j], dom=1, cod=2)
     """
+
     def __init__(self, n=2):
         self.n = n
         super().__init__("Split()" if n == 2 else f"Split({n})", 1, n)
@@ -434,10 +561,10 @@ class Scale(Box):
 
     Example
     -------
-    >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).to_path()
-    Matrix([1. +0.j, 0.5+0.j], dom=0, cod=2, creations=(2,), selections=(), normalisation=1)
-    >>> (Create(2) >> Split() >> Id(1) @ Scale(0.5)).eval()
-    Amplitudes([1.    +0.j, 0.70710678+0.j, 0.25   +0.j], dom=1, cod=3)
+    >>> assert (Create(2) >> Split() >> Id(1) @ Scale(0.5)).to_path()\\
+    ...     == Matrix(
+    ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
+    ...         creations=(2,), selections=(), normalisation=1)
     """
     def __init__(self, scalar: complex):
         try:
@@ -468,16 +595,15 @@ class Scale(Box):
 
 
 class Phase(Box):
-    """ 
+    """
     Phase shift with angle parameter between 0 and 1
 
     Example
     -------
-    >>> Phase(1/8).to_path()
-    Matrix([0.70710678+0.70710678j], dom=1, cod=1, creations=(), selections=(), normalisation=1)
     >>> Phase(1/2).eval(1).array.round(3)
     array([[-1.+0.j]])
     """
+
     def __init__(self, angle: float):
         self.angle = angle
         super().__init__(f"Phase({angle})", 1, 1, data=angle)
@@ -506,7 +632,12 @@ Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
 Id = Diagram.id
 
+<<<<<<< HEAD
 bs_array = (1/2) ** (1/2) * np.array([[1j, 1], [1, 1j]])
 BS = Gate('BS', 2, 2, bs_array)
 
 Diagram.sum_factory = Sum
+=======
+bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
+BS = Gate("BS", 2, 2, bs_array)
+>>>>>>> main
