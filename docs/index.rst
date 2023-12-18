@@ -1,19 +1,12 @@
-.. optyx documentation master file, created by
-   sphinx-quickstart on Mon Dec 18 14:55:06 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to optyx's documentation!
-=================================
-
 .. include:: ../README.md
     :parser: myst_parser.sphinx_
 
+.. automodule:: optyx
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :hidden:
 
-
+    api
 
 Indices and tables
 ==================

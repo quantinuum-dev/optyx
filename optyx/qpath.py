@@ -1,6 +1,35 @@
 """
 The category ``qpath.Matrix'' of matrices with creations and annihilations, and the syntax ``qpath.Diagram''.
 
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    Matrix
+    Amplitudes
+    Probabilities
+    Diagram
+    Box
+    Gate
+    Swap
+    Create
+    Select
+    Merge
+    Split
+    Scale
+    Phase
+
+.. admonition:: Functions
+
+    .. autosummary::
+        :template: function.rst
+        :nosignatures:
+        :toctree:
+
+        permanent
+        occupation_numbers
+
 Example
 -------
 
@@ -345,6 +374,7 @@ class Merge(Box):
 
     def dagger(self) -> Diagram:
         return Split(n=self.n)
+
 
 class Split(Box):
     """

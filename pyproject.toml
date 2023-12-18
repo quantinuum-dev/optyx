@@ -41,6 +41,7 @@ docs = [
     "nbsphinx",
     "ipykernel",
     "IPython",
+    "sphinx-rtd-theme",
 ]
 
 [project.urls]
@@ -56,7 +57,7 @@ packages = [
 ]
 
 [tool.setuptools_scm]
-write_to = "optyx/version.py"
+write_to = "optyx/_version.py"
 
 [tool.flake8]
 extend-ignore = [
