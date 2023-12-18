@@ -25,12 +25,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install linter
       run:
-        python -m pip install pyproject-flake8 coverage pylint
+        python -m pip install pyproject-flake8 pylint
     - name: Check for errors
       run:
         # stop the build if there are Python syntax errors or undefined names
         pflake8 ${{ env.SRC_DIR }}
-    - name: pylint
+    - name: pylint --fail-under=8
       run:
         pylint ${{ env.SRC_DIR }}
   test:
