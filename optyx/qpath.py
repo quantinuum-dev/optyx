@@ -163,7 +163,7 @@ class Matrix(underlying.Matrix):
     def then(self, other: Matrix) -> Matrix:
         assert_iscomposable(self, other)
         M = underlying.Matrix[self.dtype]
-        left, right = len(self.selections), len(self.creations)
+        left, right = len(self.selections), len(other.creations)
         umatrix = (
             self.umatrix @ right
             >> self.cod @ M.swap(left, right)
