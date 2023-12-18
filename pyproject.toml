@@ -34,6 +34,8 @@ dependencies = [
 test = [
     "pytest",
     "coverage",
+    "pyproject-flake8",
+    "pylint",
 ]
 docs = [
     "sphinx",
