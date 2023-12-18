@@ -55,3 +55,41 @@ jobs:
     - name: Coverage
       run:
         coverage report --fail-under=99 --show-missing
+  docs:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ 3.9 ]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    - name: Cache
+      id: cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ${{ env.DOCS_DIR }}/_api
+          ${{ env.DOCS_DIR }}/_build
+        key: ${{ runner.os }}-docs-${{ hashFiles('optyx/**', 'docs/**') }}  # TODO: refactor to use env.SRC_DIR and DOCS_DIR
+        restore-keys: |
+          ${{ runner.os }}-docs
+    - name: Install
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pandoc
+        pip install .[docs]
+    - name: Build
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        sphinx-build ${{ env.DOCS_DIR }} ${{ env.DOCS_DIR }}/_build/html
+    - name: Store
+      uses: actions/upload-artifact@v3
+      with:
+        name: docs
+        path: ${{ env.DOCS_DIR }}/_build/html
+

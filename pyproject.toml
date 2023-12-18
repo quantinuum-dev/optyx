@@ -35,16 +35,13 @@ test = [
     "pytest",
     "coverage",
 ]
-docs  = [
+docs = [
     "sphinx",
-    "sphinx-book-theme == 1.0.*",
-    "myst-parser == 2.0.*",
-    "nbsphinx == 0.9.*",
-    "ipykernel == 6.23.*",
-    "sphinxcontrib-youtube == 1.4.*",
-    "jinja2 == 3.1.*",
-    "sphinxcontrib-bibtex == 2.5.*",
-    "IPython"
+    "myst-parser",
+    "nbsphinx",
+    "ipykernel",
+    "IPython",
+    "sphinx-rtd-theme",
 ]
 
 [project.urls]
@@ -60,7 +57,7 @@ packages = [
 ]
 
 [tool.setuptools_scm]
-write_to = "optyx/version.py"
+write_to = "optyx/_version.py"
 
 [tool.flake8]
 extend-ignore = [
