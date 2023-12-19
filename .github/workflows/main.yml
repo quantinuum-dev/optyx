@@ -25,8 +25,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'  # caching pip dependencies
     - name: Install
-      run: |
-        pip install coverage pytest
+      run:
         pip install .[test]
     - name: Lint
       run: |
