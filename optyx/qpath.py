@@ -261,7 +261,8 @@ class Matrix(underlying.Matrix):
         )
         defect_left = U.dot(np.diag(defect0)).dot(U.conj().T)
         defect_right = (Vh.conj().T).dot(np.diag(defect1)).dot(Vh)
-        unitary = np.block([[A / s, defect_left], [defect_right, -A.conj().T / s]])
+        unitary = np.block([[A / s, defect_left],
+                            [defect_right, -A.conj().T / s]])
         creations = self.creations + cod * (0,)
         selections = self.selections + dom * (0,)
         return Matrix(
