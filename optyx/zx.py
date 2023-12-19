@@ -54,10 +54,12 @@ def make_spiders(n):
         spider = spider >> zx.Z(1, 2) @ zx.Id(k)
     return spider
 
+
 def decomp_ar(box):
-    """ Decomposes a ZX diagram into Z spiders 
+    """
+    Decomposes a ZX diagram into Z spiders
     with at most two inputs/outputs and hadamards.
-    
+
     >>> assert len(decomp(zx.X(2, 2, 0.25))) == 7
     """
     n, m = len(box.dom), len(box.cod)
@@ -65,8 +67,8 @@ def decomp_ar(box):
         phase = box.phase
         if (n, m) in ((1, 0), (0, 1)):
             return box
-        box = zx.Id().tensor(*[zx.H] * n) >> zx.Z(n, m, phase) \
-          >> zx.Id().tensor(*[zx.H] * m)
+        box = zx.Id().tensor(*[zx.H] * n) >> zx.Z(n, m, phase)\
+            >> zx.Id().tensor(*[zx.H] * m)
         return decomp(box)
     if isinstance(box, zx.Z):
         phase = box.phase
@@ -141,6 +143,7 @@ def ar_zx2path(box):
 
 zx2path = symmetric.Functor(ob=lambda x: 2 * len(x), ar=ar_zx2path,
                             cod=symmetric.Category(int, qpath.Diagram))
+
 
 def zx_to_path(diagram: zx.Diagram) -> qpath.Diagram:
     """

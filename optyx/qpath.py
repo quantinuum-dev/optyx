@@ -548,8 +548,8 @@ class Gate(Box):
         )
 
     def to_path(self, dtype=complex):
-        return Matrix[dtype](self.array, len(self.dom), len(self.cod)).dagger() if self.is_dagger \
-            else Matrix[dtype](self.array, len(self.dom), len(self.cod))
+        result = Matrix[dtype](self.array, len(self.dom), len(self.cod))
+        return result.dagger() if self.is_dagger else result
 
     def dagger(self) -> Gate:
         return Gate(
@@ -562,7 +562,7 @@ class Gate(Box):
 
 
 class Scalar(Box):
-    """ 
+    """
     Scalar in a QPath diagram
 
     Example
