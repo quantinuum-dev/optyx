@@ -591,7 +591,7 @@ class Endo(Box):
         return Matrix[dtype]([self.scalar], 1, 1)
 
     def dagger(self) -> Diagram:
-        return Scale(self.scalar.conjugate())
+        return Endo(self.scalar.conjugate())
 
     def grad(self, var):
         if var not in self.free_symbols:
@@ -643,7 +643,7 @@ class Phase(Box):
         s = 2j * np.pi * self.angle.diff(var)
         num_op = (
             Split()
-            >> Id(1) @ Scale(s)
+            >> Id(1) @ Endo(s)
             >> Id(1) @ (Select() >> Create())
             >> Merge()
         )
