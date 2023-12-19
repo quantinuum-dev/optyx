@@ -26,14 +26,16 @@ Create() >> PRO(1) @ Create((0,))
 >>> assert np.allclose(pyzx_prob, zx_to_path(diagram).prob().array)
 """
 
-from optyx import qpath
+import numpy as np
 from discopy.quantum import zx
 from discopy import symmetric, rigid, frobenius
-import numpy as np
+
+from optyx import qpath
+
 
 def make_spiders(n):
     """ Constructs the Z spider 1 -> n from spiders 1 -> 2.
-    
+
     >>> assert len(make_spiders(6)) == 5
     """
     spider = zx.Id(1)
@@ -65,7 +67,8 @@ def decomp_ar(box):
     return box
 
 
-decomp = symmetric.Functor(ob=lambda x: x, ar=decomp_ar, cod=frobenius.Category(rigid.PRO, zx.Diagram))
+decomp = symmetric.Functor(ob=lambda x: x, ar=decomp_ar,
+                           cod=frobenius.Category(rigid.PRO, zx.Diagram))
 
 unit = qpath.Create(0)
 counit = qpath.Select(0)
@@ -118,12 +121,12 @@ def ar_zx2path(box):
             return bot >> mid >> (Id(2) @ fusion @ Id(2))
     if box == zx.H:
         hbs_array = (1/2) ** (1/2) * np.array([[1, 1], [1, -1]])
-        HBS = qpath.Gate('HBS', 2, 2, hbs_array)
-        return HBS
+        hadamard_bs = qpath.Gate('HBS', 2, 2, hbs_array)
+        return hadamard_bs
     raise NotImplementedError(f'No translation of {box} in QPath.')
 
 
-zx2path = symmetric.Functor(ob=lambda x: 2* len(x), ar=ar_zx2path, 
+zx2path = symmetric.Functor(ob=lambda x: 2 * len(x), ar=ar_zx2path,
                             cod=symmetric.Category(int, qpath.Diagram))
 
 zx_to_path = lambda x: zx2path(decomp(x))

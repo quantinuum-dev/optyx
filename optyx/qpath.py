@@ -59,8 +59,8 @@ We can construct a Bell state in dual rail encoding:
 
 from __future__ import annotations
 
-import numpy as np
 from math import factorial
+import numpy as np
 
 from discopy import symmetric
 from discopy.cat import factory, assert_iscomposable
@@ -69,20 +69,20 @@ from discopy import matrix as underlying
 from discopy.utils import unbiased
 
 
-def permanent(M):
+def npperm(matrix):
     """
     Numpy code for computing the permanent of a matrix,
     from https://github.com/scipy/scipy/issues/7151.
     """
-    n = M.shape[0]
+    n = matrix.shape[0]
     d = np.ones(n)
     j = 0
     s = 1
     f = np.arange(n)
-    v = M.sum(axis=0)
+    v = matrix.sum(axis=0)
     p = np.prod(v)
     while j < n - 1:
-        v -= 2 * d[j] * M[j]
+        v -= 2 * d[j] * matrix[j]
         d[j] = -d[j]
         s = -s
         prod = np.prod(v)
@@ -228,7 +228,7 @@ class Matrix(underlying.Matrix):
             + f", scalar={self.scalar})"
         )
 
-    def dilate(self):
+    def dilate(self) -> Matrix:
         """
         Returns an equivalent qpath `Matrix` with unitary underlying matrix.
 
@@ -250,14 +250,14 @@ class Matrix(underlying.Matrix):
         A = self.umatrix.array
         U, S, Vh = np.linalg.svd(A)
         s = max(S) if max(S) > 1 else 1
-        D0 = np.concatenate(
+        DA = np.concatenate(
             [np.sqrt(1 - (S / s) ** 2), [1 for _ in range(dom - len(S))]]
         )
-        D1 = np.concatenate(
+        DAh = np.concatenate(
             [np.sqrt(1 - (S / s) ** 2), [1 for _ in range(cod - len(S))]]
         )
-        DA = U.dot(np.diag(D0)).dot(U.conj().T)
-        DAh = (Vh.conj().T).dot(np.diag(D1)).dot(Vh)
+        DA = U.dot(np.diag(DA)).dot(U.conj().T)
+        DAh = (Vh.conj().T).dot(np.diag(DAh)).dot(Vh)
         unitary = np.block([[A / s, DA], [DAh, -A.conj().T / s]])
         creations = self.creations + cod * (0,)
         selections = self.selections + dom * (0,)
@@ -265,7 +265,7 @@ class Matrix(underlying.Matrix):
             unitary, self.dom, self.cod, creations, selections, normalisation=s
         )
 
-    def eval(self, n_photons=0, permanent=permanent):
+    def eval(self, n_photons=0, permanent=npperm) -> Amplitudes:
         """Evaluates the ``Amplitudes'' of a QPath diagram"""
         dom_basis = occupation_numbers(n_photons, self.dom)
         n_photons_out = n_photons - sum(self.selections) + sum(self.creations)
@@ -302,8 +302,9 @@ class Matrix(underlying.Matrix):
                 )
         return result
 
-    def prob(self, n_photons=0, permanent=permanent):
-        amplitudes = self.eval(n_photons, permanent)
+    def prob(self, n_photons=0, permanent=npperm) -> Probabilities:
+        """ Computes the Born rule of the amplitudes for a given `Matrix`"""
+        amplitudes = self.eval(n_photons, permanent=npperm)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities(probabilities, amplitudes.dom, amplitudes.cod)
 
@@ -350,28 +351,29 @@ class Diagram(symmetric.Diagram):
     """
     ty_factory = PRO
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
+        """Returns the `Matrix` corresponding to a `Diagram`."""
         return symmetric.Functor(
             ob=len,
             ar=lambda f: f.to_path(dtype=dtype),
             cod=symmetric.Category(int, Matrix[dtype]),
         )(self)
 
-    def eval(self, n_photons=0, permanent=permanent):
+    def eval(self, n_photons=0, permanent=npperm):
         return self.to_path().eval(n_photons, permanent)
 
-    def prob(self, n_photons=0, permanent=permanent):
+    def prob(self, n_photons=0, permanent=npperm):
         return self.to_path().prob(n_photons, permanent)
 
 
 class Box(symmetric.Box, Diagram):
     """ Box in a QPath :class:`Diagram`"""
-    def to_path(self):
+    def to_path(self, dtype=complex):
         raise NotImplementedError
 
 
 class Swap(symmetric.Swap, Box):
-    pass
+    """ Swap in a :class:`Diagram`"""
 
 
 class Create(Box):
@@ -395,7 +397,7 @@ class Create(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix(array, 0, len(self.photons), creations=self.photons)
+        return Matrix[dtype](array, 0, len(self.photons), creations=self.photons)
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
@@ -421,7 +423,7 @@ class Select(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix(array, len(self.photons), 0, selections=self.photons)
+        return Matrix[dtype](array, len(self.photons), 0, selections=self.photons)
 
     def dagger(self) -> Diagram:
         return Create(*self.photons)
@@ -445,7 +447,7 @@ class Merge(Box):
 
     def to_path(self, dtype=complex):
         array = np.ones(self.n)
-        return Matrix(array, self.n, 1)
+        return Matrix[dtype](array, self.n, 1)
 
     def dagger(self) -> Diagram:
         return Split(n=self.n)
@@ -468,7 +470,7 @@ class Split(Box):
 
     def to_path(self, dtype=complex):
         array = np.ones(self.n)
-        return Matrix(array, 1, self.n)
+        return Matrix[dtype](array, 1, self.n)
 
     def dagger(self) -> Diagram:
         return Merge(n=self.n)
@@ -493,7 +495,7 @@ class Endo(Box):
         super().__init__(f"Endo({scalar})", 1, 1)
 
     def to_path(self, dtype=complex):
-        return Matrix([self.scalar], 1, 1)
+        return Matrix[dtype]([self.scalar], 1, 1)
 
 
 class Phase(Box):
@@ -514,7 +516,7 @@ class Phase(Box):
         super().__init__(f"Phase({angle})", 1, 1)
 
     def to_path(self, dtype=complex):
-        return Matrix([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+        return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
 
 
 class Gate(Box):
@@ -522,8 +524,8 @@ class Gate(Box):
     Creates an instance of :class:`Diagram` given array, domain and codomain.
 
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
-    >>> HBS = Gate("BS", 2, 2, hbs_array)
-    >>> assert np.allclose((BS.dagger() >> BS).eval(2).array, Id(2).eval(2).array)
+    >>> HBS = Gate("HBS", 2, 2, hbs_array)
+    >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array, Id(2).eval(2).array)
     """
     def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
         self.array = array
@@ -536,10 +538,8 @@ class Gate(Box):
         )
 
     def to_path(self, dtype=complex):
-        if self.is_dagger:
-            return Matrix(self.array, len(self.dom), len(self.cod)).dagger()
-        else:
-            return Matrix(self.array, len(self.dom), len(self.cod))
+        return Matrix[dtype](self.array, len(self.dom), len(self.cod)).dagger() if self.is_dagger \
+            else Matrix[dtype](self.array, len(self.dom), len(self.cod))
 
     def dagger(self) -> Gate:
         return Gate(
