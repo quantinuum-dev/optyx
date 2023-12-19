@@ -253,15 +253,15 @@ class Matrix(underlying.Matrix):
         A = self.umatrix.array
         U, S, Vh = np.linalg.svd(A)
         s = max(S) if max(S) > 1 else 1
-        DA = np.concatenate(
+        defect0 = np.concatenate(
             [np.sqrt(1 - (S / s) ** 2), [1 for _ in range(dom - len(S))]]
         )
-        DAh = np.concatenate(
+        defect1 = np.concatenate(
             [np.sqrt(1 - (S / s) ** 2), [1 for _ in range(cod - len(S))]]
         )
-        DA = U.dot(np.diag(DA)).dot(U.conj().T)
-        DAh = (Vh.conj().T).dot(np.diag(DAh)).dot(Vh)
-        unitary = np.block([[A / s, DA], [DAh, -A.conj().T / s]])
+        defect_left = U.dot(np.diag(defect0)).dot(U.conj().T)
+        defect_right = (Vh.conj().T).dot(np.diag(defect1)).dot(Vh)
+        unitary = np.block([[A / s, defect_left], [defect_right, -A.conj().T / s]])
         creations = self.creations + cod * (0,)
         selections = self.selections + dom * (0,)
         return Matrix(
