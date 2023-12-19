@@ -28,6 +28,7 @@ classifiers = [
 ]
 dependencies = [
   "discopy >= 1.1.5",
+  "pyzx",
 ]
 
 [project.optional-dependencies]

@@ -27,9 +27,11 @@ jobs:
     - name: Install
       run:
         pip install .[test]
-    - name: Lint
-      run: |
+    - name: pflake8
+      run:
         pflake8 ${{ env.SRC_DIR }}
+    - name: pylint
+      run:
         pylint ${{ env.SRC_DIR }} --fail-under=8
   test:
     runs-on: ubuntu-latest
