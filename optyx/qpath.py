@@ -140,7 +140,8 @@ class Matrix(underlying.Matrix):
     dtype = complex
 
     def __new__(
-        cls, array, dom, cod, creations=(), selections=(), normalisation=1, scalar=1,
+        cls, array, dom, cod,
+        creations=(), selections=(), normalisation=1, scalar=1,
     ):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
@@ -205,7 +206,8 @@ class Matrix(underlying.Matrix):
         normalisation = self.normalisation * other.normalisation
         scalar = self.scalar * other.scalar
         return Matrix(
-            umatrix.array, dom, cod, creations, selections, normalisation, scalar
+            umatrix.array, dom, cod,
+            creations, selections, normalisation, scalar
         )
 
     def dagger(self) -> Matrix:
@@ -305,7 +307,7 @@ class Matrix(underlying.Matrix):
 
     def prob(self, n_photons=0, permanent=npperm) -> Probabilities:
         """ Computes the Born rule of the amplitudes for a given `Matrix`"""
-        amplitudes = self.eval(n_photons, permanent=npperm)
+        amplitudes = self.eval(n_photons, permanent=permanent)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities(probabilities, amplitudes.dom, amplitudes.cod)
 
@@ -398,7 +400,9 @@ class Create(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix[dtype](array, 0, len(self.photons), creations=self.photons)
+        return Matrix[dtype](
+            array, 0, len(self.photons), creations=self.photons
+        )
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
@@ -424,7 +428,9 @@ class Select(Box):
 
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
-        return Matrix[dtype](array, len(self.photons), 0, selections=self.photons)
+        return Matrix[dtype](
+            array, len(self.photons), 0, selections=self.photons
+        )
 
     def dagger(self) -> Diagram:
         return Create(*self.photons)
@@ -444,7 +450,8 @@ class Merge(Box):
 
     def __init__(self, n=2):
         self.n = n
-        super().__init__("Merge()" if n == 2 else f"Merge({n})", n, 1)
+        name = "Merge()" if n == 2 else f"Merge({n})"
+        super().__init__(name, n, 1)
 
     def to_path(self, dtype=complex):
         array = np.ones(self.n)
@@ -467,7 +474,8 @@ class Split(Box):
 
     def __init__(self, n=2):
         self.n = n
-        super().__init__("Split()" if n == 2 else f"Split({n})", 1, n)
+        name = "Split()" if n == 2 else f"Split({n})"
+        super().__init__(name, 1, n)
 
     def to_path(self, dtype=complex):
         array = np.ones(self.n)
@@ -526,7 +534,8 @@ class Gate(Box):
 
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate("HBS", 2, 2, hbs_array)
-    >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array, Id(2).eval(2).array)
+    >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array, 
+    ...                    Id(2).eval(2).array)
     """
     def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
         self.array = array
