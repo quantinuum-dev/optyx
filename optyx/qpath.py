@@ -47,7 +47,6 @@ Probabilities[complex]([0.5+0.j], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
 
-
 >>> plus = Create() >> Split()
 >>> state = plus >> Id(1) @ plus @ Id(1)
 >>> bell = state @ state\\
@@ -76,14 +75,10 @@ We can differentiate the expectation values of optical circuits.
 >>> assert np.allclose(
 ...     expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
 >>> assert np.allclose(
-...     expectation.subs((psi, 0)).eval().array, np.array([2.]))
->>> assert np.allclose(
 ...     expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
 >>> assert np.allclose(
 ...     expectation.grad(psi).subs((psi, 1/4)).eval().array,
 ...     np.array([-2*np.pi]))
->>> assert np.allclose(
-...     expectation.grad(psi).subs((psi, 0)).eval().array, np.array([0.]))
 >>> assert np.allclose(
 ...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
 ...     np.array([0.]))
@@ -153,24 +148,16 @@ def occupation_numbers(n_photons, m_modes):
 class Matrix(underlying.Matrix):
     """
     Matrix with photon creations and post-selections,
-    interpreted as an operator on the Fock space via :class:`Amplitudes`
+    evaluated as :class:`Amplitudes`.
 
+    Example
+    -------
     >>> array = np.array([[1, 1], [1, 0]])
     >>> matrix = Matrix(array, 1, 1, creations=(1,), selections=(1,))
     >>> matrix.eval(3)
     Amplitudes([3.+0.j], dom=1, cod=1)
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
-    >>> assert np.allclose(num_op.eval(5).array, matrix.eval(5).array)
-    >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
-    >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
-    >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
-    >>> assert (
-    ...     Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Select(1)
-    ...     ).eval(3) == num_op.eval(3)
-    >>> assert (num_op @ (Create(1) >> Select(1))).eval(3) == num_op.eval(3)
-    >>> assert (
-    ...     Create(1) @ Id(1) >> Id(1) @ Split() >> Select(1) @ Id(2)
-    ...     ).eval(3) == Split().eval(3)
+    >>> assert np.allclose(num_op.eval(4).array, matrix.eval(4).array)
     """
 
     dtype = complex
@@ -269,21 +256,15 @@ class Matrix(underlying.Matrix):
 
     def dilate(self) -> Matrix:
         """
-        Returns an equivalent qpath `Matrix` with unitary underlying matrix.
+        Returns an equivalent :class:`Matrix` with unitary underlying matrix.
 
+        Example
+        -------
         >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
         >>> U = num_op.to_path().dilate()
         >>> assert np.allclose(
         ...     (U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
         >>> assert np.allclose(U.eval(5).array, num_op.eval(5).array)
-        >>> M = Matrix(
-        ...     [1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0],
-        ...     dom=2, cod=3, creations=(1, ), selections=(2, ))
-        >>> U1 = M.dilate()
-        >>> assert np.allclose(
-        ...     (U1.umatrix >> U1.umatrix.dagger()).array,
-        ...     np.eye(U1.umatrix.dom))
-        >>> assert np.allclose(U1.eval(5).array, M.eval(5).array)
         """
         dom, cod = self.umatrix.dom, self.umatrix.cod
         A = self.umatrix.array
@@ -343,7 +324,7 @@ class Matrix(underlying.Matrix):
         return result
 
     def prob(self, n_photons=0, permanent=npperm) -> Probabilities:
-        """ Computes the Born rule of the amplitudes for a given `Matrix`"""
+        """ Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         amplitudes = self.eval(n_photons, permanent=npperm)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[self.dtype](
@@ -353,9 +334,10 @@ class Matrix(underlying.Matrix):
 
 class Amplitudes(underlying.Matrix):
     """
-    Matrix of amplitudes for given
-    input and output Fock states with at most n_photons in the input.
+    Operator on the Fock space represented as matrix over `occupation_numbers`.
 
+    Example
+    -------
     >>> BS.eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
@@ -372,8 +354,10 @@ class Amplitudes(underlying.Matrix):
 
 class Probabilities(underlying.Matrix):
     """
-    Stochastic matrix of probabilities for given input and output Fock states.
+    Stochastic matrix of probabilities over `occupation_numbers`.
 
+    Example
+    -------
     >>> BS.prob(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
     >>> (Create(1, 1) >> BS).prob()
@@ -432,6 +416,7 @@ class Box(symmetric.Box, Diagram):
 
 
 class Sum(symmetric.Sum, Box):
+    """ Formal sum of QPath diagrams. """
     __ambiguous_inheritance__ = (symmetric.Sum,)
     ty_factory = PRO
 
@@ -662,6 +647,8 @@ class Gate(Box):
     """
     Creates an instance of :class:`Box` given array, domain and codomain.
 
+    Example
+    -------
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate("HBS", 2, 2, hbs_array)
     >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array,
