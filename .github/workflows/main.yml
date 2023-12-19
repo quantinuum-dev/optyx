@@ -32,7 +32,7 @@ jobs:
         pflake8 ${{ env.SRC_DIR }}
     - name: pylint
       run:
-        pylint ${{ env.SRC_DIR }} --fail-under=8
+        pylint ${{ env.SRC_DIR }} --fail-under=9
   test:
     runs-on: ubuntu-latest
     strategy:
