@@ -11,7 +11,7 @@ from optyx.qpath import (
     Merge,
     Create,
     Select,
-    Scale,
+    Endo,
     Phase,
 )
 

@@ -12,6 +12,27 @@ env:
   DOCS_DIR: docs
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ 3.9 ]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'  # caching pip dependencies
+    - name: Install
+      run:
+        pip install .[test]
+    - name: pflake8
+      run:
+        pflake8 ${{ env.SRC_DIR }}
+    - name: pylint
+      run:
+        pylint ${{ env.SRC_DIR }} --fail-under=9
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -25,13 +46,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'  # caching pip dependencies
     - name: Install
-      run: |
-        pip install coverage pytest
+      run:
         pip install .[test]
-    - name: Lint
-      run: |
-        pflake8 ${{ env.SRC_DIR }}
-        pylint ${{ env.SRC_DIR }} --fail-under=8
     - name: Test
       run:
         coverage run -m pytest
