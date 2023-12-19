@@ -1,5 +1,5 @@
 """
-The category `qpath.Matrix` of matrices with creations and annihilations,
+The category `qpath.Matrix` of matrices with creations and post-selections,
 and the syntax `qpath.Diagram`.
 
 .. autosummary::
@@ -28,7 +28,7 @@ and the syntax `qpath.Diagram`.
         :nosignatures:
         :toctree:
 
-        permanent
+        npperm
         occupation_numbers
 
 Example
@@ -46,6 +46,7 @@ Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
 Probabilities([0.5], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
+
 >>> plus = Create() >> Split()
 >>> state = plus >> Id(1) @ plus @ Id(1)
 >>> bell = state @ state\\
@@ -121,7 +122,7 @@ def occupation_numbers(n_photons, m_modes):
 class Matrix(underlying.Matrix):
     """
     Matrix with photon creations and post-selections, 
-    interpreted as an operator on the Fock space via :class:`Amplitudes'
+    interpreted as an operator on the Fock space via :class:`Amplitudes`
 
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
     >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
@@ -266,7 +267,7 @@ class Matrix(underlying.Matrix):
         )
 
     def eval(self, n_photons=0, permanent=npperm) -> Amplitudes:
-        """Evaluates the ``Amplitudes'' of a QPath diagram"""
+        """Evaluates the :class:`Amplitudes` of a the QPath matrix"""
         dom_basis = occupation_numbers(n_photons, self.dom)
         n_photons_out = n_photons - sum(self.selections) + sum(self.creations)
         if n_photons_out < 0:
@@ -352,7 +353,7 @@ class Diagram(symmetric.Diagram):
     ty_factory = PRO
 
     def to_path(self, dtype=complex) -> Matrix:
-        """Returns the `Matrix` corresponding to a `Diagram`."""
+        """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
         return symmetric.Functor(
             ob=len,
             ar=lambda f: f.to_path(dtype=dtype),
@@ -367,7 +368,7 @@ class Diagram(symmetric.Diagram):
 
 
 class Box(symmetric.Box, Diagram):
-    """ Box in a QPath :class:`Diagram`"""
+    """ Box in a :class:`Diagram`"""
     def to_path(self, dtype=complex):
         raise NotImplementedError
 
@@ -405,7 +406,7 @@ class Create(Box):
 
 class Select(Box):
     """
-    Annihilations of photons given a list of occupation numbers.
+    Post-selection of photons given a list of occupation numbers.
 
     Parameters:
         photons : Occupation numbers.
@@ -455,7 +456,7 @@ class Merge(Box):
 
 class Split(Box):
     """
-    Split map with one input qand two outputs.
+    Split map with one input and two outputs.
 
     Example
     -------
@@ -521,7 +522,7 @@ class Phase(Box):
 
 class Gate(Box):
     """
-    Creates an instance of :class:`Diagram` given array, domain and codomain.
+    Creates an instance of :class:`Box` given array, domain and codomain.
 
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate("HBS", 2, 2, hbs_array)

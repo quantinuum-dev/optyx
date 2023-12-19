@@ -1,15 +1,23 @@
 """
 ZX diagrams and their mapping to :class:`qpath.Diagram`.
 
+.. autosummary::
+    :template:
+    :nosignatures:
+    :toctree:
+
+    zx_to_path
+
 Example
 -------
+
+Evaluating ZX diagrams using PyZX or using `zx_to_path` are equivalent.
 
 >>> ket = lambda *xs: zx.Id(0).tensor(*[zx.X(0, 1, 0.5 if x == 1 else 0) for x in xs])
 >>> cnot = zx.Z(1, 2) @ zx.Id(1) >> zx.Id(1) @ zx.X(2, 1)
 >>> control = lambda x: ket(x) @ zx.Id(1) >> cnot >> ket(x).dagger() @ zx.Id(1)
 >>> assert np.allclose(zx_to_path(control(0)).eval(1).array, control(0).to_pyzx().to_tensor())
 >>> assert np.allclose(zx_to_path(control(1)).eval(1).array, control(1).to_pyzx().to_tensor())
-
 >>> cz = lambda phi: cnot >> zx.Z(1, 1, phi) @ zx.H
 >>> amplitude = ket(1, 1) >> cz(0.7) >> ket(1, 1).dagger()
 >>> assert np.allclose(zx_to_path(amplitude).eval().array, \\
@@ -44,7 +52,7 @@ def make_spiders(n):
     return spider
 
 def decomp_ar(box):
-    """ Decomposes a ZX diagram into Z spiders with at most two inputs/outputs and hadamards
+    """ Decomposes a ZX diagram into Z spiders with at most two inputs/outputs and hadamards.
     
     >>> assert decomp(zx.X(2, 3, 0.25)) == zx.H @ zx.H >> zx.Z(2, 1)\\
     ...     >> zx.Z(1, 1, 0.25) >> zx.Z(1, 2) >> zx.Z(1, 2) @ zx.Id(1) >> zx.H @ zx.H @ zx.H
@@ -129,4 +137,15 @@ def ar_zx2path(box):
 zx2path = symmetric.Functor(ob=lambda x: 2 * len(x), ar=ar_zx2path,
                             cod=symmetric.Category(int, qpath.Diagram))
 
-zx_to_path = lambda x: zx2path(decomp(x))
+def zx_to_path(diagram: zx.Diagram) -> qpath.Diagram:
+    """ 
+    Dual-rail encoding of any ZX diagram as a QPath diagram.
+    
+    >>> diagram = zx.Z(2, 1, 0.25) >> zx.X(1, 1, 0.35)
+    >>> print(decomp(diagram))
+    Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
+    >>> print(zx2path(decomp(diagram))[:3])
+    PRO(1) @ Merge() @ PRO(1) >> PRO(1) @ Select() @ PRO(1) >> PRO(1) @ Phase(0.25)
+    >>> assert zx2path(decomp(diagram)) == zx_to_path(diagram)
+    """
+    return zx2path(decomp(diagram))
