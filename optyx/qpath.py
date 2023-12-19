@@ -567,10 +567,11 @@ class Scalar(Box):
 
     Example
     -------
-    >>> Scalar(0.45).to_path()
-    Matrix([], dom=0, cod=0, creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> diagram = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
-    >>> assert np.isclose(diagram.eval().array[0], 1)
+    >>> assert Scalar(0.45).to_path() == Matrix(
+    ...     [], dom=0, cod=0,
+    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> assert np.isclose(s.eval().array[0], 1)
     """
     def __init__(self, scalar: complex):
         self.scalar = scalar

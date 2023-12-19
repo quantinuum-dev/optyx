@@ -28,7 +28,8 @@ Evaluating ZX diagrams using PyZX or using `zx_to_path` are equivalent.
 
 Corner case where `to_pyzx` and `zx_to_path` agree only up to global phase.
 
->>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25) >> zx.Id(1) @ zx.Z(2, 1) >> zx.X(2, 0, 0.35)
+>>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25)\\
+...     >> zx.Id(1) @ zx.Z(2, 1) >> zx.X(2, 0, 0.35)
 >>> print(decomp(diagram)[:3])
 X(0, 1) >> H >> Z(1, 2)
 >>> print(zx_to_path(diagram)[:2])
