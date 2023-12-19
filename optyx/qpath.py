@@ -121,7 +121,7 @@ def occupation_numbers(n_photons, m_modes):
 
 class Matrix(underlying.Matrix):
     """
-    Matrix with photon creations and post-selections, 
+    Matrix with photon creations and post-selections,
     interpreted as an operator on the Fock space via :class:`Amplitudes`
 
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
@@ -534,7 +534,7 @@ class Gate(Box):
 
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate("HBS", 2, 2, hbs_array)
-    >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array, 
+    >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array,
     ...                    Id(2).eval(2).array)
     """
     def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
@@ -570,7 +570,7 @@ class Scalar(Box):
     >>> Scalar(0.45).to_path()
     Matrix([], dom=0, cod=0, creations=(), selections=(), normalisation=1, scalar=0.45)
     >>> diagram = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
-    >>> assert np.isclose(diagram.eval().array[0], 1) 
+    >>> assert np.isclose(diagram.eval().array[0], 1)
     """
     def __init__(self, scalar: complex):
         self.scalar = scalar
@@ -578,6 +578,7 @@ class Scalar(Box):
 
     def to_path(self, dtype=complex):
         return Matrix([], 0, 0, scalar=self.scalar)
+
 
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))

@@ -66,7 +66,7 @@ def decomp_ar(box):
         if (n, m) in ((1, 0), (0, 1)):
             return box
         box = zx.Id().tensor(*[zx.H] * n) >> zx.Z(n, m, phase) \
-           >> zx.Id().tensor(*[zx.H] * m)
+          >> zx.Id().tensor(*[zx.H] * m)
         return decomp(box)
     if isinstance(box, zx.Z):
         phase = box.phase
@@ -91,9 +91,10 @@ monoid = qpath.Merge()
 BS = qpath.BS
 Id = qpath.Id
 
+
 def ar_zx2path(box):
     """ Mapping from ZX generators to QPath diagrams
-    
+
     >>> zx2path(decomp(zx.X(0, 1) @ zx.X(0, 1) >> zx.Z(2, 1))).eval()
     Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
     >>> zx2path(zx.Scalar(0.35))
@@ -142,9 +143,9 @@ zx2path = symmetric.Functor(ob=lambda x: 2 * len(x), ar=ar_zx2path,
                             cod=symmetric.Category(int, qpath.Diagram))
 
 def zx_to_path(diagram: zx.Diagram) -> qpath.Diagram:
-    """ 
+    """
     Dual-rail encoding of any ZX diagram as a QPath diagram.
-    
+
     >>> diagram = zx.Z(2, 1, 0.25) >> zx.X(1, 1, 0.35)
     >>> print(decomp(diagram))
     Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
