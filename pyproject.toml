@@ -37,6 +37,7 @@ test = [
     "coverage",
     "pyproject-flake8",
     "pylint",
+    "pyzx",
 ]
 docs = [
     "sphinx",
