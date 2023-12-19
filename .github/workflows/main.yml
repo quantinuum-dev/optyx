@@ -46,6 +46,7 @@ jobs:
     - name: Install
       run:
         pip install .[test]
+    - name: Test
       run:
         coverage run -m pytest
     - name: Coverage
