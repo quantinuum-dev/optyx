@@ -32,7 +32,8 @@ from discopy import symmetric, rigid, frobenius
 import numpy as np
 
 def make_spiders(n):
-    """ Constructs the Z spider 1 -> n from spiders 1 -> 2
+    """ Constructs the Z spider 1 -> n from spiders 1 -> 2.
+    
     >>> assert len(make_spiders(6)) == 5
     """
     spider = zx.Id(1)
