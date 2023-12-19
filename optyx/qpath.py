@@ -1,6 +1,6 @@
 """
-The category ``qpath.Matrix'' of matrices with creations and annihilations,
-and the syntax ``qpath.Diagram''.
+The category `qpath.Matrix` of matrices with creations and annihilations,
+and the syntax `qpath.Diagram`.
 
 .. autosummary::
     :template: class.rst
@@ -12,13 +12,13 @@ and the syntax ``qpath.Diagram''.
     Probabilities
     Diagram
     Box
-    Gate
     Swap
     Create
     Select
     Merge
     Split
-    Scale
+    Endo
+    Gate
     Phase
 
 .. admonition:: Functions
@@ -120,6 +120,9 @@ def occupation_numbers(n_photons, m_modes):
 
 class Matrix(underlying.Matrix):
     """
+    Matrix with photon creations and post-selections, 
+    interpreted as an operator on the Fock space via :class:`Amplitudes'
+
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
     >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
     >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
@@ -227,6 +230,8 @@ class Matrix(underlying.Matrix):
 
     def dilate(self):
         """
+        Returns an equivalent qpath `Matrix` with unitary underlying matrix.
+
         >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
         >>> U = num_op.to_path().dilate()
         >>> assert np.allclose(
@@ -340,6 +345,9 @@ class Probabilities(underlying.Matrix):
 
 @factory
 class Diagram(symmetric.Diagram):
+    """
+    QPath diagram in the sense of https://arxiv.org/abs/2204.12985.
+    """
     ty_factory = PRO
 
     def to_path(self, dtype=complex):
@@ -357,35 +365,9 @@ class Diagram(symmetric.Diagram):
 
 
 class Box(symmetric.Box, Diagram):
+    """ Box in a QPath :class:`Diagram`"""
     def to_path(self):
         raise NotImplementedError
-
-
-class Gate(Box):
-    def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
-        self.array = array
-        # self.is_dagger = is_dagger
-        super().__init__(
-            f"{name}({array}, is_dagger={is_dagger})",
-            dom,
-            cod,
-            is_dagger=is_dagger,
-        )
-
-    def to_path(self, dtype=complex):
-        if self.is_dagger:
-            return Matrix(self.array, len(self.dom), len(self.cod)).dagger()
-        else:
-            return Matrix(self.array, len(self.dom), len(self.cod))
-
-    def dagger(self) -> Gate:
-        return Gate(
-            self.name,
-            self.dom,
-            self.cod,
-            self.array,
-            is_dagger=not self.is_dagger,
-        )
 
 
 class Swap(symmetric.Swap, Box):
@@ -429,6 +411,7 @@ class Select(Box):
     Example
     -------
     >>> assert Select() == Select(1)
+    >>> assert Select(2).dagger() == Create(2)
     """
 
     def __init__(self, *photons: int):
@@ -446,13 +429,14 @@ class Select(Box):
 
 class Merge(Box):
     """
-    Matrix merging.
+    Merge map with two inputs and one output
 
     Example
     -------
-    >>> sqrt2 = Create() >> Scale(2 ** -.5) >> Select()
+    >>> sqrt2 = Create() >> Endo(2 ** -.5) >> Select()
     >>> assert (sqrt2 @ Create() @ Create() >> Merge()).eval()\\
     ...     == Create(2).eval()
+    >>> assert Merge().dagger() == Split()
     """
 
     def __init__(self, n=2):
@@ -469,12 +453,13 @@ class Merge(Box):
 
 class Split(Box):
     """
-    Matrix spliting.
+    Split map with one input qand two outputs.
 
     Example
     -------
     >>> (Create() >> Split()).eval()
     Amplitudes([1.+0.j, 1.+0.j], dom=1, cod=2)
+    >>> assert Split().dagger() == Merge()
     """
 
     def __init__(self, n=2):
@@ -489,20 +474,23 @@ class Split(Box):
         return Merge(n=self.n)
 
 
-class Scale(Box):
+class Endo(Box):
     """
-    Scale endomorphism with one input and one output.
+    Endomorphism with one input and one output.
+
+    Parameters:
+        scalar : complex
 
     Example
     -------
-    >>> assert (Create(2) >> Split() >> Id(1) @ Scale(0.5)).to_path()\\
+    >>> assert (Create(2) >> Split() >> Id(1) @ Endo(0.5)).to_path()\\
     ...     == Matrix(
     ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
     ...         creations=(2,), selections=(), normalisation=1)
     """
     def __init__(self, scalar: complex):
         self.scalar = scalar
-        super().__init__(f"Scale({scalar})", 1, 1)
+        super().__init__(f"Endo({scalar})", 1, 1)
 
     def to_path(self, dtype=complex):
         return Matrix([self.scalar], 1, 1)
@@ -511,6 +499,9 @@ class Scale(Box):
 class Phase(Box):
     """
     Phase shift with angle parameter between 0 and 1
+
+    Parameters:
+        angle : Phase parameter between 0 and 1
 
     Example
     -------
@@ -524,6 +515,40 @@ class Phase(Box):
 
     def to_path(self, dtype=complex):
         return Matrix([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+
+
+class Gate(Box):
+    """
+    Creates an instance of :class:`Diagram` given array, domain and codomain.
+
+    >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
+    >>> HBS = Gate("BS", 2, 2, hbs_array)
+    >>> assert np.allclose((BS.dagger() >> BS).eval(2).array, Id(2).eval(2).array)
+    """
+    def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
+        self.array = array
+        # self.is_dagger = is_dagger
+        super().__init__(
+            f"{name}({array}, is_dagger={is_dagger})",
+            dom,
+            cod,
+            is_dagger=is_dagger,
+        )
+
+    def to_path(self, dtype=complex):
+        if self.is_dagger:
+            return Matrix(self.array, len(self.dom), len(self.cod)).dagger()
+        else:
+            return Matrix(self.array, len(self.dom), len(self.cod))
+
+    def dagger(self) -> Gate:
+        return Gate(
+            self.name,
+            self.dom,
+            self.cod,
+            self.array,
+            is_dagger=not self.is_dagger,
+        )
 
 
 class Scalar(Box):
