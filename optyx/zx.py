@@ -1,17 +1,25 @@
 """
 ZX diagrams and their mapping to :class:`qpath.Diagram`.
 
-.. autosummary::
-    :template:
-    :nosignatures:
-    :toctree:
+.. admonition:: Functions
+    .. autosummary::
+        :template: function.rst
+        :nosignatures:
+        :toctree:
 
-    zx_to_path
+        zx_to_path
+
 
 Example
 -------
+>>> diagram = zx.Z(2, 1, 0.25) >> zx.X(1, 1, 0.35)
+>>> print(decomp(diagram))
+Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
+>>> print(zx2path(decomp(diagram))[:2])
+PRO(1) @ Merge() @ PRO(1) >> PRO(1) @ Select() @ PRO(1)
+>>> assert zx2path(decomp(diagram)) == zx_to_path(diagram)
 
-Evaluating ZX diagrams using PyZX or using `zx_to_path` are equivalent.
+Evaluating ZX diagrams using PyZX or via the dual rail encoding is equivalent.
 
 >>> ket = lambda *xs: zx.Id(0).tensor(\\
 ...         *[zx.X(0, 1, 0.5 if x == 1 else 0) for x in xs])
@@ -26,7 +34,7 @@ Evaluating ZX diagrams using PyZX or using `zx_to_path` are equivalent.
 >>> assert np.allclose(zx_to_path(amplitude).eval().array, \\
 ...                    amplitude.to_pyzx().to_tensor())
 
-Corner case where `to_pyzx` and `zx_to_path` agree only up to global phase.
+Corner case where :py:`to_pyzx` and :py:`zx_to_path` agree only up to global phase.
 
 >>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25) @ zx.Scalar(1/2)\\
 ...     >> zx.Id(1) @ zx.Z(2, 1) >> zx.X(2, 0, 0.35)
@@ -42,7 +50,7 @@ import numpy as np
 from discopy.quantum import zx
 from discopy import symmetric, rigid, frobenius
 
-from optyx import qpath
+from optyx import qpath, circuit
 
 
 def make_spiders(n):
@@ -124,7 +132,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return qpath.Id(1) @ qpath.Phase(phase)
+            return qpath.Id(1) @ circuit.Phase(phase)
         if (n, m, phase) == (2, 1, 0):
             return Id(1) @ (monoid >> annil) @ Id(1)
         if (n, m, phase) == (1, 2, 0):
@@ -135,7 +143,7 @@ def ar_zx2path(box):
             return bot >> mid >> (Id(2) @ fusion @ Id(2))
     if box == zx.H:
         hbs_array = (1/2) ** (1/2) * np.array([[1, 1], [1, -1]])
-        hadamard_bs = qpath.Gate('HBS', 2, 2, hbs_array)
+        hadamard_bs = circuit.Gate(hbs_array, 2, 2, 'HBS')
         return hadamard_bs
     raise NotImplementedError(f'No translation of {box} in QPath.')
 
@@ -147,12 +155,5 @@ zx2path = symmetric.Functor(ob=lambda x: 2 * len(x), ar=ar_zx2path,
 def zx_to_path(diagram: zx.Diagram) -> qpath.Diagram:
     """
     Dual-rail encoding of any ZX diagram as a QPath diagram.
-
-    >>> diagram = zx.Z(2, 1, 0.25) >> zx.X(1, 1, 0.35)
-    >>> print(decomp(diagram))
-    Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
-    >>> print(zx2path(decomp(diagram))[:2])
-    PRO(1) @ Merge() @ PRO(1) >> PRO(1) @ Select() @ PRO(1)
-    >>> assert zx2path(decomp(diagram)) == zx_to_path(diagram)
     """
     return zx2path(decomp(diagram))

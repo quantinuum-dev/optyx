@@ -12,7 +12,6 @@ from optyx.qpath import (
     Create,
     Select,
     Endo,
-    Phase,
 )
 
 from optyx._version import (

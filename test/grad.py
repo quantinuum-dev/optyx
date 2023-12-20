@@ -1,4 +1,5 @@
-from optyx.qpath import Phase, Id, BS, Endo, Scalar
+from optyx.qpath import Id, Endo, Scalar
+from optyx.circuit import Phase, BS
 from sympy.abc import psi
 import numpy as np
 

@@ -1,6 +1,6 @@
 """
-The category `qpath.Matrix` of matrices with creations and post-selections,
-and the syntax `qpath.Diagram`.
+The category :class:`Matrix` of matrices with creations and post-selections,
+and the syntax :class:`Diagram`.
 
 .. autosummary::
     :template: class.rst
@@ -12,14 +12,14 @@ and the syntax `qpath.Diagram`.
     Probabilities
     Diagram
     Box
+    Sum
     Swap
     Create
     Select
     Merge
     Split
     Endo
-    Gate
-    Phase
+    Scalar
 
 .. admonition:: Functions
 
@@ -62,39 +62,19 @@ We can define the number operator and compute its expectation.
 >>> num_op = Split() >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge()
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
 >>> assert np.allclose(expectation(5).eval().array, np.array([5.]))
-
-We can differentiate the expectation values of optical circuits.
-
->>> from sympy.abc import psi
->>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
->>> state = Create(2, 0) >> circuit
->>> observable = num_op @ Id(1)
->>> expectation = state >> observable >> state.dagger()
->>> assert np.allclose(
-...     expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
->>> assert np.allclose(
-...     expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
->>> assert np.allclose(
-...     expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
->>> assert np.allclose(
-...     expectation.grad(psi).subs((psi, 1/4)).eval().array,
-...     np.array([-2*np.pi]))
->>> assert np.allclose(
-...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
-...     np.array([0.]))
 """
 
 from __future__ import annotations
 
 from math import factorial
 import numpy as np
+from sympy import Expr
 
 from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy import matrix as underlying
 from discopy.utils import unbiased
-
 
 def npperm(matrix):
     """
@@ -150,6 +130,15 @@ class Matrix(underlying.Matrix):
     Matrix with photon creations and post-selections,
     evaluated as :class:`Amplitudes`.
 
+    Parameters:
+        array : underlying array
+        dom : int
+        cod : int
+        creations : list of occupation numbers
+        selections : list of occupation numbers
+        normalisation : normalisation factor dependent on number of photons.
+        scalar : global scalar independent of number of photons
+
     Example
     -------
     >>> array = np.array([[1, 1], [1, 0]])
@@ -187,10 +176,15 @@ class Matrix(underlying.Matrix):
 
     @property
     def umatrix(self) -> underlying.Matrix:
+        """ 
+        Underlying matrix with 
+        `len(creations) + dom` inputs and  `len(selections) + cod` outputs.
+        """
         return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
 
     @unbiased
     def then(self, other: Matrix) -> Matrix:
+        """Sequential composition of QPath matrices"""
         assert_iscomposable(self, other)
         M = underlying.Matrix[self.dtype]
         left, right = len(self.selections), len(other.creations)
@@ -215,6 +209,7 @@ class Matrix(underlying.Matrix):
 
     @unbiased
     def tensor(self, other: Matrix) -> Matrix:
+        """Parallel composition of QPath matrices"""
         M = underlying.Matrix[self.dtype]
         a, b = len(self.creations), len(other.creations)
         c, d = len(self.selections), len(other.selections)
@@ -234,6 +229,7 @@ class Matrix(underlying.Matrix):
         )
 
     def dagger(self) -> Matrix:
+        """Adjoint QPath matrix"""
         array = self.umatrix.dagger().array
         return Matrix[self.dtype](
             array,
@@ -397,6 +393,8 @@ class Diagram(symmetric.Diagram):
 class Box(symmetric.Box, Diagram):
     """ Box in a :class:`Diagram`"""
     def to_path(self, dtype=complex):
+        if isinstance(self.data, Matrix[dtype]):
+            return self.data
         raise NotImplementedError
 
     def lambdify(self, *symbols, **kwargs):
@@ -505,7 +503,10 @@ class Select(Box):
 
 class Merge(Box):
     """
-    Merge map with two inputs and one output
+    Merge map with 2n inputs and n outputs.
+
+    Parameters:
+        n : number of output wires
 
     Example
     -------
@@ -530,7 +531,10 @@ class Merge(Box):
 
 class Split(Box):
     """
-    Split map with one input and two outputs.
+    Split map with n inputs and 2n outputs.
+
+    Parameters:
+        n : number of input wires
 
     Example
     -------
@@ -609,53 +613,6 @@ class Endo(Box):
         )
 
 
-class Phase(Box):
-    """
-    Phase shift with angle parameter between 0 and 1
-
-    Parameters:
-        angle : Phase parameter between 0 and 1
-
-    Example
-    -------
-    >>> Phase(1/2).eval(1).array.round(3)
-    array([[-1.+0.j]])
-    >>> from sympy.abc import psi
-    >>> from sympy import Expr
-    >>> derivative = Phase(psi).grad(psi).subs((psi, 0.5)).eval(2).array
-    >>> assert np.allclose(derivative, 4 * np.pi * 1j)
-    """
-
-    def __init__(self, angle: float):
-        self.angle = angle
-        super().__init__(f"Phase({angle})", 1, 1, data=angle)
-
-    def to_path(self, dtype=complex):
-        return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
-
-    def dagger(self) -> Diagram:
-        return Phase(-self.angle)
-
-    def grad(self, var):
-        if var not in self.free_symbols:
-            return self.sum_factory((), self.dom, self.cod)
-        s = 2j * np.pi * self.angle.diff(var)
-        num_op = (
-            Split()
-            >> Id(1) @ (Select() >> Create())
-            >> Merge()
-        )
-        d = Scalar(s) @ (self >> num_op)
-        return d
-
-    def lambdify(self, *symbols, **kwargs):
-        from sympy import lambdify
-
-        return lambda *xs: type(self)(
-            lambdify(symbols, self.angle, **kwargs)(*xs)
-        )
-
-
 class Scalar(Box):
     """
     Scalar in a QPath diagram
@@ -685,47 +642,11 @@ class Scalar(Box):
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
 
-
-class Gate(Box):
-    """
-    Creates an instance of :class:`Box` given array, domain and codomain.
-
-    Example
-    -------
-    >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
-    >>> HBS = Gate("HBS", 2, 2, hbs_array)
-    >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array,
-    ...                    Id(2).eval(2).array)
-    """
-    def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
-        self.array = array
-        # self.is_dagger = is_dagger
-        super().__init__(
-            f"{name}({array}, is_dagger={is_dagger})",
-            dom,
-            cod,
-            is_dagger=is_dagger,
-        )
-
-    def to_path(self, dtype=complex):
-        result = Matrix[dtype](self.array, len(self.dom), len(self.cod))
-        return result.dagger() if self.is_dagger else result
-
-    def dagger(self) -> Gate:
-        return Gate(
-            self.name,
-            self.dom,
-            self.cod,
-            self.array,
-            is_dagger=not self.is_dagger,
-        )
-
+bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
+bs_matrix = Matrix(bs_array, 2, 2)
+BS = Box('BS', 2, 2, data=bs_matrix)
 
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
 Id = Diagram.id
-
-bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
-BS = Gate("BS", 2, 2, bs_array)
-
 Diagram.sum_factory = Sum
