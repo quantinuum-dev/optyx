@@ -82,6 +82,11 @@ We can differentiate the expectation values of optical circuits.
 >>> assert np.allclose(
 ...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
 ...     np.array([0.]))
+
+Broken test:
+
+>>> from sympy import Expr
+>>> (Endo(0.3) @ Endo(0.5)).to_path(Expr)
 """
 
 from __future__ import annotations
