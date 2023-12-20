@@ -416,9 +416,9 @@ class Box(symmetric.Box, Diagram):
 
 
 class Sum(symmetric.Sum, Box):
-    """ 
-    Formal sum of QPath diagrams. 
-    
+    """
+    Formal sum of QPath diagrams.
+
     Example
     -------
     >>> s0, s1 = 1/2 ** 1/2, 1j * 1/2 ** 1/2
@@ -630,7 +630,7 @@ class Phase(Box):
     >>> from sympy.abc import psi
     >>> from sympy import Expr
     >>> derivative = Phase(psi).grad(psi).subs((psi, 0.5)).eval(2).array
-    >>> assert np.allclose(derivative, 4 * np.pi * 1j)              
+    >>> assert np.allclose(derivative, 4 * np.pi * 1j)
     """
 
     def __init__(self, angle: float):
@@ -661,6 +661,7 @@ class Phase(Box):
         return lambda *xs: type(self)(
             lambdify(symbols, self.angle, **kwargs)(*xs)
         )
+
 
 class Scalar(Box):
     """
