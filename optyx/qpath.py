@@ -89,7 +89,7 @@ from __future__ import annotations
 from math import factorial
 import numpy as np
 
-from discopy import symmetric
+from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy import matrix as underlying
@@ -391,14 +391,7 @@ class Diagram(symmetric.Diagram):
     def prob(self, n_photons=0, permanent=npperm, dtype=complex):
         return self.to_path(dtype).prob(n_photons, permanent)
 
-    def grad(self, var, **params):
-        """Gradient with respect to :code:`var`."""
-        if var not in self.free_symbols:
-            return self.sum_factory((), self.dom, self.cod)
-        left, box, right, tail = tuple(self.inside[0]) + (self[1:],)
-        t1 = self.id(left) @ box.grad(var, **params) @ self.id(right) >> tail
-        t2 = self.id(left) @ box @ self.id(right) >> tail.grad(var, **params)
-        return t1 + t2
+    grad = tensor.Diagram.grad
 
 
 class Box(symmetric.Box, Diagram):
