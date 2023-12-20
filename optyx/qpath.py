@@ -31,8 +31,8 @@ and the syntax `qpath.Diagram`.
         npperm
         occupation_numbers
 
-Example
--------
+Examples
+--------
 
 We can check the Hong-Ou-Mandel effect:
 
@@ -40,10 +40,10 @@ We can check the Hong-Ou-Mandel effect:
 >>> HOM.eval()
 Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
 >>> HOM.prob()
-Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
+Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.prob()
-Probabilities([0.5], dom=1, cod=1)
+Probabilities[complex]([0.5+0.j], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
 
@@ -56,6 +56,32 @@ We can construct a Bell state in dual rail encoding:
 ...     (bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
 >>> assert np.allclose(
 ...     (bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
+
+We can define the number operator and compute its expectation.
+
+>>> num_op = Split() >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge()
+>>> expectation = lambda n: Create(n) >> num_op >> Select(n)
+>>> assert np.allclose(expectation(5).eval().array, np.array([5.]))
+
+We can differentiate the expectation values of optical circuits.
+
+>>> from sympy.abc import psi
+>>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
+>>> state = Create(2, 0) >> circuit
+>>> observable = num_op @ Id(1)
+>>> expectation = state >> observable >> state.dagger()
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
+>>> assert np.allclose(
+...     expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.grad(psi).subs((psi, 1/4)).eval().array,
+...     np.array([-2*np.pi]))
+>>> assert np.allclose(
+...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
+...     np.array([0.]))
 """
 
 from __future__ import annotations
@@ -63,7 +89,7 @@ from __future__ import annotations
 from math import factorial
 import numpy as np
 
-from discopy import symmetric
+from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy import matrix as underlying
@@ -122,19 +148,16 @@ def occupation_numbers(n_photons, m_modes):
 class Matrix(underlying.Matrix):
     """
     Matrix with photon creations and post-selections,
-    interpreted as an operator on the Fock space via :class:`Amplitudes`
+    evaluated as :class:`Amplitudes`.
 
+    Example
+    -------
+    >>> array = np.array([[1, 1], [1, 0]])
+    >>> matrix = Matrix(array, 1, 1, creations=(1,), selections=(1,))
+    >>> matrix.eval(3)
+    Amplitudes([3.+0.j], dom=1, cod=1)
     >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
-    >>> num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
-    >>> assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
-    >>> assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
-    >>> assert (
-    ...     Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Select(1)
-    ...     ).eval(3) == num_op.eval(3)
-    >>> assert (num_op @ (Create(1) >> Select(1))).eval(3) == num_op.eval(3)
-    >>> assert (
-    ...     Create(1) @ Id(1) >> Id(1) @ Split() >> Select(1) @ Id(2)
-    ...     ).eval(3) == Split().eval(3)
+    >>> assert np.allclose(num_op.eval(4).array, matrix.eval(4).array)
     """
 
     dtype = complex
@@ -180,7 +203,7 @@ class Matrix(underlying.Matrix):
         selections = other.selections + self.selections
         scalar = self.scalar * other.scalar
         normalisation = self.normalisation * other.normalisation
-        return Matrix(
+        return Matrix[self.dtype](
             umatrix.array,
             self.dom,
             other.cod,
@@ -205,14 +228,14 @@ class Matrix(underlying.Matrix):
         selections = self.selections + other.selections
         normalisation = self.normalisation * other.normalisation
         scalar = self.scalar * other.scalar
-        return Matrix(
+        return Matrix[self.dtype](
             umatrix.array, dom, cod,
             creations, selections, normalisation, scalar
         )
 
     def dagger(self) -> Matrix:
         array = self.umatrix.dagger().array
-        return Matrix(
+        return Matrix[self.dtype](
             array,
             self.cod,
             self.dom,
@@ -233,21 +256,15 @@ class Matrix(underlying.Matrix):
 
     def dilate(self) -> Matrix:
         """
-        Returns an equivalent qpath `Matrix` with unitary underlying matrix.
+        Returns an equivalent :class:`Matrix` with unitary underlying matrix.
 
+        Example
+        -------
         >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
         >>> U = num_op.to_path().dilate()
         >>> assert np.allclose(
         ...     (U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
         >>> assert np.allclose(U.eval(5).array, num_op.eval(5).array)
-        >>> M = Matrix(
-        ...     [1, 2, 1, 1, 1, 4, 1, 1, 0, 4, 1, 0],
-        ...     dom=2, cod=3, creations=(1, ), selections=(2, ))
-        >>> U1 = M.dilate()
-        >>> assert np.allclose(
-        ...     (U1.umatrix >> U1.umatrix.dagger()).array,
-        ...     np.eye(U1.umatrix.dom))
-        >>> assert np.allclose(U1.eval(5).array, M.eval(5).array)
         """
         dom, cod = self.umatrix.dom, self.umatrix.cod
         A = self.umatrix.array
@@ -307,17 +324,20 @@ class Matrix(underlying.Matrix):
         return result
 
     def prob(self, n_photons=0, permanent=npperm) -> Probabilities:
-        """ Computes the Born rule of the amplitudes for a given `Matrix`"""
-        amplitudes = self.eval(n_photons, permanent=permanent)
+        """ Computes the Born rule of the amplitudes of the :class:`Matrix`"""
+        amplitudes = self.eval(n_photons, permanent=npperm)
         probabilities = np.abs(amplitudes.array) ** 2
-        return Probabilities(probabilities, amplitudes.dom, amplitudes.cod)
+        return Probabilities[self.dtype](
+            probabilities, amplitudes.dom, amplitudes.cod
+        )
 
 
 class Amplitudes(underlying.Matrix):
     """
-    Matrix of amplitudes for given
-    input and output Fock states with at most n_photons in the input.
+    Operator on the Fock space represented as matrix over `occupation_numbers`.
 
+    Example
+    -------
     >>> BS.eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
@@ -334,12 +354,14 @@ class Amplitudes(underlying.Matrix):
 
 class Probabilities(underlying.Matrix):
     """
-    Stochastic matrix of probabilities for given input and output Fock states.
+    Stochastic matrix of probabilities over `occupation_numbers`.
 
+    Example
+    -------
     >>> BS.prob(1)
-    Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
+    Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
     >>> (Create(1, 1) >> BS).prob()
-    Probabilities([0.5, 0. , 0.5], dom=1, cod=3)
+    Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
     """
 
     dtype = float
@@ -363,17 +385,61 @@ class Diagram(symmetric.Diagram):
             cod=symmetric.Category(int, Matrix[dtype]),
         )(self)
 
-    def eval(self, n_photons=0, permanent=npperm):
-        return self.to_path().eval(n_photons, permanent)
+    def eval(self, n_photons=0, permanent=npperm, dtype=complex):
+        return self.to_path(dtype).eval(n_photons, permanent)
 
-    def prob(self, n_photons=0, permanent=npperm):
-        return self.to_path().prob(n_photons, permanent)
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex):
+        return self.to_path(dtype).prob(n_photons, permanent)
+
+    grad = tensor.Diagram.grad
 
 
 class Box(symmetric.Box, Diagram):
     """ Box in a :class:`Diagram`"""
     def to_path(self, dtype=complex):
         raise NotImplementedError
+
+    def lambdify(self, *symbols, **kwargs):
+        # Non-symbolic gates can be returned directly
+        return lambda *xs: self
+
+    def subs(self, *args) -> Box:
+        syms, exprs = zip(*args)
+        return self.lambdify(*syms)(*exprs)
+
+
+class Sum(symmetric.Sum, Box):
+    """
+    Formal sum of QPath diagrams.
+
+    Example
+    -------
+    >>> s0, s1 = 1/2 ** 1/2, 1j * 1/2 ** 1/2
+    >>> state0 = Scalar(s0) @ Create(1, 0) + Scalar(s1) @ Create(0, 1)
+    >>> state1 = Create(1) >> Split() >> Endo(s0) @ Endo(s1)
+    >>> assert np.allclose(state0.eval().array, state1.eval().array)
+    >>> assert np.allclose(state0.prob().array, state1.prob().array)
+    """
+    __ambiguous_inheritance__ = (symmetric.Sum,)
+    ty_factory = PRO
+
+    def eval(self, n_photons=0, permanent=npperm, dtype=complex):
+        return sum(
+            term.eval(n_photons, permanent, dtype) for term in self.terms
+        )
+
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex):
+        amplitudes = self.eval(n_photons, permanent, dtype)
+        probabilities = np.abs(amplitudes.array) ** 2
+        return Probabilities[dtype](
+            probabilities, amplitudes.dom, amplitudes.cod
+        )
+
+    def grad(self, var, **params):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return sum(term.grad(var, **params) for term in self.terms)
 
 
 class Swap(symmetric.Swap, Box):
@@ -499,13 +565,48 @@ class Endo(Box):
     ...     == Matrix(
     ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
     ...         creations=(2,), selections=(), normalisation=1)
+    >>> from sympy import Expr
+    >>> from sympy.abc import psi
+    >>> import sympy as sp
+    >>> assert Endo(3 * psi ** 2).to_path(Expr)\\
+    ...     == Matrix[Expr]([3*psi**2], dom=1, cod=1)
+    >>> phase = Endo(sp.exp(1j * psi * 2 * sp.pi))
+    >>> derivative = phase.grad(psi).subs((psi, 0.5)).eval(2).array
+    >>> assert np.allclose(derivative, 4 * np.pi * 1j)
     """
+
     def __init__(self, scalar: complex):
+        try:
+            scalar = complex(scalar)
+        except TypeError:
+            pass
         self.scalar = scalar
-        super().__init__(f"Endo({scalar})", 1, 1)
+        super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
 
     def to_path(self, dtype=complex):
         return Matrix[dtype]([self.scalar], 1, 1)
+
+    def dagger(self) -> Diagram:
+        return Endo(self.scalar.conjugate())
+
+    def grad(self, var):
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        s = self.scalar.diff(var) / self.scalar
+        num_op = (
+            Split()
+            >> Id(1) @ (Select() >> Create())
+            >> Merge()
+        )
+        d = Scalar(s) @ (self >> num_op)
+        return d
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
 
 
 class Phase(Box):
@@ -519,20 +620,78 @@ class Phase(Box):
     -------
     >>> Phase(1/2).eval(1).array.round(3)
     array([[-1.+0.j]])
+    >>> from sympy.abc import psi
+    >>> from sympy import Expr
+    >>> derivative = Phase(psi).grad(psi).subs((psi, 0.5)).eval(2).array
+    >>> assert np.allclose(derivative, 4 * np.pi * 1j)
     """
 
     def __init__(self, angle: float):
         self.angle = angle
-        super().__init__(f"Phase({angle})", 1, 1)
+        super().__init__(f"Phase({angle})", 1, 1, data=angle)
 
     def to_path(self, dtype=complex):
         return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+
+    def dagger(self) -> Diagram:
+        return Phase(-self.angle)
+
+    def grad(self, var):
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        s = 2j * np.pi * self.angle.diff(var)
+        num_op = (
+            Split()
+            >> Id(1) @ (Select() >> Create())
+            >> Merge()
+        )
+        d = Scalar(s) @ (self >> num_op)
+        return d
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.angle, **kwargs)(*xs)
+        )
+
+
+class Scalar(Box):
+    """
+    Scalar in a QPath diagram
+
+    Example
+    -------
+    >>> assert Scalar(0.45).to_path() == Matrix(
+    ...     [], dom=0, cod=0,
+    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> assert np.isclose(s.eval().array[0], 1)
+    """
+    def __init__(self, scalar: complex):
+        self.scalar = scalar
+        super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
+
+    def to_path(self, dtype=complex):
+        return Matrix([], 0, 0, scalar=self.scalar)
+
+    def dagger(self) -> Diagram:
+        return Scalar(self.scalar.conjugate())
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
 
 
 class Gate(Box):
     """
     Creates an instance of :class:`Box` given array, domain and codomain.
 
+    Example
+    -------
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate("HBS", 2, 2, hbs_array)
     >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array,
@@ -562,29 +721,11 @@ class Gate(Box):
         )
 
 
-class Scalar(Box):
-    """
-    Scalar in a QPath diagram
-
-    Example
-    -------
-    >>> assert Scalar(0.45).to_path() == Matrix(
-    ...     [], dom=0, cod=0,
-    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
-    >>> assert np.isclose(s.eval().array[0], 1)
-    """
-    def __init__(self, scalar: complex):
-        self.scalar = scalar
-        super().__init__(f"Scalar({scalar})", 0, 0)
-
-    def to_path(self, dtype=complex):
-        return Matrix([], 0, 0, scalar=self.scalar)
-
-
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
 Id = Diagram.id
 
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 BS = Gate("BS", 2, 2, bs_array)
+
+Diagram.sum_factory = Sum

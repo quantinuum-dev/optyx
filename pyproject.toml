@@ -28,6 +28,7 @@ classifiers = [
 ]
 dependencies = [
   "discopy >= 1.1.5",
+  "sympy",
 ]
 
 [project.optional-dependencies]
@@ -79,6 +80,7 @@ pythonpath = [
 ]
 testpaths = [
     "optyx",
+    "test/*.py",
 ]
 addopts = "--doctest-modules"
 

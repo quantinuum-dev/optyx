@@ -28,7 +28,7 @@ Evaluating ZX diagrams using PyZX or using `zx_to_path` are equivalent.
 
 Corner case where `to_pyzx` and `zx_to_path` agree only up to global phase.
 
->>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25)\\
+>>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25) @ zx.Scalar(1/2)\\
 ...     >> zx.Id(1) @ zx.Z(2, 1) >> zx.X(2, 0, 0.35)
 >>> print(decomp(diagram)[:3])
 X(0, 1) >> H >> Z(1, 2)
@@ -100,8 +100,6 @@ def ar_zx2path(box):
 
     >>> zx2path(decomp(zx.X(0, 1) @ zx.X(0, 1) >> zx.Z(2, 1))).eval()
     Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
-    >>> zx2path(zx.Scalar(0.35))
-    optyx.qpath.Scalar('Scalar(0.35)', monoidal.PRO(0), monoidal.PRO(0))
     """
     n, m = len(box.dom), len(box.cod)
     if isinstance(box, zx.Scalar):
