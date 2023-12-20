@@ -416,7 +416,17 @@ class Box(symmetric.Box, Diagram):
 
 
 class Sum(symmetric.Sum, Box):
-    """ Formal sum of QPath diagrams. """
+    """ 
+    Formal sum of QPath diagrams. 
+    
+    Example
+    -------
+    >>> s0, s1 = 1/2 ** 1/2, 1j * 1/2 ** 1/2
+    >>> state0 = Scalar(s0) @ Create(1, 0) + Scalar(s1) @ Create(0, 1)
+    >>> state1 = Create(1) >> Split() >> Endo(s0) @ Endo(s1)
+    >>> assert np.allclose(state0.eval().array, state1.eval().array)
+    >>> assert np.allclose(state0.prob().array, state1.prob().array)
+    """
     __ambiguous_inheritance__ = (symmetric.Sum,)
     ty_factory = PRO
 
@@ -562,6 +572,14 @@ class Endo(Box):
     ...     == Matrix(
     ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
     ...         creations=(2,), selections=(), normalisation=1)
+    >>> from sympy import Expr
+    >>> from sympy.abc import psi
+    >>> import sympy as sp
+    >>> assert Endo(3 * psi ** 2).to_path(Expr)\\
+    ...     == Matrix[Expr]([3*psi**2], dom=1, cod=1)
+    >>> phase = Endo(sp.exp(1j * psi * 2 * sp.pi))
+    >>> derivative = phase.grad(psi).subs((psi, 0.5)).eval(2).array
+    >>> assert np.allclose(derivative, 4 * np.pi * 1j)
     """
 
     def __init__(self, scalar: complex):
@@ -570,7 +588,7 @@ class Endo(Box):
         except TypeError:
             pass
         self.scalar = scalar
-        super().__init__(f"Endo({scalar})", 1, 1)
+        super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
 
     def to_path(self, dtype=complex):
         return Matrix[dtype]([self.scalar], 1, 1)
@@ -584,11 +602,10 @@ class Endo(Box):
         s = self.scalar.diff(var) / self.scalar
         num_op = (
             Split()
-            >> Id(1) @ Endo(s)
             >> Id(1) @ (Select() >> Create())
             >> Merge()
         )
-        d = self >> num_op
+        d = Scalar(s) @ (self >> num_op)
         return d
 
     def lambdify(self, *symbols, **kwargs):
@@ -610,6 +627,10 @@ class Phase(Box):
     -------
     >>> Phase(1/2).eval(1).array.round(3)
     array([[-1.+0.j]])
+    >>> from sympy.abc import psi
+    >>> from sympy import Expr
+    >>> derivative = Phase(psi).grad(psi).subs((psi, 0.5)).eval(2).array
+    >>> assert np.allclose(derivative, 4 * np.pi * 1j)              
     """
 
     def __init__(self, angle: float):
@@ -617,7 +638,7 @@ class Phase(Box):
         super().__init__(f"Phase({angle})", 1, 1, data=angle)
 
     def to_path(self, dtype=complex):
-        return Matrix[dtype][dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+        return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
 
     def dagger(self) -> Diagram:
         return Phase(-self.angle)
@@ -628,11 +649,10 @@ class Phase(Box):
         s = 2j * np.pi * self.angle.diff(var)
         num_op = (
             Split()
-            >> Id(1) @ Endo(s)
             >> Id(1) @ (Select() >> Create())
             >> Merge()
         )
-        d = self >> num_op
+        d = Scalar(s) @ (self >> num_op)
         return d
 
     def lambdify(self, *symbols, **kwargs):
@@ -640,6 +660,35 @@ class Phase(Box):
 
         return lambda *xs: type(self)(
             lambdify(symbols, self.angle, **kwargs)(*xs)
+        )
+
+class Scalar(Box):
+    """
+    Scalar in a QPath diagram
+
+    Example
+    -------
+    >>> assert Scalar(0.45).to_path() == Matrix(
+    ...     [], dom=0, cod=0,
+    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> assert np.isclose(s.eval().array[0], 1)
+    """
+    def __init__(self, scalar: complex):
+        self.scalar = scalar
+        super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
+
+    def to_path(self, dtype=complex):
+        return Matrix([], 0, 0, scalar=self.scalar)
+
+    def dagger(self) -> Diagram:
+        return Scalar(self.scalar.conjugate())
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
 
 
@@ -676,26 +725,6 @@ class Gate(Box):
             self.array,
             is_dagger=not self.is_dagger,
         )
-
-
-class Scalar(Box):
-    """
-    Scalar in a QPath diagram
-
-    Example
-    -------
-    >>> assert Scalar(0.45).to_path() == Matrix(
-    ...     [], dom=0, cod=0,
-    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
-    >>> assert np.isclose(s.eval().array[0], 1)
-    """
-    def __init__(self, scalar: complex):
-        self.scalar = scalar
-        super().__init__(f"Scalar({scalar})", 0, 0)
-
-    def to_path(self, dtype=complex):
-        return Matrix([], 0, 0, scalar=self.scalar)
 
 
 Diagram.swap_factory = Swap

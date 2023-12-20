@@ -1,4 +1,4 @@
-from optyx.qpath import *
+from optyx.qpath import Phase, Id, BS, Endo, Scalar
 from sympy.abc import psi
 import numpy as np
 
@@ -8,8 +8,8 @@ import pytest
 
 param_circuits = [
     Phase(psi),
-    Phase(1 / 3 * psi**2),
     BS >> Phase(psi) @ Id(1) >> BS,
+    Phase(3 * psi ** 3),
 ]
 
 values = [x * 0.123 for x in range(10)]
