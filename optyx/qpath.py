@@ -65,6 +65,7 @@ We can define the number operator and compute its expectation.
 
 We can differentiate the expectation values of optical circuits.
 
+>>> from sympy import Expr
 >>> from sympy.abc import psi
 >>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
 >>> state = Create(2, 0) >> circuit
@@ -82,8 +83,8 @@ We can differentiate the expectation values of optical circuits.
 >>> assert np.allclose(
 ...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
 ...     np.array([0.]))
->>> from sympy import Expr
->>> (Endo(0.3) @ Endo(0.5)).to_path(Expr)
+>>> assert ((Endo(0.3) @ Endo(0.5)).to_path(Expr)
+...     == Matrix[Expr]([(0.3+0j), 0j, 0j, (0.5+0j)], dom=2, cod=2))
 """
 
 from __future__ import annotations
