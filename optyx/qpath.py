@@ -69,6 +69,7 @@ from __future__ import annotations
 from math import factorial
 import numpy as np
 from sympy import Expr
+import sympy as sp
 
 from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
@@ -377,7 +378,7 @@ class Diagram(symmetric.Diagram):
         """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
         return symmetric.Functor(
             ob=len,
-            ar=lambda f: f.to_path(dtype=dtype),
+            ar=lambda f: f.to_path(dtype),
             cod=symmetric.Category(int, Matrix[dtype]),
         )(self)
 
@@ -463,7 +464,7 @@ class Create(Box):
         name = "Create()" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=float):
         array = np.eye(len(self.photons))
         return Matrix[dtype](
             array, 0, len(self.photons), creations=self.photons
@@ -630,7 +631,7 @@ class Scalar(Box):
         super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
 
     def to_path(self, dtype=complex):
-        return Matrix([], 0, 0, scalar=self.scalar)
+        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
 
     def dagger(self) -> Diagram:
         return Scalar(self.scalar.conjugate())

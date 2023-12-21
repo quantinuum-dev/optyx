@@ -14,6 +14,10 @@ from optyx.qpath import (
     Endo,
 )
 
+from optyx.circuit import (
+    Gate, Phase, BBS, TBS, MZI
+)
+
 from optyx._version import (
     version as __version__,
     version_tuple as __version_info__)

@@ -47,6 +47,7 @@ We can differentiate the expectation values of optical circuits.
 
 import numpy as np
 from sympy import Expr 
+import sympy as sp
 
 from optyx.qpath import Box, Id, Matrix, Scalar
 from optyx.qpath import Create, Select, Split, Merge
@@ -112,7 +113,9 @@ class Phase(Box):
         super().__init__(f"Phase({angle})", 1, 1, data=angle)
 
     def to_path(self, dtype=complex):
-        return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
+        backend = sp if dtype is Expr else np
+        exp = backend.exp(2 * backend.pi * 1j * self.angle)
+        return Matrix[dtype]([exp], 1, 1)
 
     def dagger(self):
         return Phase(-self.angle)
@@ -182,8 +185,9 @@ class BBS(Box):
         return 'BS' if self.bias == 0 else super().__repr__()
 
     def to_path(self, dtype=complex):
-        sin = np.sin((0.25 + self.bias) * np.pi)
-        cos = np.cos((0.25 + self.bias) * np.pi)
+        backend = sp if dtype is Expr else np
+        sin = backend.sin((0.25 + self.bias) * backend.pi)
+        cos = backend.cos((0.25 + self.bias) * backend.pi)
         array = [sin, 1j * cos, 1j * cos, sin]
         return Matrix[dtype](array, len(self.dom), len(self.cod))
 
@@ -231,8 +235,9 @@ class TBS(Box):
             return 1j * np.exp(1j * self.theta * np.pi)
 
     def to_path(self, dtype=complex):
-        sin = np.sin(self.theta * np.pi)
-        cos = np.cos(self.theta * np.pi)
+        backend = sp if dtype is Expr else np
+        sin = backend.sin(self.theta * backend.pi)
+        cos = backend.cos(self.theta * backend.pi)
         array = [sin, cos, cos, -sin]
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
@@ -283,11 +288,7 @@ class MZI(Box):
             return - 1j * np.exp(- 1j * self.theta * np.pi)
 
     def to_path(self, dtype=complex):
-        if dtype == Expr:
-            import sympy
-            backend = sympy
-        else:
-            backend = np
+        backend = sp if dtype is Expr else np
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
