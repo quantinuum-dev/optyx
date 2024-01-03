@@ -561,7 +561,8 @@ class Sum(symmetric.Sum, Box):
             term.eval(n_photons, permanent, dtype) for term in self.terms
         )
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex) -> Probabilities:
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex) \
+            -> Probabilities:
         amplitudes = self.eval(n_photons, permanent, dtype)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[dtype](
