@@ -337,7 +337,7 @@ class Matrix(underlying.Matrix):
         """ Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:
             return self.prob_with_perceval(n_photons)
-        amplitudes = self.eval(n_photons, permanent=npperm)
+        amplitudes = self.eval(n_photons, permanent)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
@@ -377,21 +377,23 @@ class Matrix(underlying.Matrix):
             pcvl.BasicState(o) for o in occupation_numbers(n_photons, self.dom)
         ]
         analyzer = pcvl.algorithm.Analyzer(p, states, '*')
-        return Probabilities[float].from_pcvl_Analyzer(analyzer)
+        return Probabilities[float].from_pcvl_analyzer(
+            analyzer, self.dom, self.cod
+        )
 
-    def _umatrix_to_perceval_Circuit(self) -> pcvl.Circuit:
+    def _umatrix_to_perceval_circuit(self) -> pcvl.Circuit:
         _mzi_triangle = (pcvl.Circuit(2)
                          // comp.BS()
                          // (0, comp.PS(phi=pcvl.Parameter("phi_1")))
                          // comp.BS()
                          // (0, comp.PS(phi=pcvl.Parameter("phi_2"))))
 
-        m = pcvl.Matrix(self.array)
+        m = pcvl.MatrixN(self.array)
         return pcvl.Circuit.decomposition(
             m, _mzi_triangle, phase_shifter_fn=comp.PS, shape="triangle",
             max_try=1)
 
-    def _to_perceval_PostSelect(self) -> pcvl.PostSelect:
+    def _to_perceval_post_select(self) -> pcvl.PostSelect:
         post = pcvl.PostSelect()
         for i, p in enumerate(self.selections):
             post.eq(i, p)
@@ -423,8 +425,8 @@ class Matrix(underlying.Matrix):
         if not self._umatrix_is_is_unitary():
             self = self.dilate()
 
-        circ = self._umatrix_to_perceval_Circuit()
-        post = self._to_perceval_PostSelect()
+        circ = self._umatrix_to_perceval_circuit()
+        post = self._to_perceval_post_select()
 
         proc = pcvl.Processor(simulator)
         proc.set_circuit(circ)
@@ -474,13 +476,17 @@ class Probabilities(underlying.Matrix):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
     @classmethod
-    def from_pcvl_Analyzer(cls, analyzer: pcvl.algorithm.Analyzer, dom, cod) \
+    def from_pcvl_analyzer(cls, analyzer: pcvl.algorithm.Analyzer, dom, cod) \
             -> "Probabilities":
+        """
+        Creates a :class:`Probabilities` object from a
+        :class:`pcvl.algorithm.Analyzer`.
+        """
         result = analyzer.compute()["results"]
         ret = []
         for o in occupation_numbers(1, 2):
             ret += np.real(result[analyzer.col(pcvl.BasicState(o))]).tolist()
-        return Probabilities(ret, dom=dom, cod=cod)
+        return cls(ret, dom=dom, cod=cod)
 
 
 @factory
@@ -520,7 +526,7 @@ class Box(symmetric.Box, Diagram, ABC):
 
     @abstractmethod
     def to_path(self, dtype=complex):
-        pass
+        """Returns an equivalent :class:`Matrix` object"""
 
     @abstractmethod
     def dagger(self):
@@ -555,7 +561,7 @@ class Sum(symmetric.Sum, Box):
             term.eval(n_photons, permanent, dtype) for term in self.terms
         )
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex):
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex) -> Probabilities:
         amplitudes = self.eval(n_photons, permanent, dtype)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[dtype](
@@ -717,6 +723,7 @@ class Endo(Box):
         super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
 
     def to_path(self, dtype=complex):
+        """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([self.scalar], 1, 1)
 
     def dagger(self) -> Diagram:
@@ -764,6 +771,7 @@ class Phase(Box):
         super().__init__(f"Phase({angle})", 1, 1, data=angle)
 
     def to_path(self, dtype=complex):
+        """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
 
     def dagger(self) -> Diagram:
