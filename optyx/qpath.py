@@ -332,7 +332,8 @@ class Matrix(underlying.Matrix):
                 )
         return result
 
-    def prob(self, n_photons=0, permanent=npperm, with_perceval=False) -> Probabilities:
+    def prob(self, n_photons=0, permanent=npperm, with_perceval=False) \
+            -> Probabilities:
         """ Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:
             return self.prob_with_perceval(n_photons)
@@ -342,13 +343,16 @@ class Matrix(underlying.Matrix):
             probabilities, amplitudes.dom, amplitudes.cod
         )
 
-    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS"):
+    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS") \
+            -> Probabilities:
         """
-        Returns a :class:`Probabilities` describing the probabilities of the :class:`Matrix`
+        Returns a :class:`Probabilities` describing the probabilities of the
+        :class:`Matrix`
 
         Note
         ----
-        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called to create a unitary.
+        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called
+        to create a unitary.
 
         Example
         -------
@@ -357,7 +361,8 @@ class Matrix(underlying.Matrix):
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)
         >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
-        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) @ Scale(-np.conj(r)) >> Merge() @ Merge()
+        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) \\
+        ...            @ Scale(-np.conj(r)) >> Merge() @ Merge()
         >>> optyx_bs.prob_with_perceval(n_photons=1)
         Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
         >>> z_spider = optyx_bs >> Scale(2) @ 1 >> optyx_bs
@@ -372,12 +377,7 @@ class Matrix(underlying.Matrix):
             pcvl.BasicState(o) for o in occupation_numbers(n_photons, self.dom)
         ]
         analyzer = pcvl.algorithm.Analyzer(p, states, '*')
-        result = analyzer.compute()["results"]
-        ret = []
-        for o in occupation_numbers(1, 2):
-            ret += np.real(result[analyzer.col(pcvl.BasicState(o))]).tolist()
-        return Probabilities[float](ret, dom=self.dom, cod=self.cod)
-
+        return Probabilities[float].from_pcvl_Analyzer(analyzer)
 
     def _umatrix_to_perceval_Circuit(self) -> pcvl.Circuit:
         _mzi_triangle = (pcvl.Circuit(2)
@@ -407,14 +407,16 @@ class Matrix(underlying.Matrix):
 
         Note
         ----
-        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called to create a unitary.
+        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called
+        to create a unitary.
 
         >>> import numpy as np
         >>> theta, phi = np.pi / 4, 0
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)
         >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
-        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) @ Scale(-np.conj(r)) >> Merge() @ Merge()
+        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) \\
+        ...            @ Scale(-np.conj(r)) >> Merge() @ Merge()
         >>> optyx_bs.to_perceval()
         <perceval.components.processor.Processor object at ...>
         """
@@ -472,10 +474,14 @@ class Probabilities(underlying.Matrix):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
     @classmethod
-    def from_pcvl_Analyzer(cls, analizer: pcvl.algorithm.Analyzer) -> "Probabilities":
-        res = analizer.compute()
-        for occ in occupation_numbers(1, 1):
-            pass
+    def from_pcvl_Analyzer(cls, analyzer: pcvl.algorithm.Analyzer, dom, cod) \
+            -> "Probabilities":
+        result = analyzer.compute()["results"]
+        ret = []
+        for o in occupation_numbers(1, 2):
+            ret += np.real(result[analyzer.col(pcvl.BasicState(o))]).tolist()
+        return Probabilities(ret, dom=dom, cod=cod)
+
 
 @factory
 class Diagram(symmetric.Diagram):
@@ -484,7 +490,7 @@ class Diagram(symmetric.Diagram):
     """
     ty_factory = PRO
 
-    def to_path(self, dtype=complex) -> Matrix:
+    def to_path(self, dtype: type = complex) -> Matrix:
         """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
         return symmetric.Functor(
             ob=len,
@@ -495,19 +501,23 @@ class Diagram(symmetric.Diagram):
     def eval(self, n_photons=0, permanent=npperm, dtype=complex):
         return self.to_path(dtype).eval(n_photons, permanent)
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex, with_perceval=False):
-        return self.to_path(dtype).prob(n_photons, permanent)
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex,
+             with_perceval=False) -> Probabilities:
+        return self.to_path(dtype).prob(n_photons, permanent, with_perceval)
 
-    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS"):
-        return self.to_path().prob_with_perceval(n_photons, simulator)
+    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS",
+                           dtype=complex) -> Probabilities:
+        return self.to_path(dtype).prob_with_perceval(n_photons, simulator)
 
     grad = tensor.Diagram.grad
 
     def to_perceval(self) -> pcvl.Processor:
         return self.to_path().to_perceval()
 
+
 class Box(symmetric.Box, Diagram, ABC):
     """ Box in a :class:`Diagram`"""
+
     @abstractmethod
     def to_path(self, dtype=complex):
         pass
@@ -561,6 +571,7 @@ class Sum(symmetric.Sum, Box):
 
 class Swap(symmetric.Swap, Box):
     """ Swap in a :class:`Diagram`"""
+
     def to_path(self):
         return Matrix([0, 1, 1, 0], 2, 2)
 
@@ -790,6 +801,7 @@ class Scalar(Box):
     >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
     >>> assert np.isclose(s.eval().array[0], 1)
     """
+
     def __init__(self, scalar: complex):
         self.scalar = scalar
         super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
@@ -819,6 +831,7 @@ class Gate(Box):
     >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array,
     ...                    Id(2).eval(2).array)
     """
+
     def __init__(self, name: str, dom: int, cod: int, array, is_dagger=False):
         self.array = array
         # self.is_dagger = is_dagger
