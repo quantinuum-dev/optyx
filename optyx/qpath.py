@@ -361,11 +361,11 @@ class Matrix(underlying.Matrix):
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)
         >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
-        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) \\
-        ...            @ Scale(-np.conj(r)) >> Merge() @ Merge()
+        ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
+        ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
         >>> optyx_bs.prob_with_perceval(n_photons=1)
         Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
-        >>> z_spider = optyx_bs >> Scale(2) @ 1 >> optyx_bs
+        >>> z_spider = optyx_bs >> Endo(2) @ 1 >> optyx_bs
         >>> z_spider.prob_with_perceval(n_photons=1)
         Probabilities([0.9, 0.1, 0.1, 0.9], dom=2, cod=2)
         """
@@ -417,8 +417,8 @@ class Matrix(underlying.Matrix):
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)
         >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
-        ...            >> Scale(r) @ Scale(t) @ Scale(np.conj(t)) \\
-        ...            @ Scale(-np.conj(r)) >> Merge() @ Merge()
+        ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
+        ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
         >>> optyx_bs.to_perceval()
         <perceval.components.processor.Processor object at ...>
         """
@@ -521,16 +521,8 @@ class Diagram(symmetric.Diagram):
         return self.to_path().to_perceval()
 
 
-class Box(symmetric.Box, Diagram, ABC):
+class Box(symmetric.Box, Diagram):
     """ Box in a :class:`Diagram`"""
-
-    @abstractmethod
-    def to_path(self, dtype=complex):
-        """Returns an equivalent :class:`Matrix` object"""
-
-    @abstractmethod
-    def dagger(self):
-        pass
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
@@ -576,7 +568,18 @@ class Sum(symmetric.Sum, Box):
         return sum(term.grad(var, **params) for term in self.terms)
 
 
-class Swap(symmetric.Swap, Box):
+class Gate(Box, ABC):
+
+    @abstractmethod
+    def to_path(self, dtype=complex):
+        """Returns an equivalent :class:`Matrix` object"""
+
+    @abstractmethod
+    def dagger(self):
+        pass
+
+
+class Swap(symmetric.Swap, Gate):
     """ Swap in a :class:`Diagram`"""
 
     def to_path(self):
@@ -586,7 +589,7 @@ class Swap(symmetric.Swap, Box):
         return self
 
 
-class Create(Box):
+class Create(Gate):
     """
     Creation of photons on modes given a list of occupation numbers.
 
@@ -615,7 +618,7 @@ class Create(Box):
         return Select(*self.photons)
 
 
-class Select(Box):
+class Select(Gate):
     """
     Post-selection of photons given a list of occupation numbers.
 
@@ -643,7 +646,7 @@ class Select(Box):
         return Create(*self.photons)
 
 
-class Merge(Box):
+class Merge(Gate):
     """
     Merge map with two inputs and one output
 
@@ -668,7 +671,7 @@ class Merge(Box):
         return Split(n=self.n)
 
 
-class Split(Box):
+class Split(Gate):
     """
     Split map with one input and two outputs.
 
@@ -692,7 +695,7 @@ class Split(Box):
         return Merge(n=self.n)
 
 
-class Endo(Box):
+class Endo(Gate):
     """
     Endomorphism with one input and one output.
 
@@ -750,7 +753,7 @@ class Endo(Box):
         )
 
 
-class Phase(Box):
+class Phase(Gate):
     """
     Phase shift with angle parameter between 0 and 1
 
@@ -798,7 +801,7 @@ class Phase(Box):
         )
 
 
-class Scalar(Box):
+class Scalar(Gate):
     """
     Scalar in a QPath diagram
 
@@ -829,7 +832,7 @@ class Scalar(Box):
         )
 
 
-class Gate(Box):
+class Gate(Gate):
     """
     Creates an instance of :class:`Box` given array, domain and codomain.
 
