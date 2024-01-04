@@ -89,7 +89,6 @@ We can differentiate the expectation values of optical circuits.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from math import factorial
 
 import numpy as np
@@ -522,12 +521,11 @@ class Diagram(symmetric.Diagram):
 
 class Box(symmetric.Box, Diagram):
     """ Box in a :class:`Diagram`"""
-
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
         return lambda *xs: self
 
-    def subs(self, *args) -> Box:
+    def subs(self, *args) -> Diagram:
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
 
@@ -567,19 +565,7 @@ class Sum(symmetric.Sum, Box):
         return sum(term.grad(var, **params) for term in self.terms)
 
 
-class AbstractGate(Box, ABC):
-    """ Quantum Gates """
-
-    @abstractmethod
-    def to_path(self, dtype=complex) -> Matrix:
-        """Returns an equivalent :class:`Matrix` object"""
-
-    @abstractmethod
-    def dagger(self):
-        """Returns the dagger of the given :class:`Gate` object"""
-
-
-class Swap(symmetric.Swap, AbstractGate):
+class Swap(symmetric.Swap, Box):
     """ Swap in a :class:`Diagram`"""
 
     def to_path(self, dtype=complex) -> Matrix:
@@ -589,7 +575,7 @@ class Swap(symmetric.Swap, AbstractGate):
         return self
 
 
-class Create(AbstractGate):
+class Create(Box):
     """
     Creation of photons on modes given a list of occupation numbers.
 
@@ -618,7 +604,7 @@ class Create(AbstractGate):
         return Select(*self.photons)
 
 
-class Select(AbstractGate):
+class Select(Box):
     """
     Post-selection of photons given a list of occupation numbers.
 
@@ -646,7 +632,7 @@ class Select(AbstractGate):
         return Create(*self.photons)
 
 
-class Merge(AbstractGate):
+class Merge(Box):
     """
     Merge map with two inputs and one output
 
@@ -671,7 +657,7 @@ class Merge(AbstractGate):
         return Split(n=self.n)
 
 
-class Split(AbstractGate):
+class Split(Box):
     """
     Split map with one input and two outputs.
 
@@ -695,7 +681,7 @@ class Split(AbstractGate):
         return Merge(n=self.n)
 
 
-class Endo(AbstractGate):
+class Endo(Box):
     """
     Endomorphism with one input and one output.
 
@@ -753,7 +739,7 @@ class Endo(AbstractGate):
         )
 
 
-class Phase(AbstractGate):
+class Phase(Box):
     """
     Phase shift with angle parameter between 0 and 1
 
@@ -801,7 +787,7 @@ class Phase(AbstractGate):
         )
 
 
-class Scalar(AbstractGate):
+class Scalar(Box):
     """
     Scalar in a QPath diagram
 
@@ -832,7 +818,7 @@ class Scalar(AbstractGate):
         )
 
 
-class Gate(AbstractGate):
+class Gate(Box):
     """
     Creates an instance of :class:`Box` given array, domain and codomain.
 
