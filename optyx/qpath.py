@@ -485,9 +485,6 @@ class Diagram(symmetric.Diagram):
 
     grad = tensor.Diagram.grad
 
-    def to_perceval(self) -> pcvl.Processor:
-        return self.to_path().to_perceval()
-
 
 class Box(symmetric.Box, Diagram):
     """ Box in a :class:`Diagram`"""
