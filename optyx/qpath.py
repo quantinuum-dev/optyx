@@ -90,19 +90,17 @@ We can differentiate the expectation values of optical circuits.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-
-import perceval as pcvl
-import perceval.components as comp
-
-import numpy as np
 from math import factorial
-import numpy as np
 
+import numpy as np
+from discopy import matrix as underlying
 from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
-from discopy import matrix as underlying
 from discopy.utils import unbiased
+
+import perceval as pcvl
+import perceval.components as comp
 
 
 def npperm(matrix):
@@ -346,8 +344,8 @@ class Matrix(underlying.Matrix):
     def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS") \
             -> Probabilities:
         """
-        Returns a :class:`Probabilities` describing the probabilities of the
-        :class:`Matrix`
+        Returns a :class:`Probabilities` describing the probability outcomes
+        of the :class:`Matrix`
 
         Note
         ----
@@ -370,7 +368,8 @@ class Matrix(underlying.Matrix):
         Probabilities([0.9, 0.1, 0.1, 0.9], dom=2, cod=2)
         """
         if not self._umatrix_is_is_unitary():
-            self = self.dilate()
+            pass
+            # self = self.dilate()
 
         p = self.to_perceval(simulator)
         states = [
@@ -568,28 +567,29 @@ class Sum(symmetric.Sum, Box):
         return sum(term.grad(var, **params) for term in self.terms)
 
 
-class Gate(Box, ABC):
+class AbstractGate(Box, ABC):
+    """ Quantum Gates """
 
     @abstractmethod
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         """Returns an equivalent :class:`Matrix` object"""
 
     @abstractmethod
     def dagger(self):
-        pass
+        """Returns the dagger of the given :class:`Gate` object"""
 
 
-class Swap(symmetric.Swap, Gate):
+class Swap(symmetric.Swap, AbstractGate):
     """ Swap in a :class:`Diagram`"""
 
-    def to_path(self):
+    def to_path(self, dtype=complex) -> Matrix:
         return Matrix([0, 1, 1, 0], 2, 2)
 
     def dagger(self):
         return self
 
 
-class Create(Gate):
+class Create(AbstractGate):
     """
     Creation of photons on modes given a list of occupation numbers.
 
@@ -608,7 +608,7 @@ class Create(Gate):
         name = "Create()" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         array = np.eye(len(self.photons))
         return Matrix[dtype](
             array, 0, len(self.photons), creations=self.photons
@@ -618,7 +618,7 @@ class Create(Gate):
         return Select(*self.photons)
 
 
-class Select(Gate):
+class Select(AbstractGate):
     """
     Post-selection of photons given a list of occupation numbers.
 
@@ -636,7 +636,7 @@ class Select(Gate):
         name = "Select()" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         array = np.eye(len(self.photons))
         return Matrix[dtype](
             array, len(self.photons), 0, selections=self.photons
@@ -646,7 +646,7 @@ class Select(Gate):
         return Create(*self.photons)
 
 
-class Merge(Gate):
+class Merge(AbstractGate):
     """
     Merge map with two inputs and one output
 
@@ -663,7 +663,7 @@ class Merge(Gate):
         name = "Merge()" if n == 2 else f"Merge({n})"
         super().__init__(name, n, 1)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n)
         return Matrix[dtype](array, self.n, 1)
 
@@ -671,7 +671,7 @@ class Merge(Gate):
         return Split(n=self.n)
 
 
-class Split(Gate):
+class Split(AbstractGate):
     """
     Split map with one input and two outputs.
 
@@ -687,7 +687,7 @@ class Split(Gate):
         name = "Split()" if n == 2 else f"Split({n})"
         super().__init__(name, 1, n)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n)
         return Matrix[dtype](array, 1, self.n)
 
@@ -695,7 +695,7 @@ class Split(Gate):
         return Merge(n=self.n)
 
 
-class Endo(Gate):
+class Endo(AbstractGate):
     """
     Endomorphism with one input and one output.
 
@@ -726,7 +726,7 @@ class Endo(Gate):
         self.scalar = scalar
         super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([self.scalar], 1, 1)
 
@@ -753,7 +753,7 @@ class Endo(Gate):
         )
 
 
-class Phase(Gate):
+class Phase(AbstractGate):
     """
     Phase shift with angle parameter between 0 and 1
 
@@ -774,7 +774,7 @@ class Phase(Gate):
         self.angle = angle
         super().__init__(f"Phase({angle})", 1, 1, data=angle)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([np.exp(2 * np.pi * 1j * self.angle)], 1, 1)
 
@@ -801,7 +801,7 @@ class Phase(Gate):
         )
 
 
-class Scalar(Gate):
+class Scalar(AbstractGate):
     """
     Scalar in a QPath diagram
 
@@ -818,7 +818,7 @@ class Scalar(Gate):
         self.scalar = scalar
         super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         return Matrix([], 0, 0, scalar=self.scalar)
 
     def dagger(self) -> Diagram:
@@ -832,7 +832,7 @@ class Scalar(Gate):
         )
 
 
-class Gate(Gate):
+class Gate(AbstractGate):
     """
     Creates an instance of :class:`Box` given array, domain and codomain.
 
@@ -854,7 +854,7 @@ class Gate(Gate):
             is_dagger=is_dagger,
         )
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         result = Matrix[dtype](self.array, len(self.dom), len(self.cod))
         return result.dagger() if self.is_dagger else result
 
