@@ -8,7 +8,6 @@ from optyx.qpath import (
     SWAP,
     Id,
     BS,
-    ID,
     Split,
     Merge,
     Create,

@@ -99,7 +99,6 @@ from discopy.monoidal import PRO
 from discopy.utils import unbiased
 
 import perceval as pcvl
-import perceval.components as comp
 
 
 def npperm(matrix):
@@ -343,8 +342,8 @@ class Matrix(underlying.Matrix):
     def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS") \
             -> Probabilities:
         """
-        Returns a :class:`Probabilities` describing the probability outcomes
-        of the :class:`Matrix`
+        Computes the Born rule of the amplitudes of the :class:`Matrix` using
+        the perceval library
 
         Note
         ----
@@ -367,28 +366,25 @@ class Matrix(underlying.Matrix):
         Probabilities([0.9, 0.1, 0.1, 0.9], dom=2, cod=2)
         """
         if not self._umatrix_is_is_unitary():
-            pass
-            # self = self.dilate()
+            self = self.dilate()
 
         p = self.to_perceval(simulator)
         states = [
             pcvl.BasicState(o) for o in occupation_numbers(n_photons, self.dom)
         ]
         analyzer = pcvl.algorithm.Analyzer(p, states, '*')
-        return Probabilities[float].from_pcvl_analyzer(
-            analyzer, self.dom, self.cod
-        )
+        return Probabilities[self.dtype].from_pcvl_analyzer(analyzer)
 
     def _umatrix_to_perceval_circuit(self) -> pcvl.Circuit:
         _mzi_triangle = (pcvl.Circuit(2)
-                         // comp.BS()
-                         // (0, comp.PS(phi=pcvl.Parameter("phi_1")))
-                         // comp.BS()
-                         // (0, comp.PS(phi=pcvl.Parameter("phi_2"))))
+                         // pcvl.BS()
+                         // (0, pcvl.PS(phi=pcvl.Parameter("phi_1")))
+                         // pcvl.BS()
+                         // (0, pcvl.PS(phi=pcvl.Parameter("phi_2"))))
 
         m = pcvl.MatrixN(self.array)
         return pcvl.Circuit.decomposition(
-            m, _mzi_triangle, phase_shifter_fn=comp.PS, shape="triangle",
+            m, _mzi_triangle, phase_shifter_fn=pcvl.PS, shape="triangle",
             max_try=1)
 
     def _to_perceval_post_select(self) -> pcvl.PostSelect:
@@ -474,17 +470,20 @@ class Probabilities(underlying.Matrix):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
     @classmethod
-    def from_pcvl_analyzer(cls, analyzer: pcvl.algorithm.Analyzer, dom, cod) \
+    def from_pcvl_analyzer(cls, analyzer: pcvl.algorithm.Analyzer) \
             -> "Probabilities":
         """
         Creates a :class:`Probabilities` object from a
         :class:`pcvl.algorithm.Analyzer`.
         """
-        result = analyzer.compute()["results"]
-        ret = []
-        for o in occupation_numbers(1, 2):
-            ret += np.real(result[analyzer.col(pcvl.BasicState(o))]).tolist()
-        return cls(ret, dom=dom, cod=cod)
+        state0 = analyzer.input_states_list[0]
+        permutation = [
+            analyzer.col(pcvl.BasicState(o))
+            for o in occupation_numbers(sum(state0), len(state0))
+        ]
+        return cls(analyzer.distribution[:, permutation],
+                   dom=len(analyzer.input_states_list),
+                   cod=len(analyzer.output_states_list))
 
 
 @factory
@@ -510,7 +509,7 @@ class Diagram(symmetric.Diagram):
         return self.to_path(dtype).prob(n_photons, permanent, with_perceval)
 
     def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS",
-                           dtype=complex) -> Probabilities:
+                           dtype: type = complex) -> Probabilities:
         return self.to_path(dtype).prob_with_perceval(n_photons, simulator)
 
     grad = tensor.Diagram.grad
@@ -857,7 +856,6 @@ class Gate(Box):
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
 Id = Diagram.id
-ID = Id(PRO(1))
 
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 BS = Gate("BS", 2, 2, bs_array)
