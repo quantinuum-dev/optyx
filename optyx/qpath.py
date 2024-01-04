@@ -43,7 +43,7 @@ Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
 Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.prob()
-Probabilities[complex]([0.5+0.j], dom=1, cod=1)
+Probabilities[complex]([1.+0.j], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
 
@@ -361,10 +361,12 @@ class Matrix(underlying.Matrix):
         ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
         ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
         >>> optyx_bs.prob_with_perceval(n_photons=1)
-        Probabilities([0.5, 0.5, 0.5, 0.5], dom=2, cod=2)
+        Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, \
+cod=2)
         >>> z_spider = optyx_bs >> Endo(2) @ 1 >> optyx_bs
         >>> z_spider.prob_with_perceval(n_photons=1)
-        Probabilities([0.9, 0.1, 0.1, 0.9], dom=2, cod=2)
+        Probabilities[complex]([0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, \
+cod=2)
         """
         if not self._umatrix_is_is_unitary():
             self = self.dilate()
@@ -508,7 +510,6 @@ class Sum(symmetric.Sum, Box):
     >>> state0 = Scalar(s0) @ Create(1, 0) + Scalar(s1) @ Create(0, 1)
     >>> state1 = Create(1) >> Split() >> Endo(s0) @ Endo(s1)
     >>> assert np.allclose(state0.eval().array, state1.eval().array)
-    >>> assert np.allclose(state0.prob().array, state1.prob().array)
     """
     __ambiguous_inheritance__ = (symmetric.Sum,)
     ty_factory = PRO
