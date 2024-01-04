@@ -335,6 +335,7 @@ class Matrix(underlying.Matrix):
             return self.prob_with_perceval(n_photons)
         amplitudes = self.eval(n_photons, permanent)
         probabilities = np.abs(amplitudes.array) ** 2
+        probabilities /= probabilities.sum(axis=1)[:, None]
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )
@@ -368,12 +369,30 @@ class Matrix(underlying.Matrix):
         if not self._umatrix_is_is_unitary():
             self = self.dilate()
 
-        p = self.to_perceval(simulator)
+        circ = self._umatrix_to_perceval_circuit()
+        post = self._to_perceval_post_select()
+
+        proc = pcvl.Processor(simulator)
+        proc.set_circuit(circ)
+        proc.set_postselection(post)
+
         states = [
-            pcvl.BasicState(o) for o in occupation_numbers(n_photons, self.dom)
+            pcvl.BasicState(o + self.creations)
+            for o in occupation_numbers(n_photons, self.dom)
         ]
-        analyzer = pcvl.algorithm.Analyzer(p, states, '*')
-        return Probabilities[self.dtype].from_pcvl_analyzer(analyzer)
+        analyzer = pcvl.algorithm.Analyzer(proc, states, '*')
+
+        permutation = [
+            analyzer.col(pcvl.BasicState(o))
+            for o in occupation_numbers(sum(self.creations) + n_photons,
+                                        len(self.creations) + self.dom)
+            if post(pcvl.BasicState(o))
+        ]
+        return Probabilities[self.dtype](
+            analyzer.distribution[:, permutation],
+            dom=len(states),
+            cod=len(permutation)
+        )
 
     def _umatrix_to_perceval_circuit(self) -> pcvl.Circuit:
         _mzi_triangle = (pcvl.Circuit(2)
@@ -390,46 +409,12 @@ class Matrix(underlying.Matrix):
     def _to_perceval_post_select(self) -> pcvl.PostSelect:
         post = pcvl.PostSelect()
         for i, p in enumerate(self.selections):
-            post.eq(i, p)
+            post.eq(self.dom + i, p)
         return post
 
     def _umatrix_is_is_unitary(self) -> bool:
         m = self.umatrix.array
         return np.allclose(np.eye(m.shape[0]), m.dot(m.conj().T))
-
-    def to_perceval(self, simulator: str = "SLOS") -> pcvl.Processor:
-        """
-        Returns a ``perceval.Processor'' corresponding to the ``Matrix''.
-
-        Note
-        ----
-        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called
-        to create a unitary.
-
-        >>> import numpy as np
-        >>> theta, phi = np.pi / 4, 0
-        >>> r = np.exp(1j * phi) * np.sin(theta)
-        >>> t = np.cos(theta)
-        >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
-        ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
-        ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
-        >>> optyx_bs.to_perceval()
-        <perceval.components.processor.Processor object at ...>
-        """
-        if not self._umatrix_is_is_unitary():
-            self = self.dilate()
-
-        circ = self._umatrix_to_perceval_circuit()
-        post = self._to_perceval_post_select()
-
-        proc = pcvl.Processor(simulator)
-        proc.set_circuit(circ)
-        proc.set_postselection(post)
-
-        for i, c in enumerate(self.creations):
-            proc.add_herald(i, c)
-
-        return proc
 
 
 class Amplitudes(underlying.Matrix):
@@ -468,22 +453,6 @@ class Probabilities(underlying.Matrix):
 
     def __new__(cls, array, dom, cod):
         return underlying.Matrix.__new__(cls, array, dom, cod)
-
-    @classmethod
-    def from_pcvl_analyzer(cls, analyzer: pcvl.algorithm.Analyzer) \
-            -> "Probabilities":
-        """
-        Creates a :class:`Probabilities` object from a
-        :class:`pcvl.algorithm.Analyzer`.
-        """
-        state0 = analyzer.input_states_list[0]
-        permutation = [
-            analyzer.col(pcvl.BasicState(o))
-            for o in occupation_numbers(sum(state0), len(state0))
-        ]
-        return cls(analyzer.distribution[:, permutation],
-                   dom=len(analyzer.input_states_list),
-                   cod=len(analyzer.output_states_list))
 
 
 @factory

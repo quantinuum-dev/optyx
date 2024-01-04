@@ -7,9 +7,9 @@ unitary_circuits = [
 ]
 non_unitary_circuits = [
 	BS >> Endo(2) @ Id(1) >> BS.dagger(),
-	Create(1),
+	Create(1) @ Id(1),
 	Create(1) @ Id(1) >> BS,
-	Create(2) @ Id(1) >> BS >> Select(1) @ Id(1),
+	Create(2) @ Id(1) >> BS >> Select(2) @ Id(1),
 ]
 
 
@@ -19,4 +19,3 @@ def test_perceval_probs_equivalence(circuit: Diagram, n_photons: int):
 	qpath_probs = circuit.prob(n_photons)
 	perceval_probs = circuit.prob_with_perceval(n_photons)
 	assert np.isclose(qpath_probs.array, perceval_probs.array).all()
-
