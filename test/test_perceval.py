@@ -10,6 +10,7 @@ non_unitary_circuits = [
 	Create(1) @ Id(1),
 	Create(1) @ Id(1) >> BS,
 	Create(2) @ Id(1) >> BS >> Select(2) @ Id(1),
+	Id(1) @ Create(1, 1) >> BS @ Id(1) >> Id(2) @ Select(1),
 ]
 
 

@@ -410,7 +410,7 @@ cod=2)
     def _to_perceval_post_select(self) -> pcvl.PostSelect:
         post = pcvl.PostSelect()
         for i, p in enumerate(self.selections):
-            post.eq(self.dom + i, p)
+            post.eq(self.cod + i, p)
         return post
 
     def _umatrix_is_is_unitary(self) -> bool:
