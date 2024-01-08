@@ -7,12 +7,14 @@ from optyx.qpath import (
     Swap,
     SWAP,
     Id,
+    BS,
     Split,
     Merge,
     Create,
     Select,
     Endo,
     Phase,
+    occupation_numbers,
 )
 
 from optyx._version import (
