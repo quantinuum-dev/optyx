@@ -16,6 +16,6 @@ non_unitary_circuits = [
 @pytest.mark.parametrize("circuit", unitary_circuits + non_unitary_circuits)
 @pytest.mark.parametrize("n_photons", range(1, 4))
 def test_perceval_probs_equivalence(circuit: Diagram, n_photons: int):
-	qpath_probs = circuit.prob(n_photons)
+	qpath_probs = circuit.prob(n_photons).normalise()
 	perceval_probs = circuit.prob(n_photons, with_perceval=True)
 	assert np.isclose(qpath_probs.array, perceval_probs.array).all()

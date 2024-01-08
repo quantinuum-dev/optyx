@@ -43,7 +43,7 @@ Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
 Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.prob()
-Probabilities[complex]([1.+0.j], dom=1, cod=1)
+Probabilities[complex]([0.5+0.j], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
 
@@ -335,7 +335,6 @@ class Matrix(underlying.Matrix):
             return self.prob_with_perceval(n_photons)
         amplitudes = self.eval(n_photons, permanent)
         probabilities = np.abs(amplitudes.array) ** 2
-        probabilities /= probabilities.sum(axis=1)[:, None]
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )
@@ -455,6 +454,12 @@ class Probabilities(underlying.Matrix):
 
     def __new__(cls, array, dom, cod):
         return underlying.Matrix.__new__(cls, array, dom, cod)
+
+    def normalise(self) -> Probabilities:
+        return self.__class__(
+            array=self.array/self.array.sum(axis=1)[:, None],
+            dom=self.dom, cod=self.cod
+        )
 
 
 @factory
