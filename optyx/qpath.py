@@ -63,11 +63,11 @@ We can define the number operator and compute its expectation.
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
 >>> assert np.allclose(expectation(5).eval().array, np.array([5.]))
 
-We can differentiate the expectation values of optical circuits.
+We can evaluate the gradients of QPath diagrams.
 
 >>> from sympy import Expr
 >>> from sympy.abc import psi
->>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
+>>> circuit = BS >> Endo(sp.exp(sp.I * 2 * sp.pi * psi)) @ Id(1) >> BS.dagger()
 >>> state = Create(2, 0) >> circuit
 >>> observable = num_op @ Id(1)
 >>> expectation = state >> observable >> state.dagger()
@@ -92,11 +92,14 @@ from __future__ import annotations
 from math import factorial
 
 import numpy as np
+import perceval as pcvl
+import sympy as sp
 
 from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy.utils import unbiased
+import discopy.matrix as underlying
 
 
 def npperm(matrix):
@@ -508,6 +511,8 @@ class Diagram(symmetric.Diagram):
 class Box(symmetric.Box, Diagram):
     """ Box in a :class:`Diagram`"""
     def to_path(self, dtype=complex):
+        if isinstance(self.data, Matrix):
+            return self.data
         raise NotImplementedError
 
     def lambdify(self, *symbols, **kwargs):

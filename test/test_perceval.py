@@ -1,6 +1,7 @@
 import pytest
 
 from optyx.qpath import *
+from optyx.circuit import BS, Phase
 
 unitary_circuits = [
 	BS >> Phase(1 / 4) @ Id(1) >> BS.dagger(),

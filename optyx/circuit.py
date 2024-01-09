@@ -48,6 +48,7 @@ We can differentiate the expectation values of optical circuits.
 import numpy as np
 from sympy import Expr 
 import sympy as sp
+import discopy.matrix as underlying
 
 from optyx.qpath import Box, Id, Matrix, Scalar
 from optyx.qpath import Create, Select, Split, Merge
