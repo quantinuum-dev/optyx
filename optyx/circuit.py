@@ -46,9 +46,8 @@ We can differentiate the expectation values of optical circuits.
 """
 
 import numpy as np
-from sympy import Expr 
+from sympy import Expr, lambdify
 import sympy as sp
-import discopy.matrix as underlying
 
 from optyx.qpath import Box, Id, Matrix, Scalar
 from optyx.qpath import Create, Select, Split, Merge
@@ -68,7 +67,8 @@ class Gate(Box):
     -------
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate(hbs_array, 2, 2, "HBS")
-    >>> assert np.allclose((HBS.dagger() >> HBS).eval(2).array, Id(2).eval(2).array)
+    >>> assert np.allclose(
+    ...     (HBS.dagger() >> HBS).eval(2).array, Id(2).eval(2).array)
     """
     def __init__(self, array, dom: int, cod: int, name: str, is_dagger=False):
         self.array = array
@@ -122,20 +122,14 @@ class Phase(Box):
         return Phase(-self.angle)
 
     def grad(self, var):
+        """Gradient with respect to :code:`var`."""
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         s = 2j * np.pi * self.angle.diff(var)
-        num_op = (
-            Split()
-            >> Id(1) @ (Select() >> Create())
-            >> Merge()
-        )
         d = Scalar(s) @ (self >> num_op)
         return d
 
     def lambdify(self, *symbols, **kwargs):
-        from sympy import lambdify
-
         return lambda *xs: type(self)(
             lambdify(symbols, self.angle, **kwargs)(*xs)
         )
@@ -173,14 +167,15 @@ class BBS(Box):
     Check the dagger:
 
     >>> y = BBS(0.4)
-    >>> assert np.allclose((y >> y.dagger()).eval(2).array, Id(2).eval(2).array)
+    >>> assert np.allclose((
+    ...     y >> y.dagger()).eval(2).array, Id(2).eval(2).array)
     >>> comp = (y @ y >> Id(1) @ y @ Id(1)) >> (y @ y >> Id(1) @ y @ Id(1)
     ...   ).dagger()
     >>> assert np.allclose(comp.eval(2).array, Id(4).eval(2).array)
     """
     def __init__(self, bias):
         self.bias = bias
-        super().__init__('BBS({})'.format(bias), 2, 2)
+        super().__init__(f'BBS({bias})', 2, 2)
 
     def __repr__(self):
         return 'BS' if self.bias == 0 else super().__repr__()
@@ -225,15 +220,14 @@ class TBS(Box):
     """
     def __init__(self, theta, is_dagger=False):
         self.theta = theta
-        name = 'TBS({})'.format(theta)
+        name = f"TBS({theta})"
         super().__init__(name, 2, 2, is_dagger=is_dagger)
 
     @property
     def global_phase(self):
-        if self.is_dagger:
-            return - 1j * np.exp(- 1j * self.theta * np.pi)
-        else:
-            return 1j * np.exp(1j * self.theta * np.pi)
+        return -1j * np.exp(- 1j * self.theta * np.pi) \
+            if self.is_dagger \
+            else 1j * np.exp(1j * self.theta * np.pi)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -268,14 +262,17 @@ class MZI(Box):
 
     Example
     -------
-    >>> assert np.allclose(MZI(0.28, 0).to_path().array, TBS(0.28).to_path().array)
+    >>> assert np.allclose(
+    ...     MZI(0.28, 0).to_path().array, TBS(0.28).to_path().array)
     >>> assert np.isclose(MZI(0.28, 0.3).global_phase, TBS(0.28).global_phase)
     >>> assert np.isclose(MZI(0.12, 0.3).global_phase.conjugate(),
     ...                   MZI(0.12, 0.3).dagger().global_phase)
     >>> mach = lambda x, y: TBS(x) >> Phase(y) @ Id(1)
-    >>> assert np.allclose(MZI(0.28, 0.9).to_path().array, mach(0.28, 0.9).to_path().array)
-    >>> assert np.allclose((MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
-    ...                    Id(2).to_path().array)
+    >>> assert np.allclose(
+    ...     MZI(0.28, 0.9).to_path().array, mach(0.28, 0.9).to_path().array)
+    >>> assert np.allclose(
+    ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
+    ...     Id(2).to_path().array)
     """
     def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
@@ -283,10 +280,9 @@ class MZI(Box):
 
     @property
     def global_phase(self):
-        if not self.is_dagger:
-            return 1j * np.exp(1j * self.theta * np.pi)
-        else:
-            return - 1j * np.exp(- 1j * self.theta * np.pi)
+        return -1j * np.exp(- 1j * self.theta * np.pi) \
+            if self.is_dagger \
+            else 1j * np.exp(1j * self.theta * np.pi)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np

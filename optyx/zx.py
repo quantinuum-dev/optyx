@@ -34,7 +34,8 @@ Evaluating ZX diagrams using PyZX or via the dual rail encoding is equivalent.
 >>> assert np.allclose(zx_to_path(amplitude).eval().array, \\
 ...                    amplitude.to_pyzx().to_tensor())
 
-Corner case where :py:`to_pyzx` and :py:`zx_to_path` agree only up to global phase.
+Corner case where :py:`to_pyzx` and :py:`zx_to_path` agree only up to global
+phase.
 
 >>> diagram = zx.X(0, 2) @ zx.Z(0, 1, 0.25) @ zx.Scalar(1/2)\\
 ...     >> zx.Id(1) @ zx.Z(2, 1) >> zx.X(2, 0, 0.35)

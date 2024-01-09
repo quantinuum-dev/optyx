@@ -55,7 +55,7 @@ We can construct a Bell state in dual rail encoding:
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose(
 ...     (bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
->>> assert np.allclose(p
+>>> assert np.allclose(
 ...     (bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
 
 We can define the number operator and compute its expectation.
@@ -71,7 +71,6 @@ from math import factorial
 
 import numpy as np
 import perceval as pcvl
-import sympy as sp
 
 from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
@@ -180,9 +179,9 @@ class Matrix(underlying.Matrix):
 
     @property
     def umatrix(self) -> underlying.Matrix:
-        """ 
-        Underlying matrix with 
-        `len(creations) + dom` inputs and  `len(selections) + cod` outputs.
+        """
+        Underlying matrix with `len(creations) + dom` inputs and
+        `len(selections) + cod` outputs.
         """
         return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
 
@@ -745,6 +744,7 @@ class Scalar(Box):
         return lambda *xs: type(self)(
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
+
 
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 bs_matrix = Matrix(bs_array, 2, 2)
