@@ -62,20 +62,42 @@ We can define the number operator and compute its expectation.
 >>> num_op = Split() >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge()
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
 >>> assert np.allclose(expectation(5).eval().array, np.array([5.]))
+
+We can differentiate the expectation values of optical circuits.
+
+>>> from sympy import Expr
+>>> from sympy.abc import psi
+>>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
+>>> state = Create(2, 0) >> circuit
+>>> observable = num_op @ Id(1)
+>>> expectation = state >> observable >> state.dagger()
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
+>>> assert np.allclose(
+...     expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.grad(psi).subs((psi, 1/4)).eval().array,
+...     np.array([-2*np.pi]))
+>>> assert np.allclose(
+...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
+...     np.array([0.]))
+>>> assert ((Endo(0.3) @ Endo(0.5)).to_path(Expr)
+...     == Matrix[Expr]([(0.3+0j), 0j, 0j, (0.5+0j)], dom=2, cod=2))
 """
 
 from __future__ import annotations
 
 from math import factorial
+
 import numpy as np
-from sympy import Expr
-import sympy as sp
 
 from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
-from discopy import matrix as underlying
 from discopy.utils import unbiased
+
 
 def npperm(matrix):
     """
@@ -320,13 +342,94 @@ class Matrix(underlying.Matrix):
                 )
         return result
 
-    def prob(self, n_photons=0, permanent=npperm) -> Probabilities:
+    def prob(self, n_photons=0, permanent=npperm, with_perceval=False) \
+            -> Probabilities:
         """ Computes the Born rule of the amplitudes of the :class:`Matrix`"""
-        amplitudes = self.eval(n_photons, permanent=npperm)
+        if with_perceval:
+            return self.prob_with_perceval(n_photons)
+        amplitudes = self.eval(n_photons, permanent)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )
+
+    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS") \
+            -> Probabilities:
+        """
+        Computes the Born rule of the amplitudes of the :class:`Matrix` using
+        the perceval library
+
+        Note
+        ----
+        If the :class:`Matrix` is non-unitary, first :meth:`dilate` is called
+        to create a unitary.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> theta, phi = np.pi / 4, 0
+        >>> r = np.exp(1j * phi) * np.sin(theta)
+        >>> t = np.cos(theta)
+        >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
+        ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
+        ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
+        >>> optyx_bs.prob_with_perceval(n_photons=1)
+        Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, \
+cod=2)
+        >>> z_spider = optyx_bs >> Endo(2) @ 1 >> optyx_bs
+        >>> z_spider.prob_with_perceval(n_photons=1)
+        Probabilities[complex]([0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, \
+cod=2)
+        """
+        if not self._umatrix_is_is_unitary():
+            self = self.dilate()
+
+        circ = self._umatrix_to_perceval_circuit()
+        post = self._to_perceval_post_select()
+
+        proc = pcvl.Processor(simulator)
+        proc.set_circuit(circ)
+        proc.set_postselection(post)
+
+        states = [
+            pcvl.BasicState(o + self.creations)
+            for o in occupation_numbers(n_photons, self.dom)
+        ]
+        analyzer = pcvl.algorithm.Analyzer(proc, states, '*')
+
+        permutation = [
+            analyzer.col(pcvl.BasicState(o))
+            for o in occupation_numbers(sum(self.creations) + n_photons,
+                                        len(self.creations) + self.dom)
+            if post(pcvl.BasicState(o))
+        ]
+        return Probabilities[self.dtype](
+            analyzer.distribution[:, permutation],
+            dom=len(states),
+            cod=len(permutation)
+        )
+
+    def _umatrix_to_perceval_circuit(self) -> pcvl.Circuit:
+        _mzi_triangle = (pcvl.Circuit(2)
+                         // pcvl.BS()
+                         // (0, pcvl.PS(phi=pcvl.Parameter("phi_1")))
+                         // pcvl.BS()
+                         // (0, pcvl.PS(phi=pcvl.Parameter("phi_2"))))
+
+        m = pcvl.MatrixN(self.array)
+        return pcvl.Circuit.decomposition(
+            m, _mzi_triangle, phase_shifter_fn=pcvl.PS, shape="triangle",
+            max_try=1)
+
+    def _to_perceval_post_select(self) -> pcvl.PostSelect:
+        post = pcvl.PostSelect()
+        for i, p in enumerate(self.selections):
+            post.eq(self.cod + i, p)
+        return post
+
+    def _umatrix_is_is_unitary(self) -> bool:
+        m = self.umatrix.array
+        return np.allclose(np.eye(m.shape[0]), m.dot(m.conj().T))
 
 
 class Amplitudes(underlying.Matrix):
@@ -366,6 +469,12 @@ class Probabilities(underlying.Matrix):
     def __new__(cls, array, dom, cod):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
+    def normalise(self) -> Probabilities:
+        return self.__class__(
+            array=self.array/self.array.sum(axis=1)[:, None],
+            dom=self.dom, cod=self.cod
+        )
+
 
 @factory
 class Diagram(symmetric.Diagram):
@@ -374,7 +483,7 @@ class Diagram(symmetric.Diagram):
     """
     ty_factory = PRO
 
-    def to_path(self, dtype=complex) -> Matrix:
+    def to_path(self, dtype: type = complex) -> Matrix:
         """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
         return symmetric.Functor(
             ob=len,
@@ -385,8 +494,13 @@ class Diagram(symmetric.Diagram):
     def eval(self, n_photons=0, permanent=npperm, dtype=complex):
         return self.to_path(dtype).eval(n_photons, permanent)
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex):
-        return self.to_path(dtype).prob(n_photons, permanent)
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex,
+             with_perceval=False) -> Probabilities:
+        return self.to_path(dtype).prob(n_photons, permanent, with_perceval)
+
+    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS",
+                           dtype: type = complex) -> Probabilities:
+        return self.to_path(dtype).prob_with_perceval(n_photons, simulator)
 
     grad = tensor.Diagram.grad
 
@@ -394,15 +508,13 @@ class Diagram(symmetric.Diagram):
 class Box(symmetric.Box, Diagram):
     """ Box in a :class:`Diagram`"""
     def to_path(self, dtype=complex):
-        if isinstance(self.data, Matrix[dtype]):
-            return self.data
         raise NotImplementedError
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
         return lambda *xs: self
 
-    def subs(self, *args) -> Box:
+    def subs(self, *args) -> Diagram:
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
 
@@ -417,7 +529,6 @@ class Sum(symmetric.Sum, Box):
     >>> state0 = Scalar(s0) @ Create(1, 0) + Scalar(s1) @ Create(0, 1)
     >>> state1 = Create(1) >> Split() >> Endo(s0) @ Endo(s1)
     >>> assert np.allclose(state0.eval().array, state1.eval().array)
-    >>> assert np.allclose(state0.prob().array, state1.prob().array)
     """
     __ambiguous_inheritance__ = (symmetric.Sum,)
     ty_factory = PRO
@@ -427,7 +538,8 @@ class Sum(symmetric.Sum, Box):
             term.eval(n_photons, permanent, dtype) for term in self.terms
         )
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex):
+    def prob(self, n_photons=0, permanent=npperm, dtype=complex) \
+            -> Probabilities:
         amplitudes = self.eval(n_photons, permanent, dtype)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[dtype](
@@ -443,6 +555,12 @@ class Sum(symmetric.Sum, Box):
 
 class Swap(symmetric.Swap, Box):
     """ Swap in a :class:`Diagram`"""
+
+    def to_path(self, dtype=complex) -> Matrix:
+        return Matrix([0, 1, 1, 0], 2, 2)
+
+    def dagger(self):
+        return self
 
 
 class Create(Box):
@@ -464,7 +582,7 @@ class Create(Box):
         name = "Create()" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
-    def to_path(self, dtype=float):
+    def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
         return Matrix[dtype](
             array, 0, len(self.photons), creations=self.photons
@@ -492,7 +610,7 @@ class Select(Box):
         name = "Select()" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         array = np.eye(len(self.photons))
         return Matrix[dtype](
             array, len(self.photons), 0, selections=self.photons
@@ -522,7 +640,7 @@ class Merge(Box):
         name = "Merge()" if n == 2 else f"Merge({n})"
         super().__init__(name, n, 1)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n)
         return Matrix[dtype](array, self.n, 1)
 
@@ -549,7 +667,7 @@ class Split(Box):
         name = "Split()" if n == 2 else f"Split({n})"
         super().__init__(name, 1, n)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n)
         return Matrix[dtype](array, 1, self.n)
 
@@ -588,7 +706,8 @@ class Endo(Box):
         self.scalar = scalar
         super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
 
-    def to_path(self, dtype=complex):
+    def to_path(self, dtype=complex) -> Matrix:
+        """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([self.scalar], 1, 1)
 
     def dagger(self) -> Diagram:
@@ -626,6 +745,7 @@ class Scalar(Box):
     >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
     >>> assert np.isclose(s.eval().array[0], 1)
     """
+
     def __init__(self, scalar: complex):
         self.scalar = scalar
         super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)

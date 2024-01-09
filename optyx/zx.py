@@ -42,8 +42,8 @@ Corner case where :py:`to_pyzx` and :py:`zx_to_path` agree only up to global pha
 X(0, 1) >> H >> Z(1, 2)
 >>> print(zx_to_path(diagram)[:2])
 Create() >> PRO(1) @ Create((0,))
->>> pyzx_prob = np.absolute(diagram.to_pyzx().to_tensor()) ** 2
->>> assert np.allclose(pyzx_prob, zx_to_path(diagram).prob().array)
+>>> pyzx_ampl = diagram.to_pyzx().to_tensor()
+>>> assert np.allclose(pyzx_ampl, zx_to_path(diagram).eval().array)
 """
 
 import numpy as np

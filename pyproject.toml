@@ -27,8 +27,9 @@ classifiers = [
     "Topic :: Scientific/Engineering"
 ]
 dependencies = [
-  "discopy >= 1.1.5",
+  "discopy >= 1.1.6",
   "sympy",
+  "perceval-quandela >= 0.10.2",
 ]
 
 [project.optional-dependencies]
