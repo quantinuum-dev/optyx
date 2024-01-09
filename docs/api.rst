@@ -6,4 +6,5 @@ API
     :toctree: _api
 
     optyx.qpath
+    optyx.circuit
     optyx.zx

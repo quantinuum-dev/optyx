@@ -13,8 +13,10 @@ from optyx.qpath import (
     Create,
     Select,
     Endo,
-    Phase,
-    occupation_numbers,
+)
+
+from optyx.circuit import (
+    Gate, Phase, BBS, TBS, MZI
 )
 
 from optyx._version import (
