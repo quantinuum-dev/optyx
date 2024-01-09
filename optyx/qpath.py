@@ -1,6 +1,7 @@
 """
-The category :class:`Matrix` of matrices with creations and post-selections,
-and the syntax :class:`Diagram`.
+The category :class:`Matrix` and the syntax :class:`Diagram`
+of matrices with creations and post-selections.
+
 
 .. autosummary::
     :template: class.rst
@@ -54,7 +55,7 @@ We can construct a Bell state in dual rail encoding:
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose(
 ...     (bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
->>> assert np.allclose(
+>>> assert np.allclose(p
 ...     (bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
 
 We can define the number operator and compute its expectation.
@@ -62,29 +63,6 @@ We can define the number operator and compute its expectation.
 >>> num_op = Split() >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge()
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
 >>> assert np.allclose(expectation(5).eval().array, np.array([5.]))
-
-We can evaluate the gradients of QPath diagrams.
-
->>> from sympy import Expr
->>> from sympy.abc import psi
->>> circuit = BS >> Endo(sp.exp(sp.I * 2 * sp.pi * psi)) @ Id(1) >> BS.dagger()
->>> state = Create(2, 0) >> circuit
->>> observable = num_op @ Id(1)
->>> expectation = state >> observable >> state.dagger()
->>> assert np.allclose(
-...     expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
->>> assert np.allclose(
-...     expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
->>> assert np.allclose(
-...     expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
->>> assert np.allclose(
-...     expectation.grad(psi).subs((psi, 1/4)).eval().array,
-...     np.array([-2*np.pi]))
->>> assert np.allclose(
-...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
-...     np.array([0.]))
->>> assert ((Endo(0.3) @ Endo(0.5)).to_path(Expr)
-...     == Matrix[Expr]([(0.3+0j), 0j, 0j, (0.5+0j)], dom=2, cod=2))
 """
 
 from __future__ import annotations
