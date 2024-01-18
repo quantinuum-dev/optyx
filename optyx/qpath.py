@@ -353,12 +353,13 @@ class Matrix(underlying.Matrix):
         >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
         ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
         ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
-        >>> optyx_bs.prob_with_perceval(n_photons=1).round(1)
-        Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
+        >>> assert optyx_bs.prob_with_perceval(n_photons=1).round(1)\\
+        ...     == Probabilities[complex](
+        ...         [0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
         >>> z_spider = optyx_bs >> Endo(2) @ 1 >> optyx_bs
-        >>> z_spider.prob_with_perceval(n_photons=1)
-        Probabilities[complex]([0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, \
-cod=2)
+        >>> assert z_spider.prob_with_perceval(n_photons=1).round(1)\\
+        ...     == Probabilities[complex](
+        ...         [0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, cod=2)
         """
         if not self._umatrix_is_is_unitary():
             self = self.dilate()
