@@ -7,6 +7,7 @@
     :hidden:
 
     api
+    notebooks
 
 Indices and tables
 ==================
