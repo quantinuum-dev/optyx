@@ -482,6 +482,21 @@ class Diagram(symmetric.Diagram):
                            dtype: type = complex) -> Probabilities:
         return self.to_path(dtype).prob_with_perceval(n_photons, simulator)
 
+    @classmethod
+    def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+        d = cls.id(n_modes)
+        annil = Split() >> Select(1) @ Id(1)
+        create = annil.dagger()
+        for idx, dagger in operators:
+            if not (0 <= idx < n_modes):
+                raise ValueError(f"Index {idx} out of bounds.")
+            box = create if dagger else annil
+            d = d >> Id(idx) @ box @ Id(n_modes - idx - 1)
+
+        if scalar != 1:
+            d = Scalar(scalar) @ d
+        return d
+
     grad = tensor.Diagram.grad
 
 
