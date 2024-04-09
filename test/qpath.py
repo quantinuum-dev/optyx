@@ -24,3 +24,18 @@ def test_dilate():
             (unitary.umatrix >> unitary.umatrix.dagger()).array,
             np.eye(unitary.umatrix.dom))
         assert np.allclose(unitary.eval(3).array, matrix.eval(3).array)
+
+
+def test_bosonic_operator():
+    d1 = Diagram.from_bosonic_operator(
+        n_modes= 2,
+        operators=((0, False), (1, False), (0, True)),
+        scalar=2.1
+    )
+
+    annil = Split() >> Select(1) @ Id(1)
+    create = annil.dagger()
+
+    d2 = Scalar(2.1) @ annil @ Id(1) >> Id(1) @ annil >> create @ Id(1)
+
+    assert d1 == d2
