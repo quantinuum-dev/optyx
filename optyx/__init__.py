@@ -16,7 +16,7 @@ from optyx.qpath import (
 )
 
 from optyx.circuit import (
-    Gate, Phase, BBS, TBS, MZI
+    Gate, Phase, BBS, TBS, MZI, ansatz
 )
 
 from optyx._version import (
