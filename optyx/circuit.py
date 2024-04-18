@@ -301,3 +301,39 @@ class MZI(Box):
 
 BS = qpath.BS
 num_op = (Split() >> Id(1) @ (Select() >> Create()) >> Merge())
+
+
+def ansatz(width, depth):
+    """
+    Returns a universal interferometer given width, depth and parameters x,
+    based on https://arxiv.org/abs/1603.08788.
+
+    Parameters
+    ----------
+    width: int
+        Number of modes in the ansatz.
+    depth: int
+        Number of layers in the ansatz.
+
+    Example
+    -------
+    >>> ansatz(6, 4).draw(path='docs/_static/ansatz6_4.png')
+    >>> ansatz(5, 4).draw(path='docs/_static/ansatz5_4.png')
+
+    .. image:: /_static/ansatz6_4.png
+        :align: center
+
+    .. image:: /_static/ansatz5_4.png
+        :align: center
+    """
+    def p(i, j):
+        return sp.Symbol(f"a_{i}_{j}"), sp.Symbol(f"b_{i}_{j}")
+
+    d = Id(width)
+    for i in range(depth):
+        n_mzi = (width - 1) // 2 if i % 2 else width // 2
+        left = Id(i % 2)
+        right = Id(width - len(left.dom) - 2 * n_mzi)
+        d >>= left.tensor(*[MZI(*p(i, j)) for j in range(n_mzi)]) @ right
+
+    return d
