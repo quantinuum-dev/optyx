@@ -49,6 +49,7 @@ import numpy as np
 from sympy import Expr, lambdify
 import sympy as sp
 
+from optyx import qpath
 from optyx.qpath import Box, Id, Matrix, Scalar
 from optyx.qpath import Create, Select, Split, Merge
 
