@@ -49,7 +49,7 @@ import numpy as np
 from sympy import Expr, lambdify
 import sympy as sp
 
-from optyx.qpath import Box, Id, Matrix, Scalar, BS
+from optyx.qpath import Box, Id, Matrix, Scalar
 from optyx.qpath import Create, Select, Split, Merge
 
 
@@ -297,5 +297,5 @@ class MZI(Box):
     def dagger(self):
         return MZI(self.theta, self.phi, is_dagger=not self.is_dagger)
 
-
+BS = qpath.BS
 num_op = (Split() >> Id(1) @ (Select() >> Create()) >> Merge())
