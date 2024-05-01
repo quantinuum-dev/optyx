@@ -1,8 +1,8 @@
 import pytest
 
-from optyx.machines.single_emitter import (
+from optyx.compiler import Measurement
+from optyx.compiler.single_emitter.single_emitter_simulator import (
     SingleEmitterMultiMeasure,
-    Measurement,
 )
 
 
@@ -15,7 +15,7 @@ def test_single_path():
 
     fp = se.fusion_pattern()
     assert fp.path_length == 1
-    assert fp.measurements == [(1, m)]
+    assert fp.measurements == [(0, m)]
 
 
 def test_triangle():
@@ -36,7 +36,7 @@ def test_triangle():
 
     fp = se.fusion_pattern()
     assert fp.path_length == 3
-    assert fp.measurements == [(1, m1), (2, m2), (3, m3)]
+    assert fp.measurements == [(0, m1), (1, m2), (2, m3)]
 
 
 def test_no_input():
@@ -104,7 +104,7 @@ def test_measure_weird_order():
 
     fp = se.fusion_pattern()
     assert fp.path_length == 4
-    assert fp.measurements == [(4, m4), (3, m3), (2, m2), (1, m1)]
+    assert fp.measurements == [(3, m4), (2, m3), (1, m2), (0, m1)]
 
 
 def test_multi_fusion():
@@ -130,4 +130,4 @@ def test_multi_fusion():
 
     fp = se.fusion_pattern()
     assert fp.path_length == 4
-    assert fp.measurements == [(1, m1), (2, m2), (3, m3), (4, m4)]
+    assert fp.measurements == [(0, m1), (1, m2), (2, m3), (3, m4)]
