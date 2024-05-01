@@ -6,14 +6,7 @@ instructions compiled for this machine
 
 from dataclasses import dataclass
 
-
-@dataclass
-class Measurement:
-    """A symbolic MBQC measurement. We only verify that nodes are measured
-    with the intended measurement. So we just use an ID to identify them.
-    """
-
-    id: int
+from optyx.compiler import Measurement
 
 
 class ValidationError(Exception):
@@ -65,7 +58,7 @@ class SingleEmitterMultiMeasure:
 
     def __init__(self):
         self.time = 0
-        self.current_node = 1
+        self.current_node = 0
         self.measurements = {}
         self.delayed_fusions = {}
         self.fusions = []
@@ -137,7 +130,7 @@ class SingleEmitterMultiMeasure:
     def fusion_pattern(self) -> SingleFusionPattern:
         """Outputs the MBQC pattern implemented by the operations"""
 
-        path_length = self.current_node
+        path_length = self.current_node + 1
 
         measurements: list[tuple[int, Measurement]] = []
         chronological_order = sorted(self.measurements.keys())

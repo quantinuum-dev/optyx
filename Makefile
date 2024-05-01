@@ -14,7 +14,7 @@ lint:
 	pflake8 $(SRC) & pylint $(SRC)
 
 test:
-	coverage run -m pytest
+	coverage run -m pytest $(SRC)
 
 coverage: test
 	 coverage report --fail-under=95 --show-missing
