@@ -34,10 +34,11 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest",
+    "black",
     "coverage",
     "pyproject-flake8",
     "pylint",
+    "pytest",
     "pyzx",
 ]
 docs = [
@@ -84,6 +85,13 @@ testpaths = [
     "test/*.py",
 ]
 addopts = "--doctest-modules"
+
+# Suppress deprecation warnings from third party packages cluttering test output
+filterwarnings = [
+	"ignore::DeprecationWarning:perceval",
+	"ignore::DeprecationWarning:latexcodec",
+	"ignore::DeprecationWarning:pkg_resources",
+]
 
 [tool.black]
 target-version = ["py38", "py39", "py310", "py311"]
