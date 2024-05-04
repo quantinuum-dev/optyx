@@ -216,10 +216,12 @@ class TBS(Box):
     -------
     >>> BS = BBS(0)
     >>> tbs = lambda x: BS >> Phase(x) @ Id(1) >> BS
-    >>> assert np.allclose(TBS(0.15).to_path().array * TBS(0.15).global_phase(),
-    ...                    tbs(0.15).to_path().array)
-    >>> assert np.allclose((TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
-    ...                    Id(2).to_path().array)
+    >>> assert np.allclose(
+    ...     TBS(0.15).to_path().array * TBS(0.15).global_phase(),
+    ...     tbs(0.15).to_path().array)
+    >>> assert np.allclose(
+    ...     (TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
+    ...     Id(2).to_path().array)
     >>> assert (TBS(0.25).dagger().global_phase() ==\\
     ...         np.conjugate(TBS(0.25).global_phase()))
     """
@@ -275,9 +277,12 @@ class MZI(Box):
     >>> assert np.allclose(
     ...     MZI(0.28, 0).to_path().array / MZI(0.28, 0).global_phase(),
     ...     TBS(0.28).to_path().array)
-    >>> assert np.isclose(MZI(0.28, 0.3).global_phase(), TBS(0.28).global_phase())
-    >>> assert np.isclose(MZI(0.12, 0.3).global_phase().conjugate(),
-    ...                   MZI(0.12, 0.3).dagger().global_phase())
+    >>> assert np.isclose(
+    ...    MZI(0.28, 0.3).global_phase(),
+    ...    TBS(0.28).global_phase())
+    >>> assert np.isclose(
+    ...     MZI(0.12, 0.3).global_phase().conjugate(),
+    ...     MZI(0.12, 0.3).dagger().global_phase())
     >>> mach = lambda x, y: TBS(x) >> Phase(y) @ Id(1)
     >>> assert np.allclose(
     ...     MZI(0.28, 0.9).to_path().array / MZI(0.28, 0).global_phase(),
