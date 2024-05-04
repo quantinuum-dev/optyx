@@ -289,11 +289,11 @@ class MZI(Box):
         data = {theta, phi}
         super().__init__('MZI', 2, 2, is_dagger=is_dagger, data=data)
 
-    @property
-    def global_phase(self):
-        return -1j * np.exp(- 1j * self.theta * np.pi) \
+    def global_phase(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        return -1j * backend.exp(- 1j * self.theta * backend.pi) \
             if self.is_dagger \
-            else 1j * np.exp(1j * self.theta * np.pi)
+            else 1j * backend.exp(1j * self.theta * backend.pi)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -301,6 +301,7 @@ class MZI(Box):
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
         array = np.array([exp * sin, cos, exp * cos, -sin])
+        array *= self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
