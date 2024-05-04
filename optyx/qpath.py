@@ -604,7 +604,7 @@ class Select(Box):
 
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
-        name = "Select()" if self.photons == (1,) else f"Select({photons})"
+        name = "Select(1)" if self.photons == (1,) else f"Select{photons}"
         super().__init__(name, len(self.photons), 0)
 
     def to_path(self, dtype=complex) -> Matrix:
