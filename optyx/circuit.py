@@ -175,7 +175,7 @@ class BBS(Box):
     """
     def __init__(self, bias):
         self.bias = bias
-        super().__init__(f'BBS({bias})', 2, 2)
+        super().__init__(f'BBS({bias})', 2, 2, data=bias)
 
     def __repr__(self):
         return 'BS' if self.bias == 0 else super().__repr__()
@@ -189,6 +189,11 @@ class BBS(Box):
 
     def dagger(self):
         return BBS(0.5 - self.bias)
+
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.bias, **kwargs)(*xs)
+        )
 
 
 class TBS(Box):
@@ -221,7 +226,7 @@ class TBS(Box):
     def __init__(self, theta, is_dagger=False):
         self.theta = theta
         name = f"TBS({theta})"
-        super().__init__(name, 2, 2, is_dagger=is_dagger)
+        super().__init__(name, 2, 2, is_dagger=is_dagger, data=theta)
 
     @property
     def global_phase(self):
@@ -240,6 +245,11 @@ class TBS(Box):
 
     def dagger(self):
         return TBS(self.theta, is_dagger=not self.is_dagger)
+
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.theta, **kwargs)(*xs)
+        )
 
 
 class MZI(Box):
@@ -276,7 +286,8 @@ class MZI(Box):
     """
     def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
-        super().__init__('MZI', 2, 2, is_dagger=is_dagger)
+        data = {theta, phi}
+        super().__init__('MZI', 2, 2, is_dagger=is_dagger, data=data)
 
     @property
     def global_phase(self):
@@ -296,6 +307,23 @@ class MZI(Box):
 
     def dagger(self):
         return MZI(self.theta, self.phi, is_dagger=not self.is_dagger)
+
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            *lambdify(symbols, [self.theta, self.phi], **kwargs)(*xs),
+            is_dagger=self.is_dagger
+        )
+
+    def _decomp(self):
+        x, y = self.theta, self.phi
+        d = BS >> Phase(x) @ Id(1) >> BS >> Phase(y) @ Id(1)
+        return d.dagger() if self.is_dagger else d
+
+    def grad(self, var):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return self._decomp().grad(var)
 
 
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
