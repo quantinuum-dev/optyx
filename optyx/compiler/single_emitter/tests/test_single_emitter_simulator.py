@@ -1,7 +1,7 @@
 import pytest
 
 from optyx.compiler import Measurement
-from optyx.compiler.single_emitter.single_emitter_simulator import (
+from optyx.compiler.single_emitter.simulator import (
     SingleEmitterMultiMeasure,
 )
 
@@ -11,10 +11,11 @@ def test_single_path():
     se = SingleEmitterMultiMeasure()
 
     m = Measurement(1)
+    se.next_node(0)
     se.measure(m)
 
     fp = se.fusion_pattern()
-    assert fp.path_length == 1
+    assert fp.path == [0]
     assert fp.measurements == [(0, m)]
 
 
@@ -26,16 +27,17 @@ def test_triangle():
     m2 = Measurement(2)
     m3 = Measurement(3)
 
+    se.next_node(0)
     se.measure(m1)
     se.delay_then_fuse(2)
-    se.next_node()
+    se.next_node(1)
     se.measure(m2)
-    se.next_node()
+    se.next_node(2)
     se.fuse()
     se.measure(m3)
 
     fp = se.fusion_pattern()
-    assert fp.path_length == 3
+    assert fp.path == [0, 1, 2]
     assert fp.measurements == [(0, m1), (1, m2), (2, m3)]
 
 
@@ -45,8 +47,10 @@ def test_no_input():
     be measured
     """
     se = SingleEmitterMultiMeasure()
+    se.next_node(0)
+
     fp = se.fusion_pattern()
-    assert fp.path_length == 1
+    assert fp.path == [0]
     assert len(fp.measurements) == 0
 
 
@@ -55,7 +59,19 @@ def test_measuring_twice():
     se = SingleEmitterMultiMeasure()
 
     m = Measurement(1)
+    se.next_node(0)
     se.measure(m)
+
+    with pytest.raises(Exception):
+        se.measure(m)
+
+
+def test_no_leading_next_node():
+    """Not starting the command sequence with a call to next_node() should
+    fail"""
+    se = SingleEmitterMultiMeasure()
+
+    m = Measurement(1)
 
     with pytest.raises(Exception):
         se.measure(m)
@@ -66,6 +82,7 @@ def test_colliding_fusion_photons():
     at the same time."""
     se = SingleEmitterMultiMeasure()
 
+    se.next_node(0)
     se.delay_then_fuse(2)
 
     with pytest.raises(Exception):
@@ -90,20 +107,21 @@ def test_measure_weird_order():
     m4 = Measurement(4)
 
     # Measures the photons in reverse order
+    se.next_node(0)
     se.delay_then_measure(30, m1)
     se.delay_then_fuse(3)
     se.delay_then_fuse(4)
-    se.next_node()
+    se.next_node(1)
     se.delay_then_measure(20, m2)
-    se.next_node()
+    se.next_node(2)
     se.fuse()
     se.delay_then_measure(10, m3)
-    se.next_node()
+    se.next_node(3)
     se.fuse()
     se.delay_then_measure(1, m4)
 
     fp = se.fusion_pattern()
-    assert fp.path_length == 4
+    assert fp.path == [0, 1, 2, 3]
     assert fp.measurements == [(3, m4), (2, m3), (1, m2), (0, m1)]
 
 
@@ -116,18 +134,19 @@ def test_multi_fusion():
     m3 = Measurement(3)
     m4 = Measurement(4)
 
+    se.next_node(0)
     se.measure(m1)
     se.delay_then_fuse(3)
     se.delay_then_fuse(4)
-    se.next_node()
+    se.next_node(1)
     se.measure(m2)
-    se.next_node()
+    se.next_node(2)
     se.fuse()
     se.measure(m3)
-    se.next_node()
+    se.next_node(3)
     se.fuse()
     se.measure(m4)
 
     fp = se.fusion_pattern()
-    assert fp.path_length == 4
+    assert fp.path == [0, 1, 2, 3]
     assert fp.measurements == [(0, m1), (1, m2), (2, m3), (3, m4)]
