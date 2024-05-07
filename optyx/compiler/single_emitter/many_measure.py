@@ -4,74 +4,32 @@ Compiles a fusion network for a linear resource state into instructions for a
 single emitter multiple measurement device
 """
 
-from dataclasses import dataclass
-from optyx.compiler import Measurement, PartialOrder
-
-
-@dataclass
-class SingleFusionNetwork:
-    """A fusion network with a single linear resource state
-
-    Specifies the measurements and fusions to perform on the nodes.
-    Nodes are indexed by their position in the single linear resource state
-    i.e. the first node is 0, second is 1 etc."""
-
-    # Number of nodes in the path. A node may be implemented by many photons
-    path: list[int]
-
-    # The measurements applied to each of the nodes indexed by the Node ID
-    measurements: list[Measurement]
-
-    # Tuples containing the IDs of nodes connected by a fusion
-    fusions: list[tuple[int, int]]
-
-    # NOTE: we may not need to record these here, but it greatly simplifies our
-    # compilation/decompilation testing pipeline, so it stays for now
-    inputs: list[int]
-    outputs: list[int]
-
-
-@dataclass
-class MeasureOp:
-    """Measurement Operation"""
-
-    delay: int
-    measurement: Measurement
-
-
-@dataclass
-class FusionOp:
-    """Fusion Operation"""
-
-    delay: int
-
-
-@dataclass
-class NextNodeOp:
-    """Tells the machine to progress to the next node
-
-    Concretely, it will tell it to produce a Hadamard edge between the
-    previously emitted photon and the next one"""
-
-
-# Photon Stream Machine Instructions
-PSMInstruction = MeasureOp | FusionOp | NextNodeOp
+from optyx.compiler import PartialOrder
+from . import (
+    FusionNetworkSE,
+    PSMInstruction,
+    FusionOp,
+    MeasureOp,
+    NextNodeOp,
+)
 
 
 def compile_single_emitter_multi_measurement(
-    fp: SingleFusionNetwork, node_past: PartialOrder
+    fp: FusionNetworkSE, node_past: PartialOrder
 ) -> list[PSMInstruction]:
     """Compiles the fusion network into a series of instructions that can be
     executed on a single emitter/multi measurement machine"""
 
     c = get_creation_times(fp)
     m = get_measurement_times(fp, node_past, c)
-    f = _get_fusion_photons(fp.fusions, c)
+    f = _get_fusion_photons(fp.fusions, fp.path, c)
 
     ins: list[PSMInstruction] = []
 
     photon = 0
     for v in fp.path:
+        ins.append(NextNodeOp(v))
+
         # Number of photons in a given node
         num_fusions = len(_get_fused_neighbours(fp.fusions, v))
 
@@ -88,10 +46,6 @@ def compile_single_emitter_multi_measurement(
         delay = max(0, m[v] - c[v])
         ins.append(MeasureOp(delay, measurement))
 
-        # Only signal a new node is created if it isn't the last element
-        if v != len(fp.path) - 1:
-            ins.append(NextNodeOp())
-
     return ins
 
 
@@ -102,10 +56,12 @@ def compile_single_emitter_multi_measurement(
 # If photon 1 fuses with photon 5, then there will be two entries in the
 # returned dictionary. 1: 5, and 5: 1
 def _get_fusion_photons(
-    fusions: list[tuple[int, int]], c: list[int]
+    fusions: list[tuple[int, int]], path: list[int], c: list[int]
 ) -> dict[int, int]:
     seen: dict[int, int] = {}
     fusion_photons: dict[int, int] = {}
+
+    reverse_list = {v: i for i, v in enumerate(path)}
 
     for fusion in fusions:
         photon_num1 = seen.get(fusion[0], 0) + 1
@@ -114,8 +70,8 @@ def _get_fusion_photons(
         seen[fusion[0]] = photon_num1
         seen[fusion[1]] = photon_num2
 
-        photon_index1 = c[fusion[0]] - photon_num1
-        photon_index2 = c[fusion[1]] - photon_num2
+        photon_index1 = c[reverse_list[fusion[0]]] - photon_num1
+        photon_index2 = c[reverse_list[fusion[1]]] - photon_num2
 
         fusion_photons[photon_index1] = photon_index2
         fusion_photons[photon_index2] = photon_index1
@@ -128,7 +84,7 @@ def _num_fusions(fusions: list[tuple[int, int]], node: int) -> int:
     return sum(node in fusion for fusion in fusions)
 
 
-def get_creation_times(fp: SingleFusionNetwork) -> list[int]:
+def get_creation_times(fp: FusionNetworkSE) -> list[int]:
     """Returns a list containing the creation times of the measurement photon
     of every node"""
     acc = 0
@@ -142,7 +98,7 @@ def get_creation_times(fp: SingleFusionNetwork) -> list[int]:
 
 
 def get_measurement_times(
-    fp: SingleFusionNetwork, order: PartialOrder, c: list[int]
+    fp: FusionNetworkSE, order: PartialOrder, c: list[int]
 ) -> list[int]:
     """Returns a list containing the time the measurement photon of a given
     node can be measured"""

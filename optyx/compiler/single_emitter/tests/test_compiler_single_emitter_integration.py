@@ -1,21 +1,19 @@
 import pytest
 
-from optyx.compiler import PartialOrder
+from optyx.compiler import PartialOrder, Measurement
 
 from optyx.compiler.single_emitter.many_measure import (
     compile_single_emitter_multi_measurement,
-    PSMInstruction,
     FusionOp,
     MeasureOp,
     NextNodeOp,
-    Measurement,
-    SingleFusionNetwork,
+    FusionNetworkSE,
     add_fusion_order_to_partial_order,
 )
 
-from optyx.compiler.single_emitter.single_emitter_simulator import (
-    SingleEmitterMultiMeasure,
-    SingleFusionPattern,
+from optyx.compiler.single_emitter.simulator import (
+    FusionPatternSE,
+    decompile_to_fusion_pattern,
 )
 
 from optyx.compiler.single_emitter.tests.common import (
@@ -26,21 +24,21 @@ from optyx.compiler.single_emitter.tests.common import (
 
 def test_linear_graph_compilation():
     m = create_unique_measurements(3)
-    fp = SingleFusionNetwork([0, 1, 2], m, [], [0], [2])
+    fp = FusionNetworkSE([0, 1, 2], m, [])
 
     compile_and_verify(fp, numeric_order)
 
 
 def test_triangle_compilation():
     m = create_unique_measurements(3)
-    fp = SingleFusionNetwork([0, 1, 2], m, [(0, 2)], [0], [2])
+    fp = FusionNetworkSE([0, 1, 2], m, [(0, 2)])
 
     compile_and_verify(fp, numeric_order)
 
 
 def test_triangle_reverse_compilation():
     m = create_unique_measurements(3)
-    fp = SingleFusionNetwork([0, 1, 2], m, [(0, 2)], [0], [2])
+    fp = FusionNetworkSE([0, 1, 2], m, [(0, 2)])
 
     def reverse_order(n: int) -> list[int]:
         return list(range(n, 3))
@@ -48,10 +46,10 @@ def test_triangle_reverse_compilation():
     compile_and_verify(fp, reverse_order)
 
 
-def compile_and_verify(fn: SingleFusionNetwork, order: PartialOrder):
+def compile_and_verify(fn: FusionNetworkSE, order: PartialOrder):
     ins = compile_single_emitter_multi_measurement(fn, order)
 
-    fp = _simulate(ins)
+    fp = decompile_to_fusion_pattern(ins)
     _fbqc_pattern_matches_network(fn, fp)
     _pattern_satisfies_order(fp.measurements, order)
 
@@ -60,11 +58,11 @@ def compile_and_verify(fn: SingleFusionNetwork, order: PartialOrder):
 # the partial order that takes the fusion order into account
 def test_triangle_reverse_compilation_fails():
     m = create_unique_measurements(4)
-    fn = SingleFusionNetwork([0, 1, 2, 3], m, [(0, 2)], [0], [3])
+    fn = FusionNetworkSE([0, 1, 2, 3], m, [(0, 2)])
 
     ins = compile_single_emitter_multi_measurement(fn, numeric_order)
 
-    fp = _simulate(ins)
+    fp = decompile_to_fusion_pattern(ins)
     _fbqc_pattern_matches_network(fn, fp)
 
     order_with_fusions = add_fusion_order_to_partial_order(
@@ -88,7 +86,7 @@ def test_triangle_reverse_compilation_fails():
 # soon as they arrive.
 def test_fusion_ordering():
     m = create_unique_measurements(3)
-    fn = SingleFusionNetwork([0, 1, 2], m, [(0, 2)], [0], [2])
+    fn = FusionNetworkSE([0, 1, 2], m, [(0, 2)])
 
     def order(n: int) -> list[int]:
         if n == 1:
@@ -98,11 +96,12 @@ def test_fusion_ordering():
     ins = compile_single_emitter_multi_measurement(fn, order)
 
     assert ins == [
+        NextNodeOp(0),
         FusionOp(3),
         MeasureOp(0, m[0]),
-        NextNodeOp(),
+        NextNodeOp(1),
         MeasureOp(0, m[1]),  # Here node 1 can be measured immediately
-        NextNodeOp(),
+        NextNodeOp(2),
         FusionOp(0),
         MeasureOp(0, m[2]),
     ]
@@ -112,21 +111,21 @@ def test_fusion_ordering():
     ins = compile_single_emitter_multi_measurement(fn, order_with_fusions)
 
     assert ins == [
+        NextNodeOp(0),
         FusionOp(3),
         MeasureOp(0, m[0]),
-        NextNodeOp(),
+        NextNodeOp(1),
         MeasureOp(3, m[1]),  # With the fusion order it needs wait for node 2
-        NextNodeOp(),
+        NextNodeOp(2),
         FusionOp(0),
         MeasureOp(0, m[2]),
     ]
 
 
+# TODO just convert pattern to network
 # Checks that the fusion pattern is actually an instance of the fusion network.
-def _fbqc_pattern_matches_network(
-    fn: SingleFusionNetwork, fp: SingleFusionPattern
-):
-    assert len(fn.path) == fp.path_length
+def _fbqc_pattern_matches_network(fn: FusionNetworkSE, fp: FusionPatternSE):
+    assert fn.path == fp.path
 
     # Ensure measurements are applied to the correct nodes
     for v, measurement in fp.measurements:
@@ -141,27 +140,6 @@ def _fbqc_pattern_matches_network(
         fn_pair = fn.fusions[i]
         fp_pair = fp.fusions[i]
         assert fn_pair == fp_pair or (fn_pair == (fp_pair[1], fp_pair[0]))
-
-
-# Returns the fusion pattern generated from the given instructions
-def _simulate(instructions: list[PSMInstruction]) -> SingleFusionPattern:
-    machine = SingleEmitterMultiMeasure()
-
-    for ins in instructions:
-        if isinstance(ins, FusionOp):
-            if ins.delay == 0:
-                machine.fuse()
-            else:
-                machine.delay_then_fuse(ins.delay)
-        elif isinstance(ins, MeasureOp):
-            if ins.delay == 0:
-                machine.measure(ins.measurement)
-            else:
-                machine.delay_then_measure(ins.delay, ins.measurement)
-        elif isinstance(ins, NextNodeOp):
-            machine.next_node()
-
-    return machine.fusion_pattern()
 
 
 # Checks every measurement happens only after everything in its past has been
