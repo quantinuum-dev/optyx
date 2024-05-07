@@ -1,18 +1,13 @@
 import pytest
 
-from optyx.compiler import OpenGraph
+from optyx.compiler import OpenGraph, Measurement
 
-from optyx.compiler.single_emitter.fusion_network import (
-    compile_to_fusion_network,
+from optyx.compiler.full_stack import (
+    compile_to_semm,
+    decompile_from_semm,
 )
 
 from optyx.graph6 import read_graph6
-
-from optyx.compiler import Measurement
-
-from optyx.compiler.single_emitter.fusion_network import (
-    sfn_to_open_graph,
-)
 
 
 # Generate many random graphs and confirm all of them can be compiled and
@@ -22,7 +17,7 @@ from optyx.compiler.single_emitter.fusion_network import (
 # information in this case. This would require refactoring the graph
 # datastructure
 @pytest.mark.parametrize("num_vertices", range(2, 8))
-def test_compiler_fuzz(num_vertices: int):
+def test_fuzz_full_stack_compiler(num_vertices: int):
     with open(f"graph_data/graph{num_vertices}c.g6", "rb") as f:
         lines = f.readlines()
 
@@ -36,17 +31,7 @@ def test_compiler_fuzz(num_vertices: int):
 
     for graph in graphs:
         og = OpenGraph(graph, meas, inputs, outputs)
-        assert compile_and_decompile(og, inputs, outputs)
+        ins = compile_to_semm(og)
+        og_reconstructed = decompile_from_semm(ins, inputs, outputs)
 
-
-# Compiles an open graph into a fusion network, and converts it back into an
-# open graph again to verify correctness.
-def compile_and_decompile(
-    g: OpenGraph, inputs: list[int], outputs: list[int]
-) -> bool:
-    fn = compile_to_fusion_network(g)
-
-    g_reconstructed = sfn_to_open_graph(fn, inputs, outputs)
-    g_reconstructed.perform_z_deletions()
-
-    return g == g_reconstructed
+        assert og == og_reconstructed

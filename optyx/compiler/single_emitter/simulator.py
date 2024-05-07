@@ -7,6 +7,13 @@ instructions compiled for this machine
 from dataclasses import dataclass
 
 from optyx.compiler import Measurement
+from optyx.compiler.single_emitter import (
+    FusionNetworkSE,
+    FusionOp,
+    MeasureOp,
+    NextNodeOp,
+    PSMInstruction,
+)
 
 
 class ValidationError(Exception):
@@ -14,12 +21,13 @@ class ValidationError(Exception):
 
 
 @dataclass
-class SingleFusionPattern:
-    """A fusion network, together with a measurement order"""
+class FusionPatternSE:
+    """A fusion network for a single emitter resource state together with a
+    measurement order"""
 
     # Number of nodes in a path. A node may be implemented by multiple photons
     # The first node has ID = 1, the second ID = 2 and so on.
-    path_length: int
+    path: list[int]
 
     # Tuples (Node ID, Measurement) listed in the order the measurements are
     # performed.
@@ -41,7 +49,7 @@ class SingleEmitterMultiMeasure:
     # a new photon entering the machine
     time: int
 
-    current_node: int
+    path: list[int]
 
     # The nodes that are measured at a given timestamp.
     # Key: the time of measurement
@@ -57,8 +65,10 @@ class SingleEmitterMultiMeasure:
     fusions: list[tuple[int, int]]
 
     def __init__(self):
+        """Initialises the machine and sets the id of the current node being
+        operated on"""
         self.time = 0
-        self.current_node = 0
+        self.path = []
         self.measurements = {}
         self.delayed_fusions = {}
         self.fusions = []
@@ -67,10 +77,10 @@ class SingleEmitterMultiMeasure:
         """Applies a unitary to the incoming photon and measures it"""
         self.time += 1
 
-        if self.__node_has_been_measured(self.current_node):
-            raise ValidationError(f"already measured node {self.current_node}")
+        if self.__node_has_been_measured(self.path[-1]):
+            raise ValidationError(f"already measured node {self.path[-1]}")
 
-        self.__record_measurement(self.time, self.current_node, m)
+        self.__record_measurement(self.time, self.path[-1], m)
 
     def __record_measurement(self, time: int, node: int, m: Measurement):
         measurements = self.measurements.get(time, [])
@@ -99,7 +109,7 @@ class SingleEmitterMultiMeasure:
         # The node the delayed photon belongs to
         fusion_node = self.delayed_fusions[self.time]
 
-        self.fusions.append((self.current_node, fusion_node))
+        self.fusions.append((self.path[-1], fusion_node))
 
     def delay_then_fuse(self, delay: int):
         """Applies a unitary to the incoming photon and measures it with a
@@ -110,27 +120,29 @@ class SingleEmitterMultiMeasure:
 
         if delay_until in self.delayed_fusions:
             raise ValidationError(
-                f"can't fuse node {self.current_node} at time {delay_until} as"
+                f"can't fuse node {self.path[-1]} at time {delay_until} as"
                 + f" node {self.delayed_fusions[delay_until]} will be fused"
             )
 
-        self.delayed_fusions[delay_until] = self.current_node
+        self.delayed_fusions[delay_until] = self.path[-1]
 
     def delay_then_measure(self, delay: int, m: Measurement):
         """Delays the photon then measures it"""
         self.time += 1
 
         delay_until = self.time + delay
-        self.__record_measurement(delay_until, self.current_node, m)
+        self.__record_measurement(delay_until, self.path[-1], m)
 
-    def next_node(self):
-        """Progresses to the next node"""
-        self.current_node += 1
+    def next_node(self, node_id: int):
+        """Progresses to the next node.
 
-    def fusion_pattern(self) -> SingleFusionPattern:
+        Sets the id of the next node. This is just used for bookkeeping and
+        helps us convert the instructions back into a fusion network."""
+
+        self.path.append(node_id)
+
+    def fusion_pattern(self) -> FusionPatternSE:
         """Outputs the MBQC pattern implemented by the operations"""
-
-        path_length = self.current_node + 1
 
         measurements: list[tuple[int, Measurement]] = []
         chronological_order = sorted(self.measurements.keys())
@@ -139,4 +151,37 @@ class SingleEmitterMultiMeasure:
             for m in self.measurements[t]:
                 measurements.append(m)
 
-        return SingleFusionPattern(path_length, measurements, self.fusions)
+        return FusionPatternSE(self.path, measurements, self.fusions)
+
+
+def fusion_pattern_to_network(fp: FusionPatternSE) -> FusionNetworkSE:
+    """Converts a fusion pattern into a fusion network"""
+    measurements = [fp.measurements[0][1]] * len(fp.measurements)
+
+    for i, m in fp.measurements:
+        measurements[i] = m
+
+    return FusionNetworkSE(fp.path, measurements, fp.fusions)
+
+
+def decompile_to_fusion_pattern(
+    instructions: list[PSMInstruction],
+) -> FusionPatternSE:
+    """Converts the instructions back into a fusion network"""
+    machine = SingleEmitterMultiMeasure()
+
+    for ins in instructions:
+        if isinstance(ins, FusionOp):
+            if ins.delay == 0:
+                machine.fuse()
+            else:
+                machine.delay_then_fuse(ins.delay)
+        elif isinstance(ins, MeasureOp):
+            if ins.delay == 0:
+                machine.measure(ins.measurement)
+            else:
+                machine.delay_then_measure(ins.delay, ins.measurement)
+        elif isinstance(ins, NextNodeOp):
+            machine.next_node(ins.node_id)
+
+    return machine.fusion_pattern()

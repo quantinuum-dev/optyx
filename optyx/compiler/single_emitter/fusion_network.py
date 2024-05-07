@@ -14,11 +14,11 @@ from optyx.compiler import (
 )
 
 from optyx.compiler.single_emitter.many_measure import (
-    SingleFusionNetwork,
+    FusionNetworkSE,
 )
 
 
-def compiler_to_fusion_network(og: OpenGraph) -> SingleFusionNetwork:
+def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
     """Compiles an open graph into a fusion network for FBQC with LRS"""
 
     pc = find_min_path_cover(og.g)
@@ -32,7 +32,7 @@ def compiler_to_fusion_network(og: OpenGraph) -> SingleFusionNetwork:
     for _ in new_vertices:
         meas.append(zero_measurement())
 
-    return SingleFusionNetwork(path, meas, fusions, og.inputs, og.outputs)
+    return FusionNetworkSE(path, meas, fusions)
 
 
 # Calculates the fusions required to implement the graph given the path cover
@@ -71,8 +71,12 @@ def _path_to_edges(path: list[int]) -> list[tuple[int, int]]:
 def find_gflow(g: OpenGraph) -> PartialOrder:
     """Finds gflow of the open graph"""
 
-    def no_order(_v):
-        return g.inputs
+    inputs = deepcopy(g.inputs)
+
+    def no_order(v):
+        s = set(inputs)
+        s.add(v)
+        return s
 
     return no_order
 
@@ -108,7 +112,9 @@ def _path_to_graph(path: list[int]) -> Graph:
     return g
 
 
-def sfn_to_open_graph(sfn: SingleFusionNetwork) -> OpenGraph:
+def sfn_to_open_graph(
+    sfn: FusionNetworkSE, inputs: list[int], outputs: list[int]
+) -> OpenGraph:
     """Converts a fusion network into an open graph"""
 
     g = _path_to_graph(sfn.path)
@@ -116,4 +122,4 @@ def sfn_to_open_graph(sfn: SingleFusionNetwork) -> OpenGraph:
     for v1, v2 in sfn.fusions:
         g.add_edge(v1, v2)
 
-    return OpenGraph(g, sfn.measurements, sfn.inputs, sfn.outputs)
+    return OpenGraph(g, sfn.measurements, inputs, outputs)
