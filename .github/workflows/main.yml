@@ -10,19 +10,17 @@ env:
   SRC_DIR: optyx
   TEST_DIR: test
   DOCS_DIR: docs
+  PYTHON_VERSION: 3.11
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ 3.9 ]
     steps:
     - uses: actions/checkout@v3
-    - name: Setup Python ${{ matrix.python-version }}
+    - name: Setup Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ env.PYTHON_VERSION }}
         cache: 'pip'  # caching pip dependencies
     - name: Install
       run:
@@ -35,15 +33,12 @@ jobs:
         pylint ${{ env.SRC_DIR }} --fail-under=9
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ 3.9 ]
     steps:
     - uses: actions/checkout@v3
-    - name: Setup Python ${{ matrix.python-version }}
+    - name: Setup Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ env.PYTHON_VERSION }}
         cache: 'pip'  # caching pip dependencies
     - name: Install
       run:
@@ -56,15 +51,12 @@ jobs:
         coverage report --fail-under=95 --show-missing
   docs:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ 3.9 ]
     steps:
     - uses: actions/checkout@v3
-    - name: Setup Python ${{ matrix.python-version }}
+    - name: Setup Python ${{ env.PYTHON_VERSION }}
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ env.PYTHON_VERSION }}
         cache: 'pip'
     - name: Cache
       id: cache
@@ -73,7 +65,7 @@ jobs:
         path: |
           ${{ env.DOCS_DIR }}/_api
           ${{ env.DOCS_DIR }}/_build
-        key: ${{ runner.os }}-docs-${{ hashFiles('optyx/**', 'docs/**') }}  # TODO: refactor to use env.SRC_DIR and DOCS_DIR
+        key: ${{ runner.os }}-docs-${{ env.PYTHON_VERSION }}-${{ hashFiles('optyx/**', 'docs/**') }}  # TODO: refactor to use env.SRC_DIR and DOCS_DIR
         restore-keys: |
           ${{ runner.os }}-docs
     - name: Install
