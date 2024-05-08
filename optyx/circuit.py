@@ -241,6 +241,7 @@ class TBS(Box):
         sin = backend.sin(self.theta * backend.pi)
         cos = backend.cos(self.theta * backend.pi)
         array = [sin, cos, cos, -sin]
+        array *= self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
@@ -252,6 +253,15 @@ class TBS(Box):
         return lambda *xs: type(self)(
             lambdify(symbols, self.theta, **kwargs)(*xs)
         )
+
+    def _decomp(self):
+        return BS >> Id(1) @ Phase(self.theta) >> BS
+
+    def grad(self, var):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return self._decomp().grad(var)
 
 
 class MZI(Box):
@@ -324,7 +334,7 @@ class MZI(Box):
 
     def _decomp(self):
         x, y = self.theta, self.phi
-        d = BS >> Phase(x) @ Id(1) >> BS >> Phase(y) @ Id(1)
+        d = BS >> Id(1) @ Phase(x) >> BS >> Phase(y) @ Id(1)
         return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
