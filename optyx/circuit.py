@@ -250,11 +250,13 @@ class TBS(Box):
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
-            lambdify(symbols, self.theta, **kwargs)(*xs)
+            lambdify(symbols, self.theta, **kwargs)(*xs),
+            is_dagger=self.is_dagger
         )
 
     def _decomp(self):
-        return BS >> Id(1) @ Phase(self.theta) >> BS
+        d = BS >> Id(1) @ Phase(self.theta) >> BS
+        return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
         """Gradient with respect to :code:`var`."""
