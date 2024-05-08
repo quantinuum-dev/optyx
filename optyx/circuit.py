@@ -217,8 +217,7 @@ class TBS(Box):
     >>> BS = BBS(0)
     >>> tbs = lambda x: BS >> Phase(x) @ Id(1) >> BS
     >>> assert np.allclose(
-    ...     TBS(0.15).to_path().array * TBS(0.15).global_phase(),
-    ...     tbs(0.15).to_path().array)
+    ...     TBS(0.15).to_path().array, tbs(0.15).to_path().array)
     >>> assert np.allclose(
     ...     (TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
     ...     Id(2).to_path().array)
@@ -240,8 +239,8 @@ class TBS(Box):
         backend = sp if dtype is Expr else np
         sin = backend.sin(self.theta * backend.pi)
         cos = backend.cos(self.theta * backend.pi)
-        array = [sin, cos, cos, -sin]
-        array *= self.global_phase(dtype=dtype)
+        array = np.array([sin, cos, cos, -sin])
+        array = array * self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
@@ -285,7 +284,7 @@ class MZI(Box):
     Example
     -------
     >>> assert np.allclose(
-    ...     MZI(0.28, 0).to_path().array / MZI(0.28, 0).global_phase(),
+    ...     MZI(0.28, 0).to_path().array,
     ...     TBS(0.28).to_path().array)
     >>> assert np.isclose(
     ...    MZI(0.28, 0.3).global_phase(),
@@ -295,7 +294,7 @@ class MZI(Box):
     ...     MZI(0.12, 0.3).dagger().global_phase())
     >>> mach = lambda x, y: TBS(x) >> Phase(y) @ Id(1)
     >>> assert np.allclose(
-    ...     MZI(0.28, 0.9).to_path().array / MZI(0.28, 0).global_phase(),
+    ...     MZI(0.28, 0.9).to_path().array,
     ...     mach(0.28, 0.9).to_path().array)
     >>> assert np.allclose(
     ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
@@ -318,7 +317,7 @@ class MZI(Box):
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
         array = np.array([exp * sin, cos, exp * cos, -sin])
-        array *= self.global_phase(dtype=dtype)
+        array = array * self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
