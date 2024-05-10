@@ -31,8 +31,8 @@ def compile_to_semm(
 
 def decompile_from_semm(
     ins: list[PSMInstruction],
-    inputs: list[int],
-    outputs: list[int],
+    inputs: set[int],
+    outputs: set[int],
 ) -> OpenGraph:
     """Decompiles from instructions on an SEMM device back into an open
     graph"""

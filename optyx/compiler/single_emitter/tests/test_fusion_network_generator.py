@@ -6,7 +6,7 @@ from optyx.compiler.single_emitter.fusion_network import (
     compile_to_fusion_network,
 )
 
-from optyx.graph6 import read_graph6
+import networkx as nx
 
 from optyx.compiler import Measurement
 
@@ -26,13 +26,18 @@ def test_compiler_fuzz(num_vertices: int):
     with open(f"graph_data/graph{num_vertices}c.g6", "rb") as f:
         lines = f.readlines()
 
-    graphs = read_graph6(lines)
+    graphs = nx.read_graph6(lines)
     meas = [Measurement(i) for i in range(num_vertices)]
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations
-    inputs = [0]
-    outputs = [num_vertices - 1]
+    inputs = {0}
+    outputs = {num_vertices - 1}
+
+    # For some reason nx.read_graph6 returns a list of graphs if there are many
+    # graphs, and the actual graph if there is only one graph, so we need to
+    # convert it back into a list here
+    graphs = graphs if type(graphs) is list else [graphs]
 
     for graph in graphs:
         og = OpenGraph(graph, meas, inputs, outputs)
@@ -42,7 +47,7 @@ def test_compiler_fuzz(num_vertices: int):
 # Compiles an open graph into a fusion network, and converts it back into an
 # open graph again to verify correctness.
 def compile_and_decompile(
-    g: OpenGraph, inputs: list[int], outputs: list[int]
+    g: OpenGraph, inputs: set[int], outputs: set[int]
 ) -> bool:
     fn = compile_to_fusion_network(g)
 
