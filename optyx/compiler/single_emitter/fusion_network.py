@@ -5,7 +5,8 @@ resource states"""
 
 from copy import deepcopy
 
-from optyx.graphs import Graph, find_min_path_cover
+import networkx as nx
+from optyx.compiler.graphs import find_min_path_cover
 
 from optyx.compiler import (
     OpenGraph,
@@ -37,7 +38,7 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
 
 # Calculates the fusions required to implement the graph given the path cover
 def _calculate_fusions(
-    g: Graph, paths: list[list[int]]
+    g: nx.Graph, paths: list[list[int]]
 ) -> list[tuple[int, int]]:
     path_cover_edges: set[tuple[int, int]] = set()
 
@@ -74,7 +75,7 @@ def find_gflow(g: OpenGraph) -> PartialOrder:
     inputs = deepcopy(g.inputs)
 
     def no_order(v):
-        s = set(inputs)
+        s = deepcopy(inputs)
         s.add(v)
         return s
 
@@ -100,8 +101,8 @@ def _join_paths(paths: list[list[int]]) -> tuple[list[int], list[int]]:
     return (total_path, new_vertices)
 
 
-def _path_to_graph(path: list[int]) -> Graph:
-    g = Graph({})
+def _path_to_graph(path: list[int]) -> nx.Graph:
+    g = nx.Graph({})
 
     for i, v in enumerate(path):
         if i != 0:
@@ -113,7 +114,7 @@ def _path_to_graph(path: list[int]) -> Graph:
 
 
 def sfn_to_open_graph(
-    sfn: FusionNetworkSE, inputs: list[int], outputs: list[int]
+    sfn: FusionNetworkSE, inputs: set[int], outputs: set[int]
 ) -> OpenGraph:
     """Converts a fusion network into an open graph"""
 
