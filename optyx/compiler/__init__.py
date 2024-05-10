@@ -2,7 +2,7 @@
 
 from typing import Callable
 from dataclasses import dataclass
-from optyx.graphs import Graph
+import networkx as nx
 
 
 @dataclass
@@ -28,13 +28,24 @@ class OpenGraph:
     """Open graph contains the graph, measurement, and input and output
     nodes. This is the graph we wish to implement deterministically"""
 
-    g: Graph
+    g: nx.Graph
 
     # The measurement associated with each node in the graph
     m: list[Measurement]
 
-    inputs: list[int]
-    outputs: list[int]
+    inputs: set[int]
+    outputs: set[int]
+
+    def __eq__(self, other):
+        """Checks the two open graphs are equal
+
+        This doesn't check they are equal up to an isomorphism"""
+        return (
+            self.inputs == other.inputs
+            and self.outputs == other.outputs
+            and nx.utils.graphs_equal(self.g, other.g)
+            and self.m == other.m
+        )
 
     def perform_z_deletions(self):
         """Removes the Z-deleted nodes from the graph"""
