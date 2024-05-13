@@ -49,6 +49,7 @@ import numpy as np
 from sympy import Expr, lambdify
 import sympy as sp
 
+from optyx import qpath
 from optyx.qpath import Box, Id, Matrix, Scalar
 from optyx.qpath import Create, Select, Split, Merge
 
@@ -345,8 +346,7 @@ class MZI(Box):
         return self._decomp().grad(var)
 
 
-bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
-BS = Gate(bs_array, 2, 2, "BS")
+BS = qpath.BS
 num_op = (Split() >> Id(1) @ (Select() >> Create()) >> Merge())
 
 
