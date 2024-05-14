@@ -176,7 +176,7 @@ class BBS(Box):
     """
     def __init__(self, bias):
         self.bias = bias
-        super().__init__(f'BBS({bias})', 2, 2)
+        super().__init__(f'BBS({bias})', 2, 2, data=bias)
 
     def __repr__(self):
         return 'BS' if self.bias == 0 else super().__repr__()
@@ -190,6 +190,11 @@ class BBS(Box):
 
     def dagger(self):
         return BBS(0.5 - self.bias)
+
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.bias, **kwargs)(*xs)
+        )
 
 
 class TBS(Box):
@@ -212,35 +217,53 @@ class TBS(Box):
     -------
     >>> BS = BBS(0)
     >>> tbs = lambda x: BS >> Phase(x) @ Id(1) >> BS
-    >>> assert np.allclose(TBS(0.15).to_path().array * TBS(0.15).global_phase,
-    ...                    tbs(0.15).to_path().array)
-    >>> assert np.allclose((TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
-    ...                    Id(2).to_path().array)
-    >>> assert (TBS(0.25).dagger().global_phase ==\\
-    ...         np.conjugate(TBS(0.25).global_phase))
+    >>> assert np.allclose(
+    ...     TBS(0.15).to_path().array, tbs(0.15).to_path().array)
+    >>> assert np.allclose(
+    ...     (TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
+    ...     Id(2).to_path().array)
+    >>> assert (TBS(0.25).dagger().global_phase() ==\\
+    ...         np.conjugate(TBS(0.25).global_phase()))
     """
     def __init__(self, theta, is_dagger=False):
         self.theta = theta
         name = f"TBS({theta})"
-        super().__init__(name, 2, 2, is_dagger=is_dagger)
+        super().__init__(name, 2, 2, is_dagger=is_dagger, data=theta)
 
-    @property
-    def global_phase(self):
-        return -1j * np.exp(- 1j * self.theta * np.pi) \
+    def global_phase(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        return -1j * backend.exp(- 1j * self.theta * backend.pi) \
             if self.is_dagger \
-            else 1j * np.exp(1j * self.theta * np.pi)
+            else 1j * backend.exp(1j * self.theta * backend.pi)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
         sin = backend.sin(self.theta * backend.pi)
         cos = backend.cos(self.theta * backend.pi)
-        array = [sin, cos, cos, -sin]
+        array = np.array([sin, cos, cos, -sin])
+        array = array * self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
 
     def dagger(self):
         return TBS(self.theta, is_dagger=not self.is_dagger)
+
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.theta, **kwargs)(*xs),
+            is_dagger=self.is_dagger
+        )
+
+    def _decomp(self):
+        d = BS >> Id(1) @ Phase(self.theta) >> BS
+        return d.dagger() if self.is_dagger else d
+
+    def grad(self, var):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return self._decomp().grad(var)
 
 
 class MZI(Box):
@@ -264,26 +287,32 @@ class MZI(Box):
     Example
     -------
     >>> assert np.allclose(
-    ...     MZI(0.28, 0).to_path().array, TBS(0.28).to_path().array)
-    >>> assert np.isclose(MZI(0.28, 0.3).global_phase, TBS(0.28).global_phase)
-    >>> assert np.isclose(MZI(0.12, 0.3).global_phase.conjugate(),
-    ...                   MZI(0.12, 0.3).dagger().global_phase)
+    ...     MZI(0.28, 0).to_path().array,
+    ...     TBS(0.28).to_path().array)
+    >>> assert np.isclose(
+    ...    MZI(0.28, 0.3).global_phase(),
+    ...    TBS(0.28).global_phase())
+    >>> assert np.isclose(
+    ...     MZI(0.12, 0.3).global_phase().conjugate(),
+    ...     MZI(0.12, 0.3).dagger().global_phase())
     >>> mach = lambda x, y: TBS(x) >> Phase(y) @ Id(1)
     >>> assert np.allclose(
-    ...     MZI(0.28, 0.9).to_path().array, mach(0.28, 0.9).to_path().array)
+    ...     MZI(0.28, 0.9).to_path().array,
+    ...     mach(0.28, 0.9).to_path().array)
     >>> assert np.allclose(
     ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
     ...     Id(2).to_path().array)
     """
     def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
-        super().__init__('MZI', 2, 2, is_dagger=is_dagger)
+        data = {theta, phi}
+        super().__init__('MZI', 2, 2, is_dagger=is_dagger, data=data)
 
-    @property
-    def global_phase(self):
-        return -1j * np.exp(- 1j * self.theta * np.pi) \
+    def global_phase(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        return -1j * backend.exp(- 1j * self.theta * backend.pi) \
             if self.is_dagger \
-            else 1j * np.exp(1j * self.theta * np.pi)
+            else 1j * backend.exp(1j * self.theta * backend.pi)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -291,12 +320,30 @@ class MZI(Box):
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
         array = np.array([exp * sin, cos, exp * cos, -sin])
+        array = array * self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
 
     def dagger(self):
         return MZI(self.theta, self.phi, is_dagger=not self.is_dagger)
+
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            *lambdify(symbols, [self.theta, self.phi], **kwargs)(*xs),
+            is_dagger=self.is_dagger
+        )
+
+    def _decomp(self):
+        x, y = self.theta, self.phi
+        d = BS >> Id(1) @ Phase(x) >> BS >> Phase(y) @ Id(1)
+        return d.dagger() if self.is_dagger else d
+
+    def grad(self, var):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return self._decomp().grad(var)
 
 
 BS = qpath.BS

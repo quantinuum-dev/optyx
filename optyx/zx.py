@@ -16,7 +16,7 @@ Example
 >>> print(decomp(diagram))
 Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
 >>> print(zx2path(decomp(diagram))[:2])
-PRO(1) @ Merge() @ PRO(1) >> PRO(1) @ Select() @ PRO(1)
+PRO(1) @ Merge() @ PRO(1) >> PRO(1) @ Select(1) @ PRO(1)
 >>> assert zx2path(decomp(diagram)) == zx_to_path(diagram)
 
 Evaluating ZX diagrams using PyZX or via the dual rail encoding is equivalent.
