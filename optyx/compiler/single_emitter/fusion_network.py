@@ -22,12 +22,12 @@ from optyx.compiler.single_emitter.many_measure import (
 def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
     """Compiles an open graph into a fusion network for FBQC with LRS"""
 
-    pc = find_min_path_cover(og.g)
+    pc = find_min_path_cover(og.inside)
     path, new_vertices = _join_paths(pc)
 
-    fusions = _calculate_fusions(og.g, pc)
+    fusions = _calculate_fusions(og.inside, pc)
 
-    meas = deepcopy(og.m)
+    meas = deepcopy(og.measurements)
 
     # Add in all the breaks in the linear resource state
     for _ in new_vertices:
