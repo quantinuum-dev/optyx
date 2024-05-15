@@ -52,6 +52,6 @@ def compile_and_decompile(
     fn = compile_to_fusion_network(g)
 
     g_reconstructed = sfn_to_open_graph(fn, inputs, outputs)
-    g_reconstructed.perform_z_deletions()
+    g_reconstructed = g_reconstructed.perform_z_deletions()
 
     return g == g_reconstructed
