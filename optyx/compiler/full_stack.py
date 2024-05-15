@@ -39,5 +39,5 @@ def decompile_from_semm(
     sfp = decompile_to_fusion_pattern(ins)
     sfn = fusion_pattern_to_network(sfp)
     g = sfn_to_open_graph(sfn, inputs, outputs)
-    g.perform_z_deletions()
+    g = g.perform_z_deletions()
     return g
