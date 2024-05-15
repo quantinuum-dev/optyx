@@ -8,3 +8,4 @@ API
     optyx.qpath
     optyx.circuit
     optyx.zx
+    optyx.compiler
