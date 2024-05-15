@@ -48,7 +48,7 @@ class OpenGraph:
         )
 
     def perform_z_deletions(self):
-        """Removes the Z-deleted nodes from the graph"""
+        """Removes the Z-measured nodes from the graph"""
         zero_nodes = [i for i, m in enumerate(self.m) if m.is_zero()]
 
         for node in zero_nodes:

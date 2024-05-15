@@ -18,7 +18,7 @@ import networkx as nx
 # datastructure
 @pytest.mark.parametrize("num_vertices", range(2, 8))
 def test_fuzz_full_stack_compiler(num_vertices: int):
-    with open(f"graph_data/graph{num_vertices}c.g6", "rb") as f:
+    with open(f"test/graph_data/graph{num_vertices}c.g6", "rb") as f:
         lines = f.readlines()
 
     graphs = nx.read_graph6(lines)
