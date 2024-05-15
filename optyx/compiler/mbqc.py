@@ -1,6 +1,7 @@
 """Contains the fundamental classes requirement to define MBQC patterns"""
 
 from typing import Callable
+from copy import deepcopy
 from dataclasses import dataclass
 import networkx as nx
 
@@ -47,8 +48,16 @@ class OpenGraph:
             and self.measurements == other.measurements
         )
 
-    def perform_z_deletions(self):
-        """Removes the Z-deleted nodes from the graph"""
+    def __deepcopy__(self, memo):
+        return OpenGraph(
+            inside=deepcopy(self.inside, memo),
+            measurements=deepcopy(self.measurements, memo),
+            inputs=deepcopy(self.inputs, memo),
+            outputs=deepcopy(self.outputs, memo),
+        )
+
+    def perform_z_deletions_in_place(self):
+        """Removes the Z-deleted nodes from the graph in place"""
         zero_nodes = [
             i for i, m in enumerate(self.measurements) if m.is_zero()
         ]
@@ -58,6 +67,12 @@ class OpenGraph:
 
         # Remove the deleted node's measurements
         self.measurements = [m for m in self.measurements if not m.is_zero()]
+
+    def perform_z_deletions(self):
+        """Removes the Z-deleted nodes from the graph"""
+        g = deepcopy(self)
+        g.perform_z_deletions_in_place()
+        return g
 
 
 # Given a node, returns all the nodes in it's past
