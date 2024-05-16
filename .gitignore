@@ -1,3 +1,4 @@
+Makefile
 /target
 /Cargo.lock
 .vscode
