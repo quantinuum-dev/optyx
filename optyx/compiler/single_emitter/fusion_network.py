@@ -4,19 +4,34 @@ Specifically, it compiles it into a fusion network assumes access to linear
 resource states"""
 
 from copy import deepcopy
-
+from dataclasses import dataclass
 import networkx as nx
-from optyx.compiler.graphs import find_min_path_cover
 
+from optyx.compiler import Measurement
+from optyx.compiler.graphs import find_min_path_cover
 from optyx.compiler import (
     OpenGraph,
     PartialOrder,
     zero_measurement,
 )
 
-from optyx.compiler.single_emitter.many_measure import (
-    FusionNetworkSE,
-)
+
+@dataclass
+class FusionNetworkSE:
+    """A fusion network for a single emitter linear resource state
+
+    Specifies the measurements and fusions to perform on the nodes.
+    Nodes are indexed by their position in the single linear resource state
+    i.e. the first node is 0, second is 1 etc."""
+
+    # Number of nodes in the path. A node may be implemented by many photons
+    path: list[int]
+
+    # The measurements applied to each of the nodes indexed by the Node ID
+    measurements: list[Measurement]
+
+    # Tuples containing the IDs of nodes connected by a fusion
+    fusions: list[tuple[int, int]]
 
 
 def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
