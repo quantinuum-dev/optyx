@@ -12,7 +12,6 @@ from optyx.compiler.graphs import find_min_path_cover
 from optyx.compiler import (
     OpenGraph,
     PartialOrder,
-    zero_measurement,
 )
 
 
@@ -46,7 +45,7 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
 
     # Add in all the breaks in the linear resource state
     for _ in new_vertices:
-        meas.append(zero_measurement())
+        meas.append(Measurement(0, "XY"))
 
     return FusionNetworkSE(path, meas, fusions)
 
