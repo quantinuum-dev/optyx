@@ -1,7 +1,7 @@
 """Full stack compiler functions"""
 
 from optyx.compiler import OpenGraph
-from optyx.compiler.single_emitter import PSMInstruction
+from optyx.compiler.mbqc import PSMInstruction
 
 from optyx.compiler.single_emitter.fusion_network import (
     compile_to_fusion_network,
@@ -36,8 +36,8 @@ def compile_to_semm(
 
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> from optyx.compiler.semm import compile_to_semm
-    >>> from optyx.compiler.single_emitter import (
-    ...    FusionNetworkSE,
+    >>> from optyx.compiler.single_emitter import FusionNetworkSE
+    >>> from optyx.compiler.mbqc import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,
@@ -73,8 +73,8 @@ def decompile_from_semm(
     -------
     >>> from optyx.compiler import OpenGraph, Measurement
     >>> from optyx.compiler.semm import decompile_from_semm
-    >>> from optyx.compiler.single_emitter import (
-    ...    FusionNetworkSE,
+    >>> from optyx.compiler.single_emitter import FusionNetworkSE
+    >>> from optyx.compiler.mbqc import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,

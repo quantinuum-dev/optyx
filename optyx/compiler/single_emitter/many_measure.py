@@ -5,13 +5,15 @@ single emitter multiple measurement device
 """
 
 from optyx.compiler import PartialOrder
-from . import (
-    FusionNetworkSE,
+from optyx.compiler.mbqc import (
     PSMInstruction,
     FusionOp,
     MeasureOp,
     NextNodeOp,
+    get_fused_neighbours,
 )
+
+from optyx.compiler.single_emitter import FusionNetworkSE
 
 
 def compile_single_emitter_multi_measurement(
@@ -31,7 +33,7 @@ def compile_single_emitter_multi_measurement(
         ins.append(NextNodeOp(v))
 
         # Number of photons in a given node
-        num_fusions = len(_get_fused_neighbours(fp.fusions, v))
+        num_fusions = len(get_fused_neighbours(fp.fusions, v))
 
         for _ in range(num_fusions):
             photon += 1
@@ -129,68 +131,3 @@ def get_measurement_times(
         get_measurement(v)
 
     return m
-
-
-def add_fusion_order_to_partial_order(
-    fusions: list[tuple[int, int]], order: PartialOrder
-) -> PartialOrder:
-    """Returns a new partial order that ensures the fusion order is respected.
-
-    We achieve this the simplest way possible, namely, we want the following
-    condition to be satisfied in the new order: any node that has w in its
-    past, should now contain v and its past.
-    """
-
-    def fusion_with_node_order(node: int) -> list[int]:
-        past = order(node)
-
-        # We temporarily remove the node itself since we don't want to add the
-        # past of the nodes it itself is fused to. We will add it back at the
-        # end
-        past.remove(node)
-
-        past_set: set[int] = set()
-        for el in past:
-            fused_nbrs = _get_all_connected_fusions(fusions, el)
-            for nbr in fused_nbrs:
-                past_set = past_set.union(set(fusion_with_node_order(nbr)))
-            past_set = past_set.union(set(fused_nbrs))
-
-        past_set.add(node)
-        return list(past_set)
-
-    return fusion_with_node_order
-
-
-# Find every node that is connected to the given node through (possibly many)
-# fusions. It uses a breadth first search to achieve this.
-def _get_all_connected_fusions(
-    fusions: list[tuple[int, int]], node: int
-) -> list[int]:
-    seen: set[int] = {node}
-    frontier: set[int] = {node}
-
-    while len(frontier) != 0:
-        v = frontier.pop()
-
-        nbrs = _get_fused_neighbours(fusions, v)
-        new_nbrs = set(nbrs) - seen
-        seen = seen.union(set(nbrs))
-        frontier = frontier.union(new_nbrs)
-
-    return list(seen)
-
-
-# Returns the nodes that are fused to the given node.
-def _get_fused_neighbours(
-    fusions: list[tuple[int, int]], node: int
-) -> list[int]:
-    fusion_nbrs = []
-
-    for fusion in fusions:
-        if fusion[0] == node:
-            fusion_nbrs.append(fusion[1])
-        elif fusion[1] == node:
-            fusion_nbrs.append(fusion[0])
-
-    return fusion_nbrs
