@@ -7,11 +7,11 @@ from copy import deepcopy
 from dataclasses import dataclass
 import networkx as nx
 
-from optyx.compiler import Measurement
 from optyx.compiler.graphs import find_min_path_cover
-from optyx.compiler import (
+from optyx.compiler.mbqc import (
     OpenGraph,
     PartialOrder,
+    Measurement,
 )
 
 
@@ -27,7 +27,7 @@ class FusionNetworkSE:
     path: list[int]
 
     # The measurements applied to each of the nodes indexed by the Node ID
-    measurements: list[Measurement]
+    measurements: dict[int, Measurement]
 
     # Tuples containing the IDs of nodes connected by a fusion
     fusions: list[tuple[int, int]]
@@ -44,8 +44,8 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
     meas = deepcopy(og.measurements)
 
     # Add in all the breaks in the linear resource state
-    for _ in new_vertices:
-        meas.append(Measurement(0, "XY"))
+    for i in new_vertices:
+        meas[i] = Measurement(0, "XY")
 
     return FusionNetworkSE(path, meas, fusions)
 

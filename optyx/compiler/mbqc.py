@@ -8,11 +8,10 @@ import networkx as nx
 
 @dataclass
 class Measurement:
-    """A symbolic MBQC measurement. We only verify that nodes are measured
-    with the intended measurement. So we just use an ID to identify them.
+    """An MBQC measurement.
 
-    The angle should be between [0, 2 pi), and the place is either 'XY', 'XZ',
-    or 'YZ'.
+    :param angle: the angle of the measurement. Should be between [0, 2pi)
+    :param plane: the measurement plane: 'XY', 'XZ', 'YZ'
     """
 
     angle: float
@@ -31,12 +30,32 @@ class Measurement:
 @dataclass
 class OpenGraph:
     """Open graph contains the graph, measurement, and input and output
-    nodes. This is the graph we wish to implement deterministically"""
+    nodes. This is the graph we wish to implement deterministically
+
+
+    :param inside: the underlying graph state
+    :param measurements: a dictionary whose key is the ID of a node and the
+        value is the measurement at that node
+    :param inputs: a set of IDs of the nodes that are inputs to the graph
+    :param outputs: a set of IDs of the nodes that are outputs of the graph
+
+    Example
+    -------
+    >>> import networkx as nx
+    >>> from . import OpenGraph, Measurement
+    >>>
+    >>> inside_graph = nx.Graph()
+    >>> inside_graph.add_edges_from([(0, 1), (1, 2), (2, 0)])
+    >>>
+    >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+    >>> inputs = {0}
+    >>> outputs = {2}
+    >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+    """
 
     inside: nx.Graph
 
-    # The measurement associated with each node in the graph
-    measurements: list[Measurement]
+    measurements: dict[int, Measurement]
 
     inputs: set[int]
     outputs: set[int]
@@ -67,16 +86,18 @@ class OpenGraph:
     def perform_z_deletions_in_place(self):
         """Removes the Z-deleted nodes from the graph in place"""
         zero_nodes = [
-            i for i, m in enumerate(self.measurements) if m.is_z_measurement()
+            id for id, m in self.measurements.items() if m.is_z_measurement()
         ]
 
         for node in zero_nodes:
             self.inside.remove_node(node)
 
         # Remove the deleted node's measurements
-        self.measurements = [
-            m for m in self.measurements if not m.is_z_measurement()
-        ]
+        self.measurements = {
+            id: m
+            for id, m in self.measurements.items()
+            if not m.is_z_measurement()
+        }
 
     def perform_z_deletions(self):
         """Removes the Z-deleted nodes from the graph"""

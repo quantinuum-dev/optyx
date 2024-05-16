@@ -1,15 +1,15 @@
 import pytest
 
-from optyx.compiler import PartialOrder, Measurement
 
 from optyx.compiler.single_emitter.many_measure import (
     compile_single_emitter_multi_measurement,
 )
 
-from optyx.compiler.mbqc import add_fusion_order_to_partial_order
-
 from optyx.compiler.single_emitter import FusionNetworkSE
 from optyx.compiler.mbqc import (
+    PartialOrder,
+    Measurement,
+    add_fusion_order_to_partial_order,
     FusionOp,
     MeasureOp,
     NextNodeOp,

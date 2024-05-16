@@ -1,4 +1,4 @@
-from optyx.compiler import Measurement
+from optyx.compiler.mbqc import Measurement
 import math
 
 
