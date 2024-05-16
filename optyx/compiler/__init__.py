@@ -16,10 +16,18 @@ functionality is contained in the `optyx.compiler.semm` module.
     Measurement
     OpenGraph
     PartialOrder
+
+    compile_to_semm
+    decompile_to_semm
 """
 
 from .mbqc import (
     Measurement,
     OpenGraph,
     PartialOrder,
+)
+
+from .semm import (
+    compile_to_semm,
+    decompile_from_semm,
 )

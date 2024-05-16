@@ -1,13 +1,13 @@
 import pytest
 
-from optyx.compiler import OpenGraph, Measurement
+import networkx as nx
+
+from optyx.compiler.mbqc import OpenGraph, Measurement
 
 from optyx.compiler.semm import (
     compile_to_semm,
     decompile_from_semm,
 )
-
-import networkx as nx
 
 
 # Generate many random graphs and confirm all of them can be compiled and
@@ -22,7 +22,7 @@ def test_fuzz_semm_compiler(num_vertices: int):
         lines = f.readlines()
 
     graphs = nx.read_graph6(lines)
-    meas = [Measurement(i, "XY") for i in range(num_vertices)]
+    meas = {i: Measurement(i, "XY") for i in range(num_vertices)}
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations

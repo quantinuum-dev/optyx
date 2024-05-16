@@ -1,14 +1,12 @@
 import pytest
 
-from optyx.compiler import OpenGraph
-
 from optyx.compiler.single_emitter.fusion_network import (
     compile_to_fusion_network,
 )
 
 import networkx as nx
 
-from optyx.compiler import Measurement
+from optyx.compiler.mbqc import OpenGraph, Measurement
 
 from optyx.compiler.single_emitter.fusion_network import (
     sfn_to_open_graph,
@@ -27,7 +25,7 @@ def test_compiler_fuzz(num_vertices: int):
         lines = f.readlines()
 
     graphs = nx.read_graph6(lines)
-    meas = [Measurement(i, "XY") for i in range(num_vertices)]
+    meas = {i: Measurement(i, "XY") for i in range(num_vertices)}
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations

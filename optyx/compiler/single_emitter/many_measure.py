@@ -4,8 +4,8 @@ Compiles a fusion network for a linear resource state into instructions for a
 single emitter multiple measurement device
 """
 
-from optyx.compiler import PartialOrder
 from optyx.compiler.mbqc import (
+    PartialOrder,
     PSMInstruction,
     FusionOp,
     MeasureOp,
