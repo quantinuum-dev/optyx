@@ -22,5 +22,4 @@ from .mbqc import (
     Measurement,
     OpenGraph,
     PartialOrder,
-    zero_measurement,
 )

@@ -30,7 +30,7 @@ def compile_to_semm(
     >>> g.add_edges_from([(0, 1), (0, 2), (2, 1)])
     >>> from optyx.compiler import OpenGraph, Measurement
 
-    >>> meas = [Measurement(i) for i in range (3)]
+    >>> meas = [Measurement(i, 'XY') for i in range (3)]
     >>> inputs = {0}
     >>> outputs = {2}
 
@@ -46,12 +46,12 @@ def compile_to_semm(
     >>> assert compile_to_semm(og) == [
     ...     NextNodeOp(node_id=0),
     ...     FusionOp(delay=3),
-    ...     MeasureOp(delay=0, measurement=Measurement(id=0)),
+    ...     MeasureOp(delay=0, measurement=meas[0]),
     ...     NextNodeOp(node_id=1),
-    ...     MeasureOp(delay=0, measurement=Measurement(id=1)),
+    ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
     ...     FusionOp(delay=0),
-    ...     MeasureOp(delay=0, measurement=Measurement(id=2))
+    ...     MeasureOp(delay=0, measurement=meas[2])
     ... ]
     """
     sfn = compile_to_fusion_network(g)
@@ -80,22 +80,22 @@ def decompile_from_semm(
     ...    NextNodeOp,
     ...    PSMInstruction,
     ... )
+    >>> meas = [Measurement(0.5*i, "XY") for i in range (3)]
     >>> ins = [
     ...     NextNodeOp(node_id=0),
     ...     FusionOp(delay=3),
-    ...     MeasureOp(delay=0, measurement=Measurement(id=0)),
+    ...     MeasureOp(delay=0, measurement=meas[0]),
     ...     NextNodeOp(node_id=1),
-    ...     MeasureOp(delay=0, measurement=Measurement(id=1)),
+    ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
     ...     FusionOp(delay=0),
-    ...     MeasureOp(delay=0, measurement=Measurement(id=2))
+    ...     MeasureOp(delay=0, measurement=meas[2])
     ... ]
     >>>
     >>> import networkx as nx
     >>> g = nx.Graph()
     >>> g.add_edges_from([(0, 1), (0, 2), (2, 1)])
 
-    >>> meas = [Measurement(i) for i in range (3)]
     >>> inputs = {0}
     >>> outputs = {2}
 
@@ -105,5 +105,4 @@ def decompile_from_semm(
     sfp = decompile_to_fusion_pattern(ins)
     sfn = fusion_pattern_to_network(sfp)
     g = sfn_to_open_graph(sfn, inputs, outputs)
-    g = g.perform_z_deletions()
     return g
