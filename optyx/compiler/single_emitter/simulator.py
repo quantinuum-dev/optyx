@@ -6,9 +6,9 @@ instructions compiled for this machine
 
 from dataclasses import dataclass
 
-from optyx.compiler import Measurement
 from optyx.compiler.single_emitter import FusionNetworkSE
 from optyx.compiler.mbqc import (
+    Measurement,
     FusionOp,
     MeasureOp,
     NextNodeOp,
@@ -156,10 +156,7 @@ class SingleEmitterMultiMeasure:
 
 def fusion_pattern_to_network(fp: FusionPatternSE) -> FusionNetworkSE:
     """Converts a fusion pattern into a fusion network"""
-    measurements = [fp.measurements[0][1]] * len(fp.measurements)
-
-    for i, m in fp.measurements:
-        measurements[i] = m
+    measurements = {meas[0]: meas[1] for meas in fp.measurements}
 
     return FusionNetworkSE(fp.path, measurements, fp.fusions)
 

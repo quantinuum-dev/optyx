@@ -1,7 +1,6 @@
 """Full stack compiler functions"""
 
-from optyx.compiler import OpenGraph
-from optyx.compiler.mbqc import PSMInstruction
+from optyx.compiler.mbqc import OpenGraph, PSMInstruction
 
 from optyx.compiler.single_emitter.fusion_network import (
     compile_to_fusion_network,
@@ -30,7 +29,7 @@ def compile_to_semm(
     >>> g.add_edges_from([(0, 1), (0, 2), (2, 1)])
     >>> from optyx.compiler import OpenGraph, Measurement
 
-    >>> meas = [Measurement(i, 'XY') for i in range (3)]
+    >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
     >>> inputs = {0}
     >>> outputs = {2}
 
@@ -80,7 +79,7 @@ def decompile_from_semm(
     ...    NextNodeOp,
     ...    PSMInstruction,
     ... )
-    >>> meas = [Measurement(0.5*i, "XY") for i in range (3)]
+    >>> meas = {i: Measurement(0.5*i, "XY") for i in range(3)}
     >>> ins = [
     ...     NextNodeOp(node_id=0),
     ...     FusionOp(delay=3),
