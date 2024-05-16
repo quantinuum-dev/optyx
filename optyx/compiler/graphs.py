@@ -10,7 +10,29 @@ import networkx as nx
 def find_min_path_cover(g: nx.Graph) -> list[list[int]]:
     """Returns a minimum path cover of the graph.
     This uses a brute force algorithm and so it only works on small graphs with
-    approximately less than 15 vertices."""
+    approximately less than 15 vertices.
+
+
+    Example
+    -------
+    # This is a star graph so it should find a path cover with 3 paths
+    >>> g = nx.Graph()
+    >>> g.add_edges_from([(0, 1), (0, 2), (0, 3), (0, 4)])
+    >>> paths = find_min_path_cover(g)
+    >>> assert len(paths) == 3
+
+    # Fully connected graph, so it only requires one path
+    >>> g = nx.Graph()
+    >>> g.add_edges_from([(i, j) for i in range(4) for j in range(i)])
+    >>> paths = find_min_path_cover(g)
+    >>> assert len(paths) == 1
+
+    # Test something weird looking
+    >>> g = nx.Graph()
+    >>> g.add_edges_from([(0, 1), (1, 2), (1, 4), (4, 3), (4, 5)])
+    >>> paths = find_min_path_cover(g)
+    >>> assert len(paths) == 2
+    """
     for i in range(1, g.number_of_nodes()):
         paths: list[list[int]] = []
 

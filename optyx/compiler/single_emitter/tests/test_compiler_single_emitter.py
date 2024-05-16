@@ -83,7 +83,7 @@ def test_triangle_with_reverse_order_measurements():
     assert m == [7, 6, 5]
 
 
-def test__triangle_with_interesting_order_measurements():
+def test_triangle_with_interesting_order_measurements():
     measurements = create_unique_measurements(3)
 
     fp = FusionNetworkSE([0, 1, 2], measurements, [(0, 2)])
