@@ -4,11 +4,15 @@ from optyx.compiler import PartialOrder, Measurement
 
 from optyx.compiler.single_emitter.many_measure import (
     compile_single_emitter_multi_measurement,
+)
+
+from optyx.compiler.mbqc import add_fusion_order_to_partial_order
+
+from optyx.compiler.single_emitter import FusionNetworkSE
+from optyx.compiler.mbqc import (
     FusionOp,
     MeasureOp,
     NextNodeOp,
-    FusionNetworkSE,
-    add_fusion_order_to_partial_order,
 )
 
 from optyx.compiler.single_emitter.simulator import (

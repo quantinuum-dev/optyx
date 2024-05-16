@@ -1,9 +1,12 @@
 import pytest
+from optyx.compiler.single_emitter import FusionNetworkSE
 from optyx.compiler.single_emitter.many_measure import (
-    FusionNetworkSE,
     get_measurement_times,
     get_creation_times,
     compile_single_emitter_multi_measurement,
+)
+
+from optyx.compiler.mbqc import (
     MeasureOp,
     FusionOp,
     NextNodeOp,

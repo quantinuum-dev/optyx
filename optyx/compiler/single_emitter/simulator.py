@@ -7,8 +7,8 @@ instructions compiled for this machine
 from dataclasses import dataclass
 
 from optyx.compiler import Measurement
-from optyx.compiler.single_emitter import (
-    FusionNetworkSE,
+from optyx.compiler.single_emitter import FusionNetworkSE
+from optyx.compiler.mbqc import (
     FusionOp,
     MeasureOp,
     NextNodeOp,
