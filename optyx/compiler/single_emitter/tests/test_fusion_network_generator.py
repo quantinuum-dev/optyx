@@ -27,7 +27,7 @@ def test_compiler_fuzz(num_vertices: int):
         lines = f.readlines()
 
     graphs = nx.read_graph6(lines)
-    meas = [Measurement(i) for i in range(num_vertices)]
+    meas = [Measurement(i, "XY") for i in range(num_vertices)]
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations
@@ -52,6 +52,5 @@ def compile_and_decompile(
     fn = compile_to_fusion_network(g)
 
     g_reconstructed = sfn_to_open_graph(fn, inputs, outputs)
-    g_reconstructed = g_reconstructed.perform_z_deletions()
 
     return g == g_reconstructed

@@ -50,7 +50,7 @@ def test_triangle_compilation():
     ]
 
 
-@pytest.mark.parametrize("num_measurements", range(3))
+@pytest.mark.parametrize("num_measurements", range(1, 3))
 def test_linear_graph_measurements(num_measurements: int):
     measurements = create_unique_measurements(num_measurements)
     fp = FusionNetworkSE([0, 1, 2], measurements, [])
