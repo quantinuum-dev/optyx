@@ -1,6 +1,13 @@
 """
 Toolkit for compiling open graphs in machine instructions
 
+Together this tool kit constitutes a modular compiler for transforming open
+graphs into hardware instructions.
+
+Currently we only have a pipeline for compiling to a machine with a single
+linear resource state emitter and a single measurement device. This
+functionality is contained in the `optyx.compiler.semm` module.
+
 .. autosummary::
     :template: class.rst
     :nosignatures:
