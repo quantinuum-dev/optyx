@@ -1,6 +1,10 @@
 """Full stack compiler functions"""
 
-from optyx.compiler.mbqc import OpenGraph, PSMInstruction
+from optyx.compiler.mbqc import (
+    OpenGraph,
+    PSMInstruction,
+    add_fusion_order_to_partial_order,
+)
 
 from optyx.compiler.single_emitter.fusion_network import (
     compile_to_fusion_network,
@@ -55,7 +59,13 @@ def compile_to_semm(
     if gflow is None:
         raise ValueError("Graph does not have gflow")
 
-    ins = compile_single_emitter_multi_measurement(sfn, gflow.partial_order())
+    # Add the fusion ordering (induced by the corrections needing to be
+    # performed from the fusions) to the partial order induced by gflow
+    order_with_fusions = add_fusion_order_to_partial_order(
+        sfn.fusions, gflow.partial_order()
+    )
+
+    ins = compile_single_emitter_multi_measurement(sfn, order_with_fusions)
     return ins
 
 
