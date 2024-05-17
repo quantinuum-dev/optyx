@@ -1,10 +1,10 @@
 import pytest
 
 from optyx.compiler.mbqc import Measurement
-from optyx.compiler.single_emitter.simulator import (
+from optyx.compiler.semm_decompiler import (
     SingleEmitterMultiMeasure,
 )
-from optyx.compiler.single_emitter.tests.common import (
+from optyx.compiler.tests.common import (
     create_unique_measurements,
 )
 

@@ -6,9 +6,9 @@ instructions compiled for this machine
 
 from dataclasses import dataclass
 
-from optyx.compiler.single_emitter import FusionNetworkSE
 from optyx.compiler.mbqc import (
     Measurement,
+    FusionNetworkSE,
 )
 
 from optyx.compiler.protocols import (
