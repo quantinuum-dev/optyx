@@ -6,7 +6,7 @@ from optyx.compiler.single_emitter.many_measure import (
     compile_single_emitter_multi_measurement,
 )
 
-from optyx.compiler.mbqc import (
+from optyx.compiler.protocols import (
     MeasureOp,
     FusionOp,
     NextNodeOp,

@@ -2,8 +2,11 @@
 
 from optyx.compiler.mbqc import (
     OpenGraph,
-    PSMInstruction,
     add_fusion_order_to_partial_order,
+)
+
+from optyx.compiler.protocols import (
+    PSMInstruction,
 )
 
 from optyx.compiler.single_emitter.fusion_network import (
@@ -39,13 +42,14 @@ def compile_to_semm(
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> from optyx.compiler.semm import compile_to_semm
     >>> from optyx.compiler.single_emitter import FusionNetworkSE
-    >>> from optyx.compiler.mbqc import (
+    >>> from optyx.compiler.protocols import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,
     ...    PSMInstruction,
     ... )
-    >>> assert compile_to_semm(og) == [
+    >>> instructions = compile_to_semm(og)
+    >>> assert instructions == [
     ...     NextNodeOp(node_id=0),
     ...     MeasureOp(delay=0, measurement=meas[0]),
     ...     NextNodeOp(node_id=1),
@@ -53,6 +57,7 @@ def compile_to_semm(
     ...     NextNodeOp(node_id=2),
     ...     MeasureOp(delay=0, measurement=meas[2]),
     ... ]
+    >>> assert decompile_from_semm(instructions, inputs, outputs) == og
     """
     sfn = compile_to_fusion_network(g)
     gflow = g.find_gflow()
@@ -82,7 +87,7 @@ def decompile_from_semm(
     >>> from optyx.compiler import OpenGraph, Measurement
     >>> from optyx.compiler.semm import decompile_from_semm
     >>> from optyx.compiler.single_emitter import FusionNetworkSE
-    >>> from optyx.compiler.mbqc import (
+    >>> from optyx.compiler.protocols import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,

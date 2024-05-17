@@ -10,6 +10,9 @@ from optyx.compiler.mbqc import (
     PartialOrder,
     Measurement,
     add_fusion_order_to_partial_order,
+)
+
+from optyx.compiler.protocols import (
     FusionOp,
     MeasureOp,
     NextNodeOp,

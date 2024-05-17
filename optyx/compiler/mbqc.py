@@ -148,43 +148,16 @@ class OpenGraph:
         return GFlow(g, layers)
 
 
-@dataclass
-class MeasureOp:
-    """Measurement Operation"""
-
-    delay: int
-    measurement: Measurement
-
-
-@dataclass
-class FusionOp:
-    """Fusion Operation"""
-
-    delay: int
-
-
-@dataclass
-class NextNodeOp:
-    """Tells the machine to progress to the next node and sets the node id
-
-    Concretely, it will tell it to produce a Hadamard edge between the
-    previously emitted photon and the next one"""
-
-    node_id: int
-
-
-# Photon Stream Machine Instructions
-PSMInstruction = MeasureOp | FusionOp | NextNodeOp
-
-
 def add_fusion_order_to_partial_order(
     fusions: list[tuple[int, int]], order: PartialOrder
 ) -> PartialOrder:
-    """Returns a new partial order that ensures the fusion order is respected.
+    """Returns a new partial order that ensures Pauli errors from Hadamard edge
+    fusions can be corrected.
 
     We achieve this the simplest way possible, namely, we want the following
-    condition to be satisfied in the new order: any node that has w in its
-    past, should now contain v and its past.
+    condition to be satisfied in the new order: if nodes v and w are fused,
+    then any node that has w in its past, should now contain v and its past and
+    vice versa.
     """
 
     def fusion_with_node_order(node: int) -> list[int]:
@@ -208,11 +181,22 @@ def add_fusion_order_to_partial_order(
     return fusion_with_node_order
 
 
-# Find every node that is connected to the given node through (possibly many)
-# fusions. It uses a breadth first search to achieve this.
 def _get_all_connected_fusions(
     fusions: list[tuple[int, int]], node: int
 ) -> list[int]:
+    """Find every node that is connected to the given node through fusions. It
+    uses a breadth first search to achieve this.
+
+    Example
+    -------
+    >>> fusions = [(1, 0), (2, 4), (0, 3)]
+    >>> _get_all_connected_fusions(fusions, 0)
+    [0, 1, 3]
+    >>> _get_all_connected_fusions(fusions, 1)
+    [0, 1, 3]
+    >>> _get_all_connected_fusions(fusions, 4)
+    [2, 4]
+    """
     seen: set[int] = {node}
     frontier: set[int] = {node}
 
@@ -230,7 +214,18 @@ def _get_all_connected_fusions(
 def get_fused_neighbours(
     fusions: list[tuple[int, int]], node: int
 ) -> list[int]:
-    """Returns the nodes that are fused to the given node"""
+    """Returns the nodes that are fused to the given node.
+
+    Example
+    -------
+    >>> fusions = [(1, 0), (2, 3), (0, 3)]
+    >>> get_fused_neighbours(fusions, 0)
+    [1, 3]
+    >>> get_fused_neighbours(fusions, 2)
+    [3]
+    >>> get_fused_neighbours(fusions, 4)
+    []
+    """
     fusion_nbrs = []
 
     for fusion in fusions:
