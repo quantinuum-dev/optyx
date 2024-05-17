@@ -1,15 +1,15 @@
 import pytest
 
 
-from optyx.compiler.single_emitter.many_measure import (
+from optyx.compiler.semm import (
     compile_single_emitter_multi_measurement,
 )
 
-from optyx.compiler.single_emitter import FusionNetworkSE
 from optyx.compiler.mbqc import (
     PartialOrder,
     Measurement,
     add_fusion_order_to_partial_order,
+    FusionNetworkSE,
 )
 
 from optyx.compiler.protocols import (
@@ -18,12 +18,12 @@ from optyx.compiler.protocols import (
     NextNodeOp,
 )
 
-from optyx.compiler.single_emitter.simulator import (
+from optyx.compiler.semm_decompiler import (
     FusionPatternSE,
     decompile_to_fusion_pattern,
 )
 
-from optyx.compiler.single_emitter.tests.common import (
+from optyx.compiler.tests.common import (
     create_unique_measurements,
     numeric_order,
 )

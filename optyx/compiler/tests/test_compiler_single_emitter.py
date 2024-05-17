@@ -1,6 +1,7 @@
 import pytest
-from optyx.compiler.single_emitter import FusionNetworkSE
-from optyx.compiler.single_emitter.many_measure import (
+
+from optyx.compiler.mbqc import FusionNetworkSE
+from optyx.compiler.semm import (
     get_measurement_times,
     get_creation_times,
     compile_single_emitter_multi_measurement,
@@ -12,7 +13,7 @@ from optyx.compiler.protocols import (
     NextNodeOp,
 )
 
-from optyx.compiler.single_emitter.tests.common import (
+from optyx.compiler.tests.common import (
     numeric_order,
     create_unique_measurements,
 )
