@@ -1,9 +1,10 @@
 """Contains the fundamental classes requirement to define MBQC patterns"""
 
-from typing import Callable
+from typing import Callable, Optional
 from copy import deepcopy
 from dataclasses import dataclass
 import networkx as nx
+import graphix
 
 
 @dataclass
@@ -25,6 +26,32 @@ class Measurement:
     def is_z_measurement(self) -> bool:
         """Indicates whether it is a Z measurement"""
         return abs(self.angle) < 0.001 and self.plane == "XY"
+
+
+# Given a node, returns all the nodes in it's past
+PartialOrder = Callable[[int], list[int]]
+
+
+@dataclass
+class GFlow:
+    """The g-flow structure on an open graph.
+
+    :param g: the function which returns the correction set of a node
+    :param layers: the layers of the partial order
+    """
+
+    g: dict[int, set[int]]
+    layers: dict[int, int]
+
+    def partial_order(self) -> PartialOrder:
+        """Returns a function representing the partial order of the flow"""
+
+        def order(n: int):
+            l = self.layers[n]
+
+            return [i for i, layer in self.layers.items() if layer >= l]
+
+        return order
 
 
 @dataclass
@@ -105,9 +132,20 @@ class OpenGraph:
         g.perform_z_deletions_in_place()
         return g
 
+    def find_gflow(self) -> Optional[GFlow]:
+        """Finds gflow of the open graph.
 
-# Given a node, returns all the nodes in it's past
-PartialOrder = Callable[[int], list[int]]
+        Returns None if it does not exist."""
+
+        meas_planes = {i: meas.plane for i, meas in self.measurements.items()}
+        g, layers = graphix.gflow.find_gflow(
+            self.inside, self.inputs, self.outputs, meas_planes
+        )
+
+        if g is None or layers is None:
+            return None
+
+        return GFlow(g, layers)
 
 
 @dataclass

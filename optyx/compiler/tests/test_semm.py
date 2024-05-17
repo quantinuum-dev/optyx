@@ -36,6 +36,12 @@ def test_fuzz_semm_compiler(num_vertices: int):
 
     for graph in graphs:
         og = OpenGraph(graph, meas, inputs, outputs)
+
+        # If the graph does not have gflow, then we omit this case as
+        # compilation will fail.
+        if og.find_gflow() is None:
+            continue
+
         ins = compile_to_semm(og)
         og_reconstructed = decompile_from_semm(ins, inputs, outputs)
 

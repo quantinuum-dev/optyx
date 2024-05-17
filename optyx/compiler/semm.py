@@ -4,7 +4,6 @@ from optyx.compiler.mbqc import OpenGraph, PSMInstruction
 
 from optyx.compiler.single_emitter.fusion_network import (
     compile_to_fusion_network,
-    find_gflow,
     sfn_to_open_graph,
 )
 from optyx.compiler.single_emitter.many_measure import (
@@ -26,7 +25,7 @@ def compile_to_semm(
     -------
     >>> import networkx as nx
     >>> g = nx.Graph()
-    >>> g.add_edges_from([(0, 1), (0, 2), (2, 1)])
+    >>> g.add_edges_from([(0, 1), (1, 2)])
     >>> from optyx.compiler import OpenGraph, Measurement
 
     >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
@@ -44,19 +43,19 @@ def compile_to_semm(
     ... )
     >>> assert compile_to_semm(og) == [
     ...     NextNodeOp(node_id=0),
-    ...     FusionOp(delay=3),
     ...     MeasureOp(delay=0, measurement=meas[0]),
     ...     NextNodeOp(node_id=1),
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
-    ...     FusionOp(delay=0),
-    ...     MeasureOp(delay=0, measurement=meas[2])
+    ...     MeasureOp(delay=0, measurement=meas[2]),
     ... ]
     """
     sfn = compile_to_fusion_network(g)
-    gflow = find_gflow(g)
+    gflow = g.find_gflow()
+    if gflow is None:
+        raise ValueError("Graph does not have gflow")
 
-    ins = compile_single_emitter_multi_measurement(sfn, gflow)
+    ins = compile_single_emitter_multi_measurement(sfn, gflow.partial_order())
     return ins
 
 
@@ -82,18 +81,16 @@ def decompile_from_semm(
     >>> meas = {i: Measurement(0.5*i, "XY") for i in range(3)}
     >>> ins = [
     ...     NextNodeOp(node_id=0),
-    ...     FusionOp(delay=3),
     ...     MeasureOp(delay=0, measurement=meas[0]),
     ...     NextNodeOp(node_id=1),
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
-    ...     FusionOp(delay=0),
     ...     MeasureOp(delay=0, measurement=meas[2])
     ... ]
     >>>
     >>> import networkx as nx
     >>> g = nx.Graph()
-    >>> g.add_edges_from([(0, 1), (0, 2), (2, 1)])
+    >>> g.add_edges_from([(0, 1), (1, 2)])
 
     >>> inputs = {0}
     >>> outputs = {2}
