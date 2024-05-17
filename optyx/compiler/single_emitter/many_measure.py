@@ -20,7 +20,11 @@ def compile_single_emitter_multi_measurement(
     fp: FusionNetworkSE, partial_order: PartialOrder
 ) -> list[PSMInstruction]:
     """Compiles the fusion network into a series of instructions that can be
-    executed on a single emitter/multi measurement machine"""
+    executed on a single emitter/multi measurement machine.
+
+    Assumes any additional correction induces by the fusions have already been
+    incorporated into the given partial order.
+    """
 
     c = get_creation_times(fp)
     m = get_measurement_times(fp, partial_order, c)
