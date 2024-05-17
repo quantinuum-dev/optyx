@@ -10,7 +10,6 @@ import networkx as nx
 from optyx.compiler.graphs import find_min_path_cover
 from optyx.compiler.mbqc import (
     OpenGraph,
-    PartialOrder,
     Measurement,
 )
 
@@ -81,19 +80,6 @@ def _sorted_tuple(a: int, b: int) -> tuple[int, int]:
 # 6], [6, 3]
 def _path_to_edges(path: list[int]) -> list[tuple[int, int]]:
     return [(path[i], path[i + 1]) for i in range(len(path) - 1)]
-
-
-def find_gflow(g: OpenGraph) -> PartialOrder:
-    """Finds gflow of the open graph"""
-
-    inputs = deepcopy(g.inputs)
-
-    def no_order(v):
-        s = deepcopy(inputs)
-        s.add(v)
-        return s
-
-    return no_order
 
 
 # Joins paths together with an additional vertex.
