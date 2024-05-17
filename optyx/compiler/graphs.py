@@ -4,6 +4,7 @@ Will most likely be replaced by networkx in future.
 Wrote a custom library now for simplicity.
 """
 
+from typing import Optional
 import networkx as nx
 
 
@@ -36,70 +37,70 @@ def find_min_path_cover(g: nx.Graph) -> list[list[int]]:
     for i in range(1, g.number_of_nodes()):
         paths: list[list[int]] = []
 
-        ok = find_min_path_cover_with_k_paths(g, paths, i)
-        if ok:
-            return paths
+        path_cover = find_path_cover(g, paths, i)
+        if path_cover is not None:
+            return path_cover
 
     # This part is unreachable since in the worst case, we will return the
     # path cover where each path covers only a single vertex.
     raise ValueError("unreachable!")
 
 
-def find_min_path_cover_with_k_paths(
-    g: nx.Graph, paths: list[list[int]], num_paths: int
-) -> bool:
+PathCover = list[list[int]]
+
+
+def find_path_cover(
+    g: nx.Graph, paths: list[list[int]], max_paths: int
+) -> Optional[PathCover]:
     """Returns whether there exists a path cover of the graph with numPaths
     number of paths. If it True, then the path cover is contained in the
     "paths" input variable"""
+
+    # Checks whether the element exists in any of the paths in the slice
+    def _in_paths(paths: list[list[int]], v: int) -> bool:
+        return any(v in p for p in paths)
+
+    # Recursive auxillary function. Which performs a depth first search for the
+    # path cover.
+    def _find_path_cover_aux(
+        g: nx.Graph, paths: list[list[int]], num_paths: int
+    ) -> Optional[PathCover]:
+
+        num_nodes_in_paths = sum(len(path) for path in paths)
+        if num_nodes_in_paths == g.number_of_nodes():
+            return paths
+
+        # The last node in the paths so far
+        current_path = paths[-1]
+        tail = current_path[-1]
+
+        for nbr in g[tail]:
+            if _in_paths(paths, nbr):
+                continue
+
+            current_path.append(nbr)
+            paths[-1] = current_path
+
+            path_cover = _find_path_cover_aux(g, paths, num_paths)
+            if path_cover is not None:
+                return paths
+
+            current_path.pop()
+
+        if num_paths > 1:
+            return find_path_cover(g, paths, num_paths - 1)
+
+        return None
+
     for vert in g.nodes:
         # The vertex already belongs to another path
         if _in_paths(paths, vert):
             continue
 
         paths.append([vert])
-        if _find_path_cover_aux(g, paths, num_paths):
-            return True
+        if _find_path_cover_aux(g, paths, max_paths):
+            return paths
 
         paths.pop()
 
-    return False
-
-
-# The recursive auxillary function to FindMinPathCoverWithKPaths. Returns
-# whether there exists a path covering with the given number of paths
-def _find_path_cover_aux(
-    g: nx.Graph, paths: list[list[int]], num_paths: int
-) -> bool:
-    if _total_length(paths) == g.number_of_nodes():
-        return True
-
-    # The last node in the paths so far
-    current_path = paths[-1]
-    tail = current_path[-1]
-
-    for nbr in g[tail]:
-        if _in_paths(paths, nbr):
-            continue
-
-        current_path.append(nbr)
-        paths[-1] = current_path
-
-        ok = _find_path_cover_aux(g, paths, num_paths)
-        if ok:
-            return True
-
-        current_path.pop()
-
-    if num_paths > 1:
-        return find_min_path_cover_with_k_paths(g, paths, num_paths - 1)
-
-    return False
-
-
-# Checked whether the element exists in any of the paths in the slice
-def _in_paths(paths: list[list[int]], v: int) -> bool:
-    return any(v in p for p in paths)
-
-
-def _total_length(p: list[list[int]]) -> int:
-    return sum(len(v) for v in p)
+    return None
