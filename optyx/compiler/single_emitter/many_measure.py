@@ -17,13 +17,13 @@ from optyx.compiler.single_emitter import FusionNetworkSE
 
 
 def compile_single_emitter_multi_measurement(
-    fp: FusionNetworkSE, node_past: PartialOrder
+    fp: FusionNetworkSE, partial_order: PartialOrder
 ) -> list[PSMInstruction]:
     """Compiles the fusion network into a series of instructions that can be
     executed on a single emitter/multi measurement machine"""
 
     c = get_creation_times(fp)
-    m = get_measurement_times(fp, node_past, c)
+    m = get_measurement_times(fp, partial_order, c)
     f = _get_fusion_photons(fp.fusions, fp.path, c)
 
     ins: list[PSMInstruction] = []

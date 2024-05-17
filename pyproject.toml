@@ -30,7 +30,8 @@ dependencies = [
   "discopy >= 1.1.6",
   "sympy",
   "perceval-quandela >= 0.10.2",
-  "networkx >= 3.2"
+  "networkx >= 3.2",
+  "graphix >= 0.2.11",
 ]
 
 [project.optional-dependencies]
@@ -92,6 +93,7 @@ filterwarnings = [
 	"ignore::DeprecationWarning:perceval",
 	"ignore::DeprecationWarning:latexcodec",
 	"ignore::DeprecationWarning:pkg_resources",
+	"ignore::UserWarning:cotengra",
 ]
 
 [tool.black]
