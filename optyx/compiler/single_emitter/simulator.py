@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from optyx.compiler.single_emitter import FusionNetworkSE
 from optyx.compiler.mbqc import (
     Measurement,
+)
+
+from optyx.compiler.protocols import (
     FusionOp,
     MeasureOp,
     NextNodeOp,
@@ -74,7 +77,7 @@ class SingleEmitterMultiMeasure:
         self.fusions = []
 
     def measure(self, m: Measurement):
-        """Applies a unitary to the incoming photon and measures it"""
+        """Measures the incoming photon"""
         self.time += 1
 
         if self.__node_has_been_measured(self.path[-1]):

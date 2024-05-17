@@ -6,11 +6,14 @@ single emitter multiple measurement device
 
 from optyx.compiler.mbqc import (
     PartialOrder,
+    get_fused_neighbours,
+)
+
+from optyx.compiler.protocols import (
     PSMInstruction,
     FusionOp,
     MeasureOp,
     NextNodeOp,
-    get_fused_neighbours,
 )
 
 from optyx.compiler.single_emitter import FusionNetworkSE
