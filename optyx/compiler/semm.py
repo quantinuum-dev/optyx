@@ -51,9 +51,9 @@ def compile_to_semm(
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
     >>>
     >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
-    >>> inputs = {0}
-    >>> outputs = {2}
-    >>>
+    >>> inputs = [0]
+    >>> outputs = [2]
+
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> from optyx.compiler.semm import compile_to_semm
     >>> from optyx.compiler.protocols import (
@@ -88,8 +88,8 @@ def compile_to_semm(
 
 def decompile_from_semm(
     ins: list[Instruction],
-    inputs: set[int],
-    outputs: set[int],
+    inputs: list[int],
+    outputs: list[int],
 ) -> OpenGraph:
     """Decompiles from instructions on an SEMM device back into an open
     graph
@@ -116,10 +116,10 @@ def decompile_from_semm(
     >>>
     >>> import networkx as nx
     >>> g = nx.Graph([(0, 1), (1, 2)])
-    >>>
-    >>> inputs = {0}
-    >>> outputs = {2}
-    >>>
+
+    >>> inputs = [0]
+    >>> outputs = [2]
+
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> assert decompile_from_semm(ins, inputs, outputs) == og
     """

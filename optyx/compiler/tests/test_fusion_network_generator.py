@@ -21,8 +21,8 @@ def test_compiler_fuzz(num_vertices: int):
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations
-    inputs = {0}
-    outputs = {num_vertices - 1}
+    inputs = [0]
+    outputs = [num_vertices - 1]
 
     # For some reason nx.read_graph6 returns a list of graphs if there are many
     # graphs, and the actual graph if there is only one graph, so we need to
@@ -37,7 +37,7 @@ def test_compiler_fuzz(num_vertices: int):
 # Compiles an open graph into a fusion network, and converts it back into an
 # open graph again to verify correctness.
 def compile_and_decompile(
-    g: OpenGraph, inputs: set[int], outputs: set[int]
+    g: OpenGraph, inputs: list[int], outputs: list[int]
 ) -> bool:
     fn = compile_to_fusion_network(g)
 
