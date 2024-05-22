@@ -109,7 +109,6 @@ class GFlow:
         return order
 
 
-@dataclass
 class OpenGraph:
     """Open graph contains the graph, measurement, and input and output
     nodes. This is the graph we wish to implement deterministically
@@ -124,22 +123,17 @@ class OpenGraph:
     Example
     -------
     >>> import networkx as nx
-    >>> from . import OpenGraph, Measurement
+    >>> from optyx.compiler.mbqc import OpenGraph, Measurement
     >>>
     >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
     >>>
     >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
-    >>> inputs = {0}
-    >>> outputs = {2}
+    >>> inputs = [0]
+    >>> outputs = [2]
     >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
     """
 
     inside: nx.Graph
-
-    measurements: dict[int, Measurement]
-
-    inputs: set[int]
-    outputs: set[int]
 
     def __eq__(self, other):
         """Checks the two open graphs are equal
@@ -164,21 +158,120 @@ class OpenGraph:
             outputs=deepcopy(self.outputs, memo),
         )
 
+    def __init__(
+        self,
+        inside: nx.Graph,
+        measurements: dict[int, Measurement],
+        inputs: list[int],
+        outputs: list[int],
+    ):
+        self.inside = inside
+
+        for i in self.inside.nodes:
+            self.inside.nodes[i]["measurement"] = measurements[i]
+
+        for i, node_id in enumerate(inputs):
+            self.inside.nodes[node_id]["class"] = "input"
+            self.inside.nodes[node_id]["order"] = i
+
+        for i, node_id in enumerate(outputs):
+            self.inside.nodes[node_id]["class"] = "output"
+            self.inside.nodes[node_id]["order"] = i
+
+    @property
+    def inputs(self) -> list[int]:
+        """Returns the inputs of the graph.
+
+        Example
+        ------
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>>
+        >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
+        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> inputs = [0]
+        >>> outputs = [2]
+        >>>
+        >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+        >>> assert og.inputs == inputs
+        """
+        unsorted_inputs = [
+            i
+            for i in self.inside.nodes(data=True)
+            if "class" in i[1] and i[1]["class"] == "input"
+        ]
+        inputs_with_data = sorted(unsorted_inputs, key=lambda x: x[1]["order"])
+        inputs = [i[0] for i in inputs_with_data]
+        return inputs
+
+    @property
+    def outputs(self) -> list[int]:
+        """Returns the outputs of the graph.
+
+        Example
+        ------
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>>
+        >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
+        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> inputs = [0]
+        >>> outputs = [2]
+        >>>
+        >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+        >>> assert og.outputs == outputs
+        """
+        unsorted_outputs = [
+            i
+            for i in self.inside.nodes(data=True)
+            if "class" in i[1] and i[1]["class"] == "output"
+        ]
+        outputs_with_data = sorted(
+            unsorted_outputs, key=lambda x: x[1]["order"]
+        )
+        outputs = [i[0] for i in outputs_with_data]
+        return outputs
+
+    @property
+    def measurements(self) -> dict[int, Measurement]:
+        """Returns a dictionary which maps each node to its measurement. Output
+        nodes are not measured and therefore are not included in the
+        dictionary.
+
+        Example
+        ------
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>>
+        >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
+        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> inputs = [0]
+        >>> outputs = [2]
+        >>>
+        >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+        >>> assert og.measurements == {
+        ...     0: Measurement(0.0, "XY"),
+        ...     1: Measurement(0.5, "XY"),
+        ...     2: Measurement(1.0, "XY"),
+        ... }
+        """
+        return {
+            n[0]: n[1]["measurement"]
+            for n in self.inside.nodes(data=True)
+            if "measurement" in n[1]
+        }
+
     def perform_z_deletions_in_place(self):
         """Removes the Z-deleted nodes from the graph in place"""
-        zero_nodes = [
-            id for id, m in self.measurements.items() if m.is_z_measurement()
+        z_measured_nodes = [
+            node
+            for node in self.inside.nodes
+            if "measurement" in self.inside.nodes[node]
+            and self.inside.nodes[node]["measurement"].is_z_measurement()
         ]
 
-        for node in zero_nodes:
+        for node in z_measured_nodes:
             self.inside.remove_node(node)
-
-        # Remove the deleted node's measurements
-        self.measurements = {
-            id: m
-            for id, m in self.measurements.items()
-            if not m.is_z_measurement()
-        }
 
     def perform_z_deletions(self):
         """Removes the Z-deleted nodes from the graph"""
@@ -193,7 +286,7 @@ class OpenGraph:
 
         meas_planes = {i: meas.plane for i, meas in self.measurements.items()}
         g, layers = graphix.gflow.find_gflow(
-            self.inside, self.inputs, self.outputs, meas_planes
+            self.inside, set(self.inputs), set(self.outputs), meas_planes
         )
 
         if g is None or layers is None:
