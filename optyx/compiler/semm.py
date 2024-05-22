@@ -31,8 +31,7 @@ def compile_to_semm(
     Example
     -------
     >>> import networkx as nx
-    >>> g = nx.Graph()
-    >>> g.add_edges_from([(0, 1), (1, 2)])
+    >>> g = nx.Graph([(0, 1), (1, 2)])
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetworkSE
 
     >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
@@ -102,8 +101,7 @@ def decompile_from_semm(
     ... ]
     >>>
     >>> import networkx as nx
-    >>> g = nx.Graph()
-    >>> g.add_edges_from([(0, 1), (1, 2)])
+    >>> g = nx.Graph([(0, 1), (1, 2)])
 
     >>> inputs = {0}
     >>> outputs = {2}

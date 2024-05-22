@@ -73,8 +73,7 @@ class OpenGraph:
     >>> import networkx as nx
     >>> from . import OpenGraph, Measurement
     >>>
-    >>> inside_graph = nx.Graph()
-    >>> inside_graph.add_edges_from([(0, 1), (1, 2), (2, 0)])
+    >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
     >>>
     >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
     >>> inputs = {0}
