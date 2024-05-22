@@ -1,6 +1,6 @@
 """Contains the fundamental classes requirement to define MBQC patterns"""
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Self
 from copy import deepcopy
 from dataclasses import dataclass
 import networkx as nx
@@ -178,6 +178,180 @@ class OpenGraph:
             self.inside.nodes[node_id]["class"] = "output"
             self.inside.nodes[node_id]["order"] = i
 
+    # The following functions "id", "then" and "tensor" define OpenGraph as a
+    # monoidal category
+
+    @staticmethod
+    def id():
+        """Returns the identity of the tensor product
+
+        Example
+        -------
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>>
+        >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
+        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> inputs = [0]
+        >>> outputs = [2]
+        >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+        >>>
+        >>> id_graph = OpenGraph.id()
+        >>> new_graph = og.tensor(id_graph)
+        >>> assert new_graph == og
+        """
+        return OpenGraph(nx.Graph(), {}, [], [])
+
+    def tensor(self, other: Self) -> Self:
+        """Parallel compose the graph with the given graph
+
+        Example
+        -------
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>>
+        >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
+        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> inputs = [0]
+        >>> outputs = [2]
+        >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+        >>>
+        >>> inside_graph2 = nx.Graph([(1, 0), (0, 3), (2, 0)])
+        >>> measurements2 = [Measurement(0.7 * i, "XY") for i in range(4)]
+        >>> inputs2 = [1]
+        >>> outputs2 = [3]
+        >>> og2 = OpenGraph(inside_graph2, measurements2, inputs2, outputs2)
+        >>>
+        >>> new_graph = og.tensor(og2)
+        >>>
+        >>> from networkx.algorithms.isomorphism.vf2userfunc import (
+        ...     GraphMatcher
+        ... )
+        >>> gm1 = GraphMatcher(new_graph.inside, og.inside)
+        >>> assert gm1.subgraph_is_isomorphic()
+        >>> gm2 = GraphMatcher(new_graph.inside, og2.inside)
+        >>> assert gm2.subgraph_is_isomorphic()
+        """
+        # NOTE: This could be simplified by doing my own node renaming before
+        # the disjoint_union so I know what the new node IDs will be
+        nodes = self.inside.nodes
+        max_input_order = max(nodes[i]["order"] for i in self.inputs)
+        max_output_order = max(nodes[i]["order"] for i in self.outputs)
+
+        # Add a temporary tag so that we know which nodes in the new graph come
+        # from the "other" graph.
+        for inp in other.inputs:
+            other.inside.nodes[inp]["tmp_tag"] = 1
+        for output in other.outputs:
+            other.inside.nodes[output]["tmp_tag"] = 1
+
+        inside = nx.disjoint_union(self.inside, other.inside)
+
+        for n in inside.nodes(data=True):
+            if "tmp_tag" not in n[1]:
+                continue
+
+            del inside.nodes[n[0]]["tmp_tag"]
+
+            if inside.nodes[n[0]]["class"] == "input":
+                inside.nodes[n[0]]["order"] += max_input_order
+            else:
+                inside.nodes[n[0]]["order"] += max_output_order
+
+        return self.from_networkx(inside)
+
+    @classmethod
+    def from_networkx(cls, graph: nx.Graph) -> Self:
+        """Returns an OpenGraph built from an networkx graph
+        where measurements are contained in the node's "measurement" tag, and
+        input/output nodes have the tag "class" containing "input"/"output" and
+        an "order" tag containing the node's position in the the input/outputs.
+
+        Example
+        -------
+        A graph with four vertices where nodes 0 and 3 are inputs in the order
+        (0, 3), and node 2 is the only output.
+
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>>
+        >>> g = nx.Graph([(0, 1), (1, 2), (2, 0), (3, 0)])
+        >>> g.nodes[0]["measurement"] = Measurement(0.0, "XY")
+        >>> g.nodes[1]["measurement"] = Measurement(0.5, "XY")
+        >>> g.nodes[3]["measurement"] = Measurement(0, "XY")
+        >>>
+        >>> g.nodes[0]["class"] = "input"
+        >>> g.nodes[0]["order"] = 0
+        >>> g.nodes[3]["class"] = "input"
+        >>> g.nodes[3]["order"] = 1
+        >>> g.nodes[2]["class"] = "output"
+        >>> g.nodes[2]["order"] = 0
+        """
+        og = cls.__new__(cls)
+        og.inside = graph
+        return og
+
+    def then(self, other: Self) -> Self:
+        """Sequentially composing the graph with the given graph
+
+        Example
+        -------
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>>
+        >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
+        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> inputs = [0]
+        >>> outputs = [2]
+        >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+        >>>
+        >>> inside_graph2 = nx.Graph([(1, 0), (0, 3), (2, 0)])
+        >>> measurements2 = [Measurement(0.7 * i, "XY") for i in range(4)]
+        >>> inputs2 = [1]
+        >>> outputs2 = [3]
+        >>> og2 = OpenGraph(inside_graph2, measurements2, inputs2, outputs2)
+        >>>
+        >>> new_graph = og.then(og2)
+        >>>
+        >>> from networkx.algorithms.isomorphism.vf2userfunc import (
+        ...     GraphMatcher
+        ... )
+        >>> gm = GraphMatcher(new_graph.inside, og.inside)
+        >>> assert gm.subgraph_is_isomorphic()
+        >>> gm = GraphMatcher(new_graph.inside, og2.inside)
+        >>> assert gm.subgraph_is_isomorphic()
+        """
+        if len(self.outputs) != len(self.inputs):
+            raise ValueError(
+                f"cannot compose graph with {len(self.outputs)} "
+                f"outputs with graph with {len(self.inputs)} inputs"
+            )
+
+        max_node = max(self.inside.nodes)
+        relabeled_other_inside = nx.relabel_nodes(
+            other.inside, lambda x: x + max_node + 1
+        )
+
+        # Avoid calling the init method since we don't need to load the
+        # measurements and inputs/outputs again
+        other_copy = OpenGraph.__new__(OpenGraph)
+        other_copy.inside = relabeled_other_inside
+
+        # Now I need to set the outputs and inputs to be the same ID
+        all_data = self.inside.nodes(data=True)
+        outputs = sorted(self.outputs, key=lambda x: all_data[x]["order"])
+
+        relab_data = other_copy.inside.nodes(data=True)
+        inputs = sorted(
+            other_copy.outputs, key=lambda x: relab_data[x]["order"]
+        )
+
+        mapping = {inputs[i]: outputs[i] for i in range(len(inputs))}
+        other_copy.inside = nx.relabel_nodes(other_copy.inside, mapping)
+
+        result = nx.compose(self.inside, other_copy.inside)
+        return self.from_networkx(result)
+
     @property
     def inputs(self) -> list[int]:
         """Returns the inputs of the graph.
@@ -235,8 +409,7 @@ class OpenGraph:
     @property
     def measurements(self) -> dict[int, Measurement]:
         """Returns a dictionary which maps each node to its measurement. Output
-        nodes are not measured and therefore are not included in the
-        dictionary.
+        nodes are not measured and hence are not included in the dictionary.
 
         Example
         ------
