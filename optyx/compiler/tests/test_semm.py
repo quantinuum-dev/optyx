@@ -26,8 +26,8 @@ def test_fuzz_semm_compiler(num_vertices: int):
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations
-    inputs = {0}
-    outputs = {num_vertices - 1}
+    inputs = [0]
+    outputs = [num_vertices - 1]
 
     # For some reason nx.read_graph6 returns a list of graphs if there are many
     # graphs, and the actual graph if there is only one graph, so we need to
