@@ -79,7 +79,7 @@ method.
 ... )
 >>>
 >>> g = nx.Graph([(0, 1), (1, 2)])
->>> meas = {i: Measurement(i, 'XY') for i in range(3)}
+>>> meas = {i: Measurement(i, 'XY') for i in range(2)}
 >>> inputs = {0}
 >>> outputs = {2}
 >>> og = OpenGraph(g, meas, inputs, outputs)
@@ -93,7 +93,6 @@ method.
 ...     NextNodeOp(node_id=1),
 ...     MeasureOp(delay=0, measurement=meas[1]),
 ...     NextNodeOp(node_id=2),
-...     MeasureOp(delay=0, measurement=meas[2]),
 ... ]
 """
 
