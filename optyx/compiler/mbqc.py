@@ -128,7 +128,7 @@ class OpenGraph:
     >>>
     >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
     >>>
-    >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+    >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
     >>> inputs = [0]
     >>> outputs = [2]
     >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
@@ -168,8 +168,11 @@ class OpenGraph:
     ):
         self.inside = inside
 
-        for i in self.inside.nodes:
-            self.inside.nodes[i]["measurement"] = measurements[i]
+        if any(node in outputs for node in measurements):
+            raise ValueError("output node can not be measured")
+
+        for node_id, measurement in measurements.items():
+            self.inside.nodes[node_id]["measurement"] = measurement
 
         for i, node_id in enumerate(inputs):
             self.inside.nodes[node_id]["is_input"] = True
@@ -192,7 +195,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
@@ -212,13 +215,13 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
         >>>
         >>> inside_graph2 = nx.Graph([(1, 0), (0, 3), (2, 0)])
-        >>> measurements2 = [Measurement(0.7 * i, "XY") for i in range(4)]
+        >>> measurements2 = {i: Measurement(0.7 * i, "XY") for i in range(3)}
         >>> inputs2 = [1]
         >>> outputs2 = [3]
         >>> og2 = OpenGraph(inside_graph2, measurements2, inputs2, outputs2)
@@ -273,6 +276,11 @@ class OpenGraph:
         * "output_order" - the position of this output node in the outputs
                            (starts at 0)
 
+        Unexported since this relies on the underlying implementation details
+        of the graph, which could change at any time. It is meant to be a
+        convenient utility tool to allow us to more efficiently create new open
+        graphs in our own methods.
+
         Example
         -------
         A graph with four vertices where nodes 0 and 3 are inputs in the order
@@ -306,13 +314,13 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
         >>>
         >>> inside_graph2 = nx.Graph([(1, 0), (0, 3), (2, 0)])
-        >>> measurements2 = [Measurement(0.7 * i, "XY") for i in range(4)]
+        >>> measurements2 = {i: Measurement(0.7 * i, "XY") for i in range(3)}
         >>> inputs2 = [1]
         >>> outputs2 = [3]
         >>> og2 = OpenGraph(inside_graph2, measurements2, inputs2, outputs2)
@@ -334,16 +342,12 @@ class OpenGraph:
             )
 
         max_node = max(self.inside.nodes)
-        relabeled_other_inside = nx.relabel_nodes(
+        relabeled_inside = nx.relabel_nodes(
             other.inside, lambda x: x + max_node + 1
         )
+        other_copy = self._from_networkx(relabeled_inside)
 
-        # Avoid calling the init method since we don't need to load the
-        # measurements and inputs/outputs again
-        other_copy = OpenGraph.__new__(OpenGraph)
-        other_copy.inside = relabeled_other_inside
-
-        # Now I need to set the outputs and inputs to be the same ID
+        # Set the outputs and inputs to be the same ID
         all_data = self.inside.nodes(data=True)
         old_self_outputs = sorted(
             self.outputs, key=lambda x: all_data[x]["output_order"]
@@ -364,6 +368,8 @@ class OpenGraph:
         }
         other_copy.inside = nx.relabel_nodes(other_copy.inside, mapping)
 
+        # Note that the "measurement" attribute in "other_copy"'s node will
+        # appear in the corresponding node in the returned graph as expected.
         result = nx.compose(self.inside, other_copy.inside)
 
         for node_id in old_self_outputs:
@@ -382,7 +388,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>>
@@ -408,7 +414,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>>
@@ -435,7 +441,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>>
@@ -443,7 +449,6 @@ class OpenGraph:
         >>> assert og.measurements == {
         ...     0: Measurement(0.0, "XY"),
         ...     1: Measurement(0.5, "XY"),
-        ...     2: Measurement(1.0, "XY"),
         ... }
         """
         return {
