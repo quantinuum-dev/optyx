@@ -127,7 +127,7 @@ class OpenGraph:
     >>>
     >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
     >>>
-    >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+    >>> measurements = [Measurement(0.5 * i, "XY") for i in range(2)]
     >>> inputs = {0}
     >>> outputs = {2}
     >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
@@ -207,7 +207,7 @@ class OpenGraph:
             meas_planes[node_id] = plane
 
         g, layers = graphix.gflow.find_gflow(
-            self.inside, self.inputs, self.outputs, meas_planes
+            self.inside, set(self.inputs), set(self.outputs), meas_planes
         )
 
         if g is None or layers is None:

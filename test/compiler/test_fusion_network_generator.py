@@ -17,7 +17,7 @@ def test_compiler_fuzz(num_vertices: int):
         lines = f.readlines()
 
     graphs = nx.read_graph6(lines)
-    meas = {i: Measurement(i, "XY") for i in range(num_vertices)}
+    meas = {i: Measurement(i, "XY") for i in range(num_vertices - 1)}
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations
