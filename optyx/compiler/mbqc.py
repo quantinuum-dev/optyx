@@ -241,34 +241,35 @@ class OpenGraph:
         max_input_order = max(nodes[i]["order"] for i in self.inputs)
         max_output_order = max(nodes[i]["order"] for i in self.outputs)
 
-        # Add a temporary tag so that we know which nodes in the new graph come
-        # from the "other" graph.
-        for inp in other.inputs:
-            other.inside.nodes[inp]["tmp_tag"] = 1
-        for output in other.outputs:
-            other.inside.nodes[output]["tmp_tag"] = 1
+        max_node = max(self.inside.nodes)
+        relabeled_inside = nx.relabel_nodes(
+            other.inside, lambda x: x + max_node + 1
+        )
 
-        inside = nx.disjoint_union(self.inside, other.inside)
-
-        for n in inside.nodes(data=True):
-            if "tmp_tag" not in n[1]:
+        for n in relabeled_inside.nodes(data=True):
+            if "class" not in n[1]:
                 continue
 
-            del inside.nodes[n[0]]["tmp_tag"]
-
-            if inside.nodes[n[0]]["class"] == "input":
-                inside.nodes[n[0]]["order"] += max_input_order
+            if relabeled_inside.nodes[n[0]]["class"] == "input":
+                relabeled_inside.nodes[n[0]]["order"] += max_input_order + 1
             else:
-                inside.nodes[n[0]]["order"] += max_output_order
+                relabeled_inside.nodes[n[0]]["order"] += max_output_order + 1
 
-        return self.from_networkx(inside)
+        inside = nx.union(self.inside, relabeled_inside)
+
+        return self._from_networkx(inside)
 
     @classmethod
-    def from_networkx(cls, graph: nx.Graph) -> Self:
+    def _from_networkx(cls, graph: nx.Graph) -> Self:
         """Returns an OpenGraph built from an networkx graph
         where measurements are contained in the node's "measurement" tag, and
         input/output nodes have the tag "class" containing "input"/"output" and
         an "order" tag containing the node's position in the the input/outputs.
+
+        Unexported since this relies on the underlying implementation details
+        of the graph, which could change at any time. It is meant to be a
+        convenient utility tool to allow us to more efficiently create new open
+        graphs in our own methods.
 
         Example
         -------
@@ -331,29 +332,32 @@ class OpenGraph:
             )
 
         max_node = max(self.inside.nodes)
-        relabeled_other_inside = nx.relabel_nodes(
+        relabeled_inside = nx.relabel_nodes(
             other.inside, lambda x: x + max_node + 1
         )
+        other_copy = self._from_networkx(relabeled_inside)
 
-        # Avoid calling the init method since we don't need to load the
-        # measurements and inputs/outputs again
-        other_copy = OpenGraph.__new__(OpenGraph)
-        other_copy.inside = relabeled_other_inside
-
-        # Now I need to set the outputs and inputs to be the same ID
+        # Set the outputs and inputs to be the same ID
         all_data = self.inside.nodes(data=True)
         outputs = sorted(self.outputs, key=lambda x: all_data[x]["order"])
 
         relab_data = other_copy.inside.nodes(data=True)
         inputs = sorted(
-            other_copy.outputs, key=lambda x: relab_data[x]["order"]
+            other_copy.inputs, key=lambda x: relab_data[x]["order"]
         )
 
         mapping = {inputs[i]: outputs[i] for i in range(len(inputs))}
         other_copy.inside = nx.relabel_nodes(other_copy.inside, mapping)
 
+        # Note that the "measurement" attribute in "other_copy"'s node will
+        # appear in the corresponding node in the returned graph as expected.
         result = nx.compose(self.inside, other_copy.inside)
-        return self.from_networkx(result)
+
+        for node_id in outputs:
+            del result.nodes[node_id]["class"]
+            del result.nodes[node_id]["order"]
+
+        return self._from_networkx(result)
 
     @property
     def inputs(self) -> list[int]:
