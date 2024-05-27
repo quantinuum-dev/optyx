@@ -49,7 +49,7 @@ def compile_to_semm(
     >>> g = nx.Graph([(0, 1), (1, 2)])
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
 
-    >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
+    >>> meas = {i: Measurement(i, 'XY') for i in range(2)}
     >>> inputs = [0]
     >>> outputs = [2]
 
@@ -68,7 +68,6 @@ def compile_to_semm(
     ...     NextNodeOp(node_id=1),
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
-    ...     MeasureOp(delay=0, measurement=meas[2]),
     ... ]
     >>> assert decompile_from_semm(instructions, inputs, outputs) == og
     """
@@ -105,14 +104,13 @@ def decompile_from_semm(
     ...    NextNodeOp,
     ...    Instruction,
     ... )
-    >>> meas = {i: Measurement(0.5*i, "XY") for i in range(3)}
+    >>> meas = {i: Measurement(0.5*i, "XY") for i in range(2)}
     >>> ins = [
     ...     NextNodeOp(node_id=0),
     ...     MeasureOp(delay=0, measurement=meas[0]),
     ...     NextNodeOp(node_id=1),
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
-    ...     MeasureOp(delay=0, measurement=meas[2])
     ... ]
     >>>
     >>> import networkx as nx
@@ -159,6 +157,10 @@ def compile_single_emitter_multi_measurement(
             delay = max(0, pair - photon)
             # NOTE: the X fusion is hard coded into here
             ins.append(FusionOp(delay, "X"))
+
+        # Node "v" is an output, and therefore isn't measured
+        if v not in fp.measurements:
+            continue
 
         # Calculate measurement delay
         photon += 1

@@ -127,7 +127,7 @@ class OpenGraph:
     >>>
     >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
     >>>
-    >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+    >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
     >>> inputs = [0]
     >>> outputs = [2]
     >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
@@ -167,8 +167,11 @@ class OpenGraph:
     ):
         self.inside = inside
 
-        for i in self.inside.nodes:
-            self.inside.nodes[i]["measurement"] = measurements[i]
+        if any(node in outputs for node in measurements):
+            raise ValueError("output node can not be measured")
+
+        for node_id, measurement in measurements.items():
+            self.inside.nodes[node_id]["measurement"] = measurement
 
         for i, node_id in enumerate(inputs):
             self.inside.nodes[node_id]["class"] = "input"
@@ -191,7 +194,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
@@ -211,13 +214,13 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
         >>>
         >>> inside_graph2 = nx.Graph([(1, 0), (0, 3), (2, 0)])
-        >>> measurements2 = [Measurement(0.7 * i, "XY") for i in range(4)]
+        >>> measurements2 = {i: Measurement(0.7 * i, "XY") for i in range(3)}
         >>> inputs2 = [1]
         >>> outputs2 = [3]
         >>> og2 = OpenGraph(inside_graph2, measurements2, inputs2, outputs2)
@@ -300,13 +303,13 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
         >>>
         >>> inside_graph2 = nx.Graph([(1, 0), (0, 3), (2, 0)])
-        >>> measurements2 = [Measurement(0.7 * i, "XY") for i in range(4)]
+        >>> measurements2 = {i: Measurement(0.7 * i, "XY") for i in range(3)}
         >>> inputs2 = [1]
         >>> outputs2 = [3]
         >>> og2 = OpenGraph(inside_graph2, measurements2, inputs2, outputs2)
@@ -362,7 +365,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>>
@@ -388,7 +391,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>>
@@ -417,7 +420,7 @@ class OpenGraph:
         >>> from optyx.compiler.mbqc import OpenGraph, Measurement
         >>>
         >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-        >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+        >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
         >>> inputs = [0]
         >>> outputs = [2]
         >>>
@@ -425,7 +428,6 @@ class OpenGraph:
         >>> assert og.measurements == {
         ...     0: Measurement(0.0, "XY"),
         ...     1: Measurement(0.5, "XY"),
-        ...     2: Measurement(1.0, "XY"),
         ... }
         """
         return {
