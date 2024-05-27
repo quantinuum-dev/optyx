@@ -162,6 +162,10 @@ def compile_single_emitter_multi_measurement(
         if v not in fp.measurements:
             continue
 
+        # Node "v" is an output, and therefore isn't measured
+        if v not in fp.measurements:
+            continue
+
         # Calculate measurement delay
         photon += 1
         measurement = fp.measurements[v]
