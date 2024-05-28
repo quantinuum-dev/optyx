@@ -6,6 +6,9 @@ from dataclasses import dataclass
 import networkx as nx
 import graphix
 
+from graphix.sim.statevec import Statevec
+from graphix.generator import generate_from_graph
+
 
 @dataclass
 class Measurement:
@@ -488,6 +491,40 @@ class OpenGraph:
             return None
 
         return GFlow(g, layers)
+
+    def simulate(self, backend="statevector", **kwargs) -> Statevec:
+        """Simulates the measurement pattern and returns the state vector.
+
+        :param backend: either 'statevector' (default) or 'tensornetwork'
+
+        Example
+        -------
+        >>> import networkx as nx
+        >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+        >>> graph = nx.Graph([(0, 1), (1, 2), (2, 3)])
+        >>> measurements = {i: Measurement(0.5, "XY") for i in range(3)}
+        >>> inputs = [0]
+        >>> outputs = [3]
+        >>> og = OpenGraph(graph, measurements, inputs, outputs)
+        >>> og.simulate()
+        Statevec, data=[0.5+0.5j 0.5+0.5j], shape=(2,)
+        """
+        measurements = self.measurements
+        angles = {
+            i: float(m.angle) if float(m.angle) < 1.0 else float(m.angle) - 2.0
+            for i, m in measurements.items()
+        }
+        # Lets see if this works
+        angles = {i: -angle for i, angle in angles.items()}
+        meas_planes = {i: m.plane for i, m in measurements.items()}
+        inputs = set(self.inputs)
+        outputs = set(self.outputs)
+
+        pattern = generate_from_graph(
+            self.inside, angles, inputs, outputs, meas_planes
+        )
+
+        return pattern.simulate_pattern(backend, **kwargs)
 
 
 def add_fusions_to_partial_order(
