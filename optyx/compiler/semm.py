@@ -1,4 +1,15 @@
-"""Full stack compiler functions"""
+"""Functions for compiling a fusion network into instructions executable on a
+single emitter multiple measure (SEMM) machine
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    compile_to_semm
+    decompile_from_semm
+
+"""
 
 from copy import deepcopy
 import networkx as nx
@@ -7,7 +18,7 @@ from optyx.compiler.mbqc import (
     OpenGraph,
     PartialOrder,
     get_fused_neighbours,
-    add_fusion_order_to_partial_order,
+    add_fusions_to_partial_order,
     FusionNetwork,
     Measurement,
     Fusion,
@@ -37,11 +48,11 @@ def compile_to_semm(
     >>> import networkx as nx
     >>> g = nx.Graph([(0, 1), (1, 2)])
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
-
+    >>>
     >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
     >>> inputs = {0}
     >>> outputs = {2}
-
+    >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> from optyx.compiler.semm import compile_to_semm
     >>> from optyx.compiler.protocols import (
@@ -68,7 +79,7 @@ def compile_to_semm(
 
     # Add the fusion ordering (induced by the corrections needing to be
     # performed from the fusions) to the partial order induced by gflow
-    order_with_fusions = add_fusion_order_to_partial_order(
+    order_with_fusions = add_fusions_to_partial_order(
         sfn.fusions, gflow.partial_order()
     )
 
@@ -106,10 +117,10 @@ def decompile_from_semm(
     >>>
     >>> import networkx as nx
     >>> g = nx.Graph([(0, 1), (1, 2)])
-
+    >>>
     >>> inputs = {0}
     >>> outputs = {2}
-
+    >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> assert decompile_from_semm(ins, inputs, outputs) == og
     """
