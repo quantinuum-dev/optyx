@@ -6,7 +6,7 @@ instructions compiled for this machine
 
 from optyx.compiler.mbqc import (
     Measurement,
-    FusionNetworkSE,
+    FusionNetwork,
     Fusion,
 )
 
@@ -126,7 +126,7 @@ class SingleEmitterMultiMeasure:
 
         self.path.append(node_id)
 
-    def fusion_network(self) -> FusionNetworkSE:
+    def fusion_network(self) -> FusionNetwork:
         """Outputs the Fusion pattern implemented by the operations"""
 
         measurements: list[tuple[int, Measurement]] = []
@@ -137,12 +137,12 @@ class SingleEmitterMultiMeasure:
                 measurements.append(m)
 
         measurement_dict = {meas[0]: meas[1] for meas in measurements}
-        return FusionNetworkSE(self.path, measurement_dict, self.fusions)
+        return FusionNetwork(self.path, measurement_dict, self.fusions)
 
 
 def decompile_to_fusion_network(
     instructions: list[Instruction],
-) -> FusionNetworkSE:
+) -> FusionNetwork:
     """Converts the instructions back into a fusion network"""
     machine = SingleEmitterMultiMeasure()
 
