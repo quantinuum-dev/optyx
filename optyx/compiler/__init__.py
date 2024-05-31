@@ -15,15 +15,17 @@ functionality is contained in the `optyx.compiler.semm` module.
 
     Measurement
     OpenGraph
+    GFlow
     PartialOrder
 
     compile_to_semm
-    decompile_to_semm
+    decompile_from_semm
 """
 
 from .mbqc import (
     Measurement,
     OpenGraph,
+    GFlow,
     PartialOrder,
 )
 

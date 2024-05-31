@@ -39,7 +39,9 @@ class GFlow:
     """The g-flow structure on an open graph.
 
     :param g: the function which returns the correction set of a node
-    :param layers: the layers of the partial order
+    :param layers: the layers of the partial order. The key is a node ID and
+        the value is the layer it belongs to in a particular foliation of the
+        partial order.
     """
 
     g: dict[int, set[int]]
@@ -155,6 +157,10 @@ def add_fusion_order_to_partial_order(
     """Returns a new partial order that ensures Pauli errors from Hadamard edge
     fusions can be corrected.
 
+    :param fusions: A list of tuples of node IDs representing a fusion between
+                    the two nodes
+    :param order: A partial order on the nodes
+
     We achieve this the simplest way possible, namely, we want the following
     condition to be satisfied in the new order: if nodes v and w are fused,
     then any node that has w in its past, should now contain v and its past and
@@ -188,6 +194,10 @@ def _get_all_connected_fusions(
     """Find every node that is connected to the given node through fusions. It
     uses a breadth first search to achieve this.
 
+    :param fusions: A list of tuples of node IDs representing a fusion between
+                    the two nodes
+    :param node: The ID of the node in question.
+
     Example
     -------
     >>> fusions = [(1, 0), (2, 4), (0, 3)]
@@ -217,6 +227,10 @@ def get_fused_neighbours(
 ) -> list[int]:
     """Returns the nodes that are fused to the given node.
 
+    :param fusions: A list of tuples of node IDs representing a fusion between
+                    the two nodes
+    :param node: The ID of the node in question.
+
     Example
     -------
     >>> fusions = [(1, 0), (2, 3), (0, 3)]
@@ -244,15 +258,20 @@ class FusionNetworkSE:
 
     Specifies the measurements and fusions to perform on the nodes.
     Nodes are indexed by their position in the single linear resource state
-    i.e. the first node is 0, second is 1 etc."""
+    i.e. the first node is 0, second is 1 etc.
 
-    # Number of nodes in the path. A node may be implemented by many photons
+
+    :param path: IDs of the nodes in the path. A node may be implemented by
+        many photons
+    :param measurements: The measurements applied to each of the nodes. Key is
+        the indexed by the Node ID
+    :param fusions: Tuples containing the IDs of nodes connected by a fusion
+    """
+
     path: list[int]
 
-    # The measurements applied to each of the nodes indexed by the Node ID
     measurements: dict[int, Measurement]
 
-    # Tuples containing the IDs of nodes connected by a fusion
     fusions: list[tuple[int, int]]
 
 
