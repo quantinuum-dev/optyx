@@ -9,3 +9,5 @@ Here we give examples of using ``optyx``:
 
     notebooks/optyx-compilation.ipynb
     notebooks/optyx-vqe-experiment.ipynb
+    notebooks/bosonic-vqe.ipynb
+    notebooks/compile_to_semm.ipynb
