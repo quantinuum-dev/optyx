@@ -59,7 +59,7 @@ class Fusion:
 
 
 @dataclass
-class FusionNetworkSE:
+class FusionNetwork:
     """A fusion network for a single emitter linear resource state
 
     Specifies the measurements and fusions to perform on the nodes.
