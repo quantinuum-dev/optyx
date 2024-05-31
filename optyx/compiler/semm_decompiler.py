@@ -4,11 +4,10 @@ Implements a single emitter FBQC quantum computer for the purpose of validating
 instructions compiled for this machine
 """
 
-from dataclasses import dataclass
-
 from optyx.compiler.mbqc import (
     Measurement,
     FusionNetworkSE,
+    Fusion,
 )
 
 from optyx.compiler.protocols import (
@@ -21,23 +20,6 @@ from optyx.compiler.protocols import (
 
 class ValidationError(Exception):
     """Thrown when machine believes the instructions is invalid"""
-
-
-@dataclass
-class FusionPatternSE:
-    """A fusion network for a single emitter resource state together with a
-    measurement order"""
-
-    # Number of nodes in a path. A node may be implemented by multiple photons
-    # The first node has ID = 1, the second ID = 2 and so on.
-    path: list[int]
-
-    # Tuples (Node ID, Measurement) listed in the order the measurements are
-    # performed.
-    measurements: list[tuple[int, Measurement]]
-
-    # Tuples containing the IDs of the fused nodes in the order they were fused
-    fusions: list[tuple[int, int]]
 
 
 class SingleEmitterMultiMeasure:
@@ -65,7 +47,7 @@ class SingleEmitterMultiMeasure:
     delayed_fusions: dict[int, int]
 
     # Fusions between two Node IDs ordered chronologically
-    fusions: list[tuple[int, int]]
+    fusions: list[Fusion]
 
     def __init__(self):
         """Initialises the machine and sets the id of the current node being
@@ -100,7 +82,7 @@ class SingleEmitterMultiMeasure:
                     return True
         return False
 
-    def fuse(self):
+    def fuse(self, fusion_type: str):
         """Fuses the incoming node with an incoming delayed photon"""
         self.time += 1
 
@@ -112,7 +94,7 @@ class SingleEmitterMultiMeasure:
         # The node the delayed photon belongs to
         fusion_node = self.delayed_fusions[self.time]
 
-        self.fusions.append((self.path[-1], fusion_node))
+        self.fusions.append(Fusion(self.path[-1], fusion_node, fusion_type))
 
     def delay_then_fuse(self, delay: int):
         """Applies a unitary to the incoming photon and measures it with a
@@ -144,8 +126,8 @@ class SingleEmitterMultiMeasure:
 
         self.path.append(node_id)
 
-    def fusion_pattern(self) -> FusionPatternSE:
-        """Outputs the MBQC pattern implemented by the operations"""
+    def fusion_network(self) -> FusionNetworkSE:
+        """Outputs the Fusion pattern implemented by the operations"""
 
         measurements: list[tuple[int, Measurement]] = []
         chronological_order = sorted(self.measurements.keys())
@@ -154,26 +136,20 @@ class SingleEmitterMultiMeasure:
             for m in self.measurements[t]:
                 measurements.append(m)
 
-        return FusionPatternSE(self.path, measurements, self.fusions)
+        measurement_dict = {meas[0]: meas[1] for meas in measurements}
+        return FusionNetworkSE(self.path, measurement_dict, self.fusions)
 
 
-def fusion_pattern_to_network(fp: FusionPatternSE) -> FusionNetworkSE:
-    """Converts a fusion pattern into a fusion network"""
-    measurements = {meas[0]: meas[1] for meas in fp.measurements}
-
-    return FusionNetworkSE(fp.path, measurements, fp.fusions)
-
-
-def decompile_to_fusion_pattern(
+def decompile_to_fusion_network(
     instructions: list[Instruction],
-) -> FusionPatternSE:
+) -> FusionNetworkSE:
     """Converts the instructions back into a fusion network"""
     machine = SingleEmitterMultiMeasure()
 
     for ins in instructions:
         if isinstance(ins, FusionOp):
             if ins.delay == 0:
-                machine.fuse()
+                machine.fuse(ins.fusion_type)
             else:
                 machine.delay_then_fuse(ins.delay)
         elif isinstance(ins, MeasureOp):
@@ -184,4 +160,4 @@ def decompile_to_fusion_pattern(
         elif isinstance(ins, NextNodeOp):
             machine.next_node(ins.node_id)
 
-    return machine.fusion_pattern()
+    return machine.fusion_network()
