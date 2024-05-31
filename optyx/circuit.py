@@ -19,9 +19,6 @@ Linear optical circuits
         :nosignatures:
         :toctree:
 
-        npperm
-        occupation_numbers
-
 Example
 -------
 We can differentiate the expectation values of optical circuits.
@@ -71,6 +68,7 @@ class Gate(Box):
     >>> assert np.allclose(
     ...     (HBS.dagger() >> HBS).eval(2).array, Id(2).eval(2).array)
     """
+
     def __init__(self, array, dom: int, cod: int, name: str, is_dagger=False):
         self.array = array
         super().__init__(
@@ -174,12 +172,13 @@ class BBS(Box):
     ...   ).dagger()
     >>> assert np.allclose(comp.eval(2).array, Id(4).eval(2).array)
     """
+
     def __init__(self, bias):
         self.bias = bias
-        super().__init__(f'BBS({bias})', 2, 2)
+        super().__init__(f"BBS({bias})", 2, 2)
 
     def __repr__(self):
-        return 'BS' if self.bias == 0 else super().__repr__()
+        return "BS" if self.bias == 0 else super().__repr__()
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -219,6 +218,7 @@ class TBS(Box):
     >>> assert (TBS(0.25).dagger().global_phase ==\\
     ...         np.conjugate(TBS(0.25).global_phase))
     """
+
     def __init__(self, theta, is_dagger=False):
         self.theta = theta
         name = f"TBS({theta})"
@@ -226,9 +226,11 @@ class TBS(Box):
 
     @property
     def global_phase(self):
-        return -1j * np.exp(- 1j * self.theta * np.pi) \
-            if self.is_dagger \
+        return (
+            -1j * np.exp(-1j * self.theta * np.pi)
+            if self.is_dagger
             else 1j * np.exp(1j * self.theta * np.pi)
+        )
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -275,15 +277,18 @@ class MZI(Box):
     ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
     ...     Id(2).to_path().array)
     """
+
     def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
-        super().__init__('MZI', 2, 2, is_dagger=is_dagger)
+        super().__init__("MZI", 2, 2, is_dagger=is_dagger)
 
     @property
     def global_phase(self):
-        return -1j * np.exp(- 1j * self.theta * np.pi) \
-            if self.is_dagger \
+        return (
+            -1j * np.exp(-1j * self.theta * np.pi)
+            if self.is_dagger
             else 1j * np.exp(1j * self.theta * np.pi)
+        )
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -300,7 +305,7 @@ class MZI(Box):
 
 
 BS = qpath.BS
-num_op = (Split() >> Id(1) @ (Select() >> Create()) >> Merge())
+num_op = Split() >> Id(1) @ (Select() >> Create()) >> Merge()
 
 
 def ansatz(width, depth):
@@ -326,6 +331,7 @@ def ansatz(width, depth):
     .. image:: /_static/ansatz5_4.png
         :align: center
     """
+
     def p(i, j):
         return sp.Symbol(f"a_{i}_{j}"), sp.Symbol(f"b_{i}_{j}")
 
