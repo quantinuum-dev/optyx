@@ -15,7 +15,7 @@ from optyx.compiler.protocols import (
     FusionOp,
     MeasureOp,
     NextNodeOp,
-    PSMInstruction,
+    Instruction,
 )
 
 
@@ -165,7 +165,7 @@ def fusion_pattern_to_network(fp: FusionPatternSE) -> FusionNetworkSE:
 
 
 def decompile_to_fusion_pattern(
-    instructions: list[PSMInstruction],
+    instructions: list[Instruction],
 ) -> FusionPatternSE:
     """Converts the instructions back into a fusion network"""
     machine = SingleEmitterMultiMeasure()

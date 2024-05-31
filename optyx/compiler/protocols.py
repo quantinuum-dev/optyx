@@ -33,4 +33,4 @@ class NextNodeOp:
 
 
 # Photon Stream Machine Instructions
-PSMInstruction = MeasureOp | FusionOp | NextNodeOp
+Instruction = MeasureOp | FusionOp | NextNodeOp
