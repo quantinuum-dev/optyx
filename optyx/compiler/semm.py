@@ -1,4 +1,15 @@
-"""Full stack compiler functions"""
+"""Functions for compiling a fusion network into instructions executable on a
+single emitter multiple measure (SEMM) machine
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    compile_to_semm
+    decompile_from_semm
+
+"""
 
 from copy import deepcopy
 import networkx as nx
@@ -7,7 +18,7 @@ from optyx.compiler.mbqc import (
     OpenGraph,
     PartialOrder,
     get_fused_neighbours,
-    add_fusion_order_to_partial_order,
+    add_fusions_to_partial_order,
     FusionNetwork,
     Measurement,
     Fusion,
@@ -68,7 +79,7 @@ def compile_to_semm(
 
     # Add the fusion ordering (induced by the corrections needing to be
     # performed from the fusions) to the partial order induced by gflow
-    order_with_fusions = add_fusion_order_to_partial_order(
+    order_with_fusions = add_fusions_to_partial_order(
         sfn.fusions, gflow.partial_order()
     )
 

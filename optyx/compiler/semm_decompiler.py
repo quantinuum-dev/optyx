@@ -1,7 +1,15 @@
-""" Single Emitter Quantum Dot
+"""Decompiler for SEMM machine
 
-Implements a single emitter FBQC quantum computer for the purpose of validating
-instructions compiled for this machine
+Implements a decompiler routine that converts a list of instructions back into
+a fusion network. This may be used as one way to check the correctness of
+compilation pipelines.
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    decompile_to_fusion_network
 """
 
 from optyx.compiler.mbqc import (
@@ -143,7 +151,24 @@ class SingleEmitterMultiMeasure:
 def decompile_to_fusion_network(
     instructions: list[Instruction],
 ) -> FusionNetwork:
-    """Converts the instructions back into a fusion network"""
+    """Converts the instructions back into a fusion network
+
+    Example
+    -------
+    >>> from optyx.compiler.mbqc import FusionNetwork, Measurement
+    >>> from .semm import compile_single_emitter_multi_measurement
+    >>> from optyx.compiler.semm_decompiler import decompile_to_fusion_network
+    >>> m = {i: Measurement(0.5 * i, "XY") for i in range(3)}
+    >>> fn = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    >>>
+    >>> # We impose any partial order on the nodes for demonstrative purposes
+    >>> def order(n: int) -> list[int]:
+    ...     return list(range(n, 3))
+    >>>
+    >>> ins = compile_single_emitter_multi_measurement(fn, order)
+    >>> fn_decompiled = decompile_to_fusion_network(ins)
+    >>> assert fn == fn_decompiled
+    """
     machine = SingleEmitterMultiMeasure()
 
     for ins in instructions:

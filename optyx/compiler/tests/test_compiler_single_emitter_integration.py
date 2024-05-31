@@ -8,7 +8,7 @@ from optyx.compiler.semm import (
 from optyx.compiler.mbqc import (
     PartialOrder,
     Measurement,
-    add_fusion_order_to_partial_order,
+    add_fusions_to_partial_order,
     FusionNetwork,
     Fusion,
 )
@@ -71,7 +71,7 @@ def test_triangle_reverse_compilation_fails():
     fn_decompiled = decompile_to_fusion_network(ins)
     assert fn == fn_decompiled
 
-    order_with_fusions = add_fusion_order_to_partial_order(
+    order_with_fusions = add_fusions_to_partial_order(
         fn.fusions, numeric_order
     )
     with pytest.raises(Exception):
@@ -115,7 +115,7 @@ def test_fusion_ordering():
     ]
 
     # Recompile but with the fusion order enhanced partial order
-    order_with_fusions = add_fusion_order_to_partial_order(fn.fusions, order)
+    order_with_fusions = add_fusions_to_partial_order(fn.fusions, order)
     ins = compile_single_emitter_multi_measurement(fn, order_with_fusions)
 
     assert ins == [
