@@ -20,6 +20,7 @@ class FusionOp:
     """Fusion Operation"""
 
     delay: int
+    fusion_type: str
 
 
 @dataclass

@@ -17,9 +17,9 @@ def test_single_path():
     se.next_node(0)
     se.measure(m)
 
-    fp = se.fusion_pattern()
-    assert fp.path == [0]
-    assert fp.measurements == [(0, m)]
+    fn = se.fusion_network()
+    assert fn.path == [0]
+    assert fn.measurements == {0: m}
 
 
 def test_triangle():
@@ -34,12 +34,12 @@ def test_triangle():
     se.next_node(1)
     se.measure(m[1])
     se.next_node(2)
-    se.fuse()
+    se.fuse("X")
     se.measure(m[2])
 
-    fp = se.fusion_pattern()
-    assert fp.path == [0, 1, 2]
-    assert fp.measurements == [(0, m[0]), (1, m[1]), (2, m[2])]
+    fn = se.fusion_network()
+    assert fn.path == [0, 1, 2]
+    assert fn.measurements == {i: m[i] for i in range(3)}
 
 
 def test_no_input():
@@ -50,9 +50,9 @@ def test_no_input():
     se = SingleEmitterMultiMeasure()
     se.next_node(0)
 
-    fp = se.fusion_pattern()
-    assert fp.path == [0]
-    assert len(fp.measurements) == 0
+    fn = se.fusion_network()
+    assert fn.path == [0]
+    assert len(fn.measurements) == 0
 
 
 def test_measuring_twice():
@@ -95,7 +95,7 @@ def test_mismatched_fusion():
     se = SingleEmitterMultiMeasure()
 
     with pytest.raises(Exception):
-        se.fuse()
+        se.fuse("X")
 
 
 def test_measure_weird_order():
@@ -112,15 +112,15 @@ def test_measure_weird_order():
     se.next_node(1)
     se.delay_then_measure(20, m[1])
     se.next_node(2)
-    se.fuse()
+    se.fuse("X")
     se.delay_then_measure(10, m[2])
     se.next_node(3)
-    se.fuse()
+    se.fuse("X")
     se.delay_then_measure(1, m[3])
 
-    fp = se.fusion_pattern()
-    assert fp.path == [0, 1, 2, 3]
-    assert fp.measurements == [(3, m[3]), (2, m[2]), (1, m[1]), (0, m[0])]
+    fn = se.fusion_network()
+    assert fn.path == [0, 1, 2, 3]
+    assert fn.measurements == {i: m[i] for i in range(4)}
 
 
 def test_multi_fusion():
@@ -136,12 +136,12 @@ def test_multi_fusion():
     se.next_node(1)
     se.measure(m[1])
     se.next_node(2)
-    se.fuse()
+    se.fuse("X")
     se.measure(m[2])
     se.next_node(3)
-    se.fuse()
+    se.fuse("X")
     se.measure(m[3])
 
-    fp = se.fusion_pattern()
-    assert fp.path == [0, 1, 2, 3]
-    assert fp.measurements == [(0, m[0]), (1, m[1]), (2, m[2]), (3, m[3])]
+    fn = se.fusion_network()
+    assert fn.path == [0, 1, 2, 3]
+    assert fn.measurements == {i: m[i] for i in range(4)}
