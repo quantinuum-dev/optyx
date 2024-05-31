@@ -10,6 +10,7 @@ from optyx.compiler.mbqc import (
     add_fusion_order_to_partial_order,
     FusionNetworkSE,
     Measurement,
+    Fusion,
 )
 
 from optyx.compiler.graphs import find_min_path_cover
@@ -22,8 +23,7 @@ from optyx.compiler.protocols import (
 )
 
 from optyx.compiler.semm_decompiler import (
-    decompile_to_fusion_pattern,
-    fusion_pattern_to_network,
+    decompile_to_fusion_network,
 )
 
 
@@ -113,8 +113,7 @@ def decompile_from_semm(
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> assert decompile_from_semm(ins, inputs, outputs) == og
     """
-    sfp = decompile_to_fusion_pattern(ins)
-    sfn = fusion_pattern_to_network(sfp)
+    sfn = decompile_to_fusion_network(ins)
     g = sfn_to_open_graph(sfn, inputs, outputs)
     return g
 
@@ -147,7 +146,8 @@ def compile_single_emitter_multi_measurement(
             pair = f[photon]
 
             delay = max(0, pair - photon)
-            ins.append(FusionOp(delay))
+            # NOTE: the X fusion is hard coded into here
+            ins.append(FusionOp(delay, "X"))
 
         # Calculate measurement delay
         photon += 1
@@ -165,7 +165,7 @@ def compile_single_emitter_multi_measurement(
 # If photon 1 fuses with photon 5, then there will be two entries in the
 # returned dictionary. 1: 5, and 5: 1
 def _get_fusion_photons(
-    fusions: list[tuple[int, int]], path: list[int], c: list[int]
+    fusions: list[Fusion], path: list[int], c: list[int]
 ) -> dict[int, int]:
     seen: dict[int, int] = {}
     fusion_photons: dict[int, int] = {}
@@ -173,14 +173,14 @@ def _get_fusion_photons(
     reverse_list = {v: i for i, v in enumerate(path)}
 
     for fusion in fusions:
-        photon_num1 = seen.get(fusion[0], 0) + 1
-        photon_num2 = seen.get(fusion[1], 0) + 1
+        photon_num1 = seen.get(fusion.node1, 0) + 1
+        photon_num2 = seen.get(fusion.node2, 0) + 1
 
-        seen[fusion[0]] = photon_num1
-        seen[fusion[1]] = photon_num2
+        seen[fusion.node1] = photon_num1
+        seen[fusion.node2] = photon_num2
 
-        photon_index1 = c[reverse_list[fusion[0]]] - photon_num1
-        photon_index2 = c[reverse_list[fusion[1]]] - photon_num2
+        photon_index1 = c[reverse_list[fusion.node1]] - photon_num1
+        photon_index2 = c[reverse_list[fusion.node2]] - photon_num2
 
         fusion_photons[photon_index1] = photon_index2
         fusion_photons[photon_index2] = photon_index1
@@ -189,8 +189,8 @@ def _get_fusion_photons(
 
 
 # Returns the number of fusion edges a node has
-def _num_fusions(fusions: list[tuple[int, int]], node: int) -> int:
-    return sum(node in fusion for fusion in fusions)
+def _num_fusions(fusions: list[Fusion], node: int) -> int:
+    return sum(fusion.contains(node) for fusion in fusions)
 
 
 def get_creation_times(fp: FusionNetworkSE) -> list[int]:
@@ -246,7 +246,7 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
     pc = find_min_path_cover(og.inside)
     path, new_vertices = _join_paths(pc)
 
-    fusions = _calculate_fusions(og.inside, pc)
+    fusions = _calculate_x_fusions(og.inside, pc)
 
     meas = deepcopy(og.measurements)
 
@@ -257,10 +257,8 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetworkSE:
     return FusionNetworkSE(path, meas, fusions)
 
 
-# Calculates the fusions required to implement the graph given the path cover
-def _calculate_fusions(
-    g: nx.Graph, paths: list[list[int]]
-) -> list[tuple[int, int]]:
+# Calculates the X fusions required to implement the graph given the path cover
+def _calculate_x_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
     path_cover_edges: set[tuple[int, int]] = set()
 
     for path in paths:
@@ -276,7 +274,10 @@ def _calculate_fusions(
         _sorted_tuple(a, b) for a, b in path_cover_edges
     }
 
-    return list(graph_edges_sorted - path_cover_edges_sorted)
+    remaining_edges = list(graph_edges_sorted - path_cover_edges_sorted)
+
+    fusions = [Fusion(e[0], e[1], "X") for e in remaining_edges]
+    return fusions
 
 
 # Returns a tuple sorted in ascending order
@@ -328,7 +329,7 @@ def sfn_to_open_graph(
 
     g = _path_to_graph(sfn.path)
 
-    for v1, v2 in sfn.fusions:
-        g.add_edge(v1, v2)
+    for fusion in sfn.fusions:
+        g.add_edge(fusion.node1, fusion.node2)
 
     return OpenGraph(g, sfn.measurements, inputs, outputs)
