@@ -5,11 +5,15 @@ from copy import deepcopy
 from dataclasses import dataclass
 import networkx as nx
 import graphix
-import pyzx as zx
 
+<<<<<<< HEAD
+=======
 from graphix.sim.statevec import Statevec
 from graphix.generator import generate_from_graph
 
+from optyx.compiler.graphs import find_min_path_cover
+
+>>>>>>> 99d282b (Interface to simulate OpenGraphs)
 
 @dataclass
 class Measurement:
@@ -178,12 +182,12 @@ class OpenGraph:
             self.inside.nodes[node_id]["measurement"] = measurement
 
         for i, node_id in enumerate(inputs):
-            self.inside.nodes[node_id]["is_input"] = True
-            self.inside.nodes[node_id]["input_order"] = i
+            self.inside.nodes[node_id]["class"] = "input"
+            self.inside.nodes[node_id]["order"] = i
 
         for i, node_id in enumerate(outputs):
-            self.inside.nodes[node_id]["is_output"] = True
-            self.inside.nodes[node_id]["output_order"] = i
+            self.inside.nodes[node_id]["class"] = "output"
+            self.inside.nodes[node_id]["order"] = i
 
     # The following functions "id", "then" and "tensor" define OpenGraph as a
     # monoidal category
@@ -242,8 +246,8 @@ class OpenGraph:
         # NOTE: This could be simplified by doing my own node renaming before
         # the disjoint_union so I know what the new node IDs will be
         nodes = self.inside.nodes
-        max_input_order = max(nodes[i]["input_order"] for i in self.inputs)
-        max_output_order = max(nodes[i]["output_order"] for i in self.outputs)
+        max_input_order = max(nodes[i]["order"] for i in self.inputs)
+        max_output_order = max(nodes[i]["order"] for i in self.outputs)
 
         max_node = max(self.inside.nodes)
         relabeled_inside = nx.relabel_nodes(
@@ -251,14 +255,13 @@ class OpenGraph:
         )
 
         for n in relabeled_inside.nodes(data=True):
-            if "is_input" in relabeled_inside.nodes[n[0]]:
-                relabeled_inside.nodes[n[0]]["input_order"] += (
-                    max_input_order + 1
-                )
-            if "is_output" in relabeled_inside.nodes[n[0]]:
-                relabeled_inside.nodes[n[0]]["output_order"] += (
-                    max_output_order + 1
-                )
+            if "class" not in n[1]:
+                continue
+
+            if relabeled_inside.nodes[n[0]]["class"] == "input":
+                relabeled_inside.nodes[n[0]]["order"] += max_input_order + 1
+            else:
+                relabeled_inside.nodes[n[0]]["order"] += max_output_order + 1
 
         inside = nx.union(self.inside, relabeled_inside)
 
@@ -266,18 +269,10 @@ class OpenGraph:
 
     @classmethod
     def _from_networkx(cls, graph: nx.Graph) -> Self:
-        """Returns an OpenGraph built from an networkx graph. Additional
-        information is attached the nodes as attributes
-
-        Attributes:
-
-        * "measurement" - instance of `optyx.compiler.Measurement`
-        * "is_input" - only present on input nodes and is always `True`
-        * "input_order" - the position of this input node in the inputs (starts
-                          at 0)
-        * "is_output" - only present on output nodes and is always `True`
-        * "output_order" - the position of this output node in the outputs
-                           (starts at 0)
+        """Returns an OpenGraph built from an networkx graph
+        where measurements are contained in the node's "measurement" tag, and
+        input/output nodes have the tag "class" containing "input"/"output" and
+        an "order" tag containing the node's position in the the input/outputs.
 
         Unexported since this relies on the underlying implementation details
         of the graph, which could change at any time. It is meant to be a
@@ -297,175 +292,16 @@ class OpenGraph:
         >>> g.nodes[1]["measurement"] = Measurement(0.5, "XY")
         >>> g.nodes[3]["measurement"] = Measurement(0, "XY")
         >>>
-        >>> g.nodes[0]["is_input"] = True
-        >>> g.nodes[0]["input_order"] = 0
-        >>> g.nodes[3]["is_input"] = True
-        >>> g.nodes[3]["input_order"] = 1
-        >>> g.nodes[2]["is_output"] = True
-        >>> g.nodes[2]["output_order"] = 0
+        >>> g.nodes[0]["class"] = "input"
+        >>> g.nodes[0]["order"] = 0
+        >>> g.nodes[3]["class"] = "input"
+        >>> g.nodes[3]["order"] = 1
+        >>> g.nodes[2]["class"] = "output"
+        >>> g.nodes[2]["order"] = 0
         """
         og = cls.__new__(cls)
         og.inside = graph
         return og
-
-    def to_pyzx_graph(self) -> zx.graph.base.BaseGraph:
-        """Return a PyZX graph corresponding to the the open graph.
-
-        Example
-        -------
-        >>> import networkx as nx
-        >>> g = nx.Graph([(0, 1), (1, 2)])
-        >>> inputs = [0]
-        >>> outputs = [2]
-        >>> measurements = {0: Measurement(0, "XY"), 1: Measurement(1, "ZY")}
-        >>> og = OpenGraph(g, measurements, inputs, outputs)
-        >>> reconstructed_pyzx_graph = og.to_pyzx_graph()
-        """
-        g = zx.Graph()
-
-        # Add vertices into the graph and set their type
-        def add_vertices(n: int, ty: zx.VertexType) -> list[zx.VertexType]:
-            verts = g.add_vertices(n)
-            for vert in verts:
-                g.set_type(vert, ty)
-
-            return verts
-
-        # Add input boundary nodes
-        in_verts = add_vertices(len(self.inputs), zx.VertexType.BOUNDARY)
-        g.set_inputs(in_verts)
-
-        # Add nodes for internal Z spiders - not including the phase gadgets
-        body_verts = add_vertices(len(self.inside), zx.VertexType.Z)
-
-        # Add nodes for the phase gadgets. In OpenGraph we don't store the node
-        # containing the phase as a seperate node, it is instead just stored as
-        # a "measurement" of the node.
-        # That is, it is not stored like example 1 and instead like 2 and the
-        # measurement metadata is added to node "v".
-        #   1           2
-        # o            o
-        #  \            \
-        #   v - O        v
-        #  /            /
-        # o            o
-        optyx_x_meas = [
-            i for i, m in self.measurements.items() if m.plane == "YZ"
-        ]
-        x_meas_verts = add_vertices(len(optyx_x_meas), zx.VertexType.Z)
-
-        out_verts = add_vertices(len(self.outputs), zx.VertexType.BOUNDARY)
-        g.set_outputs(out_verts)
-
-        # Maps a node's ID in the optyx Open Graph to it's corresponding node
-        # ID in the PyZX graph and vice versa.
-        map_to_optyx = dict(zip(body_verts, self.inside.nodes()))
-        map_to_pyzx = {v: i for i, v in map_to_optyx.items()}
-
-        # Open Graph's don't have boundary nodes, so we need to connect the
-        # input and output Z spiders to their corresponding boundary nodes in
-        # pyzx.
-        for pyzx_index, optyx_index in zip(in_verts, self.inputs):
-            g.add_edge((pyzx_index, map_to_pyzx[optyx_index]))
-        for pyzx_index, optyx_index in zip(out_verts, self.outputs):
-            g.add_edge((pyzx_index, map_to_pyzx[optyx_index]))
-
-        optyx_edges = self.inside.edges()
-        pyzx_edges = [(map_to_pyzx[a], map_to_pyzx[b]) for a, b in optyx_edges]
-        g.add_edges(pyzx_edges, zx.EdgeType.HADAMARD)
-
-        # Add the edges between the Z spiders in the graph body
-        for optyx_index, meas in self.measurements.items():
-            # If it's an X measured node, then we handle it in the next loop
-            if meas.plane == "XY":
-                g.set_phase(map_to_pyzx[optyx_index], meas.angle)
-
-        # Connect the X measured vertices
-        for optyx_index, pyzx_index in zip(optyx_x_meas, x_meas_verts):
-            g.add_edge(
-                (map_to_pyzx[optyx_index], pyzx_index), zx.EdgeType.HADAMARD
-            )
-            g.set_phase(pyzx_index, self.measurements[optyx_index].angle)
-
-        return g
-
-    @classmethod
-    def from_pyzx_graph(cls, g: zx.graph.base.BaseGraph) -> Self:
-        """Constructs an Optyx Open Graph from a PyZX graph.
-
-        NOTE: It may modify the original graph
-
-        Example
-        -------
-        >>> import pyzx as zx
-        >>> from optyx.compiler import OpenGraph
-        >>> circ = zx.qasm("qreg q[2]; h q[1]; cx q[0], q[1]; h q[1];")
-        >>> g = circ.to_graph()
-        >>> optyx_graph = OpenGraph.from_pyzx_graph(g)
-        """
-        zx.simplify.to_graph_like(g)
-        zx.simplify.full_reduce(g)
-
-        measurements = {}
-        inputs = g.inputs()
-        outputs = g.outputs()
-
-        g_nx = nx.Graph(g.edges())
-
-        # We need to do this since the full reduce simplification can
-        # leave either hadamard or plain wires on the inputs and outputs
-        for inp in g.inputs():
-            nbrs = list(g.neighbors(inp))
-            et = g.edge_type((nbrs[0], inp))
-
-            if et == zx.EdgeType.SIMPLE:
-                g_nx.remove_node(inp)
-                inputs = [i if i != inp else nbrs[0] for i in inputs]
-
-        for out in g.outputs():
-            nbrs = list(g.neighbors(out))
-            et = g.edge_type((nbrs[0], out))
-
-            if et == zx.EdgeType.SIMPLE:
-                g_nx.remove_node(out)
-                outputs = [o if o != out else nbrs[0] for o in outputs]
-
-        # Turn all phase gadgets into measurements
-        # Since we did a full reduce, any node that isn't an input or output
-        # node and has only one neighbour is definitely a phase gadget.
-        nodes = list(g_nx.nodes())
-        for v in nodes:
-            if v in inputs or v in outputs:
-                continue
-
-            nbrs = list(g.neighbors(v))
-            if len(nbrs) == 1:
-                measurements[nbrs[0]] = Measurement(g.phase(v), "YZ")
-                g_nx.remove_node(v)
-
-        next_id = max(g_nx.nodes) + 1
-
-        # Since outputs can't be measured, we need to add an extra two nodes
-        # in to counter it
-        for out in outputs:
-            if g.phase(out) == 0:
-                continue
-
-            g_nx.add_edges_from([(out, next_id), (next_id, next_id + 1)])
-            measurements[next_id] = Measurement(0, "XY")
-
-            outputs = [o if o != out else next_id + 1 for o in outputs]
-
-            next_id += 2
-
-        # Add the phase to all XY measured nodes
-        for v in g_nx.nodes:
-            if v in outputs or v in measurements:
-                continue
-
-            measurements[v] = Measurement(g.phase(v), "XY")
-
-        return cls(g_nx, measurements, inputs, outputs)
 
     def then(self, other: Self) -> Self:
         """Sequentially composing the graph with the given graph
@@ -511,32 +347,23 @@ class OpenGraph:
 
         # Set the outputs and inputs to be the same ID
         all_data = self.inside.nodes(data=True)
-        old_self_outputs = sorted(
-            self.outputs, key=lambda x: all_data[x]["output_order"]
-        )
+        outputs = sorted(self.outputs, key=lambda x: all_data[x]["order"])
 
         relab_data = other_copy.inside.nodes(data=True)
-        old_other_inputs = sorted(
-            other_copy.inputs, key=lambda x: relab_data[x]["input_order"]
+        inputs = sorted(
+            other_copy.inputs, key=lambda x: relab_data[x]["order"]
         )
 
-        for node_id in old_other_inputs:
-            del other_copy.inside.nodes[node_id]["is_input"]
-            del other_copy.inside.nodes[node_id]["input_order"]
-
-        mapping = {
-            old_other_inputs[i]: old_self_outputs[i]
-            for i in range(len(old_other_inputs))
-        }
+        mapping = {inputs[i]: outputs[i] for i in range(len(inputs))}
         other_copy.inside = nx.relabel_nodes(other_copy.inside, mapping)
 
         # Note that the "measurement" attribute in "other_copy"'s node will
         # appear in the corresponding node in the returned graph as expected.
         result = nx.compose(self.inside, other_copy.inside)
 
-        for node_id in old_self_outputs:
-            del result.nodes[node_id]["is_output"]
-            del result.nodes[node_id]["output_order"]
+        for node_id in outputs:
+            del result.nodes[node_id]["class"]
+            del result.nodes[node_id]["order"]
 
         return self._from_networkx(result)
 
@@ -558,11 +385,11 @@ class OpenGraph:
         >>> assert og.inputs == inputs
         """
         unsorted_inputs = [
-            i for i in self.inside.nodes(data=True) if "is_input" in i[1]
+            i
+            for i in self.inside.nodes(data=True)
+            if "class" in i[1] and i[1]["class"] == "input"
         ]
-        inputs_with_data = sorted(
-            unsorted_inputs, key=lambda x: x[1]["input_order"]
-        )
+        inputs_with_data = sorted(unsorted_inputs, key=lambda x: x[1]["order"])
         inputs = [i[0] for i in inputs_with_data]
         return inputs
 
@@ -584,10 +411,12 @@ class OpenGraph:
         >>> assert og.outputs == outputs
         """
         unsorted_outputs = [
-            i for i in self.inside.nodes(data=True) if "is_output" in i[1]
+            i
+            for i in self.inside.nodes(data=True)
+            if "class" in i[1] and i[1]["class"] == "output"
         ]
         outputs_with_data = sorted(
-            unsorted_outputs, key=lambda x: x[1]["output_order"]
+            unsorted_outputs, key=lambda x: x[1]["order"]
         )
         outputs = [i[0] for i in outputs_with_data]
         return outputs
@@ -652,7 +481,7 @@ class OpenGraph:
 
         return GFlow(g, layers)
 
-    def simulate(self, backend="statevector", **kwargs) -> Statevec:
+    def simulate(self, backend="statevector") -> Statevec:
         """Simulates the measurement pattern and returns the state vector.
 
         :param backend: either 'statevector' (default) or 'tensornetwork'
@@ -667,15 +496,10 @@ class OpenGraph:
         >>> outputs = [3]
         >>> og = OpenGraph(graph, measurements, inputs, outputs)
         >>> og.simulate()
-        Statevec, data=[0.5+0.5j 0.5+0.5j], shape=(2,)
+        Statevec, data=[0.5-0.5j 0.5-0.5j], shape=(2,)
         """
         measurements = self.measurements
-        angles = {
-            i: float(m.angle) if float(m.angle) < 1.0 else float(m.angle) - 2.0
-            for i, m in measurements.items()
-        }
-        # Lets see if this works
-        angles = {i: -angle for i, angle in angles.items()}
+        angles = {i: m.angle for i, m in measurements.items()}
         meas_planes = {i: m.plane for i, m in measurements.items()}
         inputs = set(self.inputs)
         outputs = set(self.outputs)
@@ -684,7 +508,7 @@ class OpenGraph:
             self.inside, angles, inputs, outputs, meas_planes
         )
 
-        return pattern.simulate_pattern(backend, **kwargs)
+        return pattern.simulate_pattern(backend)
 
 
 def add_fusions_to_partial_order(
