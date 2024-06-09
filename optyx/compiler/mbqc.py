@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 import networkx as nx
 import graphix
+import pyzx as zx
 
 from graphix.sim.statevec import Statevec
 from graphix.generator import generate_from_graph
@@ -296,16 +297,175 @@ class OpenGraph:
         >>> g.nodes[1]["measurement"] = Measurement(0.5, "XY")
         >>> g.nodes[3]["measurement"] = Measurement(0, "XY")
         >>>
-        >>> g.nodes[0]["class"] = "input"
-        >>> g.nodes[0]["order"] = 0
-        >>> g.nodes[3]["class"] = "input"
-        >>> g.nodes[3]["order"] = 1
-        >>> g.nodes[2]["class"] = "output"
-        >>> g.nodes[2]["order"] = 0
+        >>> g.nodes[0]["is_input"] = True
+        >>> g.nodes[0]["input_order"] = 0
+        >>> g.nodes[3]["is_input"] = True
+        >>> g.nodes[3]["input_order"] = 1
+        >>> g.nodes[2]["is_output"] = True
+        >>> g.nodes[2]["output_order"] = 0
         """
         og = cls.__new__(cls)
         og.inside = graph
         return og
+
+    def to_pyzx_graph(self) -> zx.graph.base.BaseGraph:
+        """Return a PyZX graph corresponding to the the open graph.
+
+        Example
+        -------
+        >>> import networkx as nx
+        >>> g = nx.Graph([(0, 1), (1, 2)])
+        >>> inputs = [0]
+        >>> outputs = [2]
+        >>> measurements = {0: Measurement(0, "XY"), 1: Measurement(1, "ZY")}
+        >>> og = OpenGraph(g, measurements, inputs, outputs)
+        >>> reconstructed_pyzx_graph = og.to_pyzx_graph()
+        """
+        g = zx.Graph()
+
+        # Add vertices into the graph and set their type
+        def add_vertices(n: int, ty: zx.VertexType) -> list[zx.VertexType]:
+            verts = g.add_vertices(n)
+            for vert in verts:
+                g.set_type(vert, ty)
+
+            return verts
+
+        # Add input boundary nodes
+        in_verts = add_vertices(len(self.inputs), zx.VertexType.BOUNDARY)
+        g.set_inputs(in_verts)
+
+        # Add nodes for internal Z spiders - not including the phase gadgets
+        body_verts = add_vertices(len(self.inside), zx.VertexType.Z)
+
+        # Add nodes for the phase gadgets. In OpenGraph we don't store the node
+        # containing the phase as a seperate node, it is instead just stored as
+        # a "measurement" of the node.
+        # That is, it is not stored like example 1 and instead like 2 and the
+        # measurement metadata is added to node "v".
+        #   1           2
+        # o            o
+        #  \            \
+        #   v - O        v
+        #  /            /
+        # o            o
+        optyx_x_meas = [
+            i for i, m in self.measurements.items() if m.plane == "YZ"
+        ]
+        x_meas_verts = add_vertices(len(optyx_x_meas), zx.VertexType.Z)
+
+        out_verts = add_vertices(len(self.outputs), zx.VertexType.BOUNDARY)
+        g.set_outputs(out_verts)
+
+        # Maps a node's ID in the optyx Open Graph to it's corresponding node
+        # ID in the PyZX graph and vice versa.
+        map_to_optyx = dict(zip(body_verts, self.inside.nodes()))
+        map_to_pyzx = {v: i for i, v in map_to_optyx.items()}
+
+        # Open Graph's don't have boundary nodes, so we need to connect the
+        # input and output Z spiders to their corresponding boundary nodes in
+        # pyzx.
+        for pyzx_index, optyx_index in zip(in_verts, self.inputs):
+            g.add_edge((pyzx_index, map_to_pyzx[optyx_index]))
+        for pyzx_index, optyx_index in zip(out_verts, self.outputs):
+            g.add_edge((pyzx_index, map_to_pyzx[optyx_index]))
+
+        optyx_edges = self.inside.edges()
+        pyzx_edges = [(map_to_pyzx[a], map_to_pyzx[b]) for a, b in optyx_edges]
+        g.add_edges(pyzx_edges, zx.EdgeType.HADAMARD)
+
+        # Add the edges between the Z spiders in the graph body
+        for optyx_index, meas in self.measurements.items():
+            # If it's an X measured node, then we handle it in the next loop
+            if meas.plane == "XY":
+                g.set_phase(map_to_pyzx[optyx_index], meas.angle)
+
+        # Connect the X measured vertices
+        for optyx_index, pyzx_index in zip(optyx_x_meas, x_meas_verts):
+            g.add_edge(
+                (map_to_pyzx[optyx_index], pyzx_index), zx.EdgeType.HADAMARD
+            )
+            g.set_phase(pyzx_index, self.measurements[optyx_index].angle)
+
+        return g
+
+    @classmethod
+    def from_pyzx_graph(cls, g: zx.graph.base.BaseGraph) -> Self:
+        """Constructs an Optyx Open Graph from a PyZX graph.
+
+        NOTE: It may modify the original graph
+
+        Example
+        -------
+        >>> import pyzx as zx
+        >>> from optyx.compiler import OpenGraph
+        >>> circ = zx.qasm("qreg q[2]; h q[1]; cx q[0], q[1]; h q[1];")
+        >>> g = circ.to_graph()
+        >>> optyx_graph = OpenGraph.from_pyzx_graph(g)
+        """
+        zx.simplify.to_graph_like(g)
+        zx.simplify.full_reduce(g)
+
+        measurements = {}
+        inputs = g.inputs()
+        outputs = g.outputs()
+
+        g_nx = nx.Graph(g.edges())
+
+        # We need to do this since the full reduce simplification can
+        # leave either hadamard or plain wires on the inputs and outputs
+        for inp in g.inputs():
+            nbrs = list(g.neighbors(inp))
+            et = g.edge_type((nbrs[0], inp))
+
+            if et == zx.EdgeType.SIMPLE:
+                g_nx.remove_node(inp)
+                inputs = [i if i != inp else nbrs[0] for i in inputs]
+
+        for out in g.outputs():
+            nbrs = list(g.neighbors(out))
+            et = g.edge_type((nbrs[0], out))
+
+            if et == zx.EdgeType.SIMPLE:
+                g_nx.remove_node(out)
+                outputs = [o if o != out else nbrs[0] for o in outputs]
+
+        # Turn all phase gadgets into measurements
+        # Since we did a full reduce, any node that isn't an input or output
+        # node and has only one neighbour is definitely a phase gadget.
+        nodes = list(g_nx.nodes())
+        for v in nodes:
+            if v in inputs or v in outputs:
+                continue
+
+            nbrs = list(g.neighbors(v))
+            if len(nbrs) == 1:
+                measurements[nbrs[0]] = Measurement(g.phase(v), "YZ")
+                g_nx.remove_node(v)
+
+        next_id = max(g_nx.nodes) + 1
+
+        # Since outputs can't be measured, we need to add an extra two nodes
+        # in to counter it
+        for out in outputs:
+            if g.phase(out) == 0:
+                continue
+
+            g_nx.add_edges_from([(out, next_id), (next_id, next_id + 1)])
+            measurements[next_id] = Measurement(0, "XY")
+
+            outputs = [o if o != out else next_id + 1 for o in outputs]
+
+            next_id += 2
+
+        # Add the phase to all XY measured nodes
+        for v in g_nx.nodes:
+            if v in outputs or v in measurements:
+                continue
+
+            measurements[v] = Measurement(g.phase(v), "XY")
+
+        return cls(g_nx, measurements, inputs, outputs)
 
     def then(self, other: Self) -> Self:
         """Sequentially composing the graph with the given graph
