@@ -19,7 +19,7 @@ from optyx.compiler.mbqc import (
     PartialOrder,
     get_fused_neighbours,
     add_fusions_to_partial_order,
-    FusionNetwork,
+    ULFusionNetwork,
     Measurement,
     Fusion,
 )
@@ -47,12 +47,12 @@ def compile_to_semm(
     -------
     >>> import networkx as nx
     >>> g = nx.Graph([(0, 1), (1, 2)])
-    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
-
+    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, ULFusionNetwork
+    >>>
     >>> meas = {i: Measurement(i, 'XY') for i in range(2)}
     >>> inputs = [0]
     >>> outputs = [2]
-
+    >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> from optyx.compiler.semm import compile_to_semm
     >>> from optyx.compiler.protocols import (
@@ -96,7 +96,7 @@ def decompile_from_semm(
 
     Example
     -------
-    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
+    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, ULFusionNetwork
     >>> from optyx.compiler.semm import decompile_from_semm
     >>> from optyx.compiler.protocols import (
     ...    FusionOp,
@@ -128,7 +128,7 @@ def decompile_from_semm(
 
 
 def compile_single_emitter_multi_measurement(
-    fp: FusionNetwork, partial_order: PartialOrder
+    fp: ULFusionNetwork, partial_order: PartialOrder
 ) -> list[Instruction]:
     """Compiles the fusion network into a series of instructions that can be
     executed on a single emitter/multi measurement machine.
@@ -210,7 +210,7 @@ def _num_fusions(fusions: list[Fusion], node: int) -> int:
     return sum(fusion.contains(node) for fusion in fusions)
 
 
-def get_creation_times(fp: FusionNetwork) -> list[int]:
+def get_creation_times(fp: ULFusionNetwork) -> list[int]:
     """Returns a list containing the creation times of the measurement photon
     of every node"""
     acc = 0
@@ -224,7 +224,7 @@ def get_creation_times(fp: FusionNetwork) -> list[int]:
 
 
 def get_measurement_times(
-    fp: FusionNetwork, order: PartialOrder, c: list[int]
+    fp: ULFusionNetwork, order: PartialOrder, c: list[int]
 ) -> list[int]:
     """Returns a list containing the time the measurement photon of a given
     node can be measured"""
@@ -257,7 +257,7 @@ def get_measurement_times(
     return m
 
 
-def compile_to_fusion_network(og: OpenGraph) -> FusionNetwork:
+def compile_to_fusion_network(og: OpenGraph) -> ULFusionNetwork:
     """Compiles an open graph into a fusion network for FBQC with LRS"""
 
     pc = find_min_path_cover(og.inside)
@@ -271,7 +271,7 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetwork:
     for i in new_vertices:
         meas[i] = Measurement(0, "XY")
 
-    return FusionNetwork(path, meas, fusions)
+    return ULFusionNetwork(path, meas, fusions)
 
 
 # Calculates the X fusions required to implement the graph given the path cover
@@ -340,7 +340,7 @@ def _path_to_graph(path: list[int]) -> nx.Graph:
 
 
 def sfn_to_open_graph(
-    sfn: FusionNetwork, inputs: list[int], outputs: list[int]
+    sfn: ULFusionNetwork, inputs: list[int], outputs: list[int]
 ) -> OpenGraph:
     """Converts a fusion network into an open graph"""
 

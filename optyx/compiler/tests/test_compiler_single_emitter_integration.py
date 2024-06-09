@@ -9,7 +9,7 @@ from optyx.compiler.mbqc import (
     PartialOrder,
     Measurement,
     add_fusions_to_partial_order,
-    FusionNetwork,
+    ULFusionNetwork,
     Fusion,
 )
 
@@ -31,21 +31,21 @@ from optyx.compiler.tests.common import (
 
 def test_linear_graph_compilation():
     m = create_unique_measurements(3)
-    fp = FusionNetwork([0, 1, 2], m, [])
+    fp = ULFusionNetwork([0, 1, 2], m, [])
 
     compile_and_verify(fp, numeric_order)
 
 
 def test_triangle_compilation():
     m = create_unique_measurements(3)
-    fp = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    fp = ULFusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
 
     compile_and_verify(fp, numeric_order)
 
 
 def test_triangle_reverse_compilation():
     m = create_unique_measurements(3)
-    fp = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    fp = ULFusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
 
     def reverse_order(n: int) -> list[int]:
         return list(range(n, 3))
@@ -53,7 +53,7 @@ def test_triangle_reverse_compilation():
     compile_and_verify(fp, reverse_order)
 
 
-def compile_and_verify(fn: FusionNetwork, order: PartialOrder):
+def compile_and_verify(fn: ULFusionNetwork, order: PartialOrder):
     ins = compile_single_emitter_multi_measurement(fn, order)
 
     fn_decompiled = decompile_to_fusion_network(ins)
@@ -64,7 +64,7 @@ def compile_and_verify(fn: FusionNetwork, order: PartialOrder):
 # the partial order that takes the fusion order into account
 def test_triangle_reverse_compilation_fails():
     m = create_unique_measurements(4)
-    fn = FusionNetwork([0, 1, 2, 3], m, [Fusion(0, 2, "X")])
+    fn = ULFusionNetwork([0, 1, 2, 3], m, [Fusion(0, 2, "X")])
 
     ins = compile_single_emitter_multi_measurement(fn, numeric_order)
 
@@ -94,7 +94,7 @@ def test_triangle_reverse_compilation_fails():
 # soon as they arrive.
 def test_fusion_ordering():
     m = create_unique_measurements(3)
-    fn = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    fn = ULFusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
 
     def order(n: int) -> list[int]:
         if n == 1:

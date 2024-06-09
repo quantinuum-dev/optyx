@@ -14,8 +14,8 @@ There are three representation layers in the compiler:
 implement. It is a graph state with inputs and outputs, together with
 measurements on all non-output nodes.
 
-2. **Fusion Network** :class:`FusionNetwork`. Contains the resource states and
-fusions required to implement the MBQC pattern
+2. **Fusion Network** :class:`ULFusionNetwork`. Contains the resource states
+and fusions required to implement the MBQC pattern
 
 3. **Hardware Instructions** :class:`Instruction`. The instructions that will
 be executed on the quantum hardware.
@@ -38,7 +38,7 @@ below.
     OpenGraph
     GFlow
     PartialOrder
-    FusionNetwork
+    ULFusionNetwork
     Instruction
 
     compile_to_semm
@@ -70,7 +70,7 @@ method.
 >>> from optyx.compiler.mbqc import (
 ...     OpenGraph,
 ...     Measurement,
-...     FusionNetwork,
+...     ULFusionNetwork,
 ...     add_fusions_to_partial_order,
 ... )
 >>> from optyx.compiler.semm import (
@@ -101,7 +101,7 @@ from .mbqc import (
     OpenGraph,
     GFlow,
     PartialOrder,
-    FusionNetwork,
+    ULFusionNetwork,
 )
 
 from .protocols import Instruction

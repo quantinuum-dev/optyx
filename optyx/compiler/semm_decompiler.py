@@ -14,7 +14,7 @@ compilation pipelines.
 
 from optyx.compiler.mbqc import (
     Measurement,
-    FusionNetwork,
+    ULFusionNetwork,
     Fusion,
 )
 
@@ -134,7 +134,7 @@ class SingleEmitterMultiMeasure:
 
         self.path.append(node_id)
 
-    def fusion_network(self) -> FusionNetwork:
+    def fusion_network(self) -> ULFusionNetwork:
         """Outputs the Fusion pattern implemented by the operations"""
 
         measurements: list[tuple[int, Measurement]] = []
@@ -145,21 +145,21 @@ class SingleEmitterMultiMeasure:
                 measurements.append(m)
 
         measurement_dict = {meas[0]: meas[1] for meas in measurements}
-        return FusionNetwork(self.path, measurement_dict, self.fusions)
+        return ULFusionNetwork(self.path, measurement_dict, self.fusions)
 
 
 def decompile_to_fusion_network(
     instructions: list[Instruction],
-) -> FusionNetwork:
+) -> ULFusionNetwork:
     """Converts the instructions back into a fusion network
 
     Example
     -------
-    >>> from optyx.compiler.mbqc import FusionNetwork, Measurement
+    >>> from optyx.compiler.mbqc import ULFusionNetwork, Measurement
     >>> from .semm import compile_single_emitter_multi_measurement
     >>> from optyx.compiler.semm_decompiler import decompile_to_fusion_network
     >>> m = {i: Measurement(0.5 * i, "XY") for i in range(3)}
-    >>> fn = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    >>> fn = ULFusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
     >>>
     >>> # We impose any partial order on the nodes for demonstrative purposes
     >>> def order(n: int) -> list[int]:
