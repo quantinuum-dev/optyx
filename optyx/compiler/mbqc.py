@@ -63,6 +63,35 @@ class Fusion:
 
 
 @dataclass
+class FusionNetwork:
+    """A fusion network for a single emitter linear resource state
+
+    Specifies the measurements and fusions to perform on the nodes.
+    Nodes are indexed by their position in the single linear resource state
+    i.e. the first node is 0, second is 1 etc.
+
+
+    :param graph: the underly graph the fusion network implements
+    :param resources: the linear resource states used to comprise the graph. We
+        use lists of node IDs rather than subgraphs so we know the start and
+        end points of the resource states
+    :param measurements: The measurements applied to each of the nodes. Key is
+        the indexed by the Node ID
+    """
+
+    resources: list[list[int]]
+    measurements: dict[int, Measurement]
+    fusions: list[Fusion]
+
+    def nodes(self) -> list[int]:
+        """Returns a list of all nodes in the fusion network"""
+        all_nodes: list[int] = []
+        for resource in self.resources:
+            all_nodes.extend(resource)
+        return all_nodes
+
+
+@dataclass
 class ULFusionNetwork:
     """A fusion network for a single emitter linear resource state
 
@@ -102,13 +131,24 @@ class GFlow:
     g: dict[int, set[int]]
     layers: dict[int, int]
 
-    def partial_order(self) -> PartialOrder:
+    def partial_order_old(self) -> PartialOrder:
         """Returns a function representing the partial order of the flow"""
 
         def order(n: int):
             l = self.layers[n]
 
             return [i for i, layer in self.layers.items() if layer >= l]
+
+        return order
+
+    # TODO collapse these two into one function
+    def partial_order_multi(self) -> PartialOrder:
+        """Returns a function representing the partial order of the flow"""
+
+        def order(n: int):
+            l = self.layers[n]
+
+            return [i for i, layer in self.layers.items() if layer > l] + [n]
 
         return order
 

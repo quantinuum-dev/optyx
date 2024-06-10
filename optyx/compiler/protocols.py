@@ -33,5 +33,17 @@ class NextNodeOp:
     node_id: int
 
 
+@dataclass
+class NextResourceStateOp:
+    """Tells the machine to start emitting another resource state.
+
+    Concretely, it will tell it to produce a photon that is not entangled with
+    the previous photon"""
+
+@dataclass
+class UnmeasuredPhotonOp:
+    """There is an unmeasured photon i.e. an output photon"""
+
+
 # Photon Stream Machine Instructions
-Instruction = MeasureOp | FusionOp | NextNodeOp
+Instruction = MeasureOp | FusionOp | NextNodeOp | NextResourceStateOp | UnmeasuredPhotonOp

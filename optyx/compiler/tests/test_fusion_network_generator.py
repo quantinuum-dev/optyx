@@ -2,7 +2,7 @@ import pytest
 import networkx as nx
 
 from optyx.compiler.semm import (
-    compile_to_fusion_network,
+    compile_to_ul_fusion_network,
     sfn_to_open_graph,
 )
 
@@ -43,7 +43,7 @@ def test_compiler_fuzz(num_vertices: int):
 def compile_and_decompile(
     g: OpenGraph, inputs: list[int], outputs: list[int]
 ) -> bool:
-    fn = compile_to_fusion_network(g)
+    fn = compile_to_ul_fusion_network(g)
 
     g_reconstructed = sfn_to_open_graph(fn, inputs, outputs)
 
