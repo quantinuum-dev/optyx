@@ -12,7 +12,7 @@ from optyx.compiler.protocols import (
     FusionOp,
     NextNodeOp,
     NextResourceStateOp,
-    UnmeasuredPhotonOp,
+    UnmeasuredOp,
 )
 
 from optyx.compiler.tests.common import (
@@ -33,7 +33,7 @@ def test_linear_graph_compilation():
         NextNodeOp(1),
         MeasureOp(0, m[1]),
         NextNodeOp(2),
-        UnmeasuredPhotonOp(),
+        UnmeasuredOp(),
     ]
 
 
@@ -51,7 +51,7 @@ def test_triangle_compilation():
         MeasureOp(0, m[1]),
         NextNodeOp(2),
         FusionOp(0, "X"),
-        UnmeasuredPhotonOp(),
+        UnmeasuredOp(),
     ]
 
 

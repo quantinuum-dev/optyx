@@ -1,4 +1,9 @@
-from optyx.compiler.semm import compile_linear_fn
+import pytest
+
+
+from optyx.compiler.semm import (
+    compile_linear_fn,
+)
 
 from optyx.compiler.mbqc import (
     PartialOrder,
@@ -12,7 +17,7 @@ from optyx.compiler.protocols import (
     MeasureOp,
     NextNodeOp,
     NextResourceStateOp,
-    UnmeasuredPhotonOp,
+    UnmeasuredOp,
 )
 
 from optyx.compiler.semm_decompiler import (
@@ -88,7 +93,7 @@ def test_fusion_ordering():
         MeasureOp(0, m[1]),  # Here node 1 can be measured immediately
         NextNodeOp(2),
         FusionOp(0, "X"),
-        UnmeasuredPhotonOp(),
+        UnmeasuredOp(),
     ]
 
     # Recompile but with the fusion order enhanced partial order
@@ -104,5 +109,5 @@ def test_fusion_ordering():
         MeasureOp(3, m[1]),  # With the fusion order it needs wait for node 2
         NextNodeOp(2),
         FusionOp(0, "X"),
-        UnmeasuredPhotonOp(),
+        UnmeasuredOp(),
     ]

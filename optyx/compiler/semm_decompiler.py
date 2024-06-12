@@ -24,7 +24,7 @@ from optyx.compiler.protocols import (
     MeasureOp,
     NextNodeOp,
     NextResourceStateOp,
-    UnmeasuredPhotonOp,
+    UnmeasuredOp,
     Instruction,
 )
 
@@ -322,7 +322,7 @@ def decompile_to_fusion_network_multi(
             machine.next_node(ins.node_id)
         elif isinstance(ins, NextResourceStateOp):
             machine.next_resource_state()
-        elif isinstance(ins, UnmeasuredPhotonOp):
+        elif isinstance(ins, UnmeasuredOp):
             machine.unmeasured_photon()
 
     return machine.fusion_network()

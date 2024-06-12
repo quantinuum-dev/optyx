@@ -31,7 +31,7 @@ def test_no_gflow():
     og = OpenGraph(g, meas, inputs, outputs)
 
     with pytest.raises(ValueError):
-        compile_to_semm(og, 4)
+        ins = compile_to_semm(og, 4)
 
 
 # Tests we can decompile and recompile a fusion network with multiple lines.

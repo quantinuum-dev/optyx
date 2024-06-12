@@ -19,6 +19,7 @@ from optyx.compiler.mbqc import (
     PartialOrder,
     get_fused_neighbours,
     FusionNetwork,
+    ULFusionNetwork,
     Fusion,
 )
 
@@ -32,7 +33,7 @@ from optyx.compiler.protocols import (
     MeasureOp,
     NextNodeOp,
     NextResourceStateOp,
-    UnmeasuredPhotonOp,
+    UnmeasuredOp,
 )
 
 from optyx.compiler.semm_decompiler import (
@@ -64,7 +65,7 @@ def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     ...    MeasureOp,
     ...    NextNodeOp,
     ...    NextResourceStateOp,
-    ...    UnmeasuredPhotonOp,
+    ...    UnmeasuredOp,
     ... )
     >>> instructions = compile_to_semm(og, 3)
     >>> assert instructions == [
@@ -74,7 +75,7 @@ def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     ...     NextNodeOp(node_id=1),
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
-    ...     UnmeasuredPhotonOp(),
+    ...     UnmeasuredOp(),
     ... ]
     """
     fn = compute_linear_fn(g, line_length)
@@ -124,7 +125,7 @@ def compile_linear_fn(
 
             # Node "v" is an output, and therefore isn't measured
             if v not in fn.measurements:
-                ins.append(UnmeasuredPhotonOp())
+                ins.append(UnmeasuredOp())
                 continue
 
             # Calculate measurement delay
@@ -151,7 +152,7 @@ def decompile_from_semm(
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,
-    ...    UnmeasuredPhotonOp,
+    ...    UnmeasuredOp,
     ...    NextResourceStateOp,
     ... )
     >>> meas = {i: Measurement(0.5*i, "XY") for i in range(2)}
@@ -162,7 +163,7 @@ def decompile_from_semm(
     ...     NextNodeOp(node_id=1),
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
-    ...     UnmeasuredPhotonOp(),
+    ...     UnmeasuredOp(),
     ... ]
     >>>
     >>> import networkx as nx
@@ -307,6 +308,11 @@ def compute_linear_fn(og: OpenGraph, k: int) -> FusionNetwork:
     fusions = calculate_fusions(og.inside, paths)
 
     return FusionNetwork(paths, meas, fusions)
+
+
+# Returns a tuple sorted in ascending order
+def _sorted_tuple(a: int, b: int) -> tuple[int, int]:
+    return (min(a, b), max(a, b))
 
 
 # Converts a path [1, 4, 6, 3] to a list of the individual edges [1, 4], [4,

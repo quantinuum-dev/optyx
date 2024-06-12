@@ -42,15 +42,11 @@ class NextResourceStateOp:
 
 
 @dataclass
-class UnmeasuredPhotonOp:
+class UnmeasuredOp:
     """There is an unmeasured photon i.e. an output photon"""
 
 
 # Photon Stream Machine Instructions
 Instruction = (
-    MeasureOp
-    | FusionOp
-    | NextNodeOp
-    | NextResourceStateOp
-    | UnmeasuredPhotonOp
+    MeasureOp | FusionOp | NextNodeOp | NextResourceStateOp | UnmeasuredOp
 )

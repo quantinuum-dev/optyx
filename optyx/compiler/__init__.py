@@ -70,7 +70,7 @@ method.
 ...     NextNodeOp,
 ...     MeasureOp,
 ...     NextResourceStateOp,
-...     UnmeasuredPhotonOp,
+...     UnmeasuredOp,
 ... )
 >>> from optyx.compiler.mbqc import (
 ...     OpenGraph,
@@ -99,7 +99,7 @@ method.
 ...     NextNodeOp(node_id=1),
 ...     MeasureOp(delay=0, measurement=meas[1]),
 ...     NextNodeOp(node_id=2),
-...     UnmeasuredPhotonOp(),
+...     UnmeasuredOp(),
 ... ]
 """
 
