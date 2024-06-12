@@ -18,16 +18,13 @@ from optyx.compiler.mbqc import (
     OpenGraph,
     PartialOrder,
     get_fused_neighbours,
-    add_fusions_to_partial_order,
     FusionNetwork,
     ULFusionNetwork,
-    Measurement,
     Fusion,
 )
 
 from optyx.compiler.graphs import (
     delay_based_path_cover,
-    find_min_path_cover,
 )
 
 from optyx.compiler.protocols import (
@@ -40,14 +37,11 @@ from optyx.compiler.protocols import (
 )
 
 from optyx.compiler.semm_decompiler import (
-    decompile_to_fusion_network,
     decompile_to_fusion_network_multi,
 )
 
 
-def compile_to_semm_with_short_lines(
-    g: OpenGraph, line_length: int
-) -> list[Instruction]:
+def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     """Compiles a graph to instructions on single emitter many measurement
     device which creates linear resource states.
 
@@ -65,16 +59,15 @@ def compile_to_semm_with_short_lines(
     >>> outputs = [2]
     >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
-    >>> from optyx.compiler.semm import compile_to_semm_with_short_lines
+    >>> from optyx.compiler.semm import compile_to_semm
     >>> from optyx.compiler.protocols import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,
-    ...    Instruction,
     ...    NextResourceStateOp,
     ...    UnmeasuredPhotonOp,
     ... )
-    >>> instructions = compile_to_semm_with_short_lines(og, 3)
+    >>> instructions = compile_to_semm(og, 3)
     >>> assert instructions == [
     ...     NextResourceStateOp(),
     ...     NextNodeOp(node_id=0),
@@ -85,16 +78,16 @@ def compile_to_semm_with_short_lines(
     ...     UnmeasuredPhotonOp(),
     ... ]
     """
-    fn = fn_with_short_lines(g, line_length)
+    fn = compute_linear_fn(g, line_length)
     gflow = g.find_gflow()
     if gflow is None:
         raise ValueError("Graph does not have gflow")
 
-    ins = compile_multi_piece(fn, gflow.partial_order_multi())
+    ins = compile_linear_fn(fn, gflow.partial_order())
     return ins
 
 
-def compile_multi_piece(
+def compile_linear_fn(
     fn: FusionNetwork, partial_order: PartialOrder
 ) -> list[Instruction]:
     """Compiles the fusion network into a series of instructions
@@ -104,14 +97,10 @@ def compile_multi_piece(
     incorporated into the given partial order.
     """
 
-    c = get_creation_times_multi_resources(fn)
-    m = get_measurement_times_multi_paths(fn, partial_order, c)
+    c = compute_creation_times(fn)
+    m = compute_completion_times(fn, partial_order, c)
 
-    all_nodes_in_order: list[int] = []
-    for resource in fn.resources:
-        all_nodes_in_order.extend(resource)
-
-    f = _get_fusion_photons(fn.fusions, all_nodes_in_order, c)
+    f = _get_fusion_photons_pairs(fn.fusions, c)
 
     ins: list[Instruction] = []
 
@@ -147,95 +136,6 @@ def compile_multi_piece(
     return ins
 
 
-def compile_to_semm(
-    g: OpenGraph,
-) -> list[Instruction]:
-    """Compiles a graph to a single emitter many measurement device
-
-    Example
-    -------
-    >>> import networkx as nx
-    >>> g = nx.Graph([(0, 1), (1, 2)])
-    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, ULFusionNetwork
-    >>>
-    >>> meas = {i: Measurement(i, 'XY') for i in range(2)}
-    >>> inputs = [0]
-    >>> outputs = [2]
-    >>>
-    >>> og = OpenGraph(g, meas, inputs, outputs)
-    >>> from optyx.compiler.semm import compile_to_semm
-    >>> from optyx.compiler.protocols import (
-    ...    FusionOp,
-    ...    MeasureOp,
-    ...    NextNodeOp,
-    ...    Instruction,
-    ... )
-    >>> instructions = compile_to_semm(og)
-    >>> assert instructions == [
-    ...     NextNodeOp(node_id=0),
-    ...     MeasureOp(delay=0, measurement=meas[0]),
-    ...     NextNodeOp(node_id=1),
-    ...     MeasureOp(delay=0, measurement=meas[1]),
-    ...     NextNodeOp(node_id=2),
-    ... ]
-    >>> assert decompile_from_semm(instructions, inputs, outputs) == og
-    """
-    sfn = compile_to_ul_fusion_network(g)
-    gflow = g.find_gflow()
-    if gflow is None:
-        raise ValueError("Graph does not have gflow")
-
-    # Add the fusion ordering (induced by the corrections needing to be
-    # performed from the fusions) to the partial order induced by gflow
-    order_with_fusions = add_fusions_to_partial_order(
-        sfn.fusions, gflow.partial_order_old()
-    )
-
-    ins = compile_single_emitter_multi_measurement(sfn, order_with_fusions)
-    return ins
-
-
-def decompile_from_semm_multi(
-    ins: list[Instruction],
-    inputs: list[int],
-    outputs: list[int],
-) -> OpenGraph:
-    """Decompiles from instructions on an SEMM device back into an open
-    graph
-
-    Example
-    -------
-    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, ULFusionNetwork
-    >>> from optyx.compiler.semm import decompile_from_semm
-    >>> from optyx.compiler.protocols import (
-    ...    FusionOp,
-    ...    MeasureOp,
-    ...    NextNodeOp,
-    ...    Instruction,
-    ... )
-    >>> meas = {i: Measurement(0.5*i, "XY") for i in range(2)}
-    >>> ins = [
-    ...     NextNodeOp(node_id=0),
-    ...     MeasureOp(delay=0, measurement=meas[0]),
-    ...     NextNodeOp(node_id=1),
-    ...     MeasureOp(delay=0, measurement=meas[1]),
-    ...     NextNodeOp(node_id=2),
-    ... ]
-    >>>
-    >>> import networkx as nx
-    >>> g = nx.Graph([(0, 1), (1, 2)])
-
-    >>> inputs = [0]
-    >>> outputs = [2]
-
-    >>> og = OpenGraph(g, meas, inputs, outputs)
-    >>> assert decompile_from_semm(ins, inputs, outputs) == og
-    """
-    sfn = decompile_to_fusion_network_multi(ins)
-    g = fn_to_open_graph_multi(sfn, inputs, outputs)
-    return g
-
-
 def decompile_from_semm(
     ins: list[Instruction],
     inputs: list[int],
@@ -252,138 +152,63 @@ def decompile_from_semm(
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,
-    ...    Instruction,
+    ...    UnmeasuredPhotonOp,
+    ...    NextResourceStateOp,
     ... )
     >>> meas = {i: Measurement(0.5*i, "XY") for i in range(2)}
     >>> ins = [
+    ...     NextResourceStateOp(),
     ...     NextNodeOp(node_id=0),
     ...     MeasureOp(delay=0, measurement=meas[0]),
     ...     NextNodeOp(node_id=1),
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
+    ...     UnmeasuredPhotonOp(),
     ... ]
     >>>
     >>> import networkx as nx
     >>> g = nx.Graph([(0, 1), (1, 2)])
-
     >>> inputs = [0]
     >>> outputs = [2]
-
     >>> og = OpenGraph(g, meas, inputs, outputs)
+    >>>
     >>> assert decompile_from_semm(ins, inputs, outputs) == og
     """
-    sfn = decompile_to_fusion_network(ins)
-    g = sfn_to_open_graph(sfn, inputs, outputs)
+    sfn = decompile_to_fusion_network_multi(ins)
+    g = fn_to_open_graph_multi(sfn, inputs, outputs)
     return g
 
 
-def get_creation_times_multi_resources(fn: FusionNetwork) -> dict[int, int]:
+def compute_creation_times(fn: FusionNetwork) -> dict[int, int]:
     """Returns a list containing the creation times of the measurement photon
     of every node"""
-    fusions = fn.fusions
+
+    # Returns the number of fusion edges a node has
+    def num_fusions(fusions: list[Fusion], node: int) -> int:
+        return sum(fusion.contains(node) for fusion in fusions)
 
     acc = 0
     c = {}
     for resource in fn.resources:
         for node in resource:
             # One photon for each fusion, and one measurement photon
-            acc += _num_fusions(fusions, node) + 1
+            acc += num_fusions(fn.fusions, node) + 1
             c[node] = acc
 
     return c
 
 
-def compile_single_emitter_multi_measurement(
-    fp: ULFusionNetwork, partial_order: PartialOrder
-) -> list[Instruction]:
-    """Compiles the fusion network into a series of instructions that can be
-    executed on a single emitter/multi measurement machine.
-
-    Assumes any additional correction induces by the fusions have already been
-    incorporated into the given partial order.
-    """
-
-    c = get_creation_times(fp)
-    m = get_measurement_times(fp, partial_order, c)
-    f = _get_fusion_photons(fp.fusions, fp.path, c)
-
-    ins: list[Instruction] = []
-
-    photon = 0
-    for v in fp.path:
-        ins.append(NextNodeOp(v))
-
-        # Number of photons in a given node
-        num_fusions = len(get_fused_neighbours(fp.fusions, v))
-
-        for _ in range(num_fusions):
-            photon += 1
-            pair = f[photon]
-
-            delay = max(0, pair - photon)
-            # NOTE: the X fusion is hard coded into here
-            ins.append(FusionOp(delay, "X"))
-
-        # Node "v" is an output, and therefore isn't measured
-        if v not in fp.measurements:
-            continue
-
-        # Node "v" is an output, and therefore isn't measured
-        if v not in fp.measurements:
-            continue
-
-        # Calculate measurement delay
-        photon += 1
-        measurement = fp.measurements[v]
-        delay = max(0, m[v] - c[v])
-        ins.append(MeasureOp(delay, measurement))
-
-    return ins
-
-
 # Convert the fusions between nodes into fusions beteen specific photons
 # There are more optimisations I could perform here to reduce the delay, but
 # for now we will choose an arbitrary order for simplicity
 #
 # If photon 1 fuses with photon 5, then there will be two entries in the
 # returned dictionary. 1: 5, and 5: 1
-def _get_fusion_photons_multi(
-    fusions: list[Fusion], path: list[int], c: list[int]
+def _get_fusion_photons_pairs(
+    fusions: list[Fusion], c: dict[int, int]
 ) -> dict[int, int]:
     seen: dict[int, int] = {}
     fusion_photons: dict[int, int] = {}
-
-    reverse_list = {v: i for i, v in enumerate(path)}
-
-    for fusion in fusions:
-        photon_num1 = seen.get(fusion.node1, 0) + 1
-        photon_num2 = seen.get(fusion.node2, 0) + 1
-
-        seen[fusion.node1] = photon_num1
-        seen[fusion.node2] = photon_num2
-
-        photon_index1 = c[reverse_list[fusion.node1]] - photon_num1
-        photon_index2 = c[reverse_list[fusion.node2]] - photon_num2
-
-        fusion_photons[photon_index1] = photon_index2
-        fusion_photons[photon_index2] = photon_index1
-
-    return fusion_photons
-
-
-# Convert the fusions between nodes into fusions beteen specific photons
-# There are more optimisations I could perform here to reduce the delay, but
-# for now we will choose an arbitrary order for simplicity
-#
-# If photon 1 fuses with photon 5, then there will be two entries in the
-# returned dictionary. 1: 5, and 5: 1
-def _get_fusion_photons(
-    fusions: list[Fusion], path: list[int], c: dict[int, int]
-) -> dict[int, int]:
-    seen: dict[int, int] = {}
-    fusion_photons: dict[int, int] = {}
-
-    # reverse_list = {v: i for i, v in enumerate(path)}
 
     for fusion in fusions:
         photon_num1 = seen.get(fusion.node1, 0) + 1
@@ -401,31 +226,25 @@ def _get_fusion_photons(
     return fusion_photons
 
 
-# Returns the number of fusion edges a node has
-def _num_fusions(fusions: list[Fusion], node: int) -> int:
-    return sum(fusion.contains(node) for fusion in fusions)
-
-
-def get_creation_times(fp: ULFusionNetwork) -> list[int]:
-    """Returns a list containing the creation times of the measurement photon
-    of every node"""
-    acc = 0
-    c = []
-    for node in fp.path:
-        # One photon for each fusion, and one measurement photon
-        acc += _num_fusions(fp.fusions, node) + 1
-        c.append(acc)
-
-    return c
-
-
-# TODO "order" should be "past" or something similar
-def get_measurement_times_multi_paths(
+def compute_completion_times(
     fn: FusionNetwork, order: PartialOrder, c: dict[int, int]
 ) -> dict[int, int]:
-    """Returns a list containing the time the measurement photon of a given
-    node can be measured"""
+    """Returns a dictionary where the key is a node ID and the value is it's
+    "completion time".
 
+    For non-output nodes, this is the time at which it can be measured, and for
+    output nodes this is the time when the node could be used in another
+    calculation safely. That is, all of the nodes that have the output node in
+    it's correction set have been measured, and all fusions acting on the
+    output node have been performed.
+
+    :param fn: the fusion network
+    :param order: the partial order on the nodes
+    :param c: a dictionary with the node IDs as keys and the creation time of
+        the nodes as values
+    """
+
+    # The dictionary holding the completion times
     m: dict[int, int] = {}
 
     # Recursively evaluate all the measurement times
@@ -454,41 +273,7 @@ def get_measurement_times_multi_paths(
     return m
 
 
-def get_measurement_times(
-    fp: ULFusionNetwork, order: PartialOrder, c: list[int]
-) -> list[int]:
-    """Returns a list containing the time the measurement photon of a given
-    node can be measured"""
-
-    m = [-1] * len(fp.path)
-
-    # Recursively evaluate all the measurement times
-    def get_measurement(node: int) -> int:
-        if m[node] != -1:
-            return m[node]
-
-        past = order(node)
-        # Don't want to recurse forever
-        past.remove(node)
-
-        if len(past) == 0:
-            m[node] = c[node]
-            return m[node]
-
-        latest_past_measurement = 0
-        if len(past) != 0:
-            latest_past_measurement = max(get_measurement(u) for u in past) + 1
-
-        m[node] = max(c[node], latest_past_measurement)
-        return m[node]
-
-    for v in fp.path:
-        get_measurement(v)
-
-    return m
-
-
-def fn_with_short_lines(og: OpenGraph, k: int) -> FusionNetwork:
+def compute_linear_fn(og: OpenGraph, k: int) -> FusionNetwork:
     """Compiles an open graph into a fusion network using short lines of length
     k assuming Hadamard fusions"""
 
@@ -503,9 +288,10 @@ def fn_with_short_lines(og: OpenGraph, k: int) -> FusionNetwork:
     def _path_to_edges(path: list[int]) -> list[tuple[int, int]]:
         return [(path[i], path[i + 1]) for i in range(len(path) - 1)]
 
-    # TODO consider making this a class method of FusionNetowrk
-    def calculate_fusions() -> list[Fusion]:
-        edges = og.inside.edges()
+    # Calculates the list of H-edge fusions requires to finish constructing the
+    # graph given the path cover.
+    def calculate_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
+        edges = g.edges()
 
         path_edges: list[tuple[int, int]] = []
         for path in paths:
@@ -519,49 +305,9 @@ def fn_with_short_lines(og: OpenGraph, k: int) -> FusionNetwork:
         fusions = [Fusion(e[0], e[1], "X") for e in fusion_edges]
         return fusions
 
-    fusions = calculate_fusions()
+    fusions = calculate_fusions(og.inside, paths)
 
     return FusionNetwork(paths, meas, fusions)
-
-
-def compile_to_ul_fusion_network(og: OpenGraph) -> ULFusionNetwork:
-    """Compiles an open graph into a fusion network for FBQC with LRS"""
-
-    pc = find_min_path_cover(og.inside)
-    path, new_vertices = _join_paths(pc)
-
-    fusions = _calculate_x_fusions(og.inside, pc)
-
-    meas = deepcopy(og.measurements)
-
-    # Add in all the breaks in the linear resource state
-    for i in new_vertices:
-        meas[i] = Measurement(0, "XY")
-
-    return ULFusionNetwork(path, meas, fusions)
-
-
-# Calculates the X fusions required to implement the graph given the path cover
-def _calculate_x_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
-    path_cover_edges: set[tuple[int, int]] = set()
-
-    for path in paths:
-        edges = _path_to_edges(path)
-        path_cover_edges = path_cover_edges.union(edges)
-
-    graph_edges = g.edges()
-
-    # The edges are all bidirectional so lets keep them in sorted order
-    # so they correct remove the edges in the line before
-    graph_edges_sorted = {_sorted_tuple(a, b) for a, b in graph_edges}
-    path_cover_edges_sorted = {
-        _sorted_tuple(a, b) for a, b in path_cover_edges
-    }
-
-    remaining_edges = list(graph_edges_sorted - path_cover_edges_sorted)
-
-    fusions = [Fusion(e[0], e[1], "X") for e in remaining_edges]
-    return fusions
 
 
 # Returns a tuple sorted in ascending order

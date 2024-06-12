@@ -1,6 +1,6 @@
 import networkx as nx
 from optyx.compiler.mbqc import OpenGraph, Measurement
-from optyx.compiler.semm import fn_with_short_lines
+from optyx.compiler.semm import compute_linear_fn
 
 
 def test_path_cover_finder():
@@ -10,7 +10,7 @@ def test_path_cover_finder():
     outputs = [2, 3]
     og = OpenGraph(g, measurements, inputs, outputs)
 
-    fn = fn_with_short_lines(og, 3)
+    fn = compute_linear_fn(og, 3)
 
     assert set(g.nodes) == set(fn.nodes())
 
@@ -28,7 +28,7 @@ def test_pc_finder_complex():
     outputs = [2, 3]
     og = OpenGraph(g, measurements, inputs, outputs)
 
-    fn = fn_with_short_lines(og, 3)
+    fn = compute_linear_fn(og, 3)
 
     assert set(g.nodes) == set(fn.nodes())
 

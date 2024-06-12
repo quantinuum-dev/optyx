@@ -69,7 +69,6 @@ class SingleEmitterMultiMeasureMulti:
         self.delayed_fusions = {}
         self.fusions = []
 
-
     def unmeasured_photon(self):
         """Signifies an unmeasured photon, i.e. an output node"""
         self.time += 1
@@ -124,16 +123,17 @@ class SingleEmitterMultiMeasureMulti:
         """Applies a unitary to the incoming photon and measures it with a
         particular angle"""
         self.time += 1
+        node = self.paths[-1][-1]
 
         delay_until = self.time + delay
 
         if delay_until in self.delayed_fusions:
             raise ValidationError(
-                f"can't fuse node {self.paths[-1][-1]} at time {delay_until} as"
+                f"can't fuse node {node} at time {delay_until} as"
                 + f" node {self.delayed_fusions[delay_until]} will be fused"
             )
 
-        self.delayed_fusions[delay_until] = self.paths[-1][-1]
+        self.delayed_fusions[delay_until] = node
 
     def delay_then_measure(self, delay: int, m: Measurement):
         """Delays the photon then measures it"""
@@ -282,46 +282,6 @@ class SingleEmitterMultiMeasure:
         return ULFusionNetwork(self.path, measurement_dict, self.fusions)
 
 
-def decompile_to_fusion_network(
-    instructions: list[Instruction],
-) -> ULFusionNetwork:
-    """Converts the instructions back into a fusion network
-
-    Example
-    -------
-    >>> from optyx.compiler.mbqc import ULFusionNetwork, Measurement
-    >>> from .semm import compile_single_emitter_multi_measurement
-    >>> from optyx.compiler.semm_decompiler import decompile_to_fusion_network
-    >>> m = {i: Measurement(0.5 * i, "XY") for i in range(3)}
-    >>> fn = ULFusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
-    >>>
-    >>> # We impose any partial order on the nodes for demonstrative purposes
-    >>> def order(n: int) -> list[int]:
-    ...     return list(range(n, 3))
-    >>>
-    >>> ins = compile_single_emitter_multi_measurement(fn, order)
-    >>> fn_decompiled = decompile_to_fusion_network(ins)
-    >>> assert fn == fn_decompiled
-    """
-    machine = SingleEmitterMultiMeasure()
-
-    for ins in instructions:
-        if isinstance(ins, FusionOp):
-            if ins.delay == 0:
-                machine.fuse(ins.fusion_type)
-            else:
-                machine.delay_then_fuse(ins.delay)
-        elif isinstance(ins, MeasureOp):
-            if ins.delay == 0:
-                machine.measure(ins.measurement)
-            else:
-                machine.delay_then_measure(ins.delay, ins.measurement)
-        elif isinstance(ins, NextNodeOp):
-            machine.next_node(ins.node_id)
-
-    return machine.fusion_network()
-
-
 def decompile_to_fusion_network_multi(
     instructions: list[Instruction],
 ) -> FusionNetwork:
@@ -330,7 +290,7 @@ def decompile_to_fusion_network_multi(
     Example
     -------
     >>> from optyx.compiler.mbqc import FusionNetwork, Measurement
-    >>> from .semm import compile_multi_piece
+    >>> from .semm import compile_linear_fn
     >>> from optyx.compiler.semm_decompiler import (
     ...     decompile_to_fusion_network_multi
     ... )
@@ -341,7 +301,7 @@ def decompile_to_fusion_network_multi(
     >>> def order(n: int) -> list[int]:
     ...     return list(range(n, 3))
     >>>
-    >>> ins = compile_multi_piece(fn, order)
+    >>> ins = compile_linear_fn(fn, order)
     >>> fn_decompiled = decompile_to_fusion_network_multi(ins)
     >>> assert fn == fn_decompiled
     """

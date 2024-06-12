@@ -131,18 +131,7 @@ class GFlow:
     g: dict[int, set[int]]
     layers: dict[int, int]
 
-    def partial_order_old(self) -> PartialOrder:
-        """Returns a function representing the partial order of the flow"""
-
-        def order(n: int):
-            l = self.layers[n]
-
-            return [i for i, layer in self.layers.items() if layer >= l]
-
-        return order
-
-    # TODO collapse these two into one function
-    def partial_order_multi(self) -> PartialOrder:
+    def partial_order(self) -> PartialOrder:
         """Returns a function representing the partial order of the flow"""
 
         def order(n: int):

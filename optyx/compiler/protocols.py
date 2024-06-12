@@ -40,10 +40,17 @@ class NextResourceStateOp:
     Concretely, it will tell it to produce a photon that is not entangled with
     the previous photon"""
 
+
 @dataclass
 class UnmeasuredPhotonOp:
     """There is an unmeasured photon i.e. an output photon"""
 
 
 # Photon Stream Machine Instructions
-Instruction = MeasureOp | FusionOp | NextNodeOp | NextResourceStateOp | UnmeasuredPhotonOp
+Instruction = (
+    MeasureOp
+    | FusionOp
+    | NextNodeOp
+    | NextResourceStateOp
+    | UnmeasuredPhotonOp
+)

@@ -34,23 +34,6 @@ def assert_reconstructed_pyzx_graph_equal(circ: zx.Circuit):
     assert np.allclose(ten / ten[i], ten_graph / ten_graph[i])
 
 
-def assert_pyzx_and_optyx_tensors_equal(g: zx.graph.base.BaseGraph):
-    g_copy = g.clone()
-
-    zx.simplify.to_graph_like(g)
-    zx.simplify.full_reduce(g)
-    g.apply_state("+" * len(g.inputs()))
-    ten = zx.tensorfy(g)
-    matrix_from_pyzx = zx.tensor_to_matrix(ten, 0, len(g.outputs()))
-    state_vector_from_pyzx = matrix_from_pyzx[:, 0]
-
-    og = OpenGraph.from_pyzx_graph(g_copy)
-    sv = og.simulate(max_qubit_num=200)
-    state_vector_from_optyx = sv.flatten()
-
-    assert np.allclose(state_vector_from_pyzx, state_vector_from_optyx)
-
-
 def test_adder():
     circ = zx.Circuit.load("./test/circuits/adder_n4_debug.qasm")
     assert_reconstructed_pyzx_graph_equal(circ)
@@ -97,11 +80,8 @@ def test_all_small_circuits():
 
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
-        print(filename)
         if not filename.endswith(".qasm"):
-            raise Exception(
-                f"only files with extension '.qasm' allowed: {filename}"
-            )
+            raise Exception(f"only '.qasm' files allowed: not {filename}")
 
         circ = zx.Circuit.load(direc + filename)
         assert_reconstructed_pyzx_graph_equal(circ)

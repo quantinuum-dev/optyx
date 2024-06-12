@@ -1,16 +1,18 @@
 import pytest
 
-from optyx.compiler.mbqc import ULFusionNetwork, Fusion
+from optyx.compiler.mbqc import FusionNetwork, Fusion
 from optyx.compiler.semm import (
-    get_measurement_times,
-    get_creation_times,
-    compile_single_emitter_multi_measurement,
+    compute_completion_times,
+    compute_creation_times,
+    compile_linear_fn,
 )
 
 from optyx.compiler.protocols import (
     MeasureOp,
     FusionOp,
     NextNodeOp,
+    NextResourceStateOp,
+    UnmeasuredPhotonOp,
 )
 
 from optyx.compiler.tests.common import (
@@ -20,26 +22,28 @@ from optyx.compiler.tests.common import (
 
 
 def test_linear_graph_compilation():
-    m = create_unique_measurements(3)
-    fp = ULFusionNetwork([0, 1, 2], m, [])
+    m = create_unique_measurements(2)
+    fn = FusionNetwork([[0, 1, 2]], m, [])
 
-    ins = compile_single_emitter_multi_measurement(fp, numeric_order)
+    ins = compile_linear_fn(fn, numeric_order)
     assert ins == [
+        NextResourceStateOp(),
         NextNodeOp(0),
         MeasureOp(0, m[0]),
         NextNodeOp(1),
         MeasureOp(0, m[1]),
         NextNodeOp(2),
-        MeasureOp(0, m[2]),
+        UnmeasuredPhotonOp(),
     ]
 
 
 def test_triangle_compilation():
-    m = create_unique_measurements(3)
-    fp = ULFusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    m = create_unique_measurements(2)
+    fn = FusionNetwork([[0, 1, 2]], m, [Fusion(0, 2, "X")])
 
-    ins = compile_single_emitter_multi_measurement(fp, numeric_order)
+    ins = compile_linear_fn(fn, numeric_order)
     assert ins == [
+        NextResourceStateOp(),
         NextNodeOp(0),
         FusionOp(3, "X"),
         MeasureOp(0, m[0]),
@@ -47,50 +51,50 @@ def test_triangle_compilation():
         MeasureOp(0, m[1]),
         NextNodeOp(2),
         FusionOp(0, "X"),
-        MeasureOp(0, m[2]),
+        UnmeasuredPhotonOp(),
     ]
 
 
-@pytest.mark.parametrize("num_measurements", range(1, 3))
-def test_linear_graph_measurements(num_measurements: int):
-    measurements = create_unique_measurements(num_measurements)
-    fp = ULFusionNetwork([0, 1, 2], measurements, [])
+@pytest.mark.parametrize("num_nodes", range(2, 5))
+def test_linear_graph_measurements(num_nodes: int):
+    measurements = create_unique_measurements(num_nodes - 1)
+    fn = FusionNetwork([list(range(num_nodes))], measurements, [])
 
     # Should maybe use the other function
-    c = [1, 2, 3]
-    m = get_measurement_times(fp, numeric_order, c)
-    assert m == [1, 2, 3]
+    c = compute_creation_times(fn)
+    m = compute_completion_times(fn, numeric_order, c)
+    assert m == {i: i + 1 for i in range(num_nodes)}
 
 
 def test_triangle_measurements():
-    measurements = create_unique_measurements(3)
+    measurements = create_unique_measurements(2)
 
-    fp = ULFusionNetwork([0, 1, 2], measurements, [Fusion(0, 2, "X")])
+    fn = FusionNetwork([[0, 1, 2]], measurements, [Fusion(0, 2, "X")])
 
-    c = [2, 3, 5]
-    m = get_measurement_times(fp, numeric_order, c)
+    c = compute_creation_times(fn)
+    m = compute_completion_times(fn, numeric_order, c)
 
-    assert m == [2, 3, 5]
+    assert m == {0: 2, 1: 3, 2: 5}
 
 
 def test_triangle_with_reverse_order_measurements():
-    measurements = create_unique_measurements(3)
+    measurements = create_unique_measurements(2)
 
-    fp = ULFusionNetwork([0, 1, 2], measurements, [Fusion(0, 2, "X")])
+    fn = FusionNetwork([[0, 1, 2]], measurements, [Fusion(0, 2, "X")])
 
     def reverse_order(n: int) -> list[int]:
         return list(range(n, 3))
 
-    c = [2, 3, 5]
-    m = get_measurement_times(fp, reverse_order, c)
+    c = compute_creation_times(fn)
+    m = compute_completion_times(fn, reverse_order, c)
 
-    assert m == [7, 6, 5]
+    assert m == {0: 7, 1: 6, 2: 5}
 
 
 def test_triangle_with_interesting_order_measurements():
-    measurements = create_unique_measurements(3)
+    measurements = create_unique_measurements(2)
 
-    fp = ULFusionNetwork([0, 1, 2], measurements, [Fusion(0, 2, "X")])
+    fn = FusionNetwork([[0, 1, 2]], measurements, [Fusion(0, 2, "X")])
 
     def custom_order(n: int) -> list[int]:
         if n == 0:
@@ -98,29 +102,29 @@ def test_triangle_with_interesting_order_measurements():
         else:
             return [n]
 
-    c = [2, 3, 5]
-    m = get_measurement_times(fp, custom_order, c)
+    c = compute_creation_times(fn)
+    m = compute_completion_times(fn, custom_order, c)
 
-    assert m == [6, 3, 5]
+    assert m == {0: 6, 1: 3, 2: 5}
 
 
 def test_creation_times():
     measurements = create_unique_measurements(3)
     fusions = [Fusion(0, 2, "X")]
 
-    fp = ULFusionNetwork([0, 1, 2], measurements, fusions)
+    fn = FusionNetwork([[0, 1, 2]], measurements, fusions)
 
-    c = get_creation_times(fp)
+    c = compute_creation_times(fn)
 
-    assert c == [2, 3, 5]
+    assert c == {0: 2, 1: 3, 2: 5}
 
 
 def test_creation_times_many_fusions():
-    measurements = create_unique_measurements(4)
+    measurements = create_unique_measurements(3)
     fusions = [Fusion(0, 2, "X"), Fusion(0, 3, "X"), Fusion(1, 3, "X")]
 
-    fp = ULFusionNetwork([0, 1, 2, 3], measurements, fusions)
+    fn = FusionNetwork([[0, 1, 2, 3]], measurements, fusions)
 
-    c = get_creation_times(fp)
+    c = compute_creation_times(fn)
 
-    assert c == [3, 5, 7, 10]
+    assert c == {0: 3, 1: 5, 2: 7, 3: 10}

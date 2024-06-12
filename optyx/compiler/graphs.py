@@ -51,8 +51,8 @@ def delay_based_path_cover(
     >>> inputs = [0, 1]
     >>> outputs = [2, 3]
     >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
-    >>> from optyx.compiler.semm import fn_with_short_lines
-    >>> fn = fn_with_short_lines(og, 3)
+    >>> from optyx.compiler.semm import compute_linear_fn
+    >>> fn = compute_linear_fn(og, 3)
     >>> sorted(fn.resources[0])
     [0, 1, 2]
     >>> sorted(fn.resources[1])

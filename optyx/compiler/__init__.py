@@ -66,7 +66,12 @@ This procedure is captured in the :meth:`optyx.compiler.semm.compile_to_semm`
 method.
 
 >>> import networkx as nx
->>> from optyx.compiler.protocols import NextNodeOp, MeasureOp
+>>> from optyx.compiler.protocols import (
+...     NextNodeOp,
+...     MeasureOp,
+...     NextResourceStateOp,
+...     UnmeasuredPhotonOp,
+... )
 >>> from optyx.compiler.mbqc import (
 ...     OpenGraph,
 ...     Measurement,
@@ -74,8 +79,8 @@ method.
 ...     add_fusions_to_partial_order,
 ... )
 >>> from optyx.compiler.semm import (
-...     compile_to_ul_fusion_network,
-...     compile_single_emitter_multi_measurement,
+...     compute_linear_fn,
+...     compile_linear_fn,
 ... )
 >>>
 >>> g = nx.Graph([(0, 1), (1, 2)])
@@ -83,16 +88,18 @@ method.
 >>> inputs = {0}
 >>> outputs = {2}
 >>> og = OpenGraph(g, meas, inputs, outputs)
->>> sfn = compile_to_ul_fusion_network(og)
->>> gflow_order = og.find_gflow().partial_order_old()
+>>> sfn = compute_linear_fn(og, 3)
+>>> gflow_order = og.find_gflow().partial_order()
 >>> order = add_fusions_to_partial_order(sfn.fusions, gflow_order)
->>> ins = compile_single_emitter_multi_measurement(sfn, order)
+>>> ins = compile_linear_fn(sfn, order)
 >>> assert ins == [
+...     NextResourceStateOp(),
 ...     NextNodeOp(node_id=0),
 ...     MeasureOp(delay=0, measurement=meas[0]),
 ...     NextNodeOp(node_id=1),
 ...     MeasureOp(delay=0, measurement=meas[1]),
 ...     NextNodeOp(node_id=2),
+...     UnmeasuredPhotonOp(),
 ... ]
 """
 
