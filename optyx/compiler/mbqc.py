@@ -39,6 +39,18 @@ class Fusion:
     :param node1: ID of one of the nodes in the fusion
     :param node2: ID of the other node in the fusion
     :param fusion_type: The type of fusion. Currently either: "X", "Y"
+
+    Example
+    -------
+    >>> from optyx.compiler.mbqc import Fusion
+    >>> Fusion(0, 1, "X") == Fusion(0, 1, "X")
+    True
+    >>> Fusion(0, 1, "X") == Fusion(0, 1, "Y")
+    False
+    >>> Fusion(0, 1, "X") == Fusion(1, 0, "X")
+    True
+    >>> Fusion(0, 1, "X") == Fusion(0, 2, "X")
+    False
     """
 
     node1: int
@@ -268,13 +280,27 @@ class OpenGraph:
         >>> gm2 = GraphMatcher(new_graph.inside, og2.inside)
         >>> assert gm2.subgraph_is_isomorphic()
         """
-        # NOTE: This could be simplified by doing my own node renaming before
-        # the disjoint_union so I know what the new node IDs will be
+        if self == OpenGraph.id():
+            return other
+        if other == OpenGraph.id():
+            return self
+
         nodes = self.inside.nodes
-        max_input_order = max(nodes[i]["input_order"] for i in self.inputs)
-        max_output_order = max(nodes[i]["output_order"] for i in self.outputs)
+
+        if len(self.inputs) == 0:
+            max_input_order = -1
+        else:
+            max_input_order = max(nodes[i]["input_order"] for i in self.inputs)
+
+        if len(self.outputs) == 0:
+            max_output_order = -1
+        else:
+            max_output_order = max(
+                nodes[i]["output_order"] for i in self.outputs
+            )
 
         max_node = max(self.inside.nodes)
+
         relabeled_inside = nx.relabel_nodes(
             other.inside, lambda x: x + max_node + 1
         )

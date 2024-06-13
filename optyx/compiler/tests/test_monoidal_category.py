@@ -2,6 +2,20 @@ import networkx as nx
 from optyx.compiler.mbqc import OpenGraph, Measurement
 
 
+# Test the identity of the monoid behaves as expected
+def test_id():
+    inside = nx.Graph([(0, 1), (1, 2), (2, 0)])
+    measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
+    inputs = [0]
+    outputs = [2]
+    graph1 = OpenGraph(inside, measurements, inputs, outputs)
+
+    id_graph = OpenGraph.id()
+
+    assert graph1 == graph1.tensor(id_graph)
+    assert graph1 == id_graph.tensor(graph1)
+
+
 # Explicitly test sequential composition of open graphs gives us the exact
 # graph we expect
 def test_open_graph_sequential_composition():

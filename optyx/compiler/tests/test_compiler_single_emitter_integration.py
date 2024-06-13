@@ -1,13 +1,7 @@
-import pytest
-
-
-from optyx.compiler.semm import (
-    compile_linear_fn,
-)
+from optyx.compiler.semm import compile_linear_fn
 
 from optyx.compiler.mbqc import (
     PartialOrder,
-    Measurement,
     add_fusions_to_partial_order,
     FusionNetwork,
     Fusion,

@@ -19,7 +19,6 @@ from optyx.compiler.mbqc import (
     PartialOrder,
     get_fused_neighbours,
     FusionNetwork,
-    ULFusionNetwork,
     Fusion,
 )
 
@@ -310,34 +309,10 @@ def compute_linear_fn(og: OpenGraph, k: int) -> FusionNetwork:
     return FusionNetwork(paths, meas, fusions)
 
 
-# Returns a tuple sorted in ascending order
-def _sorted_tuple(a: int, b: int) -> tuple[int, int]:
-    return (min(a, b), max(a, b))
-
-
 # Converts a path [1, 4, 6, 3] to a list of the individual edges [1, 4], [4,
 # 6], [6, 3]
 def _path_to_edges(path: list[int]) -> list[tuple[int, int]]:
     return [(path[i], path[i + 1]) for i in range(len(path) - 1)]
-
-
-# Joins paths together with an additional vertex.
-# Returns the fully joined path along with a list containing the IDs of the
-# newly added vertices.
-# For example: if we were given [[0, 1], [2, 3]], it would use a new node 4 to
-# join the two paths and return [[0, 1, 4, 2, 3], [4]]
-def _join_paths(paths: list[list[int]]) -> tuple[list[int], list[int]]:
-    total_path = paths[0]
-    next_vertex = max(max(p) for p in paths) + 1
-    new_vertices = []
-
-    for p in paths[1:]:
-        total_path.append(next_vertex)
-        total_path.extend(p)
-        new_vertices.append(next_vertex)
-        next_vertex += 1
-
-    return (total_path, new_vertices)
 
 
 def _path_to_graph(path: list[int]) -> nx.Graph:
@@ -350,19 +325,6 @@ def _path_to_graph(path: list[int]) -> nx.Graph:
             g.add_edge(path[i + 1], v)
 
     return g
-
-
-def sfn_to_open_graph(
-    sfn: ULFusionNetwork, inputs: list[int], outputs: list[int]
-) -> OpenGraph:
-    """Converts a fusion network into an open graph"""
-
-    g = _path_to_graph(sfn.path)
-
-    for fusion in sfn.fusions:
-        g.add_edge(fusion.node1, fusion.node2)
-
-    return OpenGraph(g, sfn.measurements, inputs, outputs)
 
 
 def fn_to_open_graph_multi(
