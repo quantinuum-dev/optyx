@@ -41,6 +41,18 @@ from optyx.compiler.semm_decompiler import (
 )
 
 
+def num_photons(ins: list[Instruction]) -> int:
+    """Returns the number of photons used"""
+    return sum(isinstance(i, (MeasureOp, FusionOp)) for i in ins)
+
+def num_fusions(ins: list[Instruction]) -> int:
+    """Returns the number of fusions used"""
+    return sum(isinstance(i, FusionOp) for i in ins) // 2
+
+def num_resource_states(ins: list[Instruction]) -> int:
+    """Returns the number of resource states used"""
+    return sum(isinstance(i, NextResourceStateOp) for i in ins)
+
 def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     """Compiles a graph to instructions on single emitter many measurement
     device which creates linear resource states.
