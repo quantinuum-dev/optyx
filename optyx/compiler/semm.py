@@ -13,9 +13,12 @@ single emitter multiple measure (SEMM) machine
 
 from copy import deepcopy
 import networkx as nx
+import graphix
 
 from optyx.compiler.mbqc import (
     OpenGraph,
+    GFlow,
+    Measurement,
     PartialOrder,
     get_fused_neighbours,
     FusionNetwork,
@@ -90,14 +93,61 @@ def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     ...     UnmeasuredOp(),
     ... ]
     """
-    fn = compute_linear_fn(g, line_length)
-    gflow = g.find_gflow()
-    if gflow is None:
+    g_inside, meas, inputs, outputs = simplify_graph(g)
+
+    meas_planes = {i: meas.plane for i, meas in g.measurements.items()}
+    g_func, layers = graphix.gflow.find_gflow(
+        g_inside, set(inputs), set(outputs), meas_planes
+    )
+
+    if g_func is None or layers is None:
         raise ValueError("Graph does not have gflow")
+
+    gflow = GFlow(g_func, layers)
+
+    fn = compute_linear_fn(g_inside, gflow.layers, meas, line_length)
 
     ins = compile_linear_fn(fn, gflow.partial_order())
     return ins
 
+def simplify_graph(g: OpenGraph):
+    """Simplifies the open graph by removing redundant input and output nodes.
+    These are good for computing flow. But in practice they are unnecessary
+    when actually compiling the graph state into instructions.
+    """
+
+    g_nx = g.inside.copy()
+    meas = deepcopy(g.measurements)
+
+    inputs = g.inputs
+    outputs = g.outputs
+
+
+    changed = True
+    while changed:
+        changed = False
+        for inp in inputs:
+            nbrs = list(g_nx.neighbors(inp))
+            if len(nbrs) == 1 and meas[inp].is_z_measurement():
+                changed = True
+                g_nx.remove_node(inp)
+                del meas[inp]
+                inputs = [i if i != inp else nbrs[0] for i in inputs]
+
+
+    changed = True
+    while changed:
+        for out in outputs:
+            changed = False
+            nbrs = list(g_nx.neighbors(out))
+            if len(nbrs) == 1 and (out not in meas or meas[out].is_z_measurement()):
+                changed = True
+                g_nx.remove_node(out)
+                if out in meas:
+                    del meas[out]
+                outputs = [o if o != out else nbrs[0] for o in outputs]
+
+    return (g_nx, meas, inputs, outputs)
 
 def compile_linear_fn(
     fn: FusionNetwork, partial_order: PartialOrder
@@ -285,16 +335,11 @@ def compute_completion_times(
     return m
 
 
-def compute_linear_fn(og: OpenGraph, k: int) -> FusionNetwork:
+def compute_linear_fn(g: nx.Graph, order_layers: dict[int, int], meas: dict[int, Measurement], k: int) -> FusionNetwork:
     """Compiles an open graph into a fusion network using short lines of length
     k assuming Hadamard fusions"""
-
-    gflow = og.find_gflow()
-    if gflow is None:
-        raise ValueError("OpenGraph is required to have gflow")
-
-    paths = delay_based_path_cover(og.inside, gflow.layers, k)
-    meas = deepcopy(og.measurements)
+    paths = delay_based_path_cover(g, order_layers, k)
+    meas = deepcopy(meas)
 
     # Converts a path [1, 4, 6] to a list of edges [[1, 4], [4, 6]]
     def _path_to_edges(path: list[int]) -> list[tuple[int, int]]:
@@ -317,7 +362,7 @@ def compute_linear_fn(og: OpenGraph, k: int) -> FusionNetwork:
         fusions = [Fusion(e[0], e[1], "X") for e in fusion_edges]
         return fusions
 
-    fusions = calculate_fusions(og.inside, paths)
+    fusions = calculate_fusions(g, paths)
 
     return FusionNetwork(paths, meas, fusions)
 
