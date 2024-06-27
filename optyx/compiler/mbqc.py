@@ -20,12 +20,12 @@ class Measurement:
 
     def __eq__(self, other):
         return (
-            abs(self.angle - other.angle) < 0.001 and self.plane == other.plane
+            np.allclose(self.angle, other.angle) and self.plane == other.plane
         )
 
     def is_z_measurement(self) -> bool:
         """Indicates whether it is a Z measurement"""
-        return abs(self.angle) < 0.001 and self.plane == "XY"
+        return np.allclose(self.angle, 0.0) and self.plane == "XY"
 
 
 @dataclass
