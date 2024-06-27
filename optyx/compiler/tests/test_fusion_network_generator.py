@@ -1,12 +1,8 @@
 import pytest
 import networkx as nx
 
-from optyx.compiler.semm import (
-    compile_to_fusion_network,
-    sfn_to_open_graph,
-)
-
-from optyx.compiler.mbqc import OpenGraph, Measurement
+from optyx.compiler.semm import compile_to_fusion_network
+from optyx.compiler.mbqc import OpenGraph, Measurement, fn_to_open_graph
 
 
 # Generate many random graphs and confirm all of them can be compiled and
@@ -45,6 +41,6 @@ def compile_and_decompile(
 ) -> bool:
     fn = compile_to_fusion_network(g)
 
-    g_reconstructed = sfn_to_open_graph(fn, inputs, outputs)
+    g_reconstructed = fn_to_open_graph(fn, inputs, outputs)
 
     return g == g_reconstructed

@@ -19,6 +19,7 @@ from optyx.compiler.mbqc import (
     PartialOrder,
     get_fused_neighbours,
     add_fusion_order,
+    fn_to_open_graph,
     FusionNetwork,
     Measurement,
     Fusion,
@@ -123,7 +124,7 @@ def decompile_from_semm(
     >>> assert decompile_from_semm(ins, inputs, outputs) == og
     """
     sfn = decompile_to_fusion_network(ins)
-    g = sfn_to_open_graph(sfn, inputs, outputs)
+    g = fn_to_open_graph(sfn, inputs, outputs)
     return g
 
 
@@ -315,28 +316,3 @@ def _join_paths(paths: list[list[int]]) -> tuple[list[int], list[int]]:
         next_vertex += 1
 
     return (total_path, new_vertices)
-
-
-def _path_to_graph(path: list[int]) -> nx.Graph:
-    g = nx.Graph({})
-
-    for i, v in enumerate(path):
-        if i != 0:
-            g.add_edge(path[i - 1], v)
-        if i != len(path) - 1:
-            g.add_edge(path[i + 1], v)
-
-    return g
-
-
-def sfn_to_open_graph(
-    sfn: FusionNetwork, inputs: set[int], outputs: set[int]
-) -> OpenGraph:
-    """Converts a fusion network into an open graph"""
-
-    g = _path_to_graph(sfn.path)
-
-    for fusion in sfn.fusions:
-        g.add_edge(fusion.node1, fusion.node2)
-
-    return OpenGraph(g, sfn.measurements, inputs, outputs)
