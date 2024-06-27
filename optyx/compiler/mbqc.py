@@ -298,3 +298,16 @@ def get_fused_neighbours(fusions: list[Fusion], node: int) -> list[int]:
             fusion_nbrs.append(fusion.node1)
 
     return fusion_nbrs
+
+
+def fn_to_open_graph(
+    sfn: FusionNetwork, inputs: set[int], outputs: set[int]
+) -> OpenGraph:
+    """Converts a fusion network into an open graph"""
+
+    g = nx.path_graph(sfn.path)
+
+    for fusion in sfn.fusions:
+        g.add_edge(fusion.node1, fusion.node2)
+
+    return OpenGraph(g, sfn.measurements, inputs, outputs)
