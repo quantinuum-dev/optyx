@@ -83,7 +83,7 @@ def compile_to_semm(
         sfn.fusions, gflow.partial_order()
     )
 
-    ins = compile_single_emitter_multi_measurement(sfn, order_with_fusions)
+    ins = fn_to_semm(sfn, order_with_fusions)
     return ins
 
 
@@ -129,9 +129,7 @@ def decompile_from_semm(
     return g
 
 
-def compile_single_emitter_multi_measurement(
-    fp: FusionNetwork, partial_order: PartialOrder
-) -> list[Instruction]:
+def fn_to_semm(fp: FusionNetwork, order: PartialOrder) -> list[Instruction]:
     """Compiles the fusion network into a series of instructions that can be
     executed on a single emitter/multi measurement machine.
 
@@ -140,7 +138,7 @@ def compile_single_emitter_multi_measurement(
     """
 
     c = get_creation_times(fp)
-    m = get_measurement_times(fp, partial_order, c)
+    m = get_measurement_times(fp, order, c)
     f = _get_fusion_photons(fp.fusions, fp.path, c)
 
     ins: list[Instruction] = []
