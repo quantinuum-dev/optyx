@@ -1,10 +1,6 @@
 """
 Toolkit for compiling open graphs in machine instructions
 
-The modular design allows reuse of common compilation and optimisation
-routines between different compilation pipelines which can diverge whenever
-necessary.
-
 There are three representation layers in the compiler:
 
 1. :class:`OpenGraph`: This is the MBQC pattern we wish to implement. It is a
