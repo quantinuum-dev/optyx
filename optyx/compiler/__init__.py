@@ -5,7 +5,7 @@ Together this tool kit constitutes a modular compiler for transforming open
 graphs into hardware instructions.
 
 The modular design allows reuse of common compilation and optimisation
-routinues between different compilation pipelines which can diverge whenever
+routines between different compilation pipelines which can diverge whenever
 necessary.
 
 There are three representation layers in the compiler:
