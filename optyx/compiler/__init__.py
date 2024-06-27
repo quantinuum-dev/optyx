@@ -71,7 +71,7 @@ method.
 ... )
 >>> from optyx.compiler.semm import (
 ...     compile_to_fusion_network,
-...     compile_single_emitter_multi_measurement,
+...     fn_to_semm,
 ... )
 >>>
 >>> g = nx.Graph([(0, 1), (1, 2)])
@@ -82,7 +82,7 @@ method.
 >>> sfn = compile_to_fusion_network(og)
 >>> gflow_order = og.find_gflow().partial_order()
 >>> order = add_fusions_to_partial_order(sfn.fusions, gflow_order)
->>> ins = compile_single_emitter_multi_measurement(sfn, order)
+>>> ins = fn_to_semm(sfn, order)
 >>> assert ins == [
 ...     NextNodeOp(node_id=0),
 ...     MeasureOp(delay=0, measurement=meas[0]),

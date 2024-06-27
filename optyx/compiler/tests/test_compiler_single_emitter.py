@@ -4,7 +4,7 @@ from optyx.compiler.mbqc import FusionNetwork, Fusion
 from optyx.compiler.semm import (
     get_measurement_times,
     get_creation_times,
-    compile_single_emitter_multi_measurement,
+    fn_to_semm,
 )
 
 from optyx.compiler.protocols import (
@@ -23,7 +23,7 @@ def test_linear_graph_compilation():
     m = create_unique_measurements(3)
     fp = FusionNetwork([0, 1, 2], m, [])
 
-    ins = compile_single_emitter_multi_measurement(fp, numeric_order)
+    ins = fn_to_semm(fp, numeric_order)
     assert ins == [
         NextNodeOp(0),
         MeasureOp(0, m[0]),
@@ -38,7 +38,7 @@ def test_triangle_compilation():
     m = create_unique_measurements(3)
     fp = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
 
-    ins = compile_single_emitter_multi_measurement(fp, numeric_order)
+    ins = fn_to_semm(fp, numeric_order)
     assert ins == [
         NextNodeOp(0),
         FusionOp(3, "X"),

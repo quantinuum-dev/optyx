@@ -1,9 +1,7 @@
 import pytest
 
 
-from optyx.compiler.semm import (
-    compile_single_emitter_multi_measurement,
-)
+from optyx.compiler.semm import fn_to_semm
 
 from optyx.compiler.mbqc import (
     PartialOrder,
@@ -54,7 +52,7 @@ def test_triangle_reverse_compilation():
 
 
 def compile_and_verify(fn: FusionNetwork, order: PartialOrder):
-    ins = compile_single_emitter_multi_measurement(fn, order)
+    ins = fn_to_semm(fn, order)
 
     fn_decompiled = decompile_to_fusion_network(ins)
     assert fn == fn_decompiled
@@ -66,7 +64,7 @@ def test_triangle_reverse_compilation_fails():
     m = create_unique_measurements(4)
     fn = FusionNetwork([0, 1, 2, 3], m, [Fusion(0, 2, "X")])
 
-    ins = compile_single_emitter_multi_measurement(fn, numeric_order)
+    ins = fn_to_semm(fn, numeric_order)
 
     fn_decompiled = decompile_to_fusion_network(ins)
     assert fn == fn_decompiled
@@ -101,7 +99,7 @@ def test_fusion_ordering():
             return [1, 0]
         return [n]
 
-    ins = compile_single_emitter_multi_measurement(fn, order)
+    ins = fn_to_semm(fn, order)
 
     assert ins == [
         NextNodeOp(0),
@@ -116,7 +114,7 @@ def test_fusion_ordering():
 
     # Recompile but with the fusion order enhanced partial order
     order_with_fusions = add_fusions_to_partial_order(fn.fusions, order)
-    ins = compile_single_emitter_multi_measurement(fn, order_with_fusions)
+    ins = fn_to_semm(fn, order_with_fusions)
 
     assert ins == [
         NextNodeOp(0),

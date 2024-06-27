@@ -156,7 +156,7 @@ def decompile_to_fusion_network(
     Example
     -------
     >>> from optyx.compiler.mbqc import FusionNetwork, Measurement
-    >>> from .semm import compile_single_emitter_multi_measurement
+    >>> from .semm import fn_to_semm
     >>> from optyx.compiler.semm_decompiler import decompile_to_fusion_network
     >>> m = {i: Measurement(0.5 * i, "XY") for i in range(3)}
     >>> fn = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
@@ -165,7 +165,7 @@ def decompile_to_fusion_network(
     >>> def order(n: int) -> list[int]:
     ...     return list(range(n, 3))
     >>>
-    >>> ins = compile_single_emitter_multi_measurement(fn, order)
+    >>> ins = fn_to_semm(fn, order)
     >>> fn_decompiled = decompile_to_fusion_network(ins)
     >>> assert fn == fn_decompiled
     """
