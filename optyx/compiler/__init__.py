@@ -1,33 +1,29 @@
 """
 Toolkit for compiling open graphs in machine instructions
 
-Together this tool kit constitutes a modular compiler for transforming open
-graphs into hardware instructions.
-
 The modular design allows reuse of common compilation and optimisation
 routines between different compilation pipelines which can diverge whenever
 necessary.
 
 There are three representation layers in the compiler:
 
-1. **Open Graph** :class:`OpenGraph`. This is the MBQC pattern we wish to
-implement. It is a graph state with inputs and outputs, together with
-measurements on all non-output nodes.
+1. :class:`OpenGraph`: This is the MBQC pattern we wish to implement. It is a
+graph state with inputs and outputs, together with measurements on all
+non-output nodes.
 
-2. **Fusion Network** :class:`FusionNetwork`. Contains the resource states and
-fusions required to implement the MBQC pattern
+2. :class:`FusionNetwork`: Contains the resource states and fusions required to
+implement the MBQC pattern
 
-3. **Hardware Instructions** :class:`Instruction`. The instructions that will
-be executed on the quantum hardware.
+3. **Hardware Instructions**: The instructions that will be executed on the
+quantum hardware.
 
-The algorithm is given in the form of an **Open Graph** which is then compiled
-into a **Fusion Network** and is later compiled into a series of **Hardware
-Instructions**.
+The toolkit provides several algorithms for converting an :class:`OpenGraph`
+into a :class:`FusionNetwork` which aim to be hardware agnostic.
 
-Currently we only have a pipeline for compiling to a machine with a single
-linear resource state emitter and a single measurement device. This
-functionality is contained in the :mod:`semm` module and an example is given
-below.
+Currently we only have one pipeline for compiling a :class:`FusionNetwork` to
+hardware instructions on machines which contain a single linear resource state
+emitter and a single measurement device. This functionality is contained in the
+:mod:`semm` module and an example is given below.
 
 .. autosummary::
     :template: class.rst
