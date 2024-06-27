@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 import networkx as nx
 import graphix
+import numpy as np
 
 
 @dataclass
@@ -202,7 +203,7 @@ class OpenGraph:
         return GFlow(g, layers)
 
 
-def add_fusions_to_partial_order(
+def add_fusion_order(
     fusions: list[Fusion], order: PartialOrder
 ) -> PartialOrder:
     """Returns a new partial order that ensures Pauli errors from Hadamard edge

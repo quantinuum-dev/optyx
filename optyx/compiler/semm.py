@@ -18,7 +18,7 @@ from optyx.compiler.mbqc import (
     OpenGraph,
     PartialOrder,
     get_fused_neighbours,
-    add_fusions_to_partial_order,
+    add_fusion_order,
     FusionNetwork,
     Measurement,
     Fusion,
@@ -79,9 +79,7 @@ def compile_to_semm(
 
     # Add the fusion ordering (induced by the corrections needing to be
     # performed from the fusions) to the partial order induced by gflow
-    order_with_fusions = add_fusions_to_partial_order(
-        sfn.fusions, gflow.partial_order()
-    )
+    order_with_fusions = add_fusion_order(sfn.fusions, gflow.partial_order())
 
     ins = fn_to_semm(sfn, order_with_fusions)
     return ins
