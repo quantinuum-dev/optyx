@@ -45,13 +45,14 @@ def delay_based_path_cover(
     -------
     >>> import networkx as nx
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement
-    >>> inside_graph = nx.Graph([(0, 1), (1, 2), (0, 3)])
+    >>> g = nx.Graph([(0, 1), (1, 2), (0, 3)])
     >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
     >>> inputs = [0, 1]
     >>> outputs = [2, 3]
-    >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
+    >>> og = OpenGraph(g, measurements, inputs, outputs)
+    >>> gflow = og.find_gflow()
     >>> from optyx.compiler.semm import compute_linear_fn
-    >>> fn = compute_linear_fn(og, 3)
+    >>> fn = compute_linear_fn(g, gflow.layers, measurements, 3)
     >>> sorted(fn.resources[0])
     [0, 1, 2]
     >>> sorted(fn.resources[1])

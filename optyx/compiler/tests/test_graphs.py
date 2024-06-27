@@ -9,8 +9,9 @@ def test_path_cover_finder():
     inputs = [0, 1]
     outputs = [2, 3]
     og = OpenGraph(g, measurements, inputs, outputs)
+    gflow = og.find_gflow()
 
-    fn = compute_linear_fn(og, 3)
+    fn = compute_linear_fn(g, gflow.layers, measurements, 3)
 
     assert set(g.nodes) == set(fn.nodes())
 
@@ -27,8 +28,9 @@ def test_pc_finder_complex():
     inputs = [0, 1]
     outputs = [2, 3]
     og = OpenGraph(g, measurements, inputs, outputs)
+    gflow = og.find_gflow()
 
-    fn = compute_linear_fn(og, 3)
+    fn = compute_linear_fn(g, gflow.layers, measurements, 3)
 
     assert set(g.nodes) == set(fn.nodes())
 

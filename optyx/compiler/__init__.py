@@ -85,13 +85,13 @@ method.
 >>>
 >>> g = nx.Graph([(0, 1), (1, 2)])
 >>> meas = {i: Measurement(i, 'XY') for i in range(2)}
->>> inputs = {0}
->>> outputs = {2}
+>>> inputs = [0]
+>>> outputs = [2]
 >>> og = OpenGraph(g, meas, inputs, outputs)
->>> sfn = compute_linear_fn(og, 3)
->>> gflow_order = og.find_gflow().partial_order()
->>> order = add_fusions_to_partial_order(sfn.fusions, gflow_order)
->>> ins = compile_linear_fn(sfn, order)
+>>> gflow = og.find_gflow()
+>>> fn = compute_linear_fn(g, gflow.layers, meas, 3)
+>>> order = add_fusions_to_partial_order(fn.fusions, gflow.partial_order())
+>>> ins = compile_linear_fn(fn, order)
 >>> assert ins == [
 ...     NextResourceStateOp(),
 ...     NextNodeOp(node_id=0),

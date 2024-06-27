@@ -46,7 +46,7 @@ from optyx.compiler.semm_decompiler import (
 
 def num_photons(ins: list[Instruction]) -> int:
     """Returns the number of photons used"""
-    return sum(isinstance(i, (MeasureOp, FusionOp)) for i in ins)
+    return sum(isinstance(i, (MeasureOp, FusionOp, UnmeasuredOp)) for i in ins)
 
 def num_fusions(ins: list[Instruction]) -> int:
     """Returns the number of fusions used"""
@@ -55,6 +55,71 @@ def num_fusions(ins: list[Instruction]) -> int:
 def num_resource_states(ins: list[Instruction]) -> int:
     """Returns the number of resource states used"""
     return sum(isinstance(i, NextResourceStateOp) for i in ins)
+
+def compile_to_semm_sneaky(g: OpenGraph, line_length: int) -> list[Instruction]:
+    """Compiles a graph to instructions on single emitter many measurement
+    device which creates linear resource states.
+
+    :param g: the open graph to be compiled
+    :param line_length: the maximum length any linear resource state can be
+
+    Example
+    -------
+    >>> import networkx as nx
+    >>> g = nx.Graph([(0, 1), (1, 2)])
+    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, ULFusionNetwork
+    >>>
+    >>> meas = {i: Measurement(i, 'XY') for i in range(2)}
+    >>> inputs = [0]
+    >>> outputs = [2]
+    >>>
+    >>> og = OpenGraph(g, meas, inputs, outputs)
+    >>> from optyx.compiler.semm import compile_to_semm
+    >>> from optyx.compiler.protocols import (
+    ...    FusionOp,
+    ...    MeasureOp,
+    ...    NextNodeOp,
+    ...    NextResourceStateOp,
+    ...    UnmeasuredOp,
+    ... )
+    >>> instructions = compile_to_semm(og, 3)
+    >>> assert instructions == [
+    ...     NextResourceStateOp(),
+    ...     NextNodeOp(node_id=0),
+    ...     MeasureOp(delay=0, measurement=meas[0]),
+    ...     NextNodeOp(node_id=1),
+    ...     MeasureOp(delay=0, measurement=meas[1]),
+    ...     NextNodeOp(node_id=2),
+    ...     UnmeasuredOp(),
+    ... ]
+    """
+
+    # Simplifies the graph to remove redundant input and output nodes
+    # TODO I think I should I make this able to be disabled or enabled.
+    g_inside, meas, inputs, outputs = simplify_graph(g)
+
+    meas_planes = {i: meas.plane for i, meas in g.measurements.items()}
+    g_func, layers = graphix.gflow.find_gflow(
+        g_inside, set(inputs), set(outputs), meas_planes
+    )
+
+    if g_func is None or layers is None:
+        raise ValueError("Graph does not have gflow")
+
+    gflow = GFlow(g_func, layers)
+
+    fn = compute_linear_fn(g_inside, gflow.layers, meas, line_length)
+    ins = compile_linear_fn(fn, gflow.partial_order())
+
+    return ins
+
+def compile_to_resource_graphs(fn: FusionNetwork):
+    rgs: list[graphix.extraction.ResourceGraph] = []
+    for resource in fn.resources:
+        rg = graphix.extraction.create_resource_graph(resource)
+        rgs.append(rg)
+
+    return rg
 
 def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     """Compiles a graph to instructions on single emitter many measurement
@@ -93,19 +158,11 @@ def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     ...     UnmeasuredOp(),
     ... ]
     """
-    g_inside, meas, inputs, outputs = simplify_graph(g)
+    gflow = g.find_gflow()
+    if gflow is None:
+        raise ValueError("ahhhhhhhhhhhhhhh")
 
-    meas_planes = {i: meas.plane for i, meas in g.measurements.items()}
-    g_func, layers = graphix.gflow.find_gflow(
-        g_inside, set(inputs), set(outputs), meas_planes
-    )
-
-    if g_func is None or layers is None:
-        raise ValueError("Graph does not have gflow")
-
-    gflow = GFlow(g_func, layers)
-
-    fn = compute_linear_fn(g_inside, gflow.layers, meas, line_length)
+    fn = compute_linear_fn(g.inside, gflow.layers, g.measurements, line_length)
 
     ins = compile_linear_fn(fn, gflow.partial_order())
     return ins

@@ -7,6 +7,9 @@ from optyx.compiler.semm import (
     compile_to_semm,
     decompile_from_semm,
     compile_linear_fn,
+    num_photons,
+    num_fusions,
+    num_resource_states,
 )
 
 from optyx.compiler.mbqc import (
@@ -65,6 +68,7 @@ def test_all_small_circuits(resource_len: int):
         og = OpenGraph.from_pyzx_graph(g)
 
         ins = compile_to_semm(og, resource_len)
+        print(f"len={resource_len} {filename}: photons={num_photons(ins)} fusions={num_fusions(ins)} resource_states={num_resource_states(ins)}")
         og_reconstructed = decompile_from_semm(ins, og.inputs, og.outputs)
 
         assert og == og_reconstructed
