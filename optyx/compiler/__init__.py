@@ -67,7 +67,7 @@ method.
 ...     OpenGraph,
 ...     Measurement,
 ...     FusionNetwork,
-...     add_fusions_to_partial_order,
+...     add_fusion_order,
 ... )
 >>> from optyx.compiler.semm import (
 ...     compile_to_fusion_network,
@@ -81,7 +81,7 @@ method.
 >>> og = OpenGraph(g, meas, inputs, outputs)
 >>> sfn = compile_to_fusion_network(og)
 >>> gflow_order = og.find_gflow().partial_order()
->>> order = add_fusions_to_partial_order(sfn.fusions, gflow_order)
+>>> order = add_fusion_order(sfn.fusions, gflow_order)
 >>> ins = fn_to_semm(sfn, order)
 >>> assert ins == [
 ...     NextNodeOp(node_id=0),
