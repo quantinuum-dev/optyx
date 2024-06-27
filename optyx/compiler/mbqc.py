@@ -25,7 +25,7 @@ class Measurement:
 
     def is_z_measurement(self) -> bool:
         """Indicates whether it is a Z measurement"""
-        return abs(self.angle) < 0.001 and self.plane == "XY"
+        return np.allclose(self.angle, 0.0) and self.plane == "XY"
 
 
 @dataclass
