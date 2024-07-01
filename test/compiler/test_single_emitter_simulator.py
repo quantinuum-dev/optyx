@@ -1,17 +1,21 @@
 import pytest
+import math
 
 from optyx.compiler.mbqc import Measurement
 from optyx.compiler.semm_decompiler import (
-    SingleEmitterMultiMeasure,
+    SemmDecompiler,
 )
-from optyx.compiler.tests.common import (
-    create_unique_measurements,
-)
+
+
+# Returns a list of unique measurements, all with different angles.
+def create_unique_measurements(n: int) -> dict[int, Measurement]:
+    small_angle = 2 * math.pi / float(n)
+    return {i: Measurement(i * small_angle, "XY") for i in range(n)}
 
 
 def test_single_path():
     """Tests a one-node graph state with a single measurement is handled"""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     m = Measurement(1, "XY")
     se.next_node(0)
@@ -24,7 +28,7 @@ def test_single_path():
 
 def test_triangle():
     """Constructs a triangle via a fusion"""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     m = create_unique_measurements(3)
 
@@ -47,7 +51,7 @@ def test_no_input():
     reasonable. NOTE: this may need to fail if we decide that every node must
     be measured
     """
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
     se.next_node(0)
 
     fn = se.fusion_network()
@@ -57,7 +61,7 @@ def test_no_input():
 
 def test_measuring_twice():
     """Measuring a node twice should fail"""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     m = Measurement(1, "XY")
     se.next_node(0)
@@ -70,7 +74,7 @@ def test_measuring_twice():
 def test_no_leading_next_node():
     """Not starting the command sequence with a call to next_node() should
     fail"""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     m = Measurement(1, "XY")
 
@@ -81,7 +85,7 @@ def test_no_leading_next_node():
 def test_colliding_fusion_photons():
     """Tests two fusion photons can't be delayed to arrive back in the machine
     at the same time."""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     se.next_node(0)
     se.delay_then_fuse(2)
@@ -92,7 +96,7 @@ def test_colliding_fusion_photons():
 
 def test_mismatched_fusion():
     """Attempting a fusion without a delayed fusion photon should fail"""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     with pytest.raises(Exception):
         se.fuse("X")
@@ -100,7 +104,7 @@ def test_mismatched_fusion():
 
 def test_measure_weird_order():
     """Tests nodes can be measured in an arbitrary order if we want."""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     m = create_unique_measurements(4)
 
@@ -125,7 +129,7 @@ def test_measure_weird_order():
 
 def test_multi_fusion():
     """Constructs a graph with a node that has multiple fusions"""
-    se = SingleEmitterMultiMeasure()
+    se = SemmDecompiler()
 
     m = create_unique_measurements(4)
 
