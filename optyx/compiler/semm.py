@@ -128,7 +128,7 @@ def decompile_from_semm(
     return g
 
 
-def fn_to_semm(fp: FusionNetwork, order: PartialOrder) -> list[Instruction]:
+def fn_to_semm(fn: FusionNetwork, order: PartialOrder) -> list[Instruction]:
     """Compiles the fusion network into a series of instructions that can be
     executed on a single emitter/multi measurement machine.
 
@@ -136,18 +136,18 @@ def fn_to_semm(fp: FusionNetwork, order: PartialOrder) -> list[Instruction]:
     incorporated into the given partial order.
     """
 
-    c = get_creation_times(fp)
-    m = get_measurement_times(fp, order, c)
-    f = _get_fusion_photons(fp.fusions, fp.path, c)
+    c = get_creation_times(fn)
+    m = get_measurement_times(fn, order, c)
+    f = _get_fusion_photons(fn.fusions, fn.path, c)
 
     ins: list[Instruction] = []
 
     photon = 0
-    for v in fp.path:
+    for v in fn.path:
         ins.append(NextNodeOp(v))
 
         # Number of photons in a given node
-        num_fusions = len(get_fused_neighbours(fp.fusions, v))
+        num_fusions = len(get_fused_neighbours(fn.fusions, v))
 
         for _ in range(num_fusions):
             photon += 1
@@ -159,7 +159,7 @@ def fn_to_semm(fp: FusionNetwork, order: PartialOrder) -> list[Instruction]:
 
         # Calculate measurement delay
         photon += 1
-        measurement = fp.measurements[v]
+        measurement = fn.measurements[v]
         delay = max(0, m[v] - c[v])
         ins.append(MeasureOp(delay, measurement))
 
@@ -201,26 +201,26 @@ def _num_fusions(fusions: list[Fusion], node: int) -> int:
     return sum(fusion.contains(node) for fusion in fusions)
 
 
-def get_creation_times(fp: FusionNetwork) -> list[int]:
+def get_creation_times(fn: FusionNetwork) -> list[int]:
     """Returns a list containing the creation times of the measurement photon
     of every node"""
     acc = 0
     c = []
-    for node in fp.path:
+    for node in fn.path:
         # One photon for each fusion, and one measurement photon
-        acc += _num_fusions(fp.fusions, node) + 1
+        acc += _num_fusions(fn.fusions, node) + 1
         c.append(acc)
 
     return c
 
 
 def get_measurement_times(
-    fp: FusionNetwork, order: PartialOrder, c: list[int]
+    fn: FusionNetwork, order: PartialOrder, c: list[int]
 ) -> list[int]:
     """Returns a list containing the time the measurement photon of a given
     node can be measured"""
 
-    m = [-1] * len(fp.path)
+    m = [-1] * len(fn.path)
 
     # Recursively evaluate all the measurement times
     def get_measurement(node: int) -> int:
@@ -242,7 +242,7 @@ def get_measurement_times(
         m[node] = max(c[node], latest_past_measurement)
         return m[node]
 
-    for v in fp.path:
+    for v in fn.path:
         get_measurement(v)
 
     return m

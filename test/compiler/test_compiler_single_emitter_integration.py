@@ -43,26 +43,26 @@ def compile_and_verify(fn: FusionNetwork, order: PartialOrder):
 
 def test_linear_graph_compilation():
     m = create_unique_measurements(3)
-    fp = FusionNetwork([0, 1, 2], m, [])
+    fn = FusionNetwork([0, 1, 2], m, [])
 
-    compile_and_verify(fp, numeric_order)
+    compile_and_verify(fn, numeric_order)
 
 
 def test_triangle_compilation():
     m = create_unique_measurements(3)
-    fp = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    fn = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
 
-    compile_and_verify(fp, numeric_order)
+    compile_and_verify(fn, numeric_order)
 
 
 def test_triangle_reverse_compilation():
     m = create_unique_measurements(3)
-    fp = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
+    fn = FusionNetwork([0, 1, 2], m, [Fusion(0, 2, "X")])
 
     def reverse_order(n: int) -> list[int]:
         return list(range(n, 3))
 
-    compile_and_verify(fp, reverse_order)
+    compile_and_verify(fn, reverse_order)
 
 
 # Tests that some cases compiled without fusion ordering, will fail to satisfy
