@@ -20,6 +20,7 @@ class Measurement:
     plane: str
 
     def __eq__(self, other):
+        """Checks if two measurements are equal"""
         return (
             np.allclose(self.angle, other.angle) and self.plane == other.plane
         )
