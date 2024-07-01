@@ -1,8 +1,4 @@
-"""Provides common graph functionality
-
-Will most likely be replaced by networkx in future.
-Wrote a custom library now for simplicity.
-"""
+"""Provides algorithm for computing the minimum path cover of a graph"""
 
 from typing import Optional
 import networkx as nx

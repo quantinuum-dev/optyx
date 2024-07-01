@@ -25,7 +25,7 @@ from optyx.compiler.mbqc import (
     Fusion,
 )
 
-from optyx.compiler.graphs import find_min_path_cover
+from optyx.compiler.path_cover import find_min_path_cover
 
 from optyx.compiler.protocols import (
     Instruction,
