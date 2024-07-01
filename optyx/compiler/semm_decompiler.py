@@ -10,6 +10,7 @@ compilation pipelines.
     :toctree:
 
     decompile_to_fusion_network
+    ValidationError
 """
 
 from optyx.compiler.mbqc import (
