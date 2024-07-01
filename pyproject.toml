@@ -85,6 +85,7 @@ pythonpath = [
 testpaths = [
     "optyx",
     "test/*.py",
+    "test/compiler/*.py",
 ]
 addopts = "--doctest-modules"
 

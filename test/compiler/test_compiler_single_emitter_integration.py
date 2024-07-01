@@ -1,5 +1,5 @@
 import pytest
-
+import math
 
 from optyx.compiler.semm import fn_to_semm
 
@@ -21,10 +21,24 @@ from optyx.compiler.semm_decompiler import (
     decompile_to_fusion_network,
 )
 
-from optyx.compiler.tests.common import (
-    create_unique_measurements,
-    numeric_order,
-)
+
+def numeric_order(n: int) -> list[int]:
+    return list(range(n + 1))
+
+
+# Returns a list of unique measurements, all with different angles.
+def create_unique_measurements(n: int) -> dict[int, Measurement]:
+    small_angle = 2 * math.pi / float(n)
+    return {i: Measurement(i * small_angle, "XY") for i in range(n)}
+
+
+# Compiles the fusion network to SEMM instructions and then decompiles the
+# instructions back to a fusion network to test correctness.
+def compile_and_verify(fn: FusionNetwork, order: PartialOrder):
+    ins = fn_to_semm(fn, order)
+
+    fn_decompiled = decompile_to_fusion_network(ins)
+    assert fn == fn_decompiled
 
 
 def test_linear_graph_compilation():
@@ -49,13 +63,6 @@ def test_triangle_reverse_compilation():
         return list(range(n, 3))
 
     compile_and_verify(fp, reverse_order)
-
-
-def compile_and_verify(fn: FusionNetwork, order: PartialOrder):
-    ins = fn_to_semm(fn, order)
-
-    fn_decompiled = decompile_to_fusion_network(ins)
-    assert fn == fn_decompiled
 
 
 # Tests that some cases compiled without fusion ordering, will fail to satisfy
