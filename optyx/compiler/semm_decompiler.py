@@ -30,7 +30,7 @@ class ValidationError(Exception):
     """Thrown when machine believes the instructions is invalid"""
 
 
-class SingleEmitterMultiMeasure:
+class SemmDecompiler:
     """A single emitter machine with unlimited measurement devices
 
     This machine can measure as many photons in parallel as it wants.
@@ -169,7 +169,7 @@ def decompile_to_fusion_network(
     >>> fn_decompiled = decompile_to_fusion_network(ins)
     >>> assert fn == fn_decompiled
     """
-    machine = SingleEmitterMultiMeasure()
+    machine = SemmDecompiler()
 
     for ins in instructions:
         if isinstance(ins, FusionOp):
