@@ -9,6 +9,7 @@ from optyx.compiler.mbqc import (
     add_fusion_order,
     FusionNetwork,
     Fusion,
+    pattern_satisfies_order,
 )
 
 from optyx.compiler.protocols import (
@@ -78,9 +79,7 @@ def test_triangle_reverse_compilation_fails():
 
     order_with_fusions = add_fusion_order(fn.fusions, numeric_order)
     with pytest.raises(Exception):
-        _pattern_satisfies_order(
-            fn_decompiled.measurements, order_with_fusions
-        )
+        pattern_satisfies_order(fn_decompiled.measurements, order_with_fusions)
 
 
 # Tests that the fusion order is being respected when we add it
@@ -131,16 +130,3 @@ def test_fusion_ordering():
         FusionOp(0, "X"),
         MeasureOp(0, m[2]),
     ]
-
-
-# Checks every measurement happens only after everything in its past has been
-# measured.
-def _pattern_satisfies_order(
-    measurements: list[tuple[int, Measurement]], order: PartialOrder
-):
-    seen: set[int] = set()
-
-    for v, _ in measurements:
-        past = order(v)
-        seen.add(v)
-        assert set(past).issubset(seen)
