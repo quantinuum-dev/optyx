@@ -49,3 +49,10 @@ def lc(g: nx.Graph, v: int):
     for i in range(len(nbrs)):
         for nbr in nbrs[i:]:
             toggle_edge(g, nbrs[i], nbr)
+
+def compute_mtd(g: nx.Graph) -> list[list[int]]:
+    """Compute the minimum trail decomposition of graph where the length of
+    trails is unbounded"""
+
+
+    return []
