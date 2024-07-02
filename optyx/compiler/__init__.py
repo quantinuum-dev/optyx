@@ -36,6 +36,8 @@ emitter and a single measurement device. This functionality is contained in the
     compile_to_semm
     decompile_from_semm
 
+    pattern_satisfies_order
+
 ----------
 Submodules
 ----------
@@ -95,6 +97,7 @@ from .mbqc import (
     GFlow,
     PartialOrder,
     FusionNetwork,
+    pattern_satisfies_order,
 )
 
 from .protocols import Instruction

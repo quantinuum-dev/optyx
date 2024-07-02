@@ -312,3 +312,19 @@ def fn_to_open_graph(
         g.add_edge(fusion.node1, fusion.node2)
 
     return OpenGraph(g, sfn.measurements, inputs, outputs)
+
+
+def pattern_satisfies_order(
+    measurements: list[tuple[int, Measurement]], order: PartialOrder
+) -> bool:
+    """Checks every measurement happens only after everything in its past has
+    been measured."""
+    seen: set[int] = set()
+
+    for v, _ in measurements:
+        past = order(v)
+        seen.add(v)
+        if not set(past).issubset(seen):
+            return False
+
+    return True
