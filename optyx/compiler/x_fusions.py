@@ -47,7 +47,7 @@ def lc(g: nx.Graph, v: int):
     nbrs = list(g.neighbors(v))
 
     for i in range(len(nbrs)):
-        for nbr in nbrs[i:]:
+        for nbr in nbrs[i + 1 :]:
             toggle_edge(g, nbrs[i], nbr)
 
 
@@ -85,6 +85,14 @@ def random_trail_odd_vertices(g: nx.Graph) -> list[int]:
     return trail
 
 
+def connected_components(g: nx.Graph) -> list[nx.Graph]:
+    components = []
+    for conn in nx.connected_components(g):
+        connected_component = g.subgraph(conn)
+        components.append(connected_component)
+    return components
+
+
 def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
     """Returns a random trail decomposition of the graph.
     Is not guarenteed to return the minimum trail decomposition.
@@ -98,23 +106,25 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
     trails = []
 
     while g.number_of_edges() != 0:
-        num_odd_verts = sum(g.degree(v) % 2 for v in g.nodes())
 
-        if num_odd_verts > 2:
-            trail = random_trail_odd_vertices(g)
-        if num_odd_verts <= 2:
-            euler_trail_edges = list(nx.eulerian_path(g))
-            trail = edge_list_to_verts(euler_trail_edges)
+        for cc in connected_components(g):
+            num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
 
-        for i in range(len(trail) - 1):
-            g.remove_edge(trail[i], trail[i + 1])
+            if num_odd_verts > 2:
+                trail = random_trail_odd_vertices(cc)
+            else:
+                euler_trail_edges = list(nx.eulerian_path(cc))
+                trail = edge_list_to_verts(euler_trail_edges)
 
-        # Remove disconnected nodes from the graph
-        for v in set(trail):
-            if g.degree(v) == 0:
-                g.remove_node(v)
+            for i in range(len(trail) - 1):
+                g.remove_edge(trail[i], trail[i + 1])
 
-        trails.append(trail)
+            # Remove disconnected nodes from the graph
+            for v in set(trail):
+                if g.degree(v) == 0:
+                    g.remove_node(v)
+
+            trails.append(trail)
 
     return trails
 
