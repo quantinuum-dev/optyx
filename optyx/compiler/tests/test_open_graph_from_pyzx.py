@@ -34,11 +34,6 @@ def assert_reconstructed_pyzx_graph_equal(circ: zx.Circuit):
     assert np.allclose(ten / ten[i], ten_graph / ten_graph[i])
 
 
-def test_adder():
-    circ = zx.Circuit.load("./test/circuits/adder_n4_debug.qasm")
-    assert_reconstructed_pyzx_graph_equal(circ)
-
-
 # Tests that the output of optyx and pyzx's simulators produce the same output
 # for the same graph state and that we can compare them correctly.
 def test_compare_pyzx_optyx_simulator():

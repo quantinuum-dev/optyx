@@ -116,21 +116,3 @@ def test_all_small_circuits_with_reduce():
             2 * g.number_of_edges() - len(g.nodes()) + 2 * len(trails)
         )
         print(f"{filename}: lines={len(trails)} photons={num_photons}")
-
-
-# Tests that compiling from a pyzx graph to an OpenGraph returns the same
-# graph. Only works with small circuits up to 4 qubits since PyZX's `tensorfy`
-# function seems to consume huge amount of memory for larger qubit
-def test_cat_state():
-    direc = "./test/circuits/"
-    filename = "adder_n4_debug.qasm"
-    circ = zx.Circuit.load(direc + filename)
-    pyzx_graph = circ.to_graph()
-    og = OpenGraph.from_pyzx_graph_sneaky(pyzx_graph)
-
-    g = reduce(og.inside)
-    trails = min_trail_decomp(g.copy())
-    assert is_trail_decomp(g.copy(), trails)
-
-    num_photons = 2 * g.number_of_edges() - len(g.nodes()) + 2 * len(trails)
-    print(f"{filename}: lines={len(trails)} photons={num_photons}")

@@ -225,6 +225,8 @@ def minimise_trail_decomp(trails: list[list[int]]) -> list[list[int]]:
                 ind = ot.index(v)
                 new_open_trail = ot[:ind] + new_trail + ot[ind + 1 :]
                 open_trails[i] = new_open_trail
+                ot = open_trails[i]
+                ot_vert_set = set(ot)
 
                 del closed_trails[j]
 
