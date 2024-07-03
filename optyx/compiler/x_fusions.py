@@ -86,6 +86,7 @@ def random_trail_odd_vertices(g: nx.Graph) -> list[int]:
 
 
 def connected_components(g: nx.Graph) -> list[nx.Graph]:
+    """Returns a list of all the connected components"""
     components = []
     for conn in nx.connected_components(g):
         connected_component = g.subgraph(conn)

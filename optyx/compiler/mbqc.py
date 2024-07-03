@@ -549,15 +549,11 @@ class OpenGraph:
         # leave either hadamard or plain wires on the inputs and outputs
         for inp in g.inputs():
             nbrs = list(g.neighbors(inp))
-            et = g.edge_type((nbrs[0], inp))
-
             g_nx.remove_node(inp)
             inputs = [i if i != inp else nbrs[0] for i in inputs]
 
         for out in g.outputs():
             nbrs = list(g.neighbors(out))
-            et = g.edge_type((nbrs[0], out))
-
             g_nx.remove_node(out)
             outputs = [o if o != out else nbrs[0] for o in outputs]
 
@@ -573,8 +569,6 @@ class OpenGraph:
             if len(nbrs) == 1:
                 measurements[nbrs[0]] = Measurement(g.phase(v), "YZ")
                 g_nx.remove_node(v)
-
-        next_id = max(g_nx.nodes) + 1
 
         # Add the phase to all XY measured nodes
         for v in g_nx.nodes:

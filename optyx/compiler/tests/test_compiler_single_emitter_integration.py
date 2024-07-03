@@ -1,6 +1,3 @@
-import pytest
-
-
 from optyx.compiler.semm import (
     compile_linear_fn,
 )

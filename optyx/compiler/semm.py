@@ -17,12 +17,10 @@ import graphix
 
 from optyx.compiler.mbqc import (
     OpenGraph,
-    GFlow,
     Measurement,
     PartialOrder,
     get_fused_neighbours,
     FusionNetwork,
-    ULFusionNetwork,
     Fusion,
 )
 
@@ -57,66 +55,6 @@ def num_fusions(ins: list[Instruction]) -> int:
 def num_resource_states(ins: list[Instruction]) -> int:
     """Returns the number of resource states used"""
     return sum(isinstance(i, NextResourceStateOp) for i in ins)
-
-
-def compile_to_semm_sneaky(
-    g: OpenGraph, line_length: int
-) -> list[Instruction]:
-    """Compiles a graph to instructions on single emitter many measurement
-    device which creates linear resource states.
-
-    :param g: the open graph to be compiled
-    :param line_length: the maximum length any linear resource state can be
-
-    Example
-    -------
-    >>> import networkx as nx
-    >>> g = nx.Graph([(0, 1), (1, 2)])
-    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, ULFusionNetwork
-    >>>
-    >>> meas = {i: Measurement(i, 'XY') for i in range(2)}
-    >>> inputs = [0]
-    >>> outputs = [2]
-    >>>
-    >>> og = OpenGraph(g, meas, inputs, outputs)
-    >>> from optyx.compiler.semm import compile_to_semm
-    >>> from optyx.compiler.protocols import (
-    ...    FusionOp,
-    ...    MeasureOp,
-    ...    NextNodeOp,
-    ...    NextResourceStateOp,
-    ...    UnmeasuredOp,
-    ... )
-    >>> instructions = compile_to_semm(og, 3)
-    >>> assert instructions == [
-    ...     NextResourceStateOp(),
-    ...     NextNodeOp(node_id=0),
-    ...     MeasureOp(delay=0, measurement=meas[0]),
-    ...     NextNodeOp(node_id=1),
-    ...     MeasureOp(delay=0, measurement=meas[1]),
-    ...     NextNodeOp(node_id=2),
-    ...     UnmeasuredOp(),
-    ... ]
-    """
-
-    # Simplifies the graph to remove redundant input and output nodes
-    # TODO I think I should I make this able to be disabled or enabled.
-    g_inside, meas, inputs, outputs = simplify_graph(g)
-
-    meas_planes = {i: meas.plane for i, meas in g.measurements.items()}
-    g_func, layers = graphix.gflow.find_gflow(
-        g_inside, set(inputs), set(outputs), meas_planes
-    )
-
-    if g_func is None or layers is None:
-        raise ValueError("Graph does not have gflow")
-
-    gflow = GFlow(g_func, layers)
-
-    fn = compute_linear_fn(g_inside, gflow.layers, meas, line_length)
-    ins = compile_linear_fn(fn, gflow.partial_order())
-
-    return ins
 
 
 def compile_to_resource_graphs(fn: FusionNetwork):
@@ -242,9 +180,9 @@ def compile_linear_fn(
             ins.append(NextNodeOp(v))
 
             # Number of photons in a given node
-            num_fusions = len(get_fused_neighbours(fn.fusions, v))
+            number_fusions = len(get_fused_neighbours(fn.fusions, v))
 
-            for _ in range(num_fusions):
+            for _ in range(number_fusions):
                 photon += 1
                 pair = f[photon]
 
@@ -315,7 +253,7 @@ def compute_creation_times(fn: FusionNetwork) -> dict[int, int]:
     of every node"""
 
     # Returns the number of fusion edges a node has
-    def num_fusions(fusions: list[Fusion], node: int) -> int:
+    def compute_fusions(fusions: list[Fusion], node: int) -> int:
         return sum(fusion.contains(node) for fusion in fusions)
 
     acc = 0
@@ -323,7 +261,7 @@ def compute_creation_times(fn: FusionNetwork) -> dict[int, int]:
     for resource in fn.resources:
         for node in resource:
             # One photon for each fusion, and one measurement photon
-            acc += num_fusions(fn.fusions, node) + 1
+            acc += compute_fusions(fn.fusions, node) + 1
             c[node] = acc
 
     return c
@@ -439,11 +377,6 @@ def compute_linear_fn(
     fusions = calculate_fusions(g, paths)
 
     return FusionNetwork(paths, meas, fusions)
-
-
-# Returns a tuple sorted in ascending order
-def _sorted_tuple(a: int, b: int) -> tuple[int, int]:
-    return (min(a, b), max(a, b))
 
 
 # Converts a path [1, 4, 6, 3] to a list of the individual edges [1, 4], [4,
