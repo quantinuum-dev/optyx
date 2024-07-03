@@ -103,7 +103,6 @@ def test_all_small_circuits_with_reduce():
         if not filename.endswith(".qasm"):
             raise Exception(f"only '.qasm' files allowed: not {filename}")
 
-        print(filename)
         circ = zx.Circuit.load(direc + filename)
         pyzx_graph = circ.to_graph()
         og = OpenGraph.from_pyzx_graph_sneaky(pyzx_graph)
@@ -112,6 +111,7 @@ def test_all_small_circuits_with_reduce():
         trails = min_trail_decomp(g.copy())
         assert is_trail_decomp(g.copy(), trails)
 
+        # TODO also only works for connected graphs
         num_photons = (
             2 * g.number_of_edges() - len(g.nodes()) + 2 * len(trails)
         )

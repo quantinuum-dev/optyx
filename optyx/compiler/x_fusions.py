@@ -24,9 +24,17 @@ def loss(g: nx.Graph):
     """Returns a general loss function that guides the reduction of X
     fusions"""
     num_edges = len(g.edges())
-    num_odd_verts = num_odd_vertices(g)
 
-    return num_edges + num_odd_verts
+    expected_trails = 0
+    # TODO put this check in a test
+    for cc in connected_components(g):
+        num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
+        if num_odd_verts == 0:
+            expected_trails += 1
+        else:
+            expected_trails += num_odd_verts // 2
+
+    return num_edges + expected_trails
 
 
 def num_odd_vertices(g: nx.Graph) -> int:
