@@ -119,12 +119,117 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
     return trails
 
 
+def rotate_closed_trail(trail: list[int], v: int) -> list[int]:
+    """Rotates a closed trail to change its start and end point to be a
+    different vertex in the trail
+
+    Example
+    -------
+    >>> from optyx.compiler.x_fusions import rotate_closed_trail
+    >>> rotate_closed_trail([0, 1, 2, 3, 0], 2)
+    [2, 3, 0, 1, 2]
+    >>> rotate_closed_trail([0, 1, 2, 3, 0], 0)
+    [0, 1, 2, 3, 0]
+    >>> rotate_closed_trail([0, 1, 0], 1)
+    [1, 0, 1]
+    """
+    if v == trail[0]:
+        # trail already starts at v
+        return trail
+
+    ind = trail.index(v)
+
+    new_trail = trail[ind:] + trail[1 : ind + 1]
+    return new_trail
+
+
+def join_adjacent_trails(trails: list[list[int]]) -> list[list[int]]:
+    """Joins adjacent trails in the trail decomposition"""
+    changed = True
+    while changed:
+        changed = False
+
+        i = 0
+        while i < len(trails):
+            t1 = trails[i]
+
+            j = i + 1
+            while j < len(trails):
+                t2 = trails[j]
+                if t1[0] == t2[0]:
+                    new_trail = list(reversed(t1)) + t2[1:]
+                    trails[i] = new_trail
+                    t1 = trails[i]
+                    trails.pop(j)
+                    changed = True
+                elif t1[-1] == t2[0]:
+                    new_trail = t1 + t2[1:]
+                    trails[i] = new_trail
+                    t1 = trails[i]
+                    trails.pop(j)
+                    changed = True
+                elif t1[0] == t2[-1]:
+                    new_trail = t2 + t1[1:]
+                    trails[i] = new_trail
+                    t1 = trails[i]
+                    trails.pop(j)
+                    changed = True
+                elif t1[-1] == t2[-1]:
+                    new_trail = t1 + list(reversed(t2))[1:]
+                    trails[i] = new_trail
+                    t1 = trails[i]
+                    trails.pop(j)
+                    changed = True
+                else:
+                    j += 1
+            i += 1
+
+    return trails
+
+
+def minimise_trail_decomp(trails: list[list[int]]) -> list[list[int]]:
+    """Converts a trail decomposition into a minimum trail decomposition
+    TODO need to handle case where after joining two trails they may become a
+    cycle again
+    """
+
+    closed_trails = [trail for trail in trails if trail[0] == trail[-1]]
+    open_trails = [trail for trail in trails if trail[0] != trail[-1]]
+
+    for i in range(len(open_trails)):
+        ot = open_trails[i]
+        ot_vert_set = set(ot)
+
+        j = 0
+        while j < len(closed_trails):
+            ct = closed_trails[j]
+            ct_vert_set = set(ct)
+
+            intersection = ot_vert_set.intersection(ct_vert_set)
+            if len(intersection) == 0:
+                j += 1
+            else:
+                v = intersection.pop()
+                new_trail = rotate_closed_trail(ct, v)
+
+                ind = ot.index(v)
+                new_open_trail = ot[:ind] + new_trail + ot[ind + 1 :]
+                open_trails[i] = new_open_trail
+
+                del closed_trails[j]
+
+    trails = join_adjacent_trails(open_trails)
+
+    return trails
+
+
 def min_trail_decomp(g: nx.Graph) -> list[list[int]]:
     """Compute the minimum trail decomposition of graph where the length of
     trails is unbounded."""
     num_odd_verts = sum(g.degree(v) % 2 for v in g.nodes())
 
     trails = random_trail_decomp(g.copy())
+    trails = minimise_trail_decomp(trails)
 
     if len(trails) == 1 and num_odd_verts == 0:
         return trails
@@ -132,6 +237,4 @@ def min_trail_decomp(g: nx.Graph) -> list[list[int]]:
     if len(trails) == num_odd_verts // 2:
         return trails
 
-    # TODO need to transform the trail decomposition into a minimum trail
-    # decomposition.
-    raise ValueError("unimplemented")
+    raise ValueError("unreachable")

@@ -1,5 +1,9 @@
+import os
+import pyzx as zx
 import networkx as nx
-from optyx.compiler.x_fusions import min_trail_decomp
+
+from optyx.compiler import OpenGraph
+from optyx.compiler.x_fusions import min_trail_decomp, minimise_trail_decomp
 
 
 # Indicates whether the given list of a trails constitute a valid trail
@@ -46,3 +50,35 @@ def test_random_trail_decomp():
         print(g.edges())
         trails = min_trail_decomp(g.copy())
         assert is_trail_decomp(g, trails)
+
+
+def test_minimise_trail_decomp():
+    trails = [[0, 1, 2, 0], [0, 3]]
+    mtd = minimise_trail_decomp(trails)
+
+    assert len(mtd) == 1
+
+    trails = [[0, 1, 2, 0], [0, 3, 4], [5, 2, 7, 5]]
+    mtd = minimise_trail_decomp(trails)
+
+    assert len(mtd) == 1
+
+
+# Tests that compiling from a pyzx graph to an OpenGraph returns the same
+# graph. Only works with small circuits up to 4 qubits since PyZX's `tensorfy`
+# function seems to consume huge amount of memory for larger qubit
+def test_all_small_circuits():
+    direc = "./test/circuits/"
+    directory = os.fsencode(direc)
+
+    for file in os.listdir(directory):
+        filename = os.fsdecode(file)
+        if not filename.endswith(".qasm"):
+            raise Exception(f"only '.qasm' files allowed: not {filename}")
+
+        circ = zx.Circuit.load(direc + filename)
+        pyzx_graph = circ.to_graph()
+        og = OpenGraph.from_pyzx_graph(pyzx_graph)
+
+        trails = min_trail_decomp(og.inside.copy())
+        assert is_trail_decomp(og.inside.copy(), trails)
