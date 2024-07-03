@@ -48,15 +48,20 @@ def num_photons(ins: list[Instruction]) -> int:
     """Returns the number of photons used"""
     return sum(isinstance(i, (MeasureOp, FusionOp, UnmeasuredOp)) for i in ins)
 
+
 def num_fusions(ins: list[Instruction]) -> int:
     """Returns the number of fusions used"""
     return sum(isinstance(i, FusionOp) for i in ins) // 2
+
 
 def num_resource_states(ins: list[Instruction]) -> int:
     """Returns the number of resource states used"""
     return sum(isinstance(i, NextResourceStateOp) for i in ins)
 
-def compile_to_semm_sneaky(g: OpenGraph, line_length: int) -> list[Instruction]:
+
+def compile_to_semm_sneaky(
+    g: OpenGraph, line_length: int
+) -> list[Instruction]:
     """Compiles a graph to instructions on single emitter many measurement
     device which creates linear resource states.
 
@@ -113,6 +118,7 @@ def compile_to_semm_sneaky(g: OpenGraph, line_length: int) -> list[Instruction]:
 
     return ins
 
+
 def compile_to_resource_graphs(fn: FusionNetwork):
     rgs: list[graphix.extraction.ResourceGraph] = []
     for resource in fn.resources:
@@ -120,6 +126,7 @@ def compile_to_resource_graphs(fn: FusionNetwork):
         rgs.append(rg)
 
     return rg
+
 
 def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     """Compiles a graph to instructions on single emitter many measurement
@@ -167,6 +174,7 @@ def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     ins = compile_linear_fn(fn, gflow.partial_order())
     return ins
 
+
 def simplify_graph(g: OpenGraph):
     """Simplifies the open graph by removing redundant input and output nodes.
     These are good for computing flow. But in practice they are unnecessary
@@ -179,25 +187,28 @@ def simplify_graph(g: OpenGraph):
     inputs = g.inputs
     outputs = g.outputs
 
-
     changed = True
     while changed:
         changed = False
         for inp in inputs:
             nbrs = list(g_nx.neighbors(inp))
+            if inp in outputs:
+                continue
+
             if len(nbrs) == 1 and meas[inp].is_z_measurement():
                 changed = True
                 g_nx.remove_node(inp)
                 del meas[inp]
                 inputs = [i if i != inp else nbrs[0] for i in inputs]
 
-
     changed = True
     while changed:
         for out in outputs:
             changed = False
             nbrs = list(g_nx.neighbors(out))
-            if len(nbrs) == 1 and (out not in meas or meas[out].is_z_measurement()):
+            if len(nbrs) == 1 and (
+                out not in meas or meas[out].is_z_measurement()
+            ):
                 changed = True
                 g_nx.remove_node(out)
                 if out in meas:
@@ -205,6 +216,7 @@ def simplify_graph(g: OpenGraph):
                 outputs = [o if o != out else nbrs[0] for o in outputs]
 
     return (g_nx, meas, inputs, outputs)
+
 
 def compile_linear_fn(
     fn: FusionNetwork, partial_order: PartialOrder
@@ -392,7 +404,12 @@ def compute_completion_times(
     return m
 
 
-def compute_linear_fn(g: nx.Graph, order_layers: dict[int, int], meas: dict[int, Measurement], k: int) -> FusionNetwork:
+def compute_linear_fn(
+    g: nx.Graph,
+    order_layers: dict[int, int],
+    meas: dict[int, Measurement],
+    k: int,
+) -> FusionNetwork:
     """Compiles an open graph into a fusion network using short lines of length
     k assuming Hadamard fusions"""
     paths = delay_based_path_cover(g, order_layers, k)

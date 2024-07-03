@@ -106,7 +106,6 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
     trails = []
 
     while g.number_of_edges() != 0:
-
         for cc in connected_components(g):
             num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
 
@@ -228,23 +227,26 @@ def minimise_trail_decomp(trails: list[list[int]]) -> list[list[int]]:
 
                 del closed_trails[j]
 
-    trails = join_adjacent_trails(open_trails)
+    trails = join_adjacent_trails(open_trails + closed_trails)
 
     return trails
 
 
 def min_trail_decomp(g: nx.Graph) -> list[list[int]]:
     """Compute the minimum trail decomposition of graph where the length of
-    trails is unbounded."""
-    num_odd_verts = sum(g.degree(v) % 2 for v in g.nodes())
-
+    trails is unbounded.
+    """
     trails = random_trail_decomp(g.copy())
     trails = minimise_trail_decomp(trails)
 
-    if len(trails) == 1 and num_odd_verts == 0:
-        return trails
+    expected_trails = 0
+    # TODO put this check in a test
+    for cc in connected_components(g):
+        num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
+        if num_odd_verts == 0:
+            expected_trails += 1
+        else:
+            expected_trails += num_odd_verts // 2
 
-    if len(trails) == num_odd_verts // 2:
-        return trails
-
-    raise ValueError("unreachable")
+    assert expected_trails == len(trails)
+    return trails

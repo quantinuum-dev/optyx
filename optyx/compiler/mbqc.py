@@ -522,6 +522,69 @@ class OpenGraph:
 
         return cls(g_nx, measurements, inputs, outputs)
 
+    @classmethod
+    def from_pyzx_graph_sneaky(cls, g: zx.graph.base.BaseGraph) -> Self:
+        """Constructs an Optyx Open Graph from a PyZX graph.
+
+        NOTE: It may modify the original graph
+
+        Example
+        -------
+        >>> import pyzx as zx
+        >>> from optyx.compiler import OpenGraph
+        >>> circ = zx.qasm("qreg q[2]; h q[1]; cx q[0], q[1]; h q[1];")
+        >>> g = circ.to_graph()
+        >>> optyx_graph = OpenGraph.from_pyzx_graph(g)
+        """
+        zx.simplify.to_graph_like(g)
+        zx.simplify.full_reduce(g)
+
+        measurements = {}
+        inputs = g.inputs()
+        outputs = g.outputs()
+
+        g_nx = nx.Graph(g.edges())
+
+        # We need to do this since the full reduce simplification can
+        # leave either hadamard or plain wires on the inputs and outputs
+        for inp in g.inputs():
+            nbrs = list(g.neighbors(inp))
+            et = g.edge_type((nbrs[0], inp))
+
+            g_nx.remove_node(inp)
+            inputs = [i if i != inp else nbrs[0] for i in inputs]
+
+        for out in g.outputs():
+            nbrs = list(g.neighbors(out))
+            et = g.edge_type((nbrs[0], out))
+
+            g_nx.remove_node(out)
+            outputs = [o if o != out else nbrs[0] for o in outputs]
+
+        # Turn all phase gadgets into measurements
+        # Since we did a full reduce, any node that isn't an input or output
+        # node and has only one neighbour is definitely a phase gadget.
+        nodes = list(g_nx.nodes())
+        for v in nodes:
+            if v in inputs or v in outputs:
+                continue
+
+            nbrs = list(g.neighbors(v))
+            if len(nbrs) == 1:
+                measurements[nbrs[0]] = Measurement(g.phase(v), "YZ")
+                g_nx.remove_node(v)
+
+        next_id = max(g_nx.nodes) + 1
+
+        # Add the phase to all XY measured nodes
+        for v in g_nx.nodes:
+            if v in outputs or v in measurements:
+                continue
+
+            measurements[v] = Measurement(g.phase(v), "XY")
+
+        return cls(g_nx, measurements, inputs, outputs)
+
     def then(self, other: Self) -> Self:
         """Sequentially composing the graph with the given graph
 

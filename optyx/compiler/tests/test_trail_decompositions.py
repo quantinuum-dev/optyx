@@ -103,11 +103,12 @@ def test_all_small_circuits_with_reduce():
         if not filename.endswith(".qasm"):
             raise Exception(f"only '.qasm' files allowed: not {filename}")
 
+        print(filename)
         circ = zx.Circuit.load(direc + filename)
         pyzx_graph = circ.to_graph()
-        og = OpenGraph.from_pyzx_graph(pyzx_graph)
+        og = OpenGraph.from_pyzx_graph_sneaky(pyzx_graph)
 
-        g = reduce(og.inside.copy())
+        g = reduce(og.inside)
         trails = min_trail_decomp(g.copy())
         assert is_trail_decomp(g.copy(), trails)
 
