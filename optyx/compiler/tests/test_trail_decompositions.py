@@ -3,7 +3,11 @@ import pyzx as zx
 import networkx as nx
 
 from optyx.compiler import OpenGraph
-from optyx.compiler.x_fusions import min_trail_decomp, minimise_trail_decomp
+from optyx.compiler.x_fusions import (
+    min_trail_decomp,
+    minimise_trail_decomp,
+    reduce,
+)
 
 
 # Indicates whether the given list of a trails constitute a valid trail
@@ -11,7 +15,6 @@ from optyx.compiler.x_fusions import min_trail_decomp, minimise_trail_decomp
 def is_trail_decomp(g: nx.Graph, trails: list[list[int]]) -> bool:
     for trail in trails:
         for i in range(len(trail) - 1):
-            print(trail[i], trail[i + 1])
             if g.has_edge(trail[i], trail[i + 1]):
                 g.remove_edge(trail[i], trail[i + 1])
             else:
@@ -46,8 +49,6 @@ def test_random_trail_decomp():
     graphs = get_test_graphs(200, 10)
 
     for g in graphs:
-        print("----------")
-        print(g.edges())
         trails = min_trail_decomp(g.copy())
         assert is_trail_decomp(g, trails)
 
@@ -82,3 +83,35 @@ def test_all_small_circuits():
 
         trails = min_trail_decomp(og.inside.copy())
         assert is_trail_decomp(og.inside.copy(), trails)
+
+        g = og.inside
+        num_photons = (
+            2 * g.number_of_edges() - len(g.nodes()) + 2 * len(trails)
+        )
+        print(f"{filename}: lines={len(trails)} photons={num_photons}")
+
+
+# Tests that compiling from a pyzx graph to an OpenGraph returns the same
+# graph. Only works with small circuits up to 4 qubits since PyZX's `tensorfy`
+# function seems to consume huge amount of memory for larger qubit
+def test_all_small_circuits_with_reduce():
+    direc = "./test/circuits/"
+    directory = os.fsencode(direc)
+
+    for file in os.listdir(directory):
+        filename = os.fsdecode(file)
+        if not filename.endswith(".qasm"):
+            raise Exception(f"only '.qasm' files allowed: not {filename}")
+
+        circ = zx.Circuit.load(direc + filename)
+        pyzx_graph = circ.to_graph()
+        og = OpenGraph.from_pyzx_graph(pyzx_graph)
+
+        g = reduce(og.inside.copy())
+        trails = min_trail_decomp(g.copy())
+        assert is_trail_decomp(g.copy(), trails)
+
+        num_photons = (
+            2 * g.number_of_edges() - len(g.nodes()) + 2 * len(trails)
+        )
+        print(f"{filename}: lines={len(trails)} photons={num_photons}")
