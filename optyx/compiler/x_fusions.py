@@ -261,3 +261,20 @@ def min_trail_decomp(g: nx.Graph) -> list[list[int]]:
 
     assert expected_trails == len(trails)
     return trails
+
+
+def segment_trail(trail: list[int], length: int) -> list[list[int]]:
+    return [trail[i : i + length+1] for i in range(0, len(trail), length)]
+
+
+def bounded_min_trail_decomp(g: nx.Graph, length: int) -> list[list[int]]:
+    """Compute the minimum trail decomposition of graph where the number of
+    edges in each trail is at most a given length.
+    """
+    trails = min_trail_decomp(g)
+
+    bounded_trails = []
+    for trail in trails:
+        bounded_trails.extend(segment_trail(trail, length))
+
+    return bounded_trails

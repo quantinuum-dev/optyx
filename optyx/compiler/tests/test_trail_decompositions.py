@@ -1,3 +1,4 @@
+import pytest
 import os
 import pyzx as zx
 import networkx as nx
@@ -5,6 +6,7 @@ import networkx as nx
 from optyx.compiler import OpenGraph
 from optyx.compiler.x_fusions import (
     min_trail_decomp,
+    bounded_min_trail_decomp,
     minimise_trail_decomp,
     reduce,
 )
@@ -52,6 +54,20 @@ def test_random_trail_decomp():
         trails = min_trail_decomp(g.copy())
         assert is_trail_decomp(g, trails)
 
+
+# Tests that the bounded trail decomposition function produces a valid trail
+# decomposition and each trail has the correct maximum length
+@pytest.mark.parametrize("trail_length", range(3, 8))
+def test_bounded_trail_decomp(trail_length):
+    graphs = get_test_graphs(200, 10)
+
+    for g in graphs:
+        trails = bounded_min_trail_decomp(g.copy(), trail_length)
+        assert is_trail_decomp(g, trails)
+
+        # We use trail_length+1 here because trail_length bounds the number of
+        # edges, but len(t) is the number of vertices.
+        assert all(len(t) <= trail_length+1 for t in trails)
 
 def test_minimise_trail_decomp():
     trails = [[0, 1, 2, 0], [0, 3]]
