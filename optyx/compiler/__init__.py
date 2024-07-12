@@ -60,7 +60,7 @@ This procedure is captured in the :meth:`optyx.compiler.semm.compile_to_semm`
 method.
 
 >>> import networkx as nx
->>> from optyx.compiler.protocols import NextNodeOp, MeasureOp
+>>> from optyx.compiler.patterns import NextNodeOp, MeasureOp
 >>> from optyx.compiler.mbqc import (
 ...     OpenGraph,
 ...     Measurement,
@@ -100,7 +100,7 @@ from .mbqc import (
     pattern_satisfies_order,
 )
 
-from .protocols import Instruction
+from .patterns import Instruction
 
 from .semm import (
     compile_to_semm,

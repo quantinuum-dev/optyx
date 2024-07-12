@@ -27,7 +27,7 @@ from optyx.compiler.mbqc import (
 
 from optyx.compiler.path_cover import find_min_path_cover
 
-from optyx.compiler.protocols import (
+from optyx.compiler.patterns import (
     Instruction,
     FusionOp,
     MeasureOp,
@@ -56,7 +56,7 @@ def compile_to_semm(
     >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> from optyx.compiler.semm import compile_to_semm
-    >>> from optyx.compiler.protocols import (
+    >>> from optyx.compiler.patterns import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,
@@ -98,7 +98,7 @@ def decompile_from_semm(
     -------
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
     >>> from optyx.compiler.semm import decompile_from_semm
-    >>> from optyx.compiler.protocols import (
+    >>> from optyx.compiler.patterns import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,

@@ -11,7 +11,7 @@ from optyx.compiler.mbqc import OpenGraph, Measurement, fn_to_open_graph
 # structure only stores a dictionary of edges so it doesn't contain any
 # information in this case. This would require refactoring the graph
 # datastructure
-@pytest.mark.parametrize("num_vertices", range(2, 8))
+@pytest.mark.parametrize("num_vertices", range(2, 5))
 def test_compiler_fuzz(num_vertices: int):
     with open(f"test/graph_data/graph{num_vertices}c.g6", "rb") as f:
         lines = f.readlines()

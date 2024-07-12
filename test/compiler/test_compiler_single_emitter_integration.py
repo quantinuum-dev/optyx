@@ -12,7 +12,7 @@ from optyx.compiler.mbqc import (
     pattern_satisfies_order,
 )
 
-from optyx.compiler.protocols import (
+from optyx.compiler.patterns import (
     FusionOp,
     MeasureOp,
     NextNodeOp,
