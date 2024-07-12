@@ -19,7 +19,7 @@ from optyx.compiler.mbqc import (
     Fusion,
 )
 
-from optyx.compiler.protocols import (
+from optyx.compiler.patterns import (
     FusionOp,
     MeasureOp,
     NextNodeOp,

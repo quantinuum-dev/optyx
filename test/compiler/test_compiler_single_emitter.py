@@ -8,7 +8,7 @@ from optyx.compiler.semm import (
     fn_to_semm,
 )
 
-from optyx.compiler.protocols import (
+from optyx.compiler.patterns import (
     MeasureOp,
     FusionOp,
     NextNodeOp,
