@@ -43,11 +43,6 @@ def loss(g: nx.Graph):
     return num_edges + min_trails
 
 
-def num_odd_vertices(g: nx.Graph) -> int:
-    """Returns the number of odd vertices in the graph"""
-    return sum(g.degree(v) % 2 for v in g.nodes())
-
-
 def toggle_edge(g: nx.Graph, v: int, u: int):
     """Toggles an edge between two nodes"""
     if g.has_edge(v, u):
@@ -259,6 +254,8 @@ def min_trail_decomp(g: nx.Graph) -> list[list[int]]:
 
 
 def segment_trail(trail: list[int], length: int) -> list[list[int]]:
+    """Subdivides a trail into a list of smaller trails, each having a bounded
+    number of edges"""
     return [trail[i : i + length + 1] for i in range(0, len(trail), length)]
 
 

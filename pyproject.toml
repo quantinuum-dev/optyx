@@ -106,6 +106,7 @@ line-length = 79
 [tool.pylint.'MESSAGES CONTROL']
 disable = """
 too-many-ancestors,
-too-many-arguments
+too-many-arguments,
+consider-using-enumerate
 """
 ignore-patterns = "_version.py"

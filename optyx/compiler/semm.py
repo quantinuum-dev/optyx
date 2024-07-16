@@ -58,6 +58,7 @@ def num_resource_states(ins: list[Instruction]) -> int:
 
 
 def compile_to_resource_graphs(fn: FusionNetwork):
+    """Compiles a fusion network into a graphix resource graph"""
     rgs: list[graphix.extraction.ResourceGraph] = []
     for resource in fn.resources:
         rg = graphix.extraction.create_resource_graph(resource)
