@@ -1,5 +1,8 @@
 import networkx as nx
-from optyx.compiler.xy_fusions import remove_hedge_paths
+from optyx.compiler.xy_fusions import (
+    remove_hedge_paths,
+    find_trail_cover,
+)
 
 
 def test_remove_hedge_paths():
@@ -31,3 +34,10 @@ def test_remove_hedge_paths():
     g_clone.remove_edges_from([(3, 6), (6, 10), (6, 7)])
 
     assert nx.utils.graphs_equal(g, g_clone)
+
+
+def test_find_trail_cover():
+    g = nx.Graph([(1, 3), (2, 3), (3, 4), (4, 5), (4, 6)])
+    trails = find_trail_cover(g)
+
+    print(len(trails))

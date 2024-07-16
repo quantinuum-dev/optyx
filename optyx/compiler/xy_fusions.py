@@ -1,5 +1,8 @@
 """Provides functionality for finding trail covers of graphs"""
+
 import networkx as nx
+
+from optyx.compiler.x_fusions import min_trail_decomp
 
 
 def search_for_odd(g: nx.Graph, v: int) -> list[int]:
@@ -63,5 +66,15 @@ def remove_hedge_paths(g: nx.Graph) -> list[list[int]]:
     return paths
 
 
-# def find_trail_cover(g: nx.Graph) -> list[list[int]]:
-#    paths = find_hedge_paths(g)
+def find_trail_cover(g: nx.Graph) -> list[list[int]]:
+    _ = remove_hedge_paths(g)
+    trails = min_trail_decomp(g)
+    return trails
+
+
+def is_trail_decomposition(g: nx.Graph, trails: list[list[int]]) -> bool:
+    trail_cover_verts = set()
+    for trail in trails:
+        trail_cover_verts.update(trail)
+
+    return set(g.nodes()) == trail_cover_verts
