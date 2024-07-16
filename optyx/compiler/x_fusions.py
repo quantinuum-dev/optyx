@@ -20,21 +20,27 @@ def reduce(g: nx.Graph) -> nx.Graph:
     return g
 
 
+def min_number_trails(g: nx.Graph) -> int:
+    """Returns the minimum number of unbounded trails needed to decompose the
+    graph"""
+    num_trails = 0
+    for cc in connected_components(g):
+        num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
+        if num_odd_verts == 0:
+            num_trails += 1
+        else:
+            num_trails += num_odd_verts // 2
+
+    return num_trails
+
+
 def loss(g: nx.Graph):
     """Returns a general loss function that guides the reduction of X
     fusions"""
     num_edges = len(g.edges())
+    min_trails = min_number_trails(g)
 
-    expected_trails = 0
-    # TODO put this check in a test
-    for cc in connected_components(g):
-        num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
-        if num_odd_verts == 0:
-            expected_trails += 1
-        else:
-            expected_trails += num_odd_verts // 2
-
-    return num_edges + expected_trails
+    return num_edges + min_trails
 
 
 def num_odd_vertices(g: nx.Graph) -> int:
@@ -249,22 +255,11 @@ def min_trail_decomp(g: nx.Graph) -> list[list[int]]:
     """
     trails = random_trail_decomp(g.copy())
     trails = minimise_trail_decomp(trails)
-
-    expected_trails = 0
-    # TODO put this check in a test
-    for cc in connected_components(g):
-        num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
-        if num_odd_verts == 0:
-            expected_trails += 1
-        else:
-            expected_trails += num_odd_verts // 2
-
-    assert expected_trails == len(trails)
     return trails
 
 
 def segment_trail(trail: list[int], length: int) -> list[list[int]]:
-    return [trail[i : i + length+1] for i in range(0, len(trail), length)]
+    return [trail[i : i + length + 1] for i in range(0, len(trail), length)]
 
 
 def bounded_min_trail_decomp(g: nx.Graph, length: int) -> list[list[int]]:

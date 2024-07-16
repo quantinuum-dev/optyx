@@ -74,6 +74,7 @@ extend-ignore = [
     "E741",
     "E743",
     "F811",
+    "E203",
 ]
 per-file-ignores = [
     "__init__.py:F401",

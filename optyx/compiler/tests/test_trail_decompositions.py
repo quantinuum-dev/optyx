@@ -7,6 +7,7 @@ from optyx.compiler import OpenGraph
 from optyx.compiler.x_fusions import (
     min_trail_decomp,
     bounded_min_trail_decomp,
+    min_number_trails,
     minimise_trail_decomp,
     reduce,
 )
@@ -52,7 +53,8 @@ def test_random_trail_decomp():
 
     for g in graphs:
         trails = min_trail_decomp(g.copy())
-        assert is_trail_decomp(g, trails)
+        assert is_trail_decomp(g.copy(), trails)
+        assert len(trails) == min_number_trails(g)
 
 
 # Tests that the bounded trail decomposition function produces a valid trail
@@ -67,7 +69,8 @@ def test_bounded_trail_decomp(trail_length):
 
         # We use trail_length+1 here because trail_length bounds the number of
         # edges, but len(t) is the number of vertices.
-        assert all(len(t) <= trail_length+1 for t in trails)
+        assert all(len(t) <= trail_length + 1 for t in trails)
+
 
 def test_minimise_trail_decomp():
     trails = [[0, 1, 2, 0], [0, 3]]
