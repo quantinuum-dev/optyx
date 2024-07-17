@@ -26,6 +26,7 @@ from optyx.compiler.mbqc import (
 
 from optyx.compiler.graphs import (
     delay_based_path_cover,
+    vertices_to_edges,
 )
 
 from optyx.compiler.protocols import (
@@ -354,10 +355,6 @@ def compute_linear_fn(
     paths = delay_based_path_cover(g, order_layers, k)
     meas = deepcopy(meas)
 
-    # Converts a path [1, 4, 6] to a list of edges [[1, 4], [4, 6]]
-    def _path_to_edges(path: list[int]) -> list[tuple[int, int]]:
-        return [(path[i], path[i + 1]) for i in range(len(path) - 1)]
-
     # Calculates the list of H-edge fusions requires to finish constructing the
     # graph given the path cover.
     def calculate_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
@@ -365,7 +362,7 @@ def compute_linear_fn(
 
         path_edges: list[tuple[int, int]] = []
         for path in paths:
-            path_edges.extend(_path_to_edges(path))
+            path_edges.extend(vertices_to_edges(path))
 
         edges_set = {(min(e), max(e)) for e in edges}
         r_edges_set = {(min(e), max(e)) for e in path_edges}
@@ -378,12 +375,6 @@ def compute_linear_fn(
     fusions = calculate_fusions(g, paths)
 
     return FusionNetwork(paths, meas, fusions)
-
-
-# Converts a path [1, 4, 6, 3] to a list of the individual edges [1, 4], [4,
-# 6], [6, 3]
-def _path_to_edges(path: list[int]) -> list[tuple[int, int]]:
-    return [(path[i], path[i + 1]) for i in range(len(path) - 1)]
 
 
 def _path_to_graph(path: list[int]) -> nx.Graph:

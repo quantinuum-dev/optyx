@@ -138,9 +138,9 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
     return trails
 
 
-# Indicates whether the given list of a trails constitute a valid trail
-# decomposition for the graph.
 def is_trail_decomp(g: nx.Graph, trails: list[list[int]]) -> bool:
+    """Indicates whether the given list of a trails constitute a valid trail
+    decomposition for the graph."""
     for trail in trails:
         for i in range(len(trail) - 1):
             if g.has_edge(trail[i], trail[i + 1]):

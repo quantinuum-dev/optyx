@@ -3,8 +3,7 @@
 import networkx as nx
 
 from optyx.compiler.x_fusions import min_trail_decomp
-
-from optyx.compiler.semm import _path_to_edges
+from optyx.compiler.graphs import vertices_to_edges, order_edge_tuples
 
 
 def search_for_odd(g: nx.Graph, v: int) -> list[int]:
@@ -53,7 +52,7 @@ def remove_hedge_paths(g: nx.Graph) -> list[list[int]]:
     while i < len(odd_verts):
         path = search_for_odd(g, odd_verts[i])
         if len(path) != 0:
-            path_edges = _path_to_edges(path)
+            path_edges = vertices_to_edges(path)
             g.remove_edges_from(path_edges)
             odd_verts.remove(path[-1])
             paths.append(path)
@@ -73,10 +72,6 @@ def find_trail_cover(g: nx.Graph) -> list[list[int]]:
     return trails
 
 
-def order_edge_tuples(edges: set[tuple[int, int]]) -> set[tuple[int, int]]:
-    return set(tuple(sorted(e)) for e in edges)
-
-
 def is_trail_cover(g: nx.Graph, trails: list[list[int]]) -> bool:
     """Indicates whether the trails form a trail cover of the graph."""
 
@@ -90,11 +85,10 @@ def is_trail_cover(g: nx.Graph, trails: list[list[int]]) -> bool:
 
     graph_edges = order_edge_tuples(set(g.edges()))
 
-    # TODO rename _path_to_edges to vertex sequence to edges or similar
     # Check all edges in the trails are distinct and exist in the graph.
     all_edges: set[tuple[int, int]] = set()
     for t in trails:
-        trail_edges = order_edge_tuples(set(_path_to_edges(t)))
+        trail_edges = order_edge_tuples(set(vertices_to_edges(t)))
 
         # Trail has an edge which doesn't exist in the graph
         if not trail_edges.issubset(graph_edges):

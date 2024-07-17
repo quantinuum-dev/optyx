@@ -1,6 +1,10 @@
 import networkx as nx
 from optyx.compiler.mbqc import OpenGraph, Measurement
 from optyx.compiler.semm import compute_linear_fn
+from optyx.compiler.graphs import (
+    find_min_path_cover,
+    is_path_cover,
+)
 
 
 def test_path_cover_finder():
@@ -36,3 +40,43 @@ def test_pc_finder_complex():
 
     assert sorted(fn.resources[0]) == [0, 1, 2]
     assert sorted(fn.resources[1]) == [3, 4]
+
+
+def test_min_path_cover():
+    g = nx.Graph([(0, 1), (1, 2)])
+    pc = find_min_path_cover(g)
+    assert len(pc) == 1
+
+    g = nx.Graph([(0, 1), (0, 2), (0, 3), (0, 4)])
+    pc = find_min_path_cover(g)
+    assert len(pc) == 3
+
+    g = nx.Graph([(1, 3), (1, 2), (2, 3), (3, 4), (4, 5), (4, 6)])
+    pc = find_min_path_cover(g)
+    assert len(pc) == 2
+
+
+def test_is_path_cover():
+    g = nx.Graph([(0, 1), (1, 2)])
+    pc = [[0, 1], [2]]
+    assert is_path_cover(g, pc)
+
+    # Doesn't cover all vertices
+    g = nx.Graph([(0, 1), (1, 2)])
+    pc = [[0, 1]]
+    assert not is_path_cover(g, pc)
+
+    # Paths are not mutually vertex disjoint
+    g = nx.Graph([(0, 1), (1, 2)])
+    pc = [[0, 1], [1, 2]]
+    assert not is_path_cover(g, pc)
+
+    # A path traverses the same vertex twice
+    g = nx.Graph([(0, 1), (1, 2), (0, 2)])
+    pc = [[0, 1, 2, 0]]
+    assert not is_path_cover(g, pc)
+
+    # Path cover has a vertex that doesn't exist
+    g = nx.Graph([(0, 1), (1, 2), (0, 2)])
+    pc = [[0, 1, 2], [3]]
+    assert not is_path_cover(g, pc)
