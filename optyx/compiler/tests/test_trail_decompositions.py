@@ -10,20 +10,8 @@ from optyx.compiler.x_fusions import (
     min_number_trails,
     minimise_trail_decomp,
     reduce,
+    is_trail_decomp,
 )
-
-
-# Indicates whether the given list of a trails constitute a valid trail
-# decomposition for the graph.
-def is_trail_decomp(g: nx.Graph, trails: list[list[int]]) -> bool:
-    for trail in trails:
-        for i in range(len(trail) - 1):
-            if g.has_edge(trail[i], trail[i + 1]):
-                g.remove_edge(trail[i], trail[i + 1])
-            else:
-                return False
-
-    return g.number_of_edges() == 0
 
 
 def test_is_trail_decomp():
