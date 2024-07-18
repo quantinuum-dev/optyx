@@ -42,7 +42,7 @@ def test_remove_hedge_paths():
 
 def test_find_trail_cover():
     g = nx.Graph([(1, 3), (2, 3), (3, 4), (4, 5), (4, 6)])
-    trails = find_trail_cover(g)
+    trails = find_trail_cover(g, 10)
 
     print(len(trails))
 
@@ -64,7 +64,8 @@ def test_random_trail_decomp():
         hedge_paths = remove_hedge_paths(g.copy())
         num_trails = min_number_trails(g.copy())
 
-        trail_cover = find_trail_cover(g.copy())
+        max_trail_size = g.number_of_edges()
+        trail_cover = find_trail_cover(g.copy(), max_trail_size)
         assert is_trail_cover(g.copy(), trail_cover)
         assert len(trail_cover) == num_trails - len(hedge_paths)
 

@@ -894,3 +894,20 @@ def get_fused_neighbours(fusions: list[Fusion], node: int) -> list[int]:
             fusion_nbrs.append(fusion.node1)
 
     return fusion_nbrs
+
+
+@dataclass
+class ProtoFusionNetwork:
+    """The `FusionNetwork` class is the real fusion network. This is an
+    abstraction that allows us to apply optimisations to the underlying graph
+    state without needed to know about the measurements
+
+    :param graph: the graph after the local complementations were applied
+    :param resources: the linear resource states given as a list of vertices
+    :param local_comps: the local complementations that must be performed on
+        the original graph in order to obtain the simplified graph.
+    """
+
+    graph: nx.Graph
+    resources: list[list[int]]
+    local_comps: list[int]

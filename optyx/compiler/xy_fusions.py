@@ -2,8 +2,30 @@
 
 import networkx as nx
 
-from optyx.compiler.x_fusions import min_trail_decomp
-from optyx.compiler.graphs import vertices_to_edges, order_edge_tuples
+from optyx.compiler.x_fusions import loss, bounded_min_trail_decomp
+from optyx.compiler.mbqc import ProtoFusionNetwork
+from optyx.compiler.graphs import (
+    vertices_to_edges,
+    order_edge_tuples,
+    local_comp_reduction,
+)
+
+
+def generate_xy_fusion_network(
+    g: nx.Graph, max_len: int
+) -> ProtoFusionNetwork:
+    """Returns a fusion network comprised of X and Y fusions that implements
+    the graph with bounded linear resource states.
+
+    :param g: input graph
+    :param max_len: maximum number of edges in the linear resource state
+    """
+
+    # Here we use the same reduction as in the X fusions case.
+    g, lcs = local_comp_reduction(g, loss)
+    trails = find_trail_cover(g.copy(), max_len)
+
+    return ProtoFusionNetwork(g, trails, lcs)
 
 
 def search_for_odd(g: nx.Graph, v: int) -> list[int]:
@@ -62,13 +84,13 @@ def remove_hedge_paths(g: nx.Graph) -> list[list[int]]:
     return paths
 
 
-def find_trail_cover(g: nx.Graph) -> list[list[int]]:
+def find_trail_cover(g: nx.Graph, max_len: int) -> list[list[int]]:
     """Returns a trail cover of the graph.
 
     Uses a heuristic to attempt to identify opportunities to reduce the number
     of trails"""
     _ = remove_hedge_paths(g)
-    trails = min_trail_decomp(g)
+    trails = bounded_min_trail_decomp(g, max_len)
     return trails
 
 

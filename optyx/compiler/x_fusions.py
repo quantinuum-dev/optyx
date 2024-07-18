@@ -3,21 +3,22 @@
 
 import networkx as nx
 
+from optyx.compiler.mbqc import ProtoFusionNetwork
+from optyx.compiler.graphs import local_comp_reduction
 
-def reduce(g: nx.Graph) -> nx.Graph:
-    """Optimises a graph based on the heuristic that we want to decrease both
-    the number of odd vertices and the number of edges.
+
+def generate_x_fusion_network(g: nx.Graph, max_len: int) -> ProtoFusionNetwork:
+    """Returns a fusion network comprised of only X fusions that implements the
+    graph with bounded linear resource states.
+
+    :param g: input graph
+    :param max_len: maximum number of edges in the linear resource state
     """
-    vertices = list(g.nodes())
-    for v in vertices:
-        old_loss = loss(g)
-        lc(g, v)
-        new_loss = loss(g)
 
-        if new_loss >= old_loss:
-            lc(g, v)
+    g, lcs = local_comp_reduction(g, loss)
+    trails = bounded_min_trail_decomp(g, max_len)
 
-    return g
+    return ProtoFusionNetwork(g, trails, lcs)
 
 
 def min_number_trails(g: nx.Graph) -> int:
@@ -43,32 +44,13 @@ def loss(g: nx.Graph):
     return num_edges + min_trails
 
 
-def toggle_edge(g: nx.Graph, v: int, u: int):
-    """Toggles an edge between two nodes"""
-    if g.has_edge(v, u):
-        g.remove_edge(v, u)
-    else:
-        g.add_edge(v, u)
-
-
-def lc(g: nx.Graph, v: int):
-    """Locally complements a graph about the given node"""
-    nbrs = list(g.neighbors(v))
-
-    for i in range(len(nbrs)):
-        for nbr in nbrs[i + 1 :]:
-            toggle_edge(g, nbrs[i], nbr)
-
-
 def random_odd_vertex(g: nx.Graph) -> int:
-    """Returns a random odd vertex in the graph.
-    Returns -1 if none exist.
-    """
+    """Returns a random odd vertex in the graph or -1 if none exist"""
     for v in g.nodes():
         if g.degree(v) % 2 == 1:
             return v
 
-    raise ValueError("no odd vertices in graph")
+    return -1
 
 
 def random_trail_odd_vertices(g: nx.Graph) -> list[int]:
