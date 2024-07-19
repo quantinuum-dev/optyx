@@ -72,10 +72,12 @@ def find_path_cover(
         start = choose_random_vertex(h)
 
         total_path: list[int] = []
-        path = [0] * (search_size+1)  # satisfy the loop condition to enter once
+        path = [0] * (
+            search_size + 1
+        )  # satisfy the loop condition to enter once
 
         # We do +1 here since the path length is the number of edges, not nodes
-        while len(path)-1 == search_size:
+        while len(path) - 1 == search_size:
             real_search_size = min(max_len - len(total_path), search_size)
             path = find_longest_path(h, start, real_search_size)
 
@@ -106,7 +108,7 @@ def find_longest_path(g: nx.Graph, start: int, max_len: int) -> list[int]:
         path = frontier.pop()
 
         # +1 because path length is the number of edges not nodes
-        if len(path)-1 == max_len:
+        if len(path) - 1 == max_len:
             return path
 
         tail = path[-1]

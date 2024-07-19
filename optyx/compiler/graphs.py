@@ -224,3 +224,12 @@ def vertices_to_edges(path: list[int]) -> list[tuple[int, int]]:
 def order_edge_tuples(edges: set[tuple[int, int]]) -> set[tuple[int, int]]:
     """Orders the tuples in a list in numeric order"""
     return set((e[0], e[1]) if e[0] < e[1] else (e[1], e[0]) for e in edges)
+
+
+def connected_components(g: nx.Graph) -> list[nx.Graph]:
+    """Returns a list of all the connected components"""
+    components = []
+    for conn in nx.connected_components(g):
+        connected_component = g.subgraph(conn)
+        components.append(connected_component)
+    return components

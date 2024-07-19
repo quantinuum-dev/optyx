@@ -5,6 +5,7 @@ import networkx as nx
 from optyx.compiler.x_fusions import loss, min_trail_decomp
 from optyx.compiler.mbqc import ProtoFusionNetwork
 from optyx.compiler.graphs import (
+    connected_components,
     vertices_to_edges,
     order_edge_tuples,
     local_comp_reduction,
@@ -70,7 +71,8 @@ def remove_hedge_paths(g: nx.Graph) -> list[list[int]]:
 
     The algorithm is essentially this. Go through all the odd vertices in the
     graph. At each one search for a path to another odd vertex where each
-    vertex along the way has degree > 2
+    vertex along the way has degree > 2 and it doesn't disconnect the graph
+    into another component with zero odd vertices
     """
 
     paths: list[list[int]] = []
@@ -78,18 +80,36 @@ def remove_hedge_paths(g: nx.Graph) -> list[list[int]]:
         v for v in g.nodes() if g.degree(v) > 1 and g.degree(v) % 2 == 1
     ]
 
+    num_zero_cc = num_zero_components(g)
     i = 0
     while i < len(odd_verts):
         path = search_for_odd(g, odd_verts[i])
         if len(path) != 0:
             path_edges = vertices_to_edges(path)
+
             g.remove_edges_from(path_edges)
-            odd_verts.remove(path[-1])
-            paths.append(path)
+            new_num_zero_comp = num_zero_components(g)
+
+            # Only accept the path if it doesn't create another zero component
+            if new_num_zero_comp <= num_zero_cc:
+                num_zero_cc = new_num_zero_comp
+                odd_verts.remove(path[-1])
+                paths.append(path)
+            else:
+                g.add_edges_from(path_edges)
 
         i += 1
 
     return paths
+
+
+def num_zero_components(g: nx.Graph) -> int:
+    cc = connected_components(g)
+    return sum(num_odd_verts(c) == 0 for c in cc)
+
+
+def num_odd_verts(g: nx.Graph) -> int:
+    return sum(g.degree(v) % 2 for v in g.nodes())
 
 
 def find_trail_cover(g: nx.Graph, max_len: int) -> list[list[int]]:
@@ -111,7 +131,9 @@ def find_trail_cover(g: nx.Graph, max_len: int) -> list[list[int]]:
 def segment_trail_with_space(trail: list[int], length: int) -> list[list[int]]:
     """Subdivides a trail into a list of smaller trails, each having a bounded
     number of edges"""
-    return [trail[i:i+length+1] for i in range(0, len(trail), length+1)]
+    return [
+        trail[i : i + length + 1] for i in range(0, len(trail), length + 1)
+    ]
 
 
 def is_trail_cover(g: nx.Graph, trails: list[list[int]]) -> bool:

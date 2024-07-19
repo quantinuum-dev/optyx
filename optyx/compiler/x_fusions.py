@@ -8,9 +8,10 @@ from optyx.compiler.graphs import (
     local_comp_reduction,
     Triangle,
     complement_triangles,
-    order_edge_tuples,
     vertices_to_edges,
+    connected_components,
 )
+
 
 def generate_x_fusion_network(g: nx.Graph, max_len: int) -> ProtoFusionNetwork:
     """Returns a fusion network comprised of only X fusions that implements the
@@ -87,15 +88,6 @@ def random_trail_odd_vertices(g: nx.Graph) -> list[int]:
     return trail
 
 
-def connected_components(g: nx.Graph) -> list[nx.Graph]:
-    """Returns a list of all the connected components"""
-    components = []
-    for conn in nx.connected_components(g):
-        connected_component = g.subgraph(conn)
-        components.append(connected_component)
-    return components
-
-
 def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
     """Returns a random trail decomposition of the graph.
     Is not guarenteed to return the minimum trail decomposition.
@@ -126,14 +118,15 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
 
     return trails
 
+
 def edges_to_vertices(edges: list[tuple[int, int]]) -> list[int]:
     if len(edges) == 1:
         return list(edges[0])
 
     final_edges = []
-    for i in range(len(edges)-1):
+    for i in range(len(edges) - 1):
         edge1 = edges[i]
-        edge2 = edges[i+1]
+        edge2 = edges[i + 1]
 
         if edge1[0] not in edge2:
             final_edges.append(edge1[0])
@@ -148,7 +141,8 @@ def edges_to_vertices(edges: list[tuple[int, int]]) -> list[int]:
         final_edges.append(edges[-1][1])
 
     return final_edges
-    
+
+
 def is_trail_decomp(g: nx.Graph, trails: list[list[int]]) -> bool:
     """Indicates whether the given list of a trails constitute a valid trail
     decomposition for the graph."""
@@ -281,7 +275,9 @@ def segment_trail(trail: list[int], length: int) -> list[list[int]]:
     """Subdivides a trail into a list of smaller trails, each having a bounded
     number of edges"""
     trail_edges = vertices_to_edges(trail)
-    subtrail_edges = [trail_edges[i:i+length] for i in range(0, len(trail_edges), length)]
+    subtrail_edges = [
+        trail_edges[i : i + length] for i in range(0, len(trail_edges), length)
+    ]
     return [edges_to_vertices(t) for t in subtrail_edges]
 
 
