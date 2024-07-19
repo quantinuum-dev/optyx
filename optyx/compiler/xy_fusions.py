@@ -2,12 +2,14 @@
 
 import networkx as nx
 
-from optyx.compiler.x_fusions import loss, bounded_min_trail_decomp
+from optyx.compiler.x_fusions import loss, min_trail_decomp
 from optyx.compiler.mbqc import ProtoFusionNetwork
 from optyx.compiler.graphs import (
     vertices_to_edges,
     order_edge_tuples,
     local_comp_reduction,
+    complement_triangles,
+    Triangle,
 )
 
 
@@ -23,9 +25,15 @@ def generate_xy_fusion_network(
 
     # Here we use the same reduction as in the X fusions case.
     g, lcs = local_comp_reduction(g, loss)
+    g, _ = complement_triangles(g, triangle_complement_condition)
     trails = find_trail_cover(g.copy(), max_len)
 
     return ProtoFusionNetwork(g, trails, lcs)
+
+
+def triangle_complement_condition(g: nx.Graph, tri: Triangle) -> bool:
+    """Complement the triangle when at least two of the nodes are odd"""
+    return len([v for v in tri if g.degree(v) % 2 == 1]) >= 2
 
 
 def search_for_odd(g: nx.Graph, v: int) -> list[int]:
@@ -90,8 +98,20 @@ def find_trail_cover(g: nx.Graph, max_len: int) -> list[list[int]]:
     Uses a heuristic to attempt to identify opportunities to reduce the number
     of trails"""
     _ = remove_hedge_paths(g)
-    trails = bounded_min_trail_decomp(g, max_len)
-    return trails
+    trails = min_trail_decomp(g)
+
+    all_trails = []
+    for trail in trails:
+        t = segment_trail_with_space(trail, max_len)
+        all_trails.extend(t)
+
+    return all_trails
+
+
+def segment_trail_with_space(trail: list[int], length: int) -> list[list[int]]:
+    """Subdivides a trail into a list of smaller trails, each having a bounded
+    number of edges"""
+    return [trail[i:i+length+1] for i in range(0, len(trail), length+1)]
 
 
 def is_trail_cover(g: nx.Graph, trails: list[list[int]]) -> bool:

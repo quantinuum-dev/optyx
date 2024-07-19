@@ -67,6 +67,67 @@ def local_comp_reduction(
         all_complemented_verts.extend(lc_vertices)
 
 
+Triangle = tuple[int, int, int]
+
+
+def complement_triangles(
+    g: nx.Graph, should_complement: Callable[[nx.Graph, Triangle], bool]
+) -> tuple[nx.Graph, list[Triangle]]:
+    """Complement the triangles in the graph according to a decision
+    function
+
+    :param g: the graph
+    :param should_complement: function that decides whether we should
+        complement the triangle
+    """
+    g = g.copy()
+
+    triangles = []
+    tris = find_triangles(g)
+    for tri in tris:
+        # We have to add this check in because complementing a triangle
+        # may remove an edge in an adjacent triangle and therefore we
+        # cannot complement it.
+        if not is_triangle(g, tri):
+            continue
+
+        if should_complement(g, tri):
+            complement_triangle(g, tri)
+            triangles.append(tri)
+
+    return g, triangles
+
+
+def is_triangle(g: nx.Graph, tri: Triangle) -> bool:
+    """Indicates whether the triangle exists in the graph"""
+    return (
+        g.has_edge(tri[0], tri[1])
+        and g.has_edge(tri[1], tri[2])
+        and g.has_edge(tri[2], tri[0])
+    )
+
+
+def complement_triangle(g: nx.Graph, tri: Triangle):
+    """Complements the triangle in the graph"""
+    new_id = max(g.nodes()) + 1
+    g.add_edges_from([(new_id, tri[0]), (new_id, tri[1]), (new_id, tri[2])])
+    lc(g, new_id)
+
+
+def find_triangles(g: nx.Graph) -> list[Triangle]:
+    """Returns a list of all triangles in the graph"""
+    tris = []
+    nodes = list(g.nodes())
+
+    for i in range(len(nodes)):
+        for j in range(i):
+            for k in range(j):
+                if is_triangle(g, (nodes[i], nodes[j], nodes[k])):
+                    tris.append((k, j, i))
+
+    return tris
+
+
 # Chooses the path that contains the smallest value node.
 # In the case of a tie, ignore the minimal nodes
 # and compare again. If we exhaust all nodes, then return True.

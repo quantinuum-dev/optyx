@@ -4,8 +4,13 @@
 import networkx as nx
 
 from optyx.compiler.mbqc import ProtoFusionNetwork
-from optyx.compiler.graphs import local_comp_reduction
-
+from optyx.compiler.graphs import (
+    local_comp_reduction,
+    Triangle,
+    complement_triangles,
+    order_edge_tuples,
+    vertices_to_edges,
+)
 
 def generate_x_fusion_network(g: nx.Graph, max_len: int) -> ProtoFusionNetwork:
     """Returns a fusion network comprised of only X fusions that implements the
@@ -16,9 +21,15 @@ def generate_x_fusion_network(g: nx.Graph, max_len: int) -> ProtoFusionNetwork:
     """
 
     g, lcs = local_comp_reduction(g, loss)
+    g, _ = complement_triangles(g, triangle_complement_condition)
     trails = bounded_min_trail_decomp(g, max_len)
 
     return ProtoFusionNetwork(g, trails, lcs)
+
+
+def triangle_complement_condition(g: nx.Graph, tri: Triangle) -> bool:
+    """Complement the triangle only when at least two vertices are odd"""
+    return len([v for v in tri if g.degree(v) % 2 == 1]) >= 2
 
 
 def min_number_trails(g: nx.Graph) -> int:
@@ -90,22 +101,18 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
     Is not guarenteed to return the minimum trail decomposition.
     """
 
-    # Converts a list of edges which form a trail into the corresponding
-    # sequence of vertices.
-    def edge_list_to_verts(edges: list[tuple[int, int]]) -> list[int]:
-        return [e[0] for e in edges] + [edges[-1][1]]
-
     trails = []
 
     while g.number_of_edges() != 0:
         for cc in connected_components(g):
-            num_odd_verts = sum(cc.degree(v) % 2 for v in cc.nodes())
+            num_odd_verts = sum(cc.degree(v) % 2 == 1 for v in cc.nodes())
 
             if num_odd_verts > 2:
                 trail = random_trail_odd_vertices(cc)
             else:
-                euler_trail_edges = list(nx.eulerian_path(cc))
-                trail = edge_list_to_verts(euler_trail_edges)
+                # Convert the edge list to a vertex sequence
+                edges = list(nx.eulerian_path(cc))
+                trail = [u for u, _ in edges] + [edges[-1][1]]
 
             for i in range(len(trail) - 1):
                 g.remove_edge(trail[i], trail[i + 1])
@@ -119,7 +126,29 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
 
     return trails
 
+def edges_to_vertices(edges: list[tuple[int, int]]) -> list[int]:
+    if len(edges) == 1:
+        return list(edges[0])
 
+    final_edges = []
+    for i in range(len(edges)-1):
+        edge1 = edges[i]
+        edge2 = edges[i+1]
+
+        if edge1[0] not in edge2:
+            final_edges.append(edge1[0])
+        else:
+            final_edges.append(edge1[1])
+
+    if edges[-1][0] not in edges[-2]:
+        final_edges.append(edges[-1][1])
+        final_edges.append(edges[-1][0])
+    else:
+        final_edges.append(edges[-1][0])
+        final_edges.append(edges[-1][1])
+
+    return final_edges
+    
 def is_trail_decomp(g: nx.Graph, trails: list[list[int]]) -> bool:
     """Indicates whether the given list of a trails constitute a valid trail
     decomposition for the graph."""
@@ -251,7 +280,9 @@ def min_trail_decomp(g: nx.Graph) -> list[list[int]]:
 def segment_trail(trail: list[int], length: int) -> list[list[int]]:
     """Subdivides a trail into a list of smaller trails, each having a bounded
     number of edges"""
-    return [trail[i : i + length + 1] for i in range(0, len(trail), length)]
+    trail_edges = vertices_to_edges(trail)
+    subtrail_edges = [trail_edges[i:i+length] for i in range(0, len(trail_edges), length)]
+    return [edges_to_vertices(t) for t in subtrail_edges]
 
 
 def bounded_min_trail_decomp(g: nx.Graph, length: int) -> list[list[int]]:
