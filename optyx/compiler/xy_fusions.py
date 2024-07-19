@@ -103,12 +103,101 @@ def remove_hedge_paths(g: nx.Graph) -> list[list[int]]:
     return paths
 
 
+def remove_potentially_unnecessary_hedges(
+    g: nx.Graph,
+) -> list[tuple[int, int]]:
+    """Removes edges to make Hedges that don't strictly decrease the number of
+    X fusions"""
+    total_edges: list[tuple[int, int]] = []
+    while True:
+        edges = potentially_unnecessary_hedges_one_cycle(g)
+
+        if len(edges) == 0:
+            return total_edges
+
+        total_edges.extend(edges)
+        g.remove_edges_from(edges)
+
+
+def potentially_unnecessary_hedges_one_cycle(
+    g: nx.Graph,
+) -> list[tuple[int, int]]:
+    """Removes edges to make Hedges that don't strictly decrease the number of
+    X fusions"""
+    odd = num_odd_verts(g)
+    if odd == 0:
+        e1 = zero_odd_verts_case(g)
+        edges = odd_verts_case(g)
+        return [e1] + edges
+
+    return odd_verts_case(g)
+
+
+def zero_odd_verts_case(g: nx.Graph) -> tuple[int, int]:
+    """In this case we can take any edge, but it is better to take edges
+    between two nodes whose degree > 2 so that we can apply the heuristic again
+    to take more edges"""
+    best = None
+    for e in g.edges():
+        if g.degree(e[0]) > 2 and g.degree(e[1]) > 2:
+            return e
+
+        if g.degree(e[0]) > 2 or g.degree(e[1]) > 2:
+            best = e
+
+    if best is None:
+        # In this case it is a cycle, so any edge is fine
+        return list(g.edges())[0]
+
+    return best
+
+
+def odd_verts_case(g: nx.Graph) -> list[tuple[int, int]]:
+    """In this case we have the following rules. If both of the vertices is odd
+    and doesn't produce two discconected zero odd vertex components, then take
+    it.
+    If only one of the vertices is odd, then it cannot produce any zero odd
+    vertex disconnect components."""
+    edges = []
+    num_zero_cc = num_zero_components(g)
+
+    for e in g.edges():
+        if g.degree(e[0]) % 2 == 1 and g.degree(e[1]) % 2 == 1:
+            g.remove_edge(e[0], e[1])
+            new_num_zero_cc = num_zero_components(g)
+
+            # Only accept if at least one of the connected components has
+            # non-zero odd vertices
+            if new_num_zero_cc > num_zero_cc + 1:
+                g.add_edge(e[0], e[1])
+            else:
+                num_zero_cc = new_num_zero_cc
+                edges.append(e)
+
+        elif g.degree(e[0]) % 2 == 1 or g.degree(e[1]) % 2 == 1:
+            g.remove_edge(e[0], e[1])
+            new_num_zero_cc = num_zero_components(g)
+
+            # Only accept if both connected components (if it split them) has
+            # non-zero odd vertices
+            if new_num_zero_cc > num_zero_cc:
+                g.add_edge(e[0], e[1])
+            else:
+                num_zero_cc = new_num_zero_cc
+                edges.append(e)
+
+    return edges
+
+
 def num_zero_components(g: nx.Graph) -> int:
+    """Returns the number of connected components of the graph with zero odd
+    vertices"""
     cc = connected_components(g)
     return sum(num_odd_verts(c) == 0 for c in cc)
 
 
 def num_odd_verts(g: nx.Graph) -> int:
+    """Returns the number of odd vertices in a graph"""
     return sum(g.degree(v) % 2 for v in g.nodes())
 
 
@@ -118,6 +207,7 @@ def find_trail_cover(g: nx.Graph, max_len: int) -> list[list[int]]:
     Uses a heuristic to attempt to identify opportunities to reduce the number
     of trails"""
     _ = remove_hedge_paths(g)
+    _ = remove_potentially_unnecessary_hedges(g)
     trails = min_trail_decomp(g)
 
     all_trails = []

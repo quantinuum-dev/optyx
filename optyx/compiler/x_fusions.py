@@ -102,9 +102,12 @@ def random_trail_decomp(g: nx.Graph) -> list[list[int]]:
             if num_odd_verts > 2:
                 trail = random_trail_odd_vertices(cc)
             else:
-                # Convert the edge list to a vertex sequence
-                edges = list(nx.eulerian_path(cc))
-                trail = [u for u, _ in edges] + [edges[-1][1]]
+                if cc.number_of_nodes() == 1:
+                    trail = [list(cc.nodes())[0]]
+                else:
+                    # Convert the edge list to a vertex sequence
+                    edges = list(nx.eulerian_path(cc))
+                    trail = [u for u, _ in edges] + [edges[-1][1]]
 
             for i in range(len(trail) - 1):
                 g.remove_edge(trail[i], trail[i + 1])
