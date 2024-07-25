@@ -15,7 +15,7 @@ from optyx.compiler.graphs import (
 
 
 def generate_xy_fusion_network(
-    g: nx.Graph, max_len: int
+    g: nx.Graph, max_len: int, maximal_y_fusions=False
 ) -> ProtoFusionNetwork:
     """Returns a fusion network comprised of X and Y fusions that implements
     the graph with bounded linear resource states.
@@ -27,7 +27,7 @@ def generate_xy_fusion_network(
     # Here we use the same reduction as in the X fusions case.
     g, lcs = local_comp_reduction(g, loss)
     g, _ = complement_triangles(g, triangle_complement_condition)
-    trails = find_trail_cover(g.copy(), max_len)
+    trails = find_trail_cover(g.copy(), max_len, maximal_y_fusions)
 
     return ProtoFusionNetwork(g, trails, lcs)
 
@@ -201,13 +201,15 @@ def num_odd_verts(g: nx.Graph) -> int:
     return sum(g.degree(v) % 2 for v in g.nodes())
 
 
-def find_trail_cover(g: nx.Graph, max_len: int) -> list[list[int]]:
+def find_trail_cover(g: nx.Graph, max_len: int, maximal_y_fusions=False) -> list[list[int]]:
     """Returns a trail cover of the graph.
 
     Uses a heuristic to attempt to identify opportunities to reduce the number
     of trails"""
     _ = remove_hedge_paths(g)
-    _ = remove_potentially_unnecessary_hedges(g)
+
+    if maximal_y_fusions:
+        _ = remove_potentially_unnecessary_hedges(g)
     trails = min_trail_decomp(g)
 
     all_trails = []
