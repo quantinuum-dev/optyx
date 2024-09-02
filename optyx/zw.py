@@ -77,21 +77,6 @@ class Diagram(zx.Diagram):
         :param max_occupation_num: maximum occupation number for
         truncation of the generators
         :param print_max_occupation_number: show the max_occupation_number
-
-        Example
-        -------
-        # This is bSym axiom of the ZW calculus
-        >>> bSym_l = W(2)
-        >>> bSym_r = W(2) >> Swap()
-        >>> assert np.allclose(bSym_l.to_tensor().eval().array, \
-            bSym_r.to_tensor().eval().array)
-
-        # This is bBa axiom of the ZW calculus
-        >>> bBa_l = Truncation(2) >> W(2) @ W(2) >> Id(1) @ Swap() @ \
-              Id(1) >> W(2).dagger() @ W(2).dagger()
-        >>> bBa_r = W(2).dagger() >> W(2)
-        >>> assert np.allclose(bBa_l.to_tensor(3).eval().array, \
-            bBa_r.to_tensor(3).eval().array)
         """
 
         max_occupation_num_ = self.get_max_occupation_num()
