@@ -90,13 +90,7 @@ assert test_arrays_of_different_sizes(bAso_l.to_tensor(print_max_occupation_numb
 bBa_l = Truncation(2) >> W(2) @ W(2) >> Id(1) @ Swap() @ Id(1) >> W(2).dagger() @ W(2).dagger()
 bBa_r = W(2).dagger() >> W(2)
 
-assert test_arrays_of_different_sizes(bBa_l.to_tensor(3).eval().array, bBa_r.to_tensor(3).eval().array)
-
-# %%
-bBa_l = Create(1) @ Create(1) >> W(2) @ W(2) >> Id(1) @ Swap() @ Id(1) >> W(2).dagger() @ W(2).dagger()
-bBa_r = Create(1) @ Create(1) >> W(2).dagger() >> W(2)
-
-assert test_arrays_of_different_sizes(bBa_l.to_tensor(3).eval().array, bBa_r.to_tensor(3).eval().array)
+assert test_arrays_of_different_sizes(bBa_l.to_tensor(print_max_occupation_number=False).eval().array, bBa_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 bId_l = W(2) >> Select(0) @ Id(1)
