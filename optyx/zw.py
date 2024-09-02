@@ -20,8 +20,8 @@ class Diagram(zx.Diagram):
     """
 
     def get_max_occupation_num(self):
-        """Returns a maximum occupation number to perform truncation of the generators:
-        a method from 2306.02114: Lemma 4.1"""
+        """Returns a maximum occupation number to perform
+        truncation of the generators: a method from 2306.02114: Lemma 4.1"""
         max_occupation_num = 0
 
         occupation_numbers = [0]
@@ -55,7 +55,7 @@ class Diagram(zx.Diagram):
                 elif isinstance(box, Select):
                     current_occupation_num = box.n_photons
 
-                scan[off : off + len(box.dom)] = [
+                scan[off:off + len(box.dom)] = [
                     (current_occupation_num, len(box.dom) + ind)
                     for ind in range(len(box.cod))
                 ]
@@ -70,10 +70,12 @@ class Diagram(zx.Diagram):
     def to_tensor(
         self, max_occupation_num: int = 2, print_max_occupation_number=True
     ) -> tensor.Diagram:
-        """Returns tensor.Diagram based on the ZW diagram for a given max_occupation_num
-        which is used to truncate the array to be used in the tensor.Diagram.
+        """Returns tensor.Diagram based on the ZW diagram for a
+        given max_occupation_num which is used to truncate
+        the array to be used in the tensor.Diagram.
 
-        :param max_occupation_num: maximum occupation number for truncation of the generators
+        :param max_occupation_num: maximum occupation number for
+        truncation of the generators
         :param print_max_occupation_number: show the max_occupation_number
 
         Example
@@ -81,13 +83,15 @@ class Diagram(zx.Diagram):
         # This is bSym axiom of the ZW calculus
         >>> bSym_l = W(2)
         >>> bSym_r = W(2) >> Swap()
-        >>> assert np.allclose(bSym_l.to_tensor().eval().array, bSym_r.to_tensor().eval().array)
+        >>> assert np.allclose(bSym_l.to_tensor().eval().array, \
+            bSym_r.to_tensor().eval().array)
 
         # This is bBa axiom of the ZW calculus
-        >>> bBa_l = Truncation(2) >> W(2) @ W(2) >> Id(1) @ Swap() @ Id(1) >> W(2).dagger() \
-                    @ W(2).dagger()
+        >>> bBa_l = Truncation(2) >> W(2) @ W(2) >> Id(1) @ Swap() @ \
+              Id(1) >> W(2).dagger() @ W(2).dagger()
         >>> bBa_r = W(2).dagger() >> W(2)
-        >>> assert np.allclose(bBa_l.to_tensor(3).eval().array, bBa_r.to_tensor(3).eval().array)
+        >>> assert np.allclose(bBa_l.to_tensor(3).eval().array, \
+            bBa_r.to_tensor(3).eval().array)
         """
 
         max_occupation_num_ = self.get_max_occupation_num()
@@ -99,8 +103,8 @@ class Diagram(zx.Diagram):
         if max_occupation_num < max_occupation_num_:
             if max_occupation_num != 5:
                 logging.info(
-                    f"max_occupation_num is too {max_occupation_num} low, setting "
-                    f"it to {max_occupation_num_}"
+                    f"max_occupation_num is too {max_occupation_num} low, "
+                    f"setting it to {max_occupation_num_}"
                 )
             max_occupation_num = max_occupation_num_
 
@@ -145,7 +149,8 @@ class Truncation(Box):
 
     def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
         """Create a truncated array line in 2306.02114 -
-        this array projects the state to the subspace of the symmetric Fock space with
+        this array projects the state to the subspace
+        of the symmetric Fock space with
         all occupation numbers <= max_occupation_num
         """
 
@@ -187,7 +192,8 @@ class Swap(zx.Swap, Diagram):
 
     # create an array like in 2306.02114
     def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
-        """Create an array like in 2306.02114 - this array swaps the occupation numbers"""
+        """Create an array like in 2306.02114 - this
+        array swaps the occupation numbers"""
         max_occupation_num = max_occupation_num + 1
 
         swap = np.zeros(
@@ -485,7 +491,7 @@ def multinomial(lst: list) -> int:
     # https://stackoverflow.com/questions/46374185/does-python-have-a-function-which-computes-multinomial-coefficients
     res, i = 1, sum(lst)
     i0 = lst.index(max(lst))
-    for a in lst[:i0] + lst[i0 + 1 :]:
+    for a in lst[:i0] + lst[i0 + 1:]:
         for j in range(1, a + 1):
             res *= i
             res //= j
