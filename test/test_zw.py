@@ -78,13 +78,13 @@ for max_occupation_num in [1, 2, 3]:
 bSym_l = W(2)
 bSym_r = W(2) >> Swap()
 
-assert test_arrays_of_different_sizes(bSym_l.to_tensor().eval().array, bSym_r.to_tensor().eval().array) 
+assert test_arrays_of_different_sizes(bSym_l.to_tensor(print_max_occupation_number=False).eval().array, bSym_r.to_tensor(print_max_occupation_number=False).eval().array) 
 
 # %%
 bAso_l = W(2) >> W(2) @ Id(1)
 bAso_r = W(2) >> Id(1) @ W(2)
 
-assert test_arrays_of_different_sizes(bAso_l.to_tensor().eval().array, bAso_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(bAso_l.to_tensor(print_max_occupation_number=False).eval().array, bAso_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 bBa_l = Truncation(2) >> W(2) @ W(2) >> Id(1) @ Swap() @ Id(1) >> W(2).dagger() @ W(2).dagger()
@@ -102,7 +102,7 @@ assert test_arrays_of_different_sizes(bBa_l.to_tensor(3).eval().array, bBa_r.to_
 bId_l = W(2) >> Select(0) @ Id(1)
 bId_r = Id(1)
 
-assert test_arrays_of_different_sizes(bId_l.to_tensor().eval().array, bId_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(bId_l.to_tensor(print_max_occupation_number=False).eval().array, bId_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 from math import factorial
@@ -113,32 +113,32 @@ frac_N = [float(1/np.sqrt(factorial(i))) for i in range(5)]
 bZBA_l = ZBox(N, 1, 2) @ ZBox(N, 1, 2) >> Id(1) @ Swap() @ Id(1) >> W(2).dagger() @ W(2).dagger() >> Id(1) @ ZBox(frac_N, 1, 1) 
 bZBA_r = W(2).dagger() >> ZBox([1, 1, 1, 1, 1], 1, 2) 
 
-assert test_arrays_of_different_sizes(bZBA_l.to_tensor().eval().array, bZBA_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(bZBA_l.to_tensor(print_max_occupation_number=False).eval().array, bZBA_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 K0_infty_l = Create(4) >> ZBox([1, 1, 1, 1, 1], 1, 2)
 K0_infty_r = Create(4) @ Create(4) 
 
-assert test_arrays_of_different_sizes(K0_infty_l.to_tensor().eval().array, K0_infty_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(K0_infty_l.to_tensor(print_max_occupation_number=False).eval().array, K0_infty_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 scalar_l = Create(1) >> ZBox([1, 2], 1, 1) >> Select(1)
 scalar_r = ZBox([2], 0, 0)
 
-assert test_arrays_of_different_sizes(scalar_l.to_tensor().eval().array, scalar_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(scalar_l.to_tensor(print_max_occupation_number=False).eval().array, scalar_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 bone_l = Create(1) >> Select(0)
 bone_r = Create(0) >> Select(1)
 
-assert test_arrays_of_different_sizes(bone_l.to_tensor().eval().array, 0)
-assert test_arrays_of_different_sizes(0, bone_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(bone_l.to_tensor(print_max_occupation_number=False).eval().array, 0)
+assert test_arrays_of_different_sizes(0, bone_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 branching_l = Create(1) >> W(2)
 branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
-assert test_arrays_of_different_sizes(branching_l.to_tensor().eval().array, branching_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(branching_l.to_tensor(print_max_occupation_number=False).eval().array, branching_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 from math import factorial
@@ -148,7 +148,7 @@ k = 6
 normalisation_l = Create(k) @ ZBox([np.sqrt(factorial(k))], 0, 0)
 normalisation_r = Create(1) @ Create(1) @ Create(1) @ Create(1) @ Create(1) @ Create(1) >> W(6).dagger()
 
-assert test_arrays_of_different_sizes(normalisation_l.to_tensor().eval().array, normalisation_r.to_tensor().eval().array) 
+assert test_arrays_of_different_sizes(normalisation_l.to_tensor(print_max_occupation_number=False).eval().array, normalisation_r.to_tensor(print_max_occupation_number=False).eval().array) 
 
 # %% [markdown]
 # # Lemmas
@@ -159,7 +159,7 @@ k = 5
 lemma_B6_l = Create(k) >> ZBox([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1, 1)
 lemma_B6_r = Create(k) @ ZBox([k+1], 0, 0)
 
-assert test_arrays_of_different_sizes(lemma_B6_l.to_tensor().eval().array, lemma_B6_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(lemma_B6_l.to_tensor(print_max_occupation_number=False).eval().array, lemma_B6_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 
 # %%
@@ -172,7 +172,7 @@ lemma_B8_r = Create(1) >> \
             W(2) >> \
             ZBox([1, 1], 1, 2) @ ZBox([1, 1], 1, 0)
 
-assert test_arrays_of_different_sizes(lemma_B8_l.to_tensor().eval().array, lemma_B8_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(lemma_B8_l.to_tensor(print_max_occupation_number=False).eval().array, lemma_B8_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %%
 lemma_B7_l = Id(1) @ W(2).dagger() >> \
@@ -183,7 +183,7 @@ lemma_B7_r = W(2) @ Id(2) >>\
              Id(1) @ Swap() @ Id(1) >>\
              ZBox(lambda i: 1, 2, 0) @ ZBox(lambda i: 1, 2, 0)
 
-assert test_arrays_of_different_sizes(lemma_B7_l.to_tensor().eval().array, lemma_B7_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(lemma_B7_l.to_tensor(print_max_occupation_number=False).eval().array, lemma_B7_r.to_tensor(print_max_occupation_number=False).eval().array)
 
 # %% [markdown]
 # **The lemma below holds only up to Truncation:**
@@ -202,7 +202,7 @@ prop_54_r = Create(1) @ Id(1) >>\
             Id(1) @ ZBox(lambda i: 1, 2, 1) @ Id(1) >>\
             ZBox(lambda i: 1, 1, 0) @ W(2).dagger()
 
-assert test_arrays_of_different_sizes(prop_54_l.to_tensor().eval().array, prop_54_r.to_tensor().eval().array)
+assert test_arrays_of_different_sizes(prop_54_l.to_tensor(print_max_occupation_number=False).eval().array, prop_54_r.to_tensor(print_max_occupation_number=False).eval().array)
 # %%
 
 
@@ -227,7 +227,7 @@ Hong_Ou_Mandel = Create(1) @ Create(1) >> \
                 Select(1) @ Select(1) 
 
 # %%
-assert test_arrays_of_different_sizes(Hong_Ou_Mandel.to_tensor().eval().array, np.array([0]))
+assert test_arrays_of_different_sizes(Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False).eval().array, np.array([0]))
 
 # %%
 Hong_Ou_Mandel = Create(1) @ Create(1) >> \
@@ -235,9 +235,9 @@ Hong_Ou_Mandel = Create(1) @ Create(1) >> \
                 Select(2) @ Select(0) 
 
 # %%
-Hong_Ou_Mandel.to_tensor().eval()
+Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False).eval()
 
-assert test_arrays_of_different_sizes(Hong_Ou_Mandel.to_tensor().eval().array, np.array(np.sqrt(2)*1j/2))
+assert test_arrays_of_different_sizes(Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False).eval().array, np.array(np.sqrt(2)*1j/2))
 
 # %%
 Hong_Ou_Mandel = Create(1) @ Create(1) >> \
@@ -245,7 +245,7 @@ Hong_Ou_Mandel = Create(1) @ Create(1) >> \
                 Select(0) @ Select(2) 
 
 # %%
-Hong_Ou_Mandel.to_tensor().eval()
+Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False).eval()
 
-assert test_arrays_of_different_sizes(Hong_Ou_Mandel.to_tensor().eval().array, np.array(np.sqrt(2)*1j/2))
+assert test_arrays_of_different_sizes(Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False).eval().array, np.array(np.sqrt(2)*1j/2))
 
