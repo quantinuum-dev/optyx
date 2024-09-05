@@ -7,6 +7,8 @@ import networkx as nx
 import graphix
 import numpy as np
 
+from graphix.pauli import Plane
+
 
 @dataclass
 class Measurement:
@@ -14,10 +16,38 @@ class Measurement:
 
     :param angle: the angle of the measurement. Should be between [0, 2pi)
     :param plane: the measurement plane: 'XY', 'XZ', 'YZ'
+
+    Example
+    -------
+    >>> import networkx as nx
+    >>> from . import OpenGraph, Measurement
+    >>>
+    >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
+    >>>
+    >>> m = Measurement(0, "XY")
+    >>> m = Measurement(0, "YZ")
+    >>> m = Measurement(0, "XZ")
+    >>> try:
+    ...     m = Measurement(0, "AB")
+    ... except ValueError as e:
+    ...     print(e)
+    plane 'AB' must be either XY, YZ, or XZ
     """
 
     angle: float
-    plane: str
+    plane: Plane
+
+    def __init__(self, angle: float, plane: str):
+        self.angle = angle
+
+        if plane == "XY":
+            self.plane = Plane.XY
+        elif plane == "YZ":
+            self.plane = Plane.YZ
+        elif plane == "XZ":
+            self.plane = Plane.XZ
+        else:
+            raise ValueError(f"plane '{plane}' must be either XY, YZ, or XZ")
 
     def __eq__(self, other):
         """Checks if two measurements are equal"""
@@ -27,7 +57,7 @@ class Measurement:
 
     def is_z_measurement(self) -> bool:
         """Indicates whether it is a Z measurement"""
-        return np.allclose(self.angle, 0.0) and self.plane == "XY"
+        return np.allclose(self.angle, 0.0) and self.plane == Plane.XY
 
 
 @dataclass
