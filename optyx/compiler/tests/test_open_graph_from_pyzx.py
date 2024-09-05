@@ -23,15 +23,10 @@ def assert_reconstructed_pyzx_graph_equal(circ: zx.Circuit):
     for v in reconstructed_pyzx_graph.vertices():
         reconstructed_pyzx_graph.set_row(v, 2)
 
-    ten = zx.tensorfy(g).flatten()
-    ten_graph = zx.tensorfy(reconstructed_pyzx_graph).flatten()
+    ten = zx.tensorfy(g)
+    ten_graph = zx.tensorfy(reconstructed_pyzx_graph)
 
-    # Here we check their tensor representations instead of composing g with
-    # the adjoint of reconstructed_pyzx_graph and checking it reduces to the
-    # identity since there seems to be a bug where equal graphs don't produce
-    # the identity
-    i = np.argmax(ten)
-    assert np.allclose(ten / ten[i], ten_graph / ten_graph[i])
+    assert zx.compare_tensors(ten, ten_graph)
 
 
 # Tests that the output of optyx and pyzx's simulators produce the same output

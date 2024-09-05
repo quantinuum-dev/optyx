@@ -185,14 +185,11 @@ class OpenGraph:
 
         This doesn't check they are equal up to an isomorphism"""
 
-        g1 = self.perform_z_deletions()
-        g2 = other.perform_z_deletions()
-
         return (
-            g1.inputs == g2.inputs
-            and g1.outputs == g2.outputs
-            and nx.utils.graphs_equal(g1.inside, g2.inside)
-            and g1.measurements == g2.measurements
+            self.inputs == other.inputs
+            and self.outputs == other.outputs
+            and nx.utils.graphs_equal(self.inside, other.inside)
+            and self.measurements == other.measurements
         )
 
     def __deepcopy__(self, memo):
