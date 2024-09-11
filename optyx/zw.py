@@ -374,7 +374,7 @@ class Z(Box):
 
     class IndexableAmplitudes:
         """Since the amplitudes can be an infinite list,
-        we can specify them as a function instead of a explicit list
+        we can specify them as a function instead of an explicit list
         """
 
         def __init__(self, func):
@@ -467,7 +467,9 @@ class Z(Box):
             or self.legs_out != other.legs_out
         ):
             return False
-        return self.amplitudes == other.amplitudes
+        if isinstance(self.amplitudes, self.IndexableAmplitudes):
+            return self.amplitudes == other.amplitudes
+        return np.allclose(self.amplitudes, other.amplitudes)
 
     def dagger(self) -> Diagram:
         return Z(np.conj(self.amplitudes), self.legs_out, self.legs_in)
