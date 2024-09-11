@@ -9,16 +9,17 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
     
 Example
 -------
->>> from ...test.test_zw import test_arrays_of_different_sizes
 >>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
 ...             Z(lambda i: 1, 2, 0)
 >>> lemma_B7_r = W(2) @ Id(2) >>\\
 ...             Id(1) @ Id(1) @ Swap() >>\\
 ...             Id(1) @ Swap() @ Id(1) >>\\
 ...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
->>> assert test_arrays_of_different_sizes(\\
-...             lemma_B7_l.to_tensor(print_max_occupation_number=False).eval().array,\\
-...             lemma_B7_r.to_tensor(print_max_occupation_number=False).eval().array)
+>>> assert compare_arrays_of_different_sizes(\\
+...             lemma_B7_l.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\
+...             lemma_B7_r.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array)
 
 >>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
 >>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
@@ -29,40 +30,49 @@ Example
 >>> Hong_Ou_Mandel = Create(1) @ Create(1) >> \\
 ...                beam_splitter >> \\
 ...                Select(1) @ Select(1) 
->>> assert test_arrays_of_different_sizes(\\
-...             Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False).eval().array, 
+>>> assert compare_arrays_of_different_sizes(\\
+...             Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\
 ...             np.array([0]))
 
 Axioms
 
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> Swap()
->>> assert test_arrays_of_different_sizes(\\
-...             bSym_l.to_tensor(print_max_occupation_number=False).eval().array,\\
-...             bSym_r.to_tensor(print_max_occupation_number=False).eval().array) 
+>>> assert compare_arrays_of_different_sizes(\\
+...             bSym_l.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\
+...             bSym_r.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array) 
 
 
 >>> bAso_l = W(2) >> W(2) @ Id(1)
 >>> bAso_r = W(2) >> Id(1) @ W(2)
->>> assert test_arrays_of_different_sizes(\\
-...             bAso_l.to_tensor(print_max_occupation_number=False).eval().array,\\
-...             bAso_r.to_tensor(print_max_occupation_number=False).eval().array)
+>>> assert compare_arrays_of_different_sizes(\\
+...             bAso_l.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\
+...             bAso_r.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array)
 
 
 >>> bBa_l = ProjectionMap(2) >> W(2) @ W(2) >>\\
 ...             Id(1) @ Swap() @ Id(1) >>\\
 ...             W(2).dagger() @ W(2).dagger()
 >>> bBa_r = W(2).dagger() >> W(2)
->>> assert test_arrays_of_different_sizes(\\
-...             bBa_l.to_tensor(print_max_occupation_number=False).eval().array,\\ 
-...             bBa_r.to_tensor(print_max_occupation_number=False).eval().array)
+>>> assert compare_arrays_of_different_sizes(\\
+...             bBa_l.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\ 
+...             bBa_r.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array)
 
 
 >>> bId_l = W(2) >> Select(0) @ Id(1)
 >>> bId_r = Id(1)
->>> assert test_arrays_of_different_sizes(\\
-...             bId_l.to_tensor(print_max_occupation_number=False).eval().array,\\
-...             bId_r.to_tensor(print_max_occupation_number=False).eval().array)
+>>> assert compare_arrays_of_different_sizes(\\
+...             bId_l.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\
+...             bId_r.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array)
 
 
 >>> from math import factorial
@@ -73,15 +83,19 @@ Axioms
 ...             W(2).dagger() @ W(2).dagger() >>\\
 ...             Id(1) @ Z(frac_N, 1, 1) 
 >>> bZBA_r = W(2).dagger() >> Z([1, 1, 1, 1, 1], 1, 2) 
->>> assert test_arrays_of_different_sizes(\\
-...             bZBA_l.to_tensor(print_max_occupation_number=False).eval().array,\\
-...             bZBA_r.to_tensor(print_max_occupation_number=False).eval().array)
+>>> assert compare_arrays_of_different_sizes(\\
+...             bZBA_l.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\
+...             bZBA_r.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array)
 
 >>> K0_infty_l = Create(4) >> Z([1, 1, 1, 1, 1], 1, 2)
 >>> K0_infty_r = Create(4) @ Create(4) 
->>> assert test_arrays_of_different_sizes(\\
-...             K0_infty_l.to_tensor(print_max_occupation_number=False).eval().array,\\
-...             K0_infty_r.to_tensor(print_max_occupation_number=False).eval().array)
+>>> assert compare_arrays_of_different_sizes(\\
+...             K0_infty_l.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array,\\
+...             K0_infty_r.to_tensor(print_max_occupation_number=False)\\
+...                     .eval().array)
 """
 
 import logging
@@ -137,7 +151,7 @@ class Diagram(zx.Diagram):
                 elif isinstance(box, Select):
                     current_occupation_num = box.n_photons
 
-                scan[off : off + len(box.dom)] = [
+                scan[off:off + len(box.dom)] = [
                     (current_occupation_num, len(box.dom) + ind)
                     for ind in range(len(box.cod))
                 ]
@@ -558,9 +572,35 @@ def multinomial(lst: list) -> int:
     # https://stackoverflow.com/questions/46374185/does-python-have-a-function-which-computes-multinomial-coefficients
     res, i = 1, sum(lst)
     i0 = lst.index(max(lst))
-    for a in lst[:i0] + lst[i0 + 1 :]:
+    for a in lst[:i0] + lst[i0 + 1:]:
         for j in range(1, a + 1):
             res *= i
             res //= j
             i -= 1
     return res
+
+def compare_arrays_of_different_sizes(array_1, array_2):
+    """ZW diagrams which are equal in infinite dimensions
+    might be intrepreted as arrays of different dimensions
+    if we truncate them to a finite number of dimensions"""
+    if not isinstance(array_1, np.ndarray):
+        array_1 = np.array([array_1])
+    if not isinstance(array_2, np.ndarray):
+        array_2 = np.array([array_2])
+    if len(array_1.flatten()) < len(array_2.flatten()):
+        ax_0 = array_1.shape[0]
+        if len(array_1.shape) == 1:
+            array_2 = array_2[:ax_0]
+        else:
+            ax_1 = array_1.shape[1]
+            array_2 = array_2[:ax_0,:ax_1]
+    elif len(array_1.flatten()) > len(array_2.flatten()):
+        ax_0 = array_2.shape[0]
+        if len(array_2.shape) == 1:
+            array_1 = array_1[:ax_0]
+        else:
+            ax_1 = array_2.shape[1]
+            array_1 = array_1[:ax_0,:ax_1]
+    else:
+        pass
+    return np.allclose(array_1, array_2)
