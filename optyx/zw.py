@@ -1,5 +1,87 @@
 """
 ZW diagrams and their mapping to :class:`tensor.Diagram`.
+
+.. admonition:: Functions
+    .. autosummary::
+        :template: function.rst
+        :nosignatures:
+        :toctree:
+    
+Example
+-------
+>>> from ...test.test_zw import test_arrays_of_different_sizes
+>>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
+...             Z(lambda i: 1, 2, 0)
+>>> lemma_B7_r = W(2) @ Id(2) >>\\
+...             Id(1) @ Id(1) @ Swap() >>\\
+...             Id(1) @ Swap() @ Id(1) >>\\
+...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
+>>> assert test_arrays_of_different_sizes(\\
+...             lemma_B7_l.to_tensor(print_max_occupation_number=False).eval().array,\\
+...             lemma_B7_r.to_tensor(print_max_occupation_number=False).eval().array)
+
+>>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
+>>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
+>>> beam_splitter = W(2) @ W(2) >> \\
+...               Zb_i @ Zb_1 @ Zb_1 @ Zb_i >> \\
+...               Id(1) @ Swap() @ Id(1) >> \\
+...               W(2).dagger() @ W(2).dagger()
+>>> Hong_Ou_Mandel = Create(1) @ Create(1) >> \\
+...                beam_splitter >> \\
+...                Select(1) @ Select(1) 
+>>> assert test_arrays_of_different_sizes(\\
+...             Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False).eval().array, 
+...             np.array([0]))
+
+Axioms
+
+>>> bSym_l = W(2)
+>>> bSym_r = W(2) >> Swap()
+>>> assert test_arrays_of_different_sizes(\\
+...             bSym_l.to_tensor(print_max_occupation_number=False).eval().array,\\
+...             bSym_r.to_tensor(print_max_occupation_number=False).eval().array) 
+
+
+>>> bAso_l = W(2) >> W(2) @ Id(1)
+>>> bAso_r = W(2) >> Id(1) @ W(2)
+>>> assert test_arrays_of_different_sizes(\\
+...             bAso_l.to_tensor(print_max_occupation_number=False).eval().array,\\
+...             bAso_r.to_tensor(print_max_occupation_number=False).eval().array)
+
+
+>>> bBa_l = ProjectionMap(2) >> W(2) @ W(2) >>\\
+...             Id(1) @ Swap() @ Id(1) >>\\
+...             W(2).dagger() @ W(2).dagger()
+>>> bBa_r = W(2).dagger() >> W(2)
+>>> assert test_arrays_of_different_sizes(\\
+...             bBa_l.to_tensor(print_max_occupation_number=False).eval().array,\\ 
+...             bBa_r.to_tensor(print_max_occupation_number=False).eval().array)
+
+
+>>> bId_l = W(2) >> Select(0) @ Id(1)
+>>> bId_r = Id(1)
+>>> assert test_arrays_of_different_sizes(\\
+...             bId_l.to_tensor(print_max_occupation_number=False).eval().array,\\
+...             bId_r.to_tensor(print_max_occupation_number=False).eval().array)
+
+
+>>> from math import factorial
+>>> N = [float(np.sqrt(factorial(i))) for i in range(5)]
+>>> frac_N = [float(1/np.sqrt(factorial(i))) for i in range(5)]
+>>> bZBA_l = Z(N, 1, 2) @ Z(N, 1, 2) >>\\
+...             Id(1) @ Swap() @ Id(1) >>\\
+...             W(2).dagger() @ W(2).dagger() >>\\
+...             Id(1) @ Z(frac_N, 1, 1) 
+>>> bZBA_r = W(2).dagger() >> Z([1, 1, 1, 1, 1], 1, 2) 
+>>> assert test_arrays_of_different_sizes(\\
+...             bZBA_l.to_tensor(print_max_occupation_number=False).eval().array,\\
+...             bZBA_r.to_tensor(print_max_occupation_number=False).eval().array)
+
+>>> K0_infty_l = Create(4) >> Z([1, 1, 1, 1, 1], 1, 2)
+>>> K0_infty_r = Create(4) @ Create(4) 
+>>> assert test_arrays_of_different_sizes(\\
+...             K0_infty_l.to_tensor(print_max_occupation_number=False).eval().array,\\
+...             K0_infty_r.to_tensor(print_max_occupation_number=False).eval().array)
 """
 
 import logging
@@ -39,7 +121,7 @@ class Diagram(zx.Diagram):
                     continue
 
                 current_occupation_num = 0
-                if isinstance(box, ZBox):
+                if isinstance(box, Z):
                     previous_occupation_nums = [0]
                     for j in range(len(box.dom)):
                         other_t, _ = scan[off + j]
@@ -55,7 +137,7 @@ class Diagram(zx.Diagram):
                 elif isinstance(box, Select):
                     current_occupation_num = box.n_photons
 
-                scan[off:off + len(box.dom)] = [
+                scan[off : off + len(box.dom)] = [
                     (current_occupation_num, len(box.dom) + ind)
                     for ind in range(len(box.cod))
                 ]
@@ -88,8 +170,8 @@ class Diagram(zx.Diagram):
         if max_occupation_num < max_occupation_num_:
             if max_occupation_num != 5:
                 logging.info(
-                    f"max_occupation_num is too {max_occupation_num} low, "
-                    f"setting it to {max_occupation_num_}"
+                    "max_occupation_num is too low, "
+                    "setting it to %s", max_occupation_num_
                 )
             max_occupation_num = max_occupation_num_
 
@@ -123,9 +205,9 @@ class Sum(zx.Sum, Box, Diagram):
     __ambiguous_inheritance__ = (zx.Sum,)
 
 
-class Truncation(Box):
+class ProjectionMap(Box):
     """
-    Truncation map from the ZXW calculus.
+    ProjectionMap map from the ZXW calculus.
     """
 
     def __init__(self, wires: int):
@@ -161,10 +243,10 @@ class Truncation(Box):
         return arr
 
     def __repr__(self):
-        return f"Truncation({self.wires})"
+        return f"ProjectionMap({self.wires})"
 
-    def __eq__(self, other: "Truncation") -> bool:
-        if not isinstance(other, Truncation):
+    def __eq__(self, other: "ProjectionMap") -> bool:
+        if not isinstance(other, ProjectionMap):
             return False
         return self.wires == other.wires
 
@@ -223,7 +305,7 @@ class Id(Box):
 
 class W(Box):
     """
-    W gate from the ZW calculus.
+    W gate from the ZW calculus - one input and n outputs
     """
 
     draw_as_spider = False
@@ -286,7 +368,7 @@ class W(Box):
         return (self.n_legs, self.is_dagger) == (other.n_legs, other.is_dagger)
 
 
-class ZBox(Box):
+class Z(Box):
     """
     Z gate from the ZW calculus.
     """
@@ -299,7 +381,7 @@ class ZBox(Box):
         def __init__(self, func):
             self.func = func
             self.conj = False
-            self.name = "ZBox(func)"
+            self.name = "Z(func)"
 
         def __getitem__(self, i):
             if not self.conj:
@@ -314,8 +396,8 @@ class ZBox(Box):
             self.conj = not self.conj
             return self
 
-        def __eq__(self, other: "ZBox.IndexableAmplitudes") -> bool:
-            if not isinstance(other, ZBox.IndexableAmplitudes):
+        def __eq__(self, other: "Z.IndexableAmplitudes") -> bool:
+            if not isinstance(other, Z.IndexableAmplitudes):
                 return False
             return self.func.__code__.co_code == other.func.__code__.co_code
 
@@ -375,13 +457,13 @@ class ZBox(Box):
             s = ", ".join(str(self.amplitudes[i]) for i in range(2)) + ", ..."
         else:
             s = ", ".join(str(a) for a in self.amplitudes)
-        return f"ZBox({s})"
+        return f"Z({s})"
 
     __str__ = __repr__
 
-    def __eq__(self, other: "ZBox") -> bool:
+    def __eq__(self, other: "Z") -> bool:
         if (
-            not isinstance(other, ZBox)
+            not isinstance(other, Z)
             or self.legs_in != other.legs_in
             or self.legs_out != other.legs_out
         ):
@@ -389,7 +471,7 @@ class ZBox(Box):
         return self.amplitudes == other.amplitudes
 
     def dagger(self) -> Diagram:
-        return ZBox(np.conj(self.amplitudes), self.legs_out, self.legs_in)
+        return Z(np.conj(self.amplitudes), self.legs_out, self.legs_in)
 
 
 class Create(Box):
@@ -476,9 +558,36 @@ def multinomial(lst: list) -> int:
     # https://stackoverflow.com/questions/46374185/does-python-have-a-function-which-computes-multinomial-coefficients
     res, i = 1, sum(lst)
     i0 = lst.index(max(lst))
-    for a in lst[:i0] + lst[i0 + 1:]:
+    for a in lst[:i0] + lst[i0 + 1 :]:
         for j in range(1, a + 1):
             res *= i
             res //= j
             i -= 1
     return res
+
+
+# def compare_arrays_of_different_sizes(array_1, array_2):
+#     """ZW diagrams which are equal in infinite dimensions
+#     might be intrepreted as arrays of different dimensions
+#     if we truncate them to a finite number of dimensions"""
+#     if not isinstance(array_1, np.ndarray):
+#         array_1 = np.array([array_1])
+#     if not isinstance(array_2, np.ndarray):
+#         array_2 = np.array([array_2])
+#     if len(array_1.flatten()) < len(array_2.flatten()):
+#         ax_0 = array_1.shape[0]
+#         if len(array_1.shape) == 1:
+#             array_2 = array_2[:ax_0]
+#         else:
+#             ax_1 = array_1.shape[1]
+#             array_2 = array_2[:ax_0, :ax_1]
+#     elif len(array_1.flatten()) > len(array_2.flatten()):
+#         ax_0 = array_2.shape[0]
+#         if len(array_2.shape) == 1:
+#             array_1 = array_1[:ax_0]
+#         else:
+#             ax_1 = array_2.shape[1]
+#             array_1 = array_1[:ax_0, :ax_1]
+#     else:
+#         pass
+#     return np.allclose(array_1, array_2)
