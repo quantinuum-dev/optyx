@@ -564,30 +564,3 @@ def multinomial(lst: list) -> int:
             res //= j
             i -= 1
     return res
-
-
-# def compare_arrays_of_different_sizes(array_1, array_2):
-#     """ZW diagrams which are equal in infinite dimensions
-#     might be intrepreted as arrays of different dimensions
-#     if we truncate them to a finite number of dimensions"""
-#     if not isinstance(array_1, np.ndarray):
-#         array_1 = np.array([array_1])
-#     if not isinstance(array_2, np.ndarray):
-#         array_2 = np.array([array_2])
-#     if len(array_1.flatten()) < len(array_2.flatten()):
-#         ax_0 = array_1.shape[0]
-#         if len(array_1.shape) == 1:
-#             array_2 = array_2[:ax_0]
-#         else:
-#             ax_1 = array_1.shape[1]
-#             array_2 = array_2[:ax_0, :ax_1]
-#     elif len(array_1.flatten()) > len(array_2.flatten()):
-#         ax_0 = array_2.shape[0]
-#         if len(array_2.shape) == 1:
-#             array_1 = array_1[:ax_0]
-#         else:
-#             ax_1 = array_2.shape[1]
-#             array_1 = array_1[:ax_0, :ax_1]
-#     else:
-#         pass
-#     return np.allclose(array_1, array_2)
