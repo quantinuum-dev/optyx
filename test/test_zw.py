@@ -104,6 +104,23 @@ def test_spider_fusion(
         .array,
     )
 
+@pytest.mark.parametrize("legs", range(1, 5))
+def test_Z_conj(legs: int):
+    Z_conj_l = Z(lambda i: 1j, legs, legs).dagger()
+    Z_conj_r = Z(lambda i: -1j, legs, legs)
+
+    assert test_arrays_of_different_sizes(
+        Z_conj_l.to_tensor(print_max_occupation_number=False).eval().array,
+        Z_conj_r.to_tensor(print_max_occupation_number=False).eval().array,
+    )
+
+
+def test_IndexableAmplitudes():
+    i_a_1 = Z.IndexableAmplitudes(lambda i: 1j)
+    i_a_2 = Z.IndexableAmplitudes(lambda i: 1.0j)
+
+    assert i_a_1 == i_a_2
+
 
 def test_bSym():
     bSym_l = W(2)
@@ -120,8 +137,62 @@ def test_bAso():
     bAso_r = W(2) >> Id(1) @ W(2)
 
     assert test_arrays_of_different_sizes(
-        bAso_l.to_tensor(print_max_occupation_number=False).eval().array,
-        bAso_r.to_tensor(print_max_occupation_number=False).eval().array,
+        bAso_l.to_tensor(print_max_occupation_number=True).eval().array,
+        bAso_r.to_tensor(print_max_occupation_number=True).eval().array,
+    )
+
+
+def test_doubleSWAP():
+    swap_l = Swap() >> Swap()
+    swap_r = Id(2)
+
+    assert test_arrays_of_different_sizes(
+        swap_l.to_tensor(print_max_occupation_number=True).eval().array,
+        swap_r.to_tensor(print_max_occupation_number=True).eval().array,
+    )
+
+
+def test_SWAP_dagger_SWAP():
+    swap_l = Swap().dagger() 
+    swap_r = Swap()
+
+    assert test_arrays_of_different_sizes(
+        swap_l.to_tensor(print_max_occupation_number=True).eval().array,
+        swap_r.to_tensor(print_max_occupation_number=True).eval().array,
+    )
+
+@pytest.mark.parametrize("k", range(1, 4))
+def test_Id_eq(k: int):
+    id_l = Id(k)
+    id_r = Id(k).dagger()
+
+    assert id_l == id_r
+
+
+@pytest.mark.parametrize("legs", range(1, 4))
+def test_Z_eq_IndexableAmplitudes(legs: int):
+    Z_l = Z(lambda i: 1, legs, legs)
+    Z_r = Z(lambda i: 1, legs, legs).dagger()
+
+    assert Z_l == Z_r
+
+
+@pytest.mark.parametrize("legs", range(1, 4))
+def test_Z_eq(legs: int):
+    Z_l = Z([1, 1], legs, legs)
+    Z_r = Z([1, 1], legs, legs).dagger()
+
+    assert Z_l == Z_r
+
+
+@pytest.mark.parametrize("k", range(1, 4))
+def test_Id_dagger_Id(k: int):
+    id_l = Id(k).dagger()
+    id_r = Id(k)
+
+    assert test_arrays_of_different_sizes(
+        id_l.to_tensor(print_max_occupation_number=False).eval().array,
+        id_r.to_tensor(print_max_occupation_number=False).eval().array,
     )
 
 
@@ -182,6 +253,16 @@ def test_K0_infty():
 
 def test_scalar():
     scalar_l = Create(1) >> Z([1, 2], 1, 1) >> Select(1)
+    scalar_r = Z([2], 0, 0)
+
+    assert test_arrays_of_different_sizes(
+        scalar_l.to_tensor(print_max_occupation_number=False).eval().array,
+        scalar_r.to_tensor(print_max_occupation_number=False).eval().array,
+    )
+
+
+def test_scalar_with_IndexableAmplitudes():
+    scalar_l = Create(1) >> Z(lambda i: i+1, 1, 1) >> Select(1)
     scalar_r = Z([2], 0, 0)
 
     assert test_arrays_of_different_sizes(
