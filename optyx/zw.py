@@ -6,7 +6,7 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
         :template: function.rst
         :nosignatures:
         :toctree:
-    
+
 Example
 -------
 >>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
@@ -16,10 +16,8 @@ Example
 ...             Id(1) @ Swap() @ Id(1) >>\\
 ...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
 >>> assert compare_arrays_of_different_sizes(\\
-...             lemma_B7_l.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\
-...             lemma_B7_r.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array)
+...             lemma_B7_l.to_tensor().eval().array,\\
+...             lemma_B7_r.to_tensor().eval().array)
 
 >>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
 >>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
@@ -29,10 +27,9 @@ Example
 ...               W(2).dagger() @ W(2).dagger()
 >>> Hong_Ou_Mandel = Create(1) @ Create(1) >> \\
 ...                beam_splitter >> \\
-...                Select(1) @ Select(1) 
+...                Select(1) @ Select(1)
 >>> assert compare_arrays_of_different_sizes(\\
-...             Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\
+...             Hong_Ou_Mandel.to_tensor().eval().array,\\
 ...             np.array([0]))
 
 Axioms
@@ -40,19 +37,15 @@ Axioms
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> Swap()
 >>> assert compare_arrays_of_different_sizes(\\
-...             bSym_l.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\
-...             bSym_r.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array) 
+...             bSym_l.to_tensor().eval().array,\\
+...             bSym_r.to_tensor().eval().array)
 
 
 >>> bAso_l = W(2) >> W(2) @ Id(1)
 >>> bAso_r = W(2) >> Id(1) @ W(2)
 >>> assert compare_arrays_of_different_sizes(\\
-...             bAso_l.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\
-...             bAso_r.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array)
+...             bAso_l.to_tensor().eval().array,\\
+...             bAso_r.to_tensor().eval().array)
 
 
 >>> bBa_l = ProjectionMap(2) >> W(2) @ W(2) >>\\
@@ -60,19 +53,15 @@ Axioms
 ...             W(2).dagger() @ W(2).dagger()
 >>> bBa_r = W(2).dagger() >> W(2)
 >>> assert compare_arrays_of_different_sizes(\\
-...             bBa_l.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\ 
-...             bBa_r.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array)
+...             bBa_l.to_tensor().eval().array,\\
+...             bBa_r.to_tensor().eval().array)
 
 
 >>> bId_l = W(2) >> Select(0) @ Id(1)
 >>> bId_r = Id(1)
 >>> assert compare_arrays_of_different_sizes(\\
-...             bId_l.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\
-...             bId_r.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array)
+...             bId_l.to_tensor().eval().array,\\
+...             bId_r.to_tensor().eval().array)
 
 
 >>> from math import factorial
@@ -81,21 +70,17 @@ Axioms
 >>> bZBA_l = Z(N, 1, 2) @ Z(N, 1, 2) >>\\
 ...             Id(1) @ Swap() @ Id(1) >>\\
 ...             W(2).dagger() @ W(2).dagger() >>\\
-...             Id(1) @ Z(frac_N, 1, 1) 
->>> bZBA_r = W(2).dagger() >> Z([1, 1, 1, 1, 1], 1, 2) 
+...             Id(1) @ Z(frac_N, 1, 1)
+>>> bZBA_r = W(2).dagger() >> Z([1, 1, 1, 1, 1], 1, 2)
 >>> assert compare_arrays_of_different_sizes(\\
-...             bZBA_l.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\
-...             bZBA_r.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array)
+...             bZBA_l.to_tensor().eval().array,\\
+...             bZBA_r.to_tensor().eval().array)
 
 >>> K0_infty_l = Create(4) >> Z([1, 1, 1, 1, 1], 1, 2)
->>> K0_infty_r = Create(4) @ Create(4) 
+>>> K0_infty_r = Create(4) @ Create(4)
 >>> assert compare_arrays_of_different_sizes(\\
-...             K0_infty_l.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array,\\
-...             K0_infty_r.to_tensor(print_max_occupation_number=False)\\
-...                     .eval().array)
+...             K0_infty_l.to_tensor().eval().array,\\
+...             K0_infty_r.to_tensor().eval().array)
 """
 
 import logging
@@ -164,7 +149,7 @@ class Diagram(zx.Diagram):
         return max_occupation_num
 
     def to_tensor(
-        self, max_occupation_num: int = 2, print_max_occupation_number=True
+        self, max_occupation_num: int = 2, print_max_occupation_number=False
     ) -> tensor.Diagram:
         """Returns tensor.Diagram based on the ZW diagram for a
         given max_occupation_num which is used to truncate
@@ -579,6 +564,7 @@ def multinomial(lst: list) -> int:
             i -= 1
     return res
 
+
 def compare_arrays_of_different_sizes(array_1, array_2):
     """ZW diagrams which are equal in infinite dimensions
     might be intrepreted as arrays of different dimensions
@@ -593,14 +579,14 @@ def compare_arrays_of_different_sizes(array_1, array_2):
             array_2 = array_2[:ax_0]
         else:
             ax_1 = array_1.shape[1]
-            array_2 = array_2[:ax_0,:ax_1]
+            array_2 = array_2[:ax_0, :ax_1]
     elif len(array_1.flatten()) > len(array_2.flatten()):
         ax_0 = array_2.shape[0]
         if len(array_2.shape) == 1:
             array_1 = array_1[:ax_0]
         else:
             ax_1 = array_2.shape[1]
-            array_1 = array_1[:ax_0,:ax_1]
+            array_1 = array_1[:ax_0, :ax_1]
     else:
         pass
     return np.allclose(array_1, array_2)
