@@ -9,29 +9,6 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
 
 Example
 -------
->>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
-...             Z(lambda i: 1, 2, 0)
->>> lemma_B7_r = W(2) @ Id(2) >>\\
-...             Id(1) @ Id(1) @ Swap() >>\\
-...             Id(1) @ Swap() @ Id(1) >>\\
-...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
->>> assert compare_arrays_of_different_sizes(\\
-...             lemma_B7_l.to_tensor().eval().array,\\
-...             lemma_B7_r.to_tensor().eval().array)
-
->>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
->>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
->>> beam_splitter = W(2) @ W(2) >> \\
-...               Zb_i @ Zb_1 @ Zb_1 @ Zb_i >> \\
-...               Id(1) @ Swap() @ Id(1) >> \\
-...               W(2).dagger() @ W(2).dagger()
->>> Hong_Ou_Mandel = Create(1) @ Create(1) >> \\
-...                beam_splitter >> \\
-...                Select(1) @ Select(1)
->>> assert compare_arrays_of_different_sizes(\\
-...             Hong_Ou_Mandel.to_tensor().eval().array,\\
-...             np.array([0]))
-
 Axioms
 
 >>> bSym_l = W(2)
@@ -76,26 +53,53 @@ Axioms
 ...             bZBA_l.to_tensor().eval().array,\\
 ...             bZBA_r.to_tensor().eval().array)
 
+
 >>> K0_infty_l = Create(4) >> Z([1, 1, 1, 1, 1], 1, 2)
 >>> K0_infty_r = Create(4) @ Create(4)
 >>> assert compare_arrays_of_different_sizes(\\
 ...             K0_infty_l.to_tensor().eval().array,\\
 ...             K0_infty_r.to_tensor().eval().array)
+
+Examples:
+Lemma B7 from 2306.02114
+>>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
+...             Z(lambda i: 1, 2, 0)
+>>> lemma_B7_r = W(2) @ Id(2) >>\\
+...             Id(1) @ Id(1) @ Swap() >>\\
+...             Id(1) @ Swap() @ Id(1) >>\\
+...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
+>>> assert compare_arrays_of_different_sizes(\\
+...             lemma_B7_l.to_tensor().eval().array,\\
+...             lemma_B7_r.to_tensor().eval().array)
+
+Hong-Ou-Mandel interference
+>>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
+>>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
+>>> beam_splitter = W(2) @ W(2) >> \\
+...               Zb_i @ Zb_1 @ Zb_1 @ Zb_i >> \\
+...               Id(1) @ Swap() @ Id(1) >> \\
+...               W(2).dagger() @ W(2).dagger()
+>>> Hong_Ou_Mandel = Create(1) @ Create(1) >> \\
+...                beam_splitter >> \\
+...                Select(1) @ Select(1)
+>>> assert compare_arrays_of_different_sizes(\\
+...             Hong_Ou_Mandel.to_tensor().eval().array,\\
+...             np.array([0]))
 """
 
 import logging
 from typing import Union
 import numpy as np
-from discopy.rigid import Layer
-from discopy.quantum import zx
-from discopy.cat import factory, Category
 from discopy.rigid import PRO
+from discopy import braided
+from discopy.monoidal import Layer
+from discopy.cat import factory, Category
 from discopy import tensor
 from discopy.frobenius import Dim, Functor
 
 
 @factory
-class Diagram(zx.Diagram):
+class Diagram(braided.Diagram):
     """
     ZW diagram
     """
@@ -136,7 +140,7 @@ class Diagram(zx.Diagram):
                 elif isinstance(box, Select):
                     current_occupation_num = box.n_photons
 
-                scan[off:off + len(box.dom)] = [
+                scan[off : off + len(box.dom)] = [
                     (current_occupation_num, len(box.dom) + ind)
                     for ind in range(len(box.cod))
                 ]
@@ -169,15 +173,15 @@ class Diagram(zx.Diagram):
         if max_occupation_num < max_occupation_num_:
             if max_occupation_num != 5:
                 logging.info(
-                    "max_occupation_num is too low, "
-                    "setting it to %s", max_occupation_num_
+                    "max_occupation_num is too low, setting it to %s",
+                    max_occupation_num_,
                 )
             max_occupation_num = max_occupation_num_
 
         def f_ob(ob: PRO) -> Dim:
             return Dim(max_occupation_num + 1) ** len(ob)
 
-        def f_ar(box: zx.Box) -> tensor.Box:
+        def f_ar(box: braided.Box) -> tensor.Box:
             arr = box.truncated_array(max_occupation_num)
             return tensor.Box(box.name, f_ob(box.dom), f_ob(box.cod), arr)
 
@@ -192,16 +196,16 @@ class Diagram(zx.Diagram):
         return Sum([self, other])
 
 
-class Box(zx.Box, Diagram):
+class Box(braided.Box, Diagram):
     """A ZW box"""
 
-    __ambiguous_inheritance__ = (zx.Box,)
+    __ambiguous_inheritance__ = (braided.Box,)
 
 
-class Sum(zx.Sum, Box, Diagram):
+class Sum(braided.Sum, Box, Diagram):
     """A sum of ZW diagrams"""
 
-    __ambiguous_inheritance__ = (zx.Sum,)
+    __ambiguous_inheritance__ = (braided.Sum,)
 
 
 class ProjectionMap(Box):
@@ -250,11 +254,11 @@ class ProjectionMap(Box):
         return self.wires == other.wires
 
 
-class Swap(zx.Swap, Diagram):
+class Swap(braided.Box, Diagram):
     """A ZW Swap"""
 
     def __init__(self):
-        super().__init__(PRO(1), PRO(1))
+        super().__init__("SWAP", PRO(2), PRO(2))
 
     # create an array like in 2306.02114
     def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
@@ -367,38 +371,45 @@ class W(Box):
         return (self.n_legs, self.is_dagger) == (other.n_legs, other.is_dagger)
 
 
+class IndexableAmplitudes:
+    """Since the amplitudes can be an infinite list,
+    we can specify them as a function instead of an explicit list.
+    The class is a wrapper for the function which allows to
+    index the function as if it was a list.
+
+    >>> f = lambda i: i
+    >>> amplitudes = IndexableAmplitudes(f)
+    >>> assert amplitudes[0] == 0
+    """
+
+    def __init__(self, func):
+        self.func = func
+        self.conj = False
+        self.name = "Z(func)"
+
+    def __getitem__(self, i):
+        if not self.conj:
+            return self.func(i)
+        return np.conj(self.func(i))
+
+    def __str__(self) -> str:
+        return "function"
+
+    def conjugate(self):
+        """Conjugate the amplitudes"""
+        self.conj = not self.conj
+        return self
+
+    def __eq__(self, other: "IndexableAmplitudes") -> bool:
+        if not isinstance(other, IndexableAmplitudes):
+            return False
+        return self.func.__code__.co_code == other.func.__code__.co_code
+
+
 class Z(Box):
     """
     Z gate from the ZW calculus.
     """
-
-    class IndexableAmplitudes:
-        """Since the amplitudes can be an infinite list,
-        we can specify them as a function instead of an explicit list
-        """
-
-        def __init__(self, func):
-            self.func = func
-            self.conj = False
-            self.name = "Z(func)"
-
-        def __getitem__(self, i):
-            if not self.conj:
-                return self.func(i)
-            return np.conj(self.func(i))
-
-        def __str__(self) -> str:
-            return "function"
-
-        def conjugate(self):
-            """Conjugate the amplitudes"""
-            self.conj = not self.conj
-            return self
-
-        def __eq__(self, other: "Z.IndexableAmplitudes") -> bool:
-            if not isinstance(other, Z.IndexableAmplitudes):
-                return False
-            return self.func.__code__.co_code == other.func.__code__.co_code
 
     def __init__(
         self,
@@ -408,7 +419,7 @@ class Z(Box):
     ):
         # if amplitudes are a function then make it indexable, "conjugable"
         if callable(amplitudes):
-            self.amplitudes = self.IndexableAmplitudes(amplitudes)
+            self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
         super().__init__(f"B{self.amplitudes}", PRO(legs_in), PRO(legs_out))
@@ -428,7 +439,7 @@ class Z(Box):
         )
 
         if self.legs_in == 0 and self.legs_out == 0:
-            if not isinstance(self.amplitudes, self.IndexableAmplitudes):
+            if not isinstance(self.amplitudes, IndexableAmplitudes):
                 return np.array([self.amplitudes], dtype=complex)
             return np.array([self.amplitudes[0]], dtype=complex)
 
@@ -441,7 +452,7 @@ class Z(Box):
             for j in range(self.legs_in):
                 col_index += i * dim ** (self.legs_in - j - 1)
 
-            if not isinstance(self.amplitudes, self.IndexableAmplitudes):
+            if not isinstance(self.amplitudes, IndexableAmplitudes):
                 if i >= len(self.amplitudes):
                     result_matrix[row_index, col_index] = 0
                 else:
@@ -452,7 +463,7 @@ class Z(Box):
         return result_matrix
 
     def __repr__(self):
-        if isinstance(self.amplitudes, self.IndexableAmplitudes):
+        if isinstance(self.amplitudes, IndexableAmplitudes):
             s = ", ".join(str(self.amplitudes[i]) for i in range(2)) + ", ..."
         else:
             s = ", ".join(str(a) for a in self.amplitudes)
@@ -467,7 +478,7 @@ class Z(Box):
             or self.legs_out != other.legs_out
         ):
             return False
-        if isinstance(self.amplitudes, self.IndexableAmplitudes):
+        if isinstance(self.amplitudes, IndexableAmplitudes):
             return self.amplitudes == other.amplitudes
         return np.allclose(self.amplitudes, other.amplitudes)
 
@@ -559,7 +570,7 @@ def multinomial(lst: list) -> int:
     # https://stackoverflow.com/questions/46374185/does-python-have-a-function-which-computes-multinomial-coefficients
     res, i = 1, sum(lst)
     i0 = lst.index(max(lst))
-    for a in lst[:i0] + lst[i0 + 1:]:
+    for a in lst[:i0] + lst[i0 + 1 :]:
         for j in range(1, a + 1):
             res *= i
             res //= j
