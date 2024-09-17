@@ -9,7 +9,7 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
 
 Example
 -------
-Axioms
+Axioms (from 2306.02114)
 
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> Swap()
@@ -60,8 +60,8 @@ Axioms
 ...             K0_infty_l.to_tensor().eval().array,\\
 ...             K0_infty_r.to_tensor().eval().array)
 
-Examples:
 Lemma B7 from 2306.02114
+
 >>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
 ...             Z(lambda i: 1, 2, 0)
 >>> lemma_B7_r = W(2) @ Id(2) >>\\
@@ -73,6 +73,7 @@ Lemma B7 from 2306.02114
 ...             lemma_B7_r.to_tensor().eval().array)
 
 Hong-Ou-Mandel interference
+
 >>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
 >>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
 >>> beam_splitter = W(2) @ W(2) >> \\
@@ -140,7 +141,7 @@ class Diagram(braided.Diagram):
                 elif isinstance(box, Select):
                     current_occupation_num = box.n_photons
 
-                scan[off : off + len(box.dom)] = [
+                scan[off: off + len(box.dom)] = [
                     (current_occupation_num, len(box.dom) + ind)
                     for ind in range(len(box.cod))
                 ]
@@ -570,7 +571,7 @@ def multinomial(lst: list) -> int:
     # https://stackoverflow.com/questions/46374185/does-python-have-a-function-which-computes-multinomial-coefficients
     res, i = 1, sum(lst)
     i0 = lst.index(max(lst))
-    for a in lst[:i0] + lst[i0 + 1 :]:
+    for a in lst[:i0] + lst[i0 + 1:]:
         for j in range(1, a + 1):
             res *= i
             res //= j
