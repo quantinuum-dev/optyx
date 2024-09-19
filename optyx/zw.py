@@ -123,7 +123,6 @@ class Diagram(braided.Diagram):
                 if isinstance(box, tensor.Swap):
                     scan[off], scan[off + 1] = scan[off + 1], scan[off]
                     continue
-
                 current_occupation_num = 0
                 if isinstance(box, Z):
                     previous_occupation_nums = [0]
@@ -134,17 +133,33 @@ class Diagram(braided.Diagram):
                     max_previous_occupation_num = max(previous_occupation_nums)
 
                     current_occupation_num = max_previous_occupation_num * (
-                        box.legs_out + 1
+                        box.legs_out
                     )
-                elif isinstance(box, Create):
+
+                elif isinstance(box, W) and box.is_dagger:
+                    previous_occupation_nums = [0]
+                    for j in range(box.n_legs):
+                        other_t, _ = scan[off + j]
+                        previous_occupation_nums.append(other_t)
+
+                    max_previous_occupation_num = max(previous_occupation_nums)
+
+                    current_occupation_num = max_previous_occupation_num * (
+                        box.n_legs
+                    )
+                elif isinstance(box, (Create, Select)):
                     current_occupation_num = box.n_photons
-                elif isinstance(box, Select):
-                    current_occupation_num = box.n_photons
+                else:
+                    if len(scan) > off:
+                        current_occupation_num, _ = scan[off + 0]
+                    else:
+                        current_occupation_num = 0
 
                 scan[off: off + len(box.dom)] = [
                     (current_occupation_num, len(box.dom) + ind)
                     for ind in range(len(box.cod))
                 ]
+                # print(f"{box}: {scan}, {off}")
                 occupation_numbers.append(current_occupation_num)
         else:
             for term in self:
@@ -172,7 +187,7 @@ class Diagram(braided.Diagram):
         # a user can specify a custom max_occupation_num
         # throw a warning if the number is too low
         if max_occupation_num < max_occupation_num_:
-            if max_occupation_num != 5:
+            if max_occupation_num != 2:
                 logging.info(
                     "max_occupation_num is too low, setting it to %s",
                     max_occupation_num_,
