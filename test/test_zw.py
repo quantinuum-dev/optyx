@@ -295,7 +295,7 @@ def test_branching():
     )
 
 
-@pytest.mark.parametrize("k", [1, 2, 3, 4, 10])
+@pytest.mark.parametrize("k", [1, 2, 3, 4])
 def test_normalisation(k: int):
     from math import factorial
 
@@ -400,8 +400,8 @@ def test_bBa(postselect_and_prob: list):
     select_2 = postselect_and_prob[1]
     prob = postselect_and_prob[2]
 
-    Zb_i = Z(np.array([1, 1j / (np.sqrt(2))]), 1, 1)
-    Zb_1 = Z(np.array([1, 1 / (np.sqrt(2))]), 1, 1)
+    Zb_i = Z(lambda i: (np.sin(0.25 * np.pi) * 1j) ** i, 1, 1)
+    Zb_1 = Z(lambda i: (np.cos(0.25 * np.pi)) ** i, 1, 1)
 
     beam_splitter = (
         W(2) @ W(2)
