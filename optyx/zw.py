@@ -11,6 +11,8 @@ Example
 -------
 Axioms (from 2306.02114)
 
+
+>>> from optyx.utils import compare_arrays_of_different_sizes
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> Swap()
 >>> assert compare_arrays_of_different_sizes(\\
@@ -91,31 +93,32 @@ Hong-Ou-Mandel interference
 import logging
 from typing import Union
 import numpy as np
-from discopy.rigid import PRO
-from discopy import braided
-from discopy.monoidal import Layer
+from discopy import monoidal
+from discopy.monoidal import Layer, PRO
 from discopy.cat import factory, Category
 from discopy import tensor
 from discopy.frobenius import Dim, Functor
+from optyx.utils import occupation_numbers, multinomial, get_index_from_list
 
 
 @factory
-class Diagram(braided.Diagram):
+class Diagram(monoidal.Diagram):
     """
     ZW diagram
     """
 
-    def get_max_occupation_num(self):
+    def get_max_occupation_num(
+        self, user_max_occupation_num=0, print_max_occupation_number=False
+    ):
         """Returns a maximum occupation number to perform
         truncation of the generators: a method from 2306.02114: Lemma 4.1"""
         max_occupation_num = 0
 
-        occupation_numbers = [0]
-        terms = list(self)
+        occupation_numbers_ = [0]
 
         # check if the diagram is not a sum of diagrams
         # - otherwise we need to run this function for all terms in the sum
-        if isinstance(terms[0], Layer):
+        if isinstance(list(self)[0], Layer):
             inputs = [0 for _ in range(len(self.dom.inside))]
             scan = [(t, 1) for t in inputs]
 
@@ -159,13 +162,26 @@ class Diagram(braided.Diagram):
                     (current_occupation_num, len(box.dom) + ind)
                     for ind in range(len(box.cod))
                 ]
-                # print(f"{box}: {scan}, {off}")
-                occupation_numbers.append(current_occupation_num)
+                occupation_numbers_.append(current_occupation_num)
         else:
             for term in self:
-                occupation_numbers.append(term.get_max_occupation_num())
+                occupation_numbers_.append(term.get_max_occupation_num())
 
-        max_occupation_num = max(occupation_numbers)
+        max_occupation_num = max(occupation_numbers_)
+
+        if print_max_occupation_number:
+            print(f"detected max_occupation_num: {max_occupation_num}")
+
+        # a user can specify a custom max_occupation_num
+        # throw a warning if the number is too low
+        if user_max_occupation_num < max_occupation_num:
+            if user_max_occupation_num != 2:
+                logging.info(
+                    "max_occupation_num is too low, setting it to %s",
+                    max_occupation_num,
+                )
+        else:
+            max_occupation_num = user_max_occupation_num
         return max_occupation_num
 
     def to_tensor(
@@ -180,24 +196,14 @@ class Diagram(braided.Diagram):
         :param print_max_occupation_number: show the max_occupation_number
         """
 
-        max_occupation_num_ = self.get_max_occupation_num()
-        if print_max_occupation_number:
-            print(f"detected max_occupation_num: {max_occupation_num_}")
-
-        # a user can specify a custom max_occupation_num
-        # throw a warning if the number is too low
-        if max_occupation_num < max_occupation_num_:
-            if max_occupation_num != 2:
-                logging.info(
-                    "max_occupation_num is too low, setting it to %s",
-                    max_occupation_num_,
-                )
-            max_occupation_num = max_occupation_num_
+        max_occupation_num = self.get_max_occupation_num(
+            max_occupation_num, print_max_occupation_number
+        )
 
         def f_ob(ob: PRO) -> Dim:
             return Dim(max_occupation_num + 1) ** len(ob)
 
-        def f_ar(box: braided.Box) -> tensor.Box:
+        def f_ar(box: monoidal.Box) -> tensor.Box:
             arr = box.truncated_array(max_occupation_num)
             return tensor.Box(box.name, f_ob(box.dom), f_ob(box.cod), arr)
 
@@ -212,16 +218,16 @@ class Diagram(braided.Diagram):
         return Sum([self, other])
 
 
-class Box(braided.Box, Diagram):
+class Box(monoidal.Box, Diagram):
     """A ZW box"""
 
-    __ambiguous_inheritance__ = (braided.Box,)
+    __ambiguous_inheritance__ = (monoidal.Box,)
 
 
-class Sum(braided.Sum, Box, Diagram):
+class Sum(monoidal.Sum, Box, Diagram):
     """A sum of ZW diagrams"""
 
-    __ambiguous_inheritance__ = (braided.Sum,)
+    __ambiguous_inheritance__ = (monoidal.Sum,)
 
 
 class ProjectionMap(Box):
@@ -248,7 +254,7 @@ class ProjectionMap(Box):
 
             # get all allowed occupation configurations for n photons
             # (symmetric Fock space basis states)
-            combs = get_allowed_occupation_numbers(i, self.wires)
+            combs = occupation_numbers(i, self.wires)
             for comb in combs:
                 index = 0
 
@@ -270,7 +276,7 @@ class ProjectionMap(Box):
         return self.wires == other.wires
 
 
-class Swap(braided.Box, Diagram):
+class Swap(monoidal.Box, Diagram):
     """A ZW Swap"""
 
     def __init__(self):
@@ -351,7 +357,7 @@ class W(Box):
 
             # get all allowed occupation configurations for n photons
             # (symmetric Fock space basis states)
-            allowed_occupation_configurations = get_allowed_occupation_numbers(
+            allowed_occupation_configurations = occupation_numbers(
                 n, self.n_legs
             )
 
@@ -563,59 +569,53 @@ class Select(Box):
         return Create(self.n_photons)
 
 
-def get_allowed_occupation_numbers(n: int, n_legs: int):
-    """Returns all allowed occupation numbers for n photons for n_legs modes
-    (symmetric Fock space basis states)
-    """
+def tn_output_2_perceval_output(
+    tn_output: list | np.ndarray, diagram: Diagram, n_extra_photons: int = 0
+) -> np.ndarray:
+    """Convert the prob output of the tensor
+    network to the perceval prob output"""
 
-    def generate_combinations(n, n_legs, current_list):
-        if n_legs == 0:
-            if n == 0:
-                result.append(current_list)
-            return
-        for i in range(n + 1):
-            generate_combinations(n - i, n_legs - 1, current_list + [i])
+    n_selections, n_creations = calculate_num_creations_selections(diagram)
 
-    result = []
-    generate_combinations(n, n_legs, [])
-    return result
+    wires_out = len(diagram.cod)
 
+    n_photons_out = n_extra_photons - n_selections + n_creations
 
-def multinomial(lst: list) -> int:
-    """Returns the multinomial coefficient for a given list of numbers"""
-    # https://stackoverflow.com/questions/46374185/does-python-have-a-function-which-computes-multinomial-coefficients
-    res, i = 1, sum(lst)
-    i0 = lst.index(max(lst))
-    for a in lst[:i0] + lst[i0 + 1:]:
-        for j in range(1, a + 1):
-            res *= i
-            res //= j
-            i -= 1
-    return res
+    max_occupation_num = diagram.get_max_occupation_num()
 
+    idxs = list(occupation_numbers(n_photons_out, wires_out))
 
-def compare_arrays_of_different_sizes(array_1, array_2):
-    """ZW diagrams which are equal in infinite dimensions
-    might be intrepreted as arrays of different dimensions
-    if we truncate them to a finite number of dimensions"""
-    if not isinstance(array_1, np.ndarray):
-        array_1 = np.array([array_1])
-    if not isinstance(array_2, np.ndarray):
-        array_2 = np.array([array_2])
-    if len(array_1.flatten()) < len(array_2.flatten()):
-        ax_0 = array_1.shape[0]
-        if len(array_1.shape) == 1:
-            array_2 = array_2[:ax_0]
+    ix = [get_index_from_list(i, max_occupation_num) for i in idxs]
+    res_ = []
+    for i in ix:
+        if i < len(tn_output):
+            res_.append(tn_output[i])
         else:
-            ax_1 = array_1.shape[1]
-            array_2 = array_2[:ax_0, :ax_1]
-    elif len(array_1.flatten()) > len(array_2.flatten()):
-        ax_0 = array_2.shape[0]
-        if len(array_2.shape) == 1:
-            array_1 = array_1[:ax_0]
-        else:
-            ax_1 = array_2.shape[1]
-            array_1 = array_1[:ax_0, :ax_1]
+            res_.append(0.0)
+
+    return np.array(res_)
+
+
+def calculate_num_creations_selections(diagram: Diagram) -> tuple:
+    """Calculate the number of creations and selections in the diagram"""
+    terms = list(diagram)
+
+    n_selections = 0
+    n_creations = 0
+
+    if isinstance(terms[0], Layer):
+        for box, _ in zip(diagram.boxes, diagram.offsets):
+            if isinstance(box, Create):
+                n_creations += box.n_photons
+            elif isinstance(box, Select):
+                n_selections += box.n_photons
+
     else:
-        pass
-    return np.allclose(array_1, array_2)
+        arr_selections_creations = []
+        for term in diagram:
+            arr_selections_creations.append(
+                term.calculate_num_creations_selections(diagram)
+            )
+        n_selections = max(i[0] for i in arr_selections_creations)
+        n_creations = max(i[1] for i in arr_selections_creations)
+    return n_selections, n_creations
