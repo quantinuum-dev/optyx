@@ -40,6 +40,25 @@ We can differentiate the expectation values of optical circuits.
 >>> assert np.allclose(
 ...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
 ...     np.array([0.]))
+
+We can also obtain ZW diagrams from the circuit.
+
+>>> from optyx.zw import tn_output_2_perceval_output
+>>> BS = BBS(0)
+>>> diagram_qpath = qpath.Create(1, 1) >> BS
+>>> diagram_zw = diagram_qpath.to_zw()
+>>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
+>>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
+>>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
+>>> assert np.allclose(prob_zw, prob_perceval)
+
+>>> tbs = TBS(0.5)
+>>> diagram_qpath = qpath.Create(1, 1) >> tbs
+>>> diagram_zw = diagram_qpath.to_zw()
+>>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
+>>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
+>>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
+>>> assert np.allclose(prob_zw, prob_perceval)
 """
 
 import numpy as np
@@ -49,6 +68,8 @@ import sympy as sp
 from optyx import qpath
 from optyx.qpath import Box, Id, Matrix, Scalar
 from optyx.qpath import Create, Select, Split, Merge
+from optyx.zw import Z, W, Swap
+from optyx.zw import Id as zw_Id
 
 
 class Gate(Box):
@@ -117,6 +138,11 @@ class Phase(Box):
         exp = backend.exp(2 * backend.pi * 1j * self.angle)
         return Matrix[dtype]([exp], 1, 1)
 
+    def to_zw(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        exp = backend.exp(2 * backend.pi * 1j * self.angle)
+        return Z(lambda i: exp**i, 1, 1)
+
     def dagger(self):
         return Phase(-self.angle)
 
@@ -171,11 +197,23 @@ class BBS(Box):
     >>> comp = (y @ y >> Id(1) @ y @ Id(1)) >> (y @ y >> Id(1) @ y @ Id(1)
     ...   ).dagger()
     >>> assert np.allclose(comp.eval(2).array, Id(4).eval(2).array)
+
+    We can convert the beam splitter to a ZW diagram:
+
+    >>> from optyx.zw import tn_output_2_perceval_output
+    >>> bs = BBS(0)
+    >>> diagram_qpath = qpath.Create(1, 1) >> bs
+    >>> diagram_zw = diagram_qpath.to_zw()
+    >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
+    >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
+    >>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
+    >>> assert np.allclose(prob_zw, prob_perceval)
+
     """
 
     def __init__(self, bias):
         self.bias = bias
-        super().__init__(f'BBS({bias})', 2, 2, data=bias)
+        super().__init__(f"BBS({bias})", 2, 2, data=bias)
 
     def __repr__(self):
         return "BS" if self.bias == 0 else super().__repr__()
@@ -186,6 +224,26 @@ class BBS(Box):
         cos = backend.cos((0.25 + self.bias) * backend.pi)
         array = [sin, 1j * cos, 1j * cos, sin]
         return Matrix[dtype](array, len(self.dom), len(self.cod))
+
+    def to_zw(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        zb_i = Z(
+            lambda i: (backend.sin((0.25 + self.bias) * backend.pi) * 1j) ** i,
+            1,
+            1,
+        )
+        zb_1 = Z(
+            lambda i: (backend.cos((0.25 + self.bias) * backend.pi)) ** i, 1, 1
+        )
+
+        beam_splitter = (
+            W(2) @ W(2)
+            >> zb_i @ zb_1 @ zb_1 @ zb_i
+            >> zw_Id(1) @ Swap() @ zw_Id(1)
+            >> W(2).dagger() @ W(2).dagger()
+        )
+
+        return beam_splitter
 
     def dagger(self):
         return BBS(0.5 - self.bias)
@@ -223,6 +281,17 @@ class TBS(Box):
     ...     Id(2).to_path().array)
     >>> assert (TBS(0.25).dagger().global_phase() ==\\
     ...         np.conjugate(TBS(0.25).global_phase()))
+
+    We can convert the tunable beam splitter to a ZW diagram:
+
+    >>> from optyx.zw import tn_output_2_perceval_output
+    >>> tbs = TBS(0.5)
+    >>> diagram_qpath = qpath.Create(1, 1) >> tbs
+    >>> diagram_zw = diagram_qpath.to_zw()
+    >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
+    >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
+    >>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
+    >>> assert np.allclose(prob_zw, prob_perceval)
     """
 
     def __init__(self, theta, is_dagger=False):
@@ -232,9 +301,11 @@ class TBS(Box):
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        return -1j * backend.exp(- 1j * self.theta * backend.pi) \
-            if self.is_dagger \
+        return (
+            -1j * backend.exp(-1j * self.theta * backend.pi)
+            if self.is_dagger
             else 1j * backend.exp(1j * self.theta * backend.pi)
+        )
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -246,13 +317,30 @@ class TBS(Box):
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
 
+    def to_zw(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        sin = Z(lambda i: (backend.sin(self.theta * backend.pi)) ** i, 1, 1)
+        cos = Z(lambda i: (backend.cos(self.theta * backend.pi)) ** i, 1, 1)
+        minus_sin = Z(
+            lambda i: (-backend.sin(self.theta * backend.pi)) ** i, 1, 1
+        )
+
+        beam_splitter = (
+            W(2) @ W(2)
+            >> sin @ cos @ cos @ minus_sin
+            >> zw_Id(1) @ Swap() @ zw_Id(1)
+            >> W(2).dagger() @ W(2).dagger()
+        )
+
+        return beam_splitter
+
     def dagger(self):
         return TBS(self.theta, is_dagger=not self.is_dagger)
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
             lambdify(symbols, self.theta, **kwargs)(*xs),
-            is_dagger=self.is_dagger
+            is_dagger=self.is_dagger,
         )
 
     def _decomp(self):
@@ -302,18 +390,31 @@ class MZI(Box):
     >>> assert np.allclose(
     ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
     ...     Id(2).to_path().array)
+
+    We can convert the Mach-Zender interferometer to a ZW diagram:
+
+    >>> from optyx.zw import tn_output_2_perceval_output
+    >>> mzi = MZI(0.5, 0.5)
+    >>> diagram_qpath = qpath.Create(1, 1) >> mzi
+    >>> diagram_zw = diagram_qpath.to_zw()
+    >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
+    >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
+    >>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
+    >>> assert np.allclose(prob_zw, prob_perceval)
     """
 
     def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
         data = {theta, phi}
-        super().__init__('MZI', 2, 2, is_dagger=is_dagger, data=data)
+        super().__init__("MZI", 2, 2, is_dagger=is_dagger, data=data)
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        return -1j * backend.exp(- 1j * self.theta * backend.pi) \
-            if self.is_dagger \
+        return (
+            -1j * backend.exp(-1j * self.theta * backend.pi)
+            if self.is_dagger
             else 1j * backend.exp(1j * self.theta * backend.pi)
+        )
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -326,13 +427,23 @@ class MZI(Box):
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
 
+    def to_zw(self):
+        mzi = (
+            BBS(0).to_zw()
+            >> Phase(self.theta).to_zw() @ zw_Id(1)
+            >> BBS(0).to_zw()
+            >> Phase(self.phi).to_zw() @ zw_Id(1)
+        )
+
+        return mzi
+
     def dagger(self):
         return MZI(self.theta, self.phi, is_dagger=not self.is_dagger)
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
             *lambdify(symbols, [self.theta, self.phi], **kwargs)(*xs),
-            is_dagger=self.is_dagger
+            is_dagger=self.is_dagger,
         )
 
     def _decomp(self):

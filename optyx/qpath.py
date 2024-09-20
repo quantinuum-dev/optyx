@@ -76,7 +76,9 @@ from discopy import symmetric, tensor
 from discopy.cat import factory, assert_iscomposable
 from discopy.monoidal import PRO
 from discopy.utils import unbiased
+from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
+import optyx.zw as zw
 
 
 def npperm(matrix):
@@ -102,30 +104,6 @@ def npperm(matrix):
         f[j + 1] = j + 1
         j = f[0]
     return p / 2 ** (n - 1)
-
-
-def occupation_numbers(n_photons, m_modes):
-    """
-    Returns vectors of occupation numbers for n_photons in m_modes.
-
-    Example
-    -------
-    >>> occupation_numbers(3, 2)
-    [(3, 0), (2, 1), (1, 2), (0, 3)]
-    >>> occupation_numbers(2, 3)
-    [(2, 0, 0), (1, 1, 0), (1, 0, 1), (0, 2, 0), (0, 1, 1), (0, 0, 2)]
-    """
-    if not n_photons:
-        return [m_modes * (0,)]
-    if not m_modes:
-        raise ValueError(f"Can't put {n_photons} photons in zero modes!")
-    if m_modes == 1:
-        return [(n_photons,)]
-    return [
-        (head,) + tail
-        for head in range(n_photons, -1, -1)
-        for tail in occupation_numbers(n_photons - head, m_modes - 1)
-    ]
 
 
 class Matrix(underlying.Matrix):
@@ -155,8 +133,14 @@ class Matrix(underlying.Matrix):
     dtype = complex
 
     def __new__(
-        cls, array, dom, cod,
-        creations=(), selections=(), normalisation=1, scalar=1,
+        cls,
+        array,
+        dom,
+        cod,
+        creations=(),
+        selections=(),
+        normalisation=1,
+        scalar=1,
     ):
         return underlying.Matrix.__new__(cls, array, dom, cod)
 
@@ -207,7 +191,7 @@ class Matrix(underlying.Matrix):
             creations,
             selections,
             normalisation,
-            scalar
+            scalar,
         )
 
     @unbiased
@@ -227,8 +211,13 @@ class Matrix(underlying.Matrix):
         normalisation = self.normalisation * other.normalisation
         scalar = self.scalar * other.scalar
         return Matrix[self.dtype](
-            umatrix.array, dom, cod,
-            creations, selections, normalisation, scalar
+            umatrix.array,
+            dom,
+            cod,
+            creations,
+            selections,
+            normalisation,
+            scalar,
         )
 
     def dagger(self) -> Matrix:
@@ -241,7 +230,7 @@ class Matrix(underlying.Matrix):
             self.selections,
             self.creations,
             self.normalisation.conjugate(),
-            self.scalar
+            self.scalar,
         )
 
     def __repr__(self):
@@ -277,8 +266,9 @@ class Matrix(underlying.Matrix):
         )
         defect_left = U.dot(np.diag(defect0)).dot(U.conj().T)
         defect_right = (Vh.conj().T).dot(np.diag(defect1)).dot(Vh)
-        unitary = np.block([[A / s, defect_left],
-                            [defect_right, -A.conj().T / s]])
+        unitary = np.block(
+            [[A / s, defect_left], [defect_right, -A.conj().T / s]]
+        )
         creations = self.creations + cod * (0,)
         selections = self.selections + dom * (0,)
         return Matrix(
@@ -322,9 +312,10 @@ class Matrix(underlying.Matrix):
                 )
         return result
 
-    def prob(self, n_photons=0, permanent=npperm, with_perceval=False) \
-            -> Probabilities:
-        """ Computes the Born rule of the amplitudes of the :class:`Matrix`"""
+    def prob(
+        self, n_photons=0, permanent=npperm, with_perceval=False
+    ) -> Probabilities:
+        """Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:
             return self.prob_with_perceval(n_photons)
         amplitudes = self.eval(n_photons, permanent)
@@ -333,8 +324,9 @@ class Matrix(underlying.Matrix):
             probabilities, amplitudes.dom, amplitudes.cod
         )
 
-    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS") \
-            -> Probabilities:
+    def prob_with_perceval(
+        self, n_photons=0, simulator: str = "SLOS"
+    ) -> Probabilities:
         """
         Computes the Born rule of the amplitudes of the :class:`Matrix` using
         the perceval library
@@ -375,31 +367,38 @@ class Matrix(underlying.Matrix):
             pcvl.BasicState(o + self.creations)
             for o in occupation_numbers(n_photons, self.dom)
         ]
-        analyzer = pcvl.algorithm.Analyzer(proc, states, '*')
+        analyzer = pcvl.algorithm.Analyzer(proc, states, "*")
 
         permutation = [
             analyzer.col(pcvl.BasicState(o))
-            for o in occupation_numbers(sum(self.creations) + n_photons,
-                                        len(self.creations) + self.dom)
+            for o in occupation_numbers(
+                sum(self.creations) + n_photons, len(self.creations) + self.dom
+            )
             if post(pcvl.BasicState(o))
         ]
         return Probabilities[self.dtype](
             analyzer.distribution[:, permutation],
             dom=len(states),
-            cod=len(permutation)
+            cod=len(permutation),
         )
 
     def _umatrix_to_perceval_circuit(self) -> pcvl.Circuit:
-        _mzi_triangle = (pcvl.Circuit(2)
-                         // pcvl.BS()
-                         // (0, pcvl.PS(phi=pcvl.Parameter("phi_1")))
-                         // pcvl.BS()
-                         // (0, pcvl.PS(phi=pcvl.Parameter("phi_2"))))
+        _mzi_triangle = (
+            pcvl.Circuit(2)
+            // pcvl.BS()
+            // (0, pcvl.PS(phi=pcvl.Parameter("phi_1")))
+            // pcvl.BS()
+            // (0, pcvl.PS(phi=pcvl.Parameter("phi_2")))
+        )
 
         m = pcvl.MatrixN(self.array)
         return pcvl.Circuit.decomposition(
-            m, _mzi_triangle, phase_shifter_fn=pcvl.PS, shape="triangle",
-            max_try=1)
+            m,
+            _mzi_triangle,
+            phase_shifter_fn=pcvl.PS,
+            shape="triangle",
+            max_try=1,
+        )
 
     def _to_perceval_post_select(self) -> pcvl.PostSelect:
         post = pcvl.PostSelect()
@@ -451,8 +450,9 @@ class Probabilities(underlying.Matrix):
 
     def normalise(self) -> Probabilities:
         return self.__class__(
-            array=self.array/self.array.sum(axis=1)[:, None],
-            dom=self.dom, cod=self.cod
+            array=self.array / self.array.sum(axis=1)[:, None],
+            dom=self.dom,
+            cod=self.cod,
         )
 
 
@@ -461,6 +461,7 @@ class Diagram(symmetric.Diagram):
     """
     QPath diagram in the sense of https://arxiv.org/abs/2204.12985.
     """
+
     ty_factory = PRO
 
     def to_path(self, dtype: type = complex) -> Matrix:
@@ -474,12 +475,14 @@ class Diagram(symmetric.Diagram):
     def eval(self, n_photons=0, permanent=npperm, dtype=complex):
         return self.to_path(dtype).eval(n_photons, permanent)
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex,
-             with_perceval=False) -> Probabilities:
+    def prob(
+        self, n_photons=0, permanent=npperm, dtype=complex, with_perceval=False
+    ) -> Probabilities:
         return self.to_path(dtype).prob(n_photons, permanent, with_perceval)
 
-    def prob_with_perceval(self, n_photons=0, simulator: str = "SLOS",
-                           dtype: type = complex) -> Probabilities:
+    def prob_with_perceval(
+        self, n_photons=0, simulator: str = "SLOS", dtype: type = complex
+    ) -> Probabilities:
         return self.to_path(dtype).prob_with_perceval(n_photons, simulator)
 
     @classmethod
@@ -497,11 +500,22 @@ class Diagram(symmetric.Diagram):
             d = Scalar(scalar) @ d
         return d
 
+    def to_zw(self) -> zw.Diagram:
+        """Converts a :class:`qpath.Diagram` to a :class:`zw.Diagram`."""
+
+        return symmetric.Functor(
+            ob=len,
+            ar=lambda ob: ob.to_zw(),
+            dom=symmetric.Category(PRO, self),
+            cod=symmetric.Category(PRO, zw.Diagram),
+        )(self)
+
     grad = tensor.Diagram.grad
 
 
 class Box(symmetric.Box, Diagram):
-    """ Box in a :class:`Diagram`"""
+    """Box in a :class:`Diagram`"""
+
     def to_path(self, dtype=complex):
         if isinstance(self.data, Matrix):
             return self.data
@@ -527,6 +541,7 @@ class Sum(symmetric.Sum, Box):
     >>> state1 = Create(1) >> Split() >> Endo(s0) @ Endo(s1)
     >>> assert np.allclose(state0.eval().array, state1.eval().array)
     """
+
     __ambiguous_inheritance__ = (symmetric.Sum,)
     ty_factory = PRO
 
@@ -535,8 +550,9 @@ class Sum(symmetric.Sum, Box):
             term.eval(n_photons, permanent, dtype) for term in self.terms
         )
 
-    def prob(self, n_photons=0, permanent=npperm, dtype=complex) \
-            -> Probabilities:
+    def prob(
+        self, n_photons=0, permanent=npperm, dtype=complex
+    ) -> Probabilities:
         amplitudes = self.eval(n_photons, permanent, dtype)
         probabilities = np.abs(amplitudes.array) ** 2
         return Probabilities[dtype](
@@ -551,10 +567,13 @@ class Sum(symmetric.Sum, Box):
 
 
 class Swap(symmetric.Swap, Box):
-    """ Swap in a :class:`Diagram`"""
+    """Swap in a :class:`Diagram`"""
 
     def to_path(self, dtype=complex) -> Matrix:
         return Matrix([0, 1, 1, 0], 2, 2)
+
+    def to_zw(self) -> zw.Diagram:
+        return zw.Swap()
 
     def dagger(self):
         return self
@@ -585,6 +604,12 @@ class Create(Box):
             array, 0, len(self.photons), creations=self.photons
         )
 
+    def to_zw(self) -> zw.Diagram:
+        create = zw.Id()
+        for n in self.photons:
+            create = create @ zw.Create(n)
+        return create
+
     def dagger(self) -> Diagram:
         return Select(*self.photons)
 
@@ -612,6 +637,12 @@ class Select(Box):
         return Matrix[dtype](
             array, len(self.photons), 0, selections=self.photons
         )
+
+    def to_zw(self) -> zw.Diagram:
+        select = zw.Id()
+        for n in self.photons:
+            select = select @ zw.Select(n)
+        return select
 
     def dagger(self) -> Diagram:
         return Create(*self.photons)
@@ -641,6 +672,9 @@ class Merge(Box):
         array = np.ones(self.n)
         return Matrix[dtype](array, self.n, 1)
 
+    def to_zw(self) -> zw.Diagram:
+        return zw.W(self.n).dagger()
+
     def dagger(self) -> Diagram:
         return Split(n=self.n)
 
@@ -667,6 +701,9 @@ class Split(Box):
     def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n)
         return Matrix[dtype](array, 1, self.n)
+
+    def to_zw(self) -> zw.Diagram:
+        return zw.W(self.n)
 
     def dagger(self) -> Diagram:
         return Merge(n=self.n)
@@ -707,6 +744,9 @@ class Endo(Box):
         """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([self.scalar], 1, 1)
 
+    def to_zw(self) -> zw.Diagram:
+        return zw.Z(lambda i: self.scalar**i, 1, 1)
+
     def dagger(self) -> Diagram:
         return Endo(self.scalar.conjugate())
 
@@ -714,11 +754,7 @@ class Endo(Box):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         s = self.scalar.diff(var) / self.scalar
-        num_op = (
-            Split()
-            >> Id(1) @ (Select() >> Create())
-            >> Merge()
-        )
+        num_op = Split() >> Id(1) @ (Select() >> Create()) >> Merge()
         d = Scalar(s) @ (self >> num_op)
         return d
 
@@ -750,6 +786,9 @@ class Scalar(Box):
     def to_path(self, dtype=complex):
         return Matrix[dtype]([], 0, 0, scalar=self.scalar)
 
+    def to_zw(self) -> zw.Diagram:
+        return zw.Z([self.scalar], legs_in=0, legs_out=0)
+
     def dagger(self) -> Diagram:
         return Scalar(self.scalar.conjugate())
 
@@ -763,7 +802,18 @@ class Scalar(Box):
 
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 bs_matrix = Matrix(bs_array, 2, 2)
-BS = Box('BS', 2, 2, data=bs_matrix)
+BS = Box("BS", 2, 2, data=bs_matrix)
+
+Zb_i = zw.Z(np.array([1, 1j / (np.sqrt(2))]), 1, 1)
+Zb_1 = zw.Z(np.array([1, 1 / (np.sqrt(2))]), 1, 1)
+beam_splitter = (
+    zw.W(2) @ zw.W(2)
+    >> Zb_i @ Zb_1 @ Zb_1 @ Zb_i
+    >> zw.Id(1) @ zw.Swap() @ zw.Id(1)
+    >> zw.W(2).dagger() @ zw.W(2).dagger()
+)
+
+BS.to_zw = lambda: beam_splitter
 
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))
