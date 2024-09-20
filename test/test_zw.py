@@ -331,6 +331,20 @@ def test_lemma_B6(k: int):
         lemma_B6_r.to_tensor(print_max_occupation_number=False).eval().array,
     )
 
+def test_w_eq():
+    assert W(2) == W(2).dagger().dagger()
+
+def test_create_eq():
+    assert Create(2) != Create(1)
+
+def test_select_eq():
+    assert Select(2) != Select(1)
+
+def calculate_num_creations_selections():
+    d1 = Create(1) + Create(1)
+    d2 = Create(1)
+    assert calculate_num_creations_selections(d1) == \
+        calculate_num_creations_selections(d2)
 
 def test_lemma_B8():
     lemma_B8_l = (

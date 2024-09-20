@@ -123,7 +123,7 @@ class Diagram(monoidal.Diagram):
             scan = [(t, 1) for t in inputs]
 
             for box, off in zip(self.boxes, self.offsets):
-                if isinstance(box, tensor.Swap):
+                if isinstance(box, Swap):
                     scan[off], scan[off + 1] = scan[off + 1], scan[off]
                     continue
                 current_occupation_num = 0
