@@ -19,6 +19,6 @@ from optyx.circuit import (
     Gate, Phase, BBS, TBS, MZI, ansatz
 )
 
-from optyx._version import (
-    version as __version__,
-    version_tuple as __version_info__)
+#from optyx._version import (
+#    version as __version__,
+#    version_tuple as __version_info__)
