@@ -12,31 +12,27 @@ single emitter multiple measure (SEMM) machine
 """
 
 from copy import deepcopy
+
 import networkx as nx
 
 from optyx.compiler.mbqc import (
-    OpenGraph,
-    PartialOrder,
-    get_fused_neighbours,
-    add_fusion_order,
-    fn_to_open_graph,
+    Fusion,
     FusionNetwork,
     Measurement,
-    Fusion,
+    OpenGraph,
+    PartialOrder,
+    add_fusion_order,
+    fn_to_open_graph,
+    get_fused_neighbours
 )
-
 from optyx.compiler.path_cover import find_min_path_cover
-
 from optyx.compiler.patterns import (
-    Instruction,
     FusionOp,
+    Instruction,
     MeasureOp,
-    NextNodeOp,
+    NextNodeOp
 )
-
-from optyx.compiler.semm_decompiler import (
-    decompile_to_fusion_network,
-)
+from optyx.compiler.semm_decompiler import decompile_to_fusion_network
 
 
 def compile_to_semm(
@@ -50,7 +46,7 @@ def compile_to_semm(
     >>> g = nx.Graph([(0, 1), (1, 2)])
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
     >>>
-    >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
+    >>> meas = {i: Measurement(i, "XY") for i in range(3)}
     >>> inputs = {0}
     >>> outputs = {2}
     >>>

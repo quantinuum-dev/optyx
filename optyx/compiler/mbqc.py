@@ -1,63 +1,30 @@
 """Contains the fundamental classes requirement to define MBQC patterns"""
 
-from typing import Callable, Optional
 from copy import deepcopy
 from dataclasses import dataclass
-import networkx as nx
-import graphix
-import numpy as np
+from typing import Callable, Optional
 
+import graphix as gx
+import graphix.opengraph
+import networkx as nx
+import numpy as np
 from graphix.pauli import Plane
 
 
-@dataclass
-class Measurement:
+@dataclass(frozen=True)
+class Measurement(gx.opengraph.Measurement):
     """An MBQC measurement.
 
     :param angle: the angle of the measurement. Should be between [0, 2pi)
     :param plane: the measurement plane: 'XY', 'XZ', 'YZ'
-
-    Example
-    -------
-    >>> import networkx as nx
-    >>> from . import OpenGraph, Measurement
-    >>>
-    >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-    >>>
-    >>> m = Measurement(0, "XY")
-    >>> m = Measurement(0, "YZ")
-    >>> m = Measurement(0, "XZ")
-    >>> try:
-    ...     m = Measurement(0, "AB")
-    ... except ValueError as e:
-    ...     print(e)
-    plane 'AB' must be either XY, YZ, or XZ
     """
 
     angle: float
-    plane: Plane
-
-    def __init__(self, angle: float, plane: str):
-        self.angle = angle
-
-        if plane == "XY":
-            self.plane = Plane.XY
-        elif plane == "YZ":
-            self.plane = Plane.YZ
-        elif plane == "XZ":
-            self.plane = Plane.XZ
-        else:
-            raise ValueError(f"plane '{plane}' must be either XY, YZ, or XZ")
-
-    def __eq__(self, other):
-        """Checks if two measurements are equal"""
-        return (
-            np.allclose(self.angle, other.angle) and self.plane == other.plane
-        )
+    plane: str
 
     def is_z_measurement(self) -> bool:
         """Indicates whether it is a Z measurement"""
-        return np.allclose(self.angle, 0.0) and self.plane == Plane.XY
+        return np.allclose(self.angle, 0.0) and self.plane == "XY"
 
 
 @dataclass
@@ -223,7 +190,22 @@ class OpenGraph:
 
         Returns None if it does not exist."""
 
-        meas_planes = {i: meas.plane for i, meas in self.measurements.items()}
+        def to_graphix_plane(plane: str) -> Plane:
+            if plane == "XY":
+                return Plane.XY
+            if plane == "YZ":
+                return Plane.YZ
+            if plane == "XZ":
+                return Plane.XZ
+            raise ValueError(
+                f"unexpected measurement plane {plane}, expected: 'XY', 'YZ', or 'XZ'"
+            )
+
+        meas_planes = {}
+        for node_id, m in self.measurements.items():
+            plane = to_graphix_plane(m.plane)
+            meas_planes[node_id] = plane
+
         g, layers = graphix.gflow.find_gflow(
             self.inside, self.inputs, self.outputs, meas_planes
         )

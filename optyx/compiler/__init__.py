@@ -73,7 +73,7 @@ method.
 ... )
 >>>
 >>> g = nx.Graph([(0, 1), (1, 2)])
->>> meas = {i: Measurement(i, 'XY') for i in range(3)}
+>>> meas = {i: Measurement(i, "XY") for i in range(3)}
 >>> inputs = {0}
 >>> outputs = {2}
 >>> og = OpenGraph(g, meas, inputs, outputs)
@@ -92,17 +92,12 @@ method.
 """
 
 from .mbqc import (
+    FusionNetwork,
+    GFlow,
     Measurement,
     OpenGraph,
-    GFlow,
     PartialOrder,
-    FusionNetwork,
-    pattern_satisfies_order,
+    pattern_satisfies_order
 )
-
 from .patterns import Instruction
-
-from .semm import (
-    compile_to_semm,
-    decompile_from_semm,
-)
+from .semm import compile_to_semm, decompile_from_semm

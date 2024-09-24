@@ -1,8 +1,8 @@
-import pytest
 import networkx as nx
+import pytest
 
+from optyx.compiler.mbqc import Measurement, OpenGraph, fn_to_open_graph
 from optyx.compiler.semm import compile_to_fusion_network
-from optyx.compiler.mbqc import OpenGraph, Measurement, fn_to_open_graph
 
 
 # Generate many random graphs and confirm all of them can be compiled and
@@ -27,7 +27,7 @@ def test_compiler_fuzz(num_vertices: int):
     # For some reason nx.read_graph6 returns a list of graphs if there are many
     # graphs, and the actual graph if there is only one graph, so we need to
     # convert it back into a list here
-    graphs = graphs if type(graphs) is list else [graphs]
+    graphs = graphs if isinstance(graphs, list) else [graphs]
 
     for graph in graphs:
         og = OpenGraph(graph, meas, inputs, outputs)
