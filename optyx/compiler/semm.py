@@ -47,8 +47,8 @@ def compile_to_semm(
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
     >>>
     >>> meas = {i: Measurement(i, "XY") for i in range(2)}
-    >>> inputs = {0}
-    >>> outputs = {2}
+    >>> inputs = [0]
+    >>> outputs = [2]
     >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
     >>> from optyx.compiler.semm import compile_to_semm
@@ -66,7 +66,7 @@ def compile_to_semm(
     ...     MeasureOp(delay=0, measurement=meas[1]),
     ...     NextNodeOp(node_id=2),
     ... ]
-    >>> assert decompile_from_semm(instructions, inputs, outputs) == og
+    >>> assert decompile_from_semm(instructions, inputs, outputs).isclose(og)
     """
     sfn = compile_to_fusion_network(g)
     gflow = g.find_gflow()
@@ -115,7 +115,7 @@ def decompile_from_semm(
     >>> outputs = {2}
     >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
-    >>> assert decompile_from_semm(ins, inputs, outputs) == og
+    >>> assert decompile_from_semm(ins, inputs, outputs).isclose(og)
     """
     sfn = decompile_to_fusion_network(ins)
     g = fn_to_open_graph(sfn, inputs, outputs)

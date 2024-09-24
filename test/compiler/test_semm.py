@@ -40,4 +40,4 @@ def test_fuzz_semm_compiler(num_vertices: int):
         ins = compile_to_semm(og)
         og_reconstructed = decompile_from_semm(ins, inputs, outputs)
 
-        assert og == og_reconstructed
+        assert og.isclose(og_reconstructed)

@@ -108,8 +108,8 @@ class GFlow:
         return order
 
 
-@dataclass
-class OpenGraph:
+@dataclass(frozen=True)
+class OpenGraph(gx.opengraph.OpenGraph):
     """Open graph contains the graph, measurement, and input and output
     nodes. This is the graph we wish to implement deterministically
 
@@ -127,7 +127,7 @@ class OpenGraph:
     >>>
     >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
     >>>
-    >>> measurements = [Measurement(0.5 * i, "XY") for i in range(2)]
+    >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
     >>> inputs = {0}
     >>> outputs = {2}
     >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
@@ -140,21 +140,6 @@ class OpenGraph:
     inputs: set[int]
     outputs: set[int]
 
-    def __eq__(self, other):
-        """Checks the two open graphs are equal
-
-        This doesn't check they are equal up to an isomorphism"""
-
-        g1 = self.perform_z_deletions()
-        g2 = other.perform_z_deletions()
-
-        return (
-            g1.inputs == g2.inputs
-            and g1.outputs == g2.outputs
-            and nx.utils.graphs_equal(g1.inside, g2.inside)
-            and g1.measurements == g2.measurements
-        )
-
     def __deepcopy__(self, memo):
         return OpenGraph(
             inside=deepcopy(self.inside, memo),
@@ -162,28 +147,6 @@ class OpenGraph:
             inputs=deepcopy(self.inputs, memo),
             outputs=deepcopy(self.outputs, memo),
         )
-
-    def perform_z_deletions_in_place(self):
-        """Removes the Z-deleted nodes from the graph in place"""
-        zero_nodes = [
-            id for id, m in self.measurements.items() if m.is_z_measurement()
-        ]
-
-        for node in zero_nodes:
-            self.inside.remove_node(node)
-
-        # Remove the deleted node's measurements
-        self.measurements = {
-            id: m
-            for id, m in self.measurements.items()
-            if not m.is_z_measurement()
-        }
-
-    def perform_z_deletions(self):
-        """Removes the Z-deleted nodes from the graph"""
-        g = deepcopy(self)
-        g.perform_z_deletions_in_place()
-        return g
 
     def find_gflow(self) -> Optional[GFlow]:
         """Finds gflow of the open graph.
