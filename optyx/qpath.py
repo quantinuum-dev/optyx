@@ -504,8 +504,8 @@ class Diagram(symmetric.Diagram):
         """Converts a :class:`qpath.Diagram` to a :class:`zw.Diagram`."""
 
         return symmetric.Functor(
-            ob=len,
-            ar=lambda ob: ob.to_zw(),
+            ob=lambda ob: PRO(len(ob)),
+            ar=lambda ar: ar.to_zw(),
             dom=symmetric.Category(PRO, self),
             cod=symmetric.Category(PRO, zw.Diagram),
         )(self)
