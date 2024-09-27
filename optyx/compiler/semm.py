@@ -21,6 +21,7 @@ from optyx.compiler.mbqc import (
     PartialOrder,
     get_fused_neighbours,
     FusionNetwork,
+    ULFusionNetwork,
     Fusion,
 )
 
@@ -114,6 +115,12 @@ def compile_to_semm(g: OpenGraph, line_length: int) -> list[Instruction]:
     ins = compile_linear_fn(fn, gflow.partial_order())
     return ins
 
+def open_graph_to_linear_fusion_network(g: OpenGraph, line_length) -> FusionNetwork:
+    gflow = g.find_gflow()
+    if gflow is None:
+        raise ValueError("ahhhhhhhhhhhhhhh")
+
+    return compute_linear_fn(g.inside, gflow.layers, g.measurements, line_length)
 
 def simplify_graph(g: OpenGraph):
     """Simplifies the open graph by removing redundant input and output nodes.
@@ -369,7 +376,7 @@ def compute_linear_fn(
 
         fusion_edges = edges_set - r_edges_set
 
-        fusions = [Fusion(e[0], e[1], "X") for e in fusion_edges]
+        fusions = [Fusion(e[0], e[1], "Y") for e in fusion_edges]
         return fusions
 
     fusions = calculate_fusions(g, paths)
