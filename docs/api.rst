@@ -9,5 +9,3 @@ API
     optyx.circuit
     optyx.zx
     optyx.compiler
-    optyx.compiler.semm
-    optyx.compiler.semm_decompiler

@@ -1,28 +1,25 @@
 """
-Toolkit for compiling open graphs in machine instructions
+Toolkit for compiling open graphs in fusion networks
 
 Together this tool kit constitutes a modular compiler for transforming open
-graphs into hardware instructions.
+graphs into fusion networks and then to optical proticals.
 
-The modular design allows reuse of common compilation and optimisation
-routinues between different compilation pipelines which can diverge whenever
-necessary.
+These three representation layers are correspond to the layers defined in the
+paper "Fusion and flow: formal protocols to reliably build photonic graph
+states" https://arxiv.org/pdf/2409.13541
 
-There are three representation layers in the compiler:
+1. **Open Graph** :class:`OpenGraph`. The MBQC pattern to implement. A graph
+state with inputs and outputs, together with measurements on all non-output
+nodes.
 
-1. **Open Graph** :class:`OpenGraph`. This is the MBQC pattern we wish to
-implement. It is a graph state with inputs and outputs, together with
-measurements on all non-output nodes.
+2. **Fusion Network** :class:`FusionNetwork`. Contains the resource states
+and fusions required to implement the MBQC pattern.
 
-2. **Fusion Network** :class:`ULFusionNetwork`. Contains the resource states
-and fusions required to implement the MBQC pattern
-
-3. **Hardware Instructions** :class:`Instruction`. The instructions that will
+3. **Optical Protocol** :class:`Instruction`. The instructions that will
 be executed on the quantum hardware.
 
-The algorithm is given in the form of an **Open Graph** which is then compiled
-into a **Fusion Network** and is later compiled into a series of **Hardware
-Instructions**.
+.. image:: /_static/compilation_flow.png
+   :width: 600
 
 Currently we only have a pipeline for compiling to a machine with a single
 linear resource state emitter and a single measurement device. This
