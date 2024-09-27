@@ -9,7 +9,7 @@ compilation pipelines.
     :nosignatures:
     :toctree:
 
-    decompile_to_fusion_network
+    decompile_to_fusion_network_multi
 """
 
 from optyx.compiler.mbqc import (
