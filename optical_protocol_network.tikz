@@ -1,0 +1,55 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=vertex] (0) at (-1.25, 1) {};
+		\node [style=vertex] (1) at (-1.25, -2.25) {};
+		\node [style=vertex] (2) at (1.5, -2.25) {};
+		\node [style=none] (3) at (0.25, -1) {Y};
+		\node [style=none] (4) at (-1.5, 0.25) {};
+		\node [style=none] (5) at (1.25, -2.5) {};
+		\node [style=none] (6) at (1.75, -2) {};
+		\node [style=none] (7) at (-1, 0.75) {};
+		\node [style=vertex] (10) at (2, 1) {};
+		\node [style=none] (11) at (-1.25, 0.65) {};
+		\node [style=none] (12) at (2, 0.65) {};
+		\node [style=none] (13) at (2, 1.35) {};
+		\node [style=none] (14) at (-1.25, 1.35) {};
+		\node [style=none] (15) at (0.5, 1) {Y};
+		\node [style=vertex] (17) at (-1.25, 0.5) {};
+		\node [style=vertex] (18) at (-1.25, 0) {};
+		\node [style=vertex] (19) at (2, -2) {};
+		\node [style=vertex] (20) at (2, 1.75) {};
+		\node [style=none] (21) at (-1.75, -2.75) {};
+		\node [style=none] (22) at (-1.75, -0.5) {};
+		\node [style=none] (23) at (2.5, -2.5) {};
+		\node [style=none] (24) at (2.5, 1.25) {};
+		\node [style=none] (25) at (-1.75, 1) {1};
+		\node [style=none] (26) at (-1.75, 0.5) {2};
+		\node [style=none] (27) at (-1.75, 0) {3};
+		\node [style=none] (28) at (-1.75, -2.25) {4};
+		\node [style=none] (29) at (1.5, -2.75) {5};
+		\node [style=none] (30) at (2.5, -2) {6};
+		\node [style=none] (31) at (2.5, 1) {7};
+		\node [style=none] (32) at (2.5, 2) {8};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw (1) to (2);
+		\draw [style=box edge, bend right=90, looseness=1.75] (5.center) to (6.center);
+		\draw [style=box edge, bend left=270, looseness=1.75] (7.center) to (4.center);
+		\draw [style=box edge] (7.center) to (6.center);
+		\draw [style=box edge] (5.center) to (4.center);
+		\draw [style=box edge, bend right=90, looseness=1.75] (12.center) to (13.center);
+		\draw [style=box edge, bend left=270, looseness=1.75] (14.center) to (11.center);
+		\draw [style=box edge] (14.center) to (13.center);
+		\draw [style=box edge] (12.center) to (11.center);
+		\draw (18) to (1);
+		\draw (19) to (10);
+		\draw [style=Y fusion] (0) to (17);
+		\draw [style=Y fusion] (17) to (18);
+		\draw [style=Y fusion] (2) to (19);
+		\draw [style=Y fusion] (10) to (20);
+		\draw (21.center) to (1);
+		\draw (22.center) to (18);
+		\draw (19) to (23.center);
+		\draw (20) to (24.center);
+	\end{pgfonlayer}
+\end{tikzpicture}

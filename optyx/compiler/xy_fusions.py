@@ -201,6 +201,9 @@ def num_odd_verts(g: nx.Graph) -> int:
     return sum(g.degree(v) % 2 for v in g.nodes())
 
 
+# TODO the example with the square with a diagonal doesn't compile to a
+# reasonable trail cover unecessarily covers an example vertex
+
 def find_trail_cover(g: nx.Graph, max_len: int, maximal_y_fusions=False) -> list[list[int]]:
     """Returns a trail cover of the graph.
 
@@ -208,8 +211,7 @@ def find_trail_cover(g: nx.Graph, max_len: int, maximal_y_fusions=False) -> list
     of trails"""
     _ = remove_hedge_paths(g)
 
-    if maximal_y_fusions:
-        _ = remove_potentially_unnecessary_hedges(g)
+
     trails = min_trail_decomp(g)
 
     all_trails = []

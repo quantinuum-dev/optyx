@@ -350,8 +350,41 @@ def compute_completion_times(
 
     return m
 
+from optyx.compiler.xy_fusions import (
+    find_trail_cover,
+)
 
 def compute_linear_fn(
+    g: nx.Graph,
+    order_layers: dict[int, int],
+    meas: dict[int, Measurement],
+    k: int,
+) -> FusionNetwork:
+    """Compiles an open graph into a fusion network using short lines of length
+    k assuming Hadamard fusions"""
+    paths = find_trail_cover(g, k)
+    meas = deepcopy(meas)
+
+    # Calculates the list of H-edge fusions requires to finish constructing the
+    # graph given the path cover.
+    def calculate_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
+        edges = g.edges()
+
+        path_edges: list[tuple[int, int]] = []
+        for path in paths:
+            path_edges.extend(vertices_to_edges(path))
+
+        edges_set = {(min(e), max(e)) for e in edges}
+        r_edges_set = {(min(e), max(e)) for e in path_edges}
+
+        fusion_edges = edges_set - r_edges_set
+
+        fusions = [Fusion(e[0], e[1], "Y") for e in fusion_edges]
+        return fusions
+
+    return tcalculate_fusions(g, paths, meas)
+
+def delay_based_compute_linear_fn(
     g: nx.Graph,
     order_layers: dict[int, int],
     meas: dict[int, Measurement],
@@ -379,7 +412,39 @@ def compute_linear_fn(
         fusions = [Fusion(e[0], e[1], "Y") for e in fusion_edges]
         return fusions
 
-    fusions = calculate_fusions(g, paths)
+    return tcalculate_fusions(g, paths, meas)
+
+# Calculates the list of H-edge fusions requires to finish constructing the
+# graph given the path cover.
+def calculate_y_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
+    edges = g.edges()
+
+    path_edges: list[tuple[int, int]] = []
+    for path in paths:
+        path_edges.extend(vertices_to_edges(path))
+
+    edges_set = {(min(e), max(e)) for e in edges}
+    r_edges_set = {(min(e), max(e)) for e in path_edges}
+
+    fusion_edges = edges_set - r_edges_set
+
+    fusions = [Fusion(e[0], e[1], "Y") for e in fusion_edges]
+    return fusions
+
+# TODO the measurements aren't correct here
+def tcalculate_fusions(g: nx.Graph, paths: list[list[int]], meas) -> FusionNetwork:
+    next_id = max(max(p) for p in paths) + 1
+    seen_nodes = set()
+    fusions = calculate_y_fusions(g, paths)
+
+    for i, path in enumerate(paths):
+        for j, node in enumerate(path):
+            if node in seen_nodes:
+                paths[i][j] = next_id
+                fusions.append(Fusion(next_id, node, "X"))
+                next_id += 1
+            else:
+                seen_nodes.add(node)
 
     return FusionNetwork(paths, meas, fusions)
 

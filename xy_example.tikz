@@ -1,0 +1,64 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=vertex] (0) at (-2.75, 3) {};
+		\node [style=vertex] (1) at (-3.5, 1.5) {};
+		\node [style=vertex] (2) at (-1, 1.5) {};
+		\node [style=vertex] (3) at (-0.25, 3) {};
+		\node [style=none] (4) at (-3.25, 3) {0};
+		\node [style=none] (5) at (-4, 1.5) {1};
+		\node [style=none] (6) at (-1.25, 1) {2};
+		\node [style=none] (7) at (-0.5, 3.25) {3};
+		\node [style=vertex] (8) at (-1.75, 3) {};
+		\node [style=none] (9) at (-1.75, 3.5) {5};
+		\node [style=vertex] (10) at (0.75, 3) {};
+		\node [style=vertex] (11) at (0, 1.5) {};
+		\node [style=vertex] (12) at (1.5, 1.5) {};
+		\node [style=none] (13) at (1.25, 3) {7};
+		\node [style=none] (14) at (1.5, 2.25) {4};
+		\node [style=none] (15) at (0.25, 1) {6};
+		\node [style=none] (16) at (-0.5, 1.5) {X};
+		\node [style=none] (17) at (0.25, 3) {X};
+		\node [style=none] (18) at (-2.25, 3) {X};
+		\node [style=none] (19) at (-0.625, 2.25) {Y};
+		\node [style=none] (20) at (-2.75, 3.25) {};
+		\node [style=none] (21) at (-2.75, 2.75) {};
+		\node [style=none] (22) at (-1.75, 3.25) {};
+		\node [style=none] (23) at (-1.75, 2.75) {};
+		\node [style=none] (24) at (-0.25, 3.25) {};
+		\node [style=none] (25) at (-0.25, 2.75) {};
+		\node [style=none] (26) at (0.75, 3.25) {};
+		\node [style=none] (27) at (0.75, 2.75) {};
+		\node [style=none] (28) at (-1, 1.75) {};
+		\node [style=none] (29) at (-1, 1.25) {};
+		\node [style=none] (30) at (0, 1.75) {};
+		\node [style=none] (31) at (0, 1.25) {};
+		\node [style=none] (32) at (-1.25, 1.6) {};
+		\node [style=none] (33) at (-0.75, 1.35) {};
+		\node [style=none] (34) at (-0.5, 3.1) {};
+		\node [style=none] (35) at (0, 2.85) {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw (0) to (1);
+		\draw (1) to (2);
+		\draw (2) to (8);
+		\draw (8) to (3);
+		\draw (11) to (12);
+		\draw (12) to (10);
+		\draw [style=box edge, bend left=90, looseness=1.50] (21.center) to (20.center);
+		\draw [style=box edge, bend right=90, looseness=1.75] (23.center) to (22.center);
+		\draw [style=box edge] (23.center) to (21.center);
+		\draw [style=box edge] (20.center) to (22.center);
+		\draw [style=box edge, bend left=90, looseness=1.50] (25.center) to (24.center);
+		\draw [style=box edge, bend right=90, looseness=1.75] (27.center) to (26.center);
+		\draw [style=box edge] (27.center) to (25.center);
+		\draw [style=box edge] (24.center) to (26.center);
+		\draw [style=box edge, bend left=90, looseness=1.50] (29.center) to (28.center);
+		\draw [style=box edge, bend right=90, looseness=1.75] (31.center) to (30.center);
+		\draw [style=box edge] (31.center) to (29.center);
+		\draw [style=box edge] (28.center) to (30.center);
+		\draw [style=box edge, bend left=90, looseness=1.50] (33.center) to (32.center);
+		\draw [style=box edge, bend right=90, looseness=1.75] (35.center) to (34.center);
+		\draw [style=box edge] (35.center) to (33.center);
+		\draw [style=box edge] (32.center) to (34.center);
+	\end{pgfonlayer}
+\end{tikzpicture}
