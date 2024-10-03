@@ -37,7 +37,6 @@ legs_b_in = range(1, 3)
 legs_a_out = range(1, 3)
 legs_b_out = range(1, 3)
 legs_between = range(1, 3)
-max_occupation_nums = [1, 2, 3]
 
 # a set of arbitrary functions of i
 fs = [
@@ -52,19 +51,13 @@ fs = [
 # get all combinations of legs etc
 fs_legs_combinations = list(
     itertools.product(
-        fs,
-        legs_a_in,
-        legs_b_in,
-        legs_a_out,
-        legs_b_out,
-        legs_between,
-        max_occupation_nums,
+        fs, legs_a_in, legs_b_in, legs_a_out, legs_b_out, legs_between
     )
 )
 
 
 @pytest.mark.parametrize(
-    "fs, legs_a_in, legs_b_in, legs_a_out, legs_b_out, legs_between, max_occupation_num",
+    "fs, legs_a_in, legs_b_in, legs_a_out, legs_b_out, legs_between",
     fs_legs_combinations,
 )
 def test_spider_fusion(
@@ -74,7 +67,6 @@ def test_spider_fusion(
     legs_a_out: int,
     legs_b_out: int,
     legs_between: int,
-    max_occupation_num: int,
 ):
 
     S1_infty_l = Z(fs, legs_a_in, legs_a_out + legs_between) @ Id(legs_b_in)
@@ -90,18 +82,8 @@ def test_spider_fusion(
     S1_infty_r = Z(fn_mult, legs_a_in + legs_b_in, legs_a_out + legs_b_out)
 
     assert test_arrays_of_different_sizes(
-        S1_infty_l.to_tensor(
-            max_occupation_num=max_occupation_num,
-            print_max_occupation_number=False,
-        )
-        .eval()
-        .array,
-        S1_infty_r.to_tensor(
-            max_occupation_num=max_occupation_num,
-            print_max_occupation_number=False,
-        )
-        .eval()
-        .array,
+        S1_infty_l.to_tensor().eval().array,
+        S1_infty_r.to_tensor().eval().array,
     )
 
 
@@ -111,8 +93,8 @@ def test_Z_conj(legs: int):
     Z_conj_r = Z(lambda i: -1j, legs, legs)
 
     assert test_arrays_of_different_sizes(
-        Z_conj_l.to_tensor(print_max_occupation_number=False).eval().array,
-        Z_conj_r.to_tensor(print_max_occupation_number=False).eval().array,
+        Z_conj_l.to_tensor().eval().array,
+        Z_conj_r.to_tensor().eval().array,
     )
 
 
@@ -128,8 +110,8 @@ def test_bSym():
     bSym_r = W(2) >> Swap()
 
     assert test_arrays_of_different_sizes(
-        bSym_l.to_tensor(print_max_occupation_number=False).eval().array,
-        bSym_r.to_tensor(print_max_occupation_number=False).eval().array,
+        bSym_l.to_tensor().eval().array,
+        bSym_r.to_tensor().eval().array,
     )
 
 
@@ -138,8 +120,8 @@ def test_bAso():
     bAso_r = W(2) >> Id(1) @ W(2)
 
     assert test_arrays_of_different_sizes(
-        bAso_l.to_tensor(print_max_occupation_number=True).eval().array,
-        bAso_r.to_tensor(print_max_occupation_number=True).eval().array,
+        bAso_l.to_tensor().eval().array,
+        bAso_r.to_tensor().eval().array,
     )
 
 
@@ -148,8 +130,8 @@ def test_doubleSWAP():
     swap_r = Id(2)
 
     assert test_arrays_of_different_sizes(
-        swap_l.to_tensor(print_max_occupation_number=True).eval().array,
-        swap_r.to_tensor(print_max_occupation_number=True).eval().array,
+        swap_l.to_tensor().eval().array,
+        swap_r.to_tensor().eval().array,
     )
 
 
@@ -158,8 +140,8 @@ def test_SWAP_dagger_SWAP():
     swap_r = Swap()
 
     assert test_arrays_of_different_sizes(
-        swap_l.to_tensor(print_max_occupation_number=True).eval().array,
-        swap_r.to_tensor(print_max_occupation_number=True).eval().array,
+        swap_l.to_tensor().eval().array,
+        swap_r.to_tensor().eval().array,
     )
 
 
@@ -193,23 +175,20 @@ def test_Id_dagger_Id(k: int):
     id_r = Id(k)
 
     assert test_arrays_of_different_sizes(
-        id_l.to_tensor(print_max_occupation_number=False).eval().array,
-        id_r.to_tensor(print_max_occupation_number=False).eval().array,
+        id_l.to_tensor().eval().array,
+        id_r.to_tensor().eval().array,
     )
 
 
 def test_bBa():
     bBa_l = (
-        ProjectionMap(2)
-        >> W(2) @ W(2)
-        >> Id(1) @ Swap() @ Id(1)
-        >> W(2).dagger() @ W(2).dagger()
+        W(2) @ W(2) >> Id(1) @ Swap() @ Id(1) >> W(2).dagger() @ W(2).dagger()
     )
     bBa_r = W(2).dagger() >> W(2)
 
     assert test_arrays_of_different_sizes(
-        bBa_l.to_tensor(print_max_occupation_number=False).eval().array,
-        bBa_r.to_tensor(print_max_occupation_number=False).eval().array,
+        bBa_l.to_tensor().eval().array,
+        bBa_r.to_tensor().eval().array,
     )
 
 
@@ -218,8 +197,8 @@ def test_bId():
     bId_r = Id(1)
 
     assert test_arrays_of_different_sizes(
-        bId_l.to_tensor(print_max_occupation_number=False).eval().array,
-        bId_r.to_tensor(print_max_occupation_number=False).eval().array,
+        bId_l.to_tensor().eval().array,
+        bId_r.to_tensor().eval().array,
     )
 
 
@@ -238,8 +217,8 @@ def test_bZBA():
     bZBA_r = W(2).dagger() >> Z(lambda i: 1, 1, 2)
 
     assert test_arrays_of_different_sizes(
-        bZBA_l.to_tensor(print_max_occupation_number=False).eval().array,
-        bZBA_r.to_tensor(print_max_occupation_number=False).eval().array,
+        bZBA_l.to_tensor().eval().array,
+        bZBA_r.to_tensor().eval().array,
     )
 
 
@@ -248,8 +227,8 @@ def test_K0_infty():
     K0_infty_r = Create(4) @ Create(4)
 
     assert test_arrays_of_different_sizes(
-        K0_infty_l.to_tensor(print_max_occupation_number=False).eval().array,
-        K0_infty_r.to_tensor(print_max_occupation_number=False).eval().array,
+        K0_infty_l.to_tensor().eval().array,
+        K0_infty_r.to_tensor().eval().array,
     )
 
 
@@ -258,8 +237,8 @@ def test_scalar():
     scalar_r = Z([2], 0, 0)
 
     assert test_arrays_of_different_sizes(
-        scalar_l.to_tensor(print_max_occupation_number=False).eval().array,
-        scalar_r.to_tensor(print_max_occupation_number=False).eval().array,
+        scalar_l.to_tensor().eval().array,
+        scalar_r.to_tensor().eval().array,
     )
 
 
@@ -268,8 +247,8 @@ def test_scalar_with_IndexableAmplitudes():
     scalar_r = Z(lambda i: i + 1, 0, 0)
 
     assert test_arrays_of_different_sizes(
-        scalar_l.to_tensor(print_max_occupation_number=False).eval().array,
-        scalar_r.to_tensor(print_max_occupation_number=False).eval().array,
+        scalar_l.to_tensor().eval().array,
+        scalar_r.to_tensor().eval().array,
     )
 
 
@@ -277,12 +256,8 @@ def test_bone():
     bone_l = Create(1) >> Select(0)
     bone_r = Create(0) >> Select(1)
 
-    assert test_arrays_of_different_sizes(
-        bone_l.to_tensor(print_max_occupation_number=False).eval().array, 0
-    )
-    assert test_arrays_of_different_sizes(
-        0, bone_r.to_tensor(print_max_occupation_number=False).eval().array
-    )
+    assert test_arrays_of_different_sizes(bone_l.to_tensor().eval().array, 0)
+    assert test_arrays_of_different_sizes(0, bone_r.to_tensor().eval().array)
 
 
 def test_branching():
@@ -290,8 +265,8 @@ def test_branching():
     branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
     assert test_arrays_of_different_sizes(
-        branching_l.to_tensor(print_max_occupation_number=False).eval().array,
-        branching_r.to_tensor(print_max_occupation_number=False).eval().array,
+        branching_l.to_tensor().eval().array,
+        branching_r.to_tensor().eval().array,
     )
 
 
@@ -308,12 +283,8 @@ def test_normalisation(k: int):
     normalisation_r = normalisation_r >> W(k).dagger()
 
     assert test_arrays_of_different_sizes(
-        normalisation_l.to_tensor(print_max_occupation_number=False)
-        .eval()
-        .array,
-        normalisation_r.to_tensor(print_max_occupation_number=False)
-        .eval()
-        .array,
+        normalisation_l.to_tensor().eval().array,
+        normalisation_r.to_tensor().eval().array,
     )
 
 
@@ -327,24 +298,30 @@ def test_lemma_B6(k: int):
     lemma_B6_r = Create(k) @ Z([k + 1], 0, 0)
 
     assert test_arrays_of_different_sizes(
-        lemma_B6_l.to_tensor(print_max_occupation_number=False).eval().array,
-        lemma_B6_r.to_tensor(print_max_occupation_number=False).eval().array,
+        lemma_B6_l.to_tensor().eval().array,
+        lemma_B6_r.to_tensor().eval().array,
     )
+
 
 def test_w_eq():
     assert W(2) == W(2).dagger().dagger()
 
+
 def test_create_eq():
     assert Create(2) != Create(1)
+
 
 def test_select_eq():
     assert Select(2) != Select(1)
 
+
 def calculate_num_creations_selections():
     d1 = Create(1) + Create(1)
     d2 = Create(1)
-    assert calculate_num_creations_selections(d1) == \
-        calculate_num_creations_selections(d2)
+    assert calculate_num_creations_selections(
+        d1
+    ) == calculate_num_creations_selections(d2)
+
 
 def test_lemma_B8():
     lemma_B8_l = (
@@ -357,8 +334,8 @@ def test_lemma_B8():
     lemma_B8_r = Create(1) >> W(2) >> Z([1, 1], 1, 2) @ Z([1, 1], 1, 0)
 
     assert test_arrays_of_different_sizes(
-        lemma_B8_l.to_tensor(print_max_occupation_number=False).eval().array,
-        lemma_B8_r.to_tensor(print_max_occupation_number=False).eval().array,
+        lemma_B8_l.to_tensor().eval().array,
+        lemma_B8_r.to_tensor().eval().array,
     )
 
 
@@ -373,8 +350,8 @@ def test_lemma_B7():
     )
 
     assert test_arrays_of_different_sizes(
-        lemma_B7_l.to_tensor(print_max_occupation_number=False).eval().array,
-        lemma_B7_r.to_tensor(print_max_occupation_number=False).eval().array,
+        lemma_B7_l.to_tensor().eval().array,
+        lemma_B7_r.to_tensor().eval().array,
     )
 
 
@@ -389,14 +366,16 @@ def test_prop_54():
 
     prop_54_r = (
         Create(1) @ Id(1)
-        >> W(2) @ W(2)
-        >> Id(1) @ Z(lambda i: 1, 2, 1) @ Id(1)
-        >> Z(lambda i: 1, 1, 0) @ W(2).dagger()
+        >> Z(lambda i: 1, 1, 2) @ Id(1)
+        >> Swap() @ Id(1)
+        >> W(2) @ W(2) @ W(2)
+        >> Id(1) @ Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0) @ Id(1)
+        >> W(2).dagger()
     )
 
     assert test_arrays_of_different_sizes(
-        prop_54_l.to_tensor(print_max_occupation_number=False).eval().array,
-        prop_54_r.to_tensor(print_max_occupation_number=False).eval().array,
+        prop_54_l.to_tensor().eval().array,
+        prop_54_r.to_tensor().eval().array,
     )
 
 
@@ -409,7 +388,7 @@ def test_prop_54():
         [0, 2, np.array(np.sqrt(2) * 1j / 2)],
     ],
 )
-def test_bBa(postselect_and_prob: list):
+def test_hom(postselect_and_prob: list):
     select_1 = postselect_and_prob[0]
     select_2 = postselect_and_prob[1]
     prob = postselect_and_prob[2]
@@ -431,8 +410,6 @@ def test_bBa(postselect_and_prob: list):
     )
 
     assert test_arrays_of_different_sizes(
-        Hong_Ou_Mandel.to_tensor(print_max_occupation_number=False)
-        .eval()
-        .array,
+        Hong_Ou_Mandel.to_tensor().eval().array,
         prob,
     )
