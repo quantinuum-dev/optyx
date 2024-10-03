@@ -27,7 +27,7 @@ Axioms (from 2306.02114)
 ...             bAso_r.to_tensor().eval().array)
 
 
->>> bBa_l = ProjectionMap(2) >> W(2) @ W(2) >>\\
+>>> bBa_l = W(2) @ W(2) >>\\
 ...             Id(1) @ Swap() @ Id(1) >>\\
 ...             W(2).dagger() @ W(2).dagger()
 >>> bBa_r = W(2).dagger() >> W(2)
@@ -90,14 +90,13 @@ Hong-Ou-Mandel interference
 ...             np.array([0]))
 """
 
-import logging
 from typing import Union
 import numpy as np
 from discopy import monoidal
 from discopy.monoidal import Layer, PRO
-from discopy.cat import factory, Category
+from discopy.cat import factory
 from discopy import tensor
-from discopy.frobenius import Dim, Functor
+from discopy.frobenius import Dim
 from optyx.utils import occupation_numbers, multinomial, get_index_from_list
 
 
@@ -107,112 +106,110 @@ class Diagram(monoidal.Diagram):
     ZW diagram
     """
 
-    def get_max_occupation_num(
-        self, user_max_occupation_num=0, print_max_occupation_number=False
-    ):
-        """Returns a maximum occupation number to perform
-        truncation of the generators: a method from 2306.02114: Lemma 4.1"""
-        max_occupation_num = 0
+    def f_ob(self, dims: np.ndarray | list) -> Dim:
+        """Converts a list of dimensions to a Dim object"""
+        return Dim(*[int(i) for i in dims])
 
-        occupation_numbers_ = [0]
+    def f_ar(
+        self, box: monoidal.Box, dims_in: list, dims_out: list
+    ) -> tensor.Box:
+        """Converts a ZW box to a tensor.Box object
+        with the correct dimensions and array"""
+        arr = box.truncated_array(np.array(dims_in))
+        return tensor.Box(
+            box.name, self.f_ob(dims_in), self.f_ob(dims_out), arr
+        )
+
+    def to_tensor(self) -> tensor.Diagram:
+        """Returns a maximum occupation number to perform
+        truncation of the generators"""
 
         # check if the diagram is not a sum of diagrams
         # - otherwise we need to run this function for all terms in the sum
         if isinstance(list(self)[0], Layer):
-            inputs = [0 for _ in range(len(self.dom.inside))]
-            scan = [(t, 1) for t in inputs]
 
-            for box, off in zip(self.boxes, self.offsets):
-                if isinstance(box, Swap):
-                    scan[off], scan[off + 1] = scan[off + 1], scan[off]
-                    continue
-                current_occupation_num = 0
-                if isinstance(box, Z):
-                    previous_occupation_nums = [0]
-                    for j in range(len(box.dom)):
-                        other_t, _ = scan[off + j]
-                        previous_occupation_nums.append(other_t)
+            # get idx of max offset
+            layer_dims = [2 for _ in range(max(list(
+                len(box.dom) + off
+                for box, off in zip(self.boxes, self.offsets)
+            )))]
+            right_dim = len(self.dom)
 
-                    max_previous_occupation_num = max(previous_occupation_nums)
-
-                    current_occupation_num = max_previous_occupation_num * (
-                        box.legs_out
-                    )
-
-                elif isinstance(box, W) and box.is_dagger:
-                    previous_occupation_nums = [0]
-                    for j in range(box.n_legs):
-                        other_t, _ = scan[off + j]
-                        previous_occupation_nums.append(other_t)
-
-                    max_previous_occupation_num = max(previous_occupation_nums)
-
-                    current_occupation_num = max_previous_occupation_num * (
-                        box.n_legs
-                    )
-                elif isinstance(box, (Create, Select)):
-                    current_occupation_num = box.n_photons
-                else:
-                    if len(scan) > off:
-                        current_occupation_num, _ = scan[off + 0]
-                    else:
-                        current_occupation_num = 0
-
-                scan[off: off + len(box.dom)] = [
-                    (current_occupation_num, len(box.dom) + ind)
-                    for ind in range(len(box.cod))
-                ]
-                occupation_numbers_.append(current_occupation_num)
-        else:
-            for term in self:
-                occupation_numbers_.append(term.get_max_occupation_num())
-
-        max_occupation_num = max(occupation_numbers_)
-
-        if print_max_occupation_number:
-            print(f"detected max_occupation_num: {max_occupation_num}")
-
-        # a user can specify a custom max_occupation_num
-        # throw a warning if the number is too low
-        if user_max_occupation_num < max_occupation_num:
-            if user_max_occupation_num != 2:
-                logging.info(
-                    "max_occupation_num is too low, setting it to %s",
-                    max_occupation_num,
+            for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
+                dims_in, dims_out = self.__determine_dimensions(
+                    box, off, layer_dims
                 )
+
+                left = Dim()
+                if off > 0:
+                    left = self.f_ob(layer_dims[0:off])
+                right = Dim()
+                if off + len(box.dom) < right_dim:
+                    right = self.f_ob(
+                        layer_dims[off + len(box.dom): right_dim]
+                    )
+
+                cod_right_dim = right_dim - len(box.dom) + len(box.cod)
+                cod_layer_dims = (
+                    layer_dims[0:off]
+                    + dims_out
+                    + layer_dims[off + len(box.dom):]
+                )
+
+                diagram_ = tensor.Diagram(
+                    inside=(Layer(left, self.f_ar(box, dims_in, dims_out),
+                                  right),),
+                    dom=self.f_ob(layer_dims[:right_dim]),
+                    cod=self.f_ob(cod_layer_dims[:cod_right_dim]),
+                )
+                if i == 0:
+                    diagram = diagram_
+                else:
+                    diagram = diagram >> diagram_
+
+                right_dim = cod_right_dim
+                layer_dims = cod_layer_dims
+
         else:
-            max_occupation_num = user_max_occupation_num
-        return max_occupation_num
+            for i, term in enumerate(self):
+                if i == 0:
+                    diagram = term.to_tensor()
+                else:
+                    diagram += term.to_tensor()
+        return diagram
 
-    def to_tensor(
-        self, max_occupation_num: int = 2, print_max_occupation_number=False
-    ) -> tensor.Diagram:
-        """Returns tensor.Diagram based on the ZW diagram for a
-        given max_occupation_num which is used to truncate
-        the array to be used in the tensor.Diagram.
+    def __determine_dimensions(
+        self, box: monoidal.Box, off: int, layer_dims: list
+    ) -> tuple:
+        dims_in = layer_dims[off: off + len(box.dom)]
+        if isinstance(box, Swap):
+            dims_out = [dims_in[1], dims_in[0]]
 
-        :param max_occupation_num: maximum occupation number for
-        truncation of the generators
-        :param print_max_occupation_number: show the max_occupation_number
-        """
+        elif isinstance(box, Z):
+            dims_out = max(dims_in + [0])
+            dims_out = [dims_out for _ in range(len(box.cod))]
 
-        max_occupation_num = self.get_max_occupation_num(
-            max_occupation_num, print_max_occupation_number
-        )
+        elif isinstance(box, W) and box.is_dagger:
+            dims_out = sum(np.array(dims_in, dtype=int) - 1) + 1
+            dims_out = [dims_out for _ in range(len(box.cod))]
 
-        def f_ob(ob: PRO) -> Dim:
-            return Dim(max_occupation_num + 1) ** len(ob)
+        elif isinstance(box, W) and not box.is_dagger:
+            dims_out = max(dims_in + [0])
+            dims_out = [dims_out for _ in range(len(box.cod))]
 
-        def f_ar(box: monoidal.Box) -> tensor.Box:
-            arr = box.truncated_array(max_occupation_num)
-            return tensor.Box(box.name, f_ob(box.dom), f_ob(box.cod), arr)
-
-        return Functor(
-            ob=f_ob,
-            ar=f_ar,
-            dom=Category(PRO, self),
-            cod=Category(Dim, tensor.Diagram),
-        )(self)
+        elif isinstance(box, Create):
+            if box.n_photons == 0:
+                dims_out = [2]
+            else:
+                dims_out = [box.n_photons + 1]
+            dims_in = []
+        elif isinstance(box, Select):
+            dims_out = []
+        elif isinstance(box, Id):
+            dims_out = dims_in
+        else:
+            raise ValueError("Unknown box type")
+        return dims_in, dims_out
 
     def __add__(self, other: "Diagram") -> "Diagram":
         return Sum([self, other])
@@ -223,6 +220,9 @@ class Box(monoidal.Box, Diagram):
 
     __ambiguous_inheritance__ = (monoidal.Box,)
 
+    def __init__(self, name: str, dom: PRO, cod: PRO, **params):
+        super().__init__(name, dom, cod, **params)
+
 
 class Sum(monoidal.Sum, Box, Diagram):
     """A sum of ZW diagrams"""
@@ -230,75 +230,27 @@ class Sum(monoidal.Sum, Box, Diagram):
     __ambiguous_inheritance__ = (monoidal.Sum,)
 
 
-class ProjectionMap(Box):
-    """
-    ProjectionMap map from the ZXW calculus.
-    """
-
-    def __init__(self, wires: int):
-        super().__init__("Id", PRO(wires), PRO(wires))
-        self.wires = wires
-
-    def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
-        """Create a truncated array line in 2306.02114 -
-        this array projects the state to the subspace
-        of the symmetric Fock space with
-        all occupation numbers <= max_occupation_num
-        """
-
-        d = max_occupation_num + 1
-        arr = np.zeros((d**self.wires, d**self.wires), dtype=complex)
-
-        # for each occupation number
-        for i in range(d):
-
-            # get all allowed occupation configurations for n photons
-            # (symmetric Fock space basis states)
-            combs = occupation_numbers(i, self.wires)
-            for comb in combs:
-                index = 0
-
-                # for each wire/mode find the index in the matrix
-                for j, s_i in enumerate(comb):
-                    index += s_i * (max_occupation_num + 1) ** (
-                        self.wires - j - 1
-                    )
-
-                arr[index, index] += 1
-        return arr
-
-    def __repr__(self):
-        return f"ProjectionMap({self.wires})"
-
-    def __eq__(self, other: "ProjectionMap") -> bool:
-        if not isinstance(other, ProjectionMap):
-            return False
-        return self.wires == other.wires
-
-
 class Swap(monoidal.Box, Diagram):
     """A ZW Swap"""
 
-    def __init__(self):
+    def __init__(self, cod=2, dom=2):
         super().__init__("SWAP", PRO(2), PRO(2))
 
     # create an array like in 2306.02114
-    def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
-        """Create an array like in 2306.02114 - this
-        array swaps the occupation numbers"""
-        max_occupation_num = max_occupation_num + 1
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
+        """Create an array that swaps the occupation
+        numbers based on the input dimensions."""
 
-        swap = np.zeros(
-            (max_occupation_num**2, max_occupation_num**2), dtype=complex
-        )
+        input_total_dim = (input_dims[0]) * (input_dims[1])
 
-        for i in range(max_occupation_num):
-            for j in range(max_occupation_num):
-                swap[
-                    i * max_occupation_num + j, j * max_occupation_num + i
-                ] = 1
+        swap = np.zeros((input_total_dim, input_total_dim), dtype=complex)
 
-        return swap
+        # Iterate over the dimensions for both wires
+        for i in range(input_dims[1]):
+            for j in range(input_dims[0]):
+                swap[i * (input_dims[0]) + j, j * (input_dims[1]) + i] = 1
+
+        return swap.T
 
     def dagger(self) -> Diagram:
         return Swap()
@@ -311,10 +263,11 @@ class Id(Box):
         super().__init__("Id", PRO(n_wires), PRO(n_wires))
         self.n_wires = n_wires
         self.draw_as_wires = True
+        self.draw_as_braid = False
 
-    def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
-        return np.eye((max_occupation_num + 1) ** self.n_wires, dtype=complex)
+        return np.eye(int(np.prod(np.array(input_dims))))
 
     def dagger(self) -> Diagram:
         return self
@@ -344,16 +297,54 @@ class W(Box):
         self.is_dagger = is_dagger
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
 
-    def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
 
+        if self.is_dagger:
+            max_dimension = np.sum(np.array(input_dims) - 1) + 1
+
+            total_map = np.zeros(
+                (np.prod(np.array(input_dims)), max_dimension),
+                dtype=complex,
+            )
+
+            for n in range(max_dimension):
+
+                # get all allowed occupation configurations for n photons
+                # (symmetric Fock space basis states)
+                allowed_occupation_configurations = occupation_numbers(
+                    n, self.n_legs
+                )
+
+                allowed_occupation_configurations = filter_occupation_numbers(
+                    allowed_occupation_configurations, np.array(input_dims) - 1
+                )
+
+                for configuration in allowed_occupation_configurations:
+
+                    # get the coefficient for the configuration
+                    coef = np.sqrt(multinomial(configuration))
+
+                    # find idx of the matrix where to put the coefficient
+                    row_index = 0
+
+                    for i, s_i in enumerate(configuration):
+                        row_index += s_i * (
+                            np.prod(np.array(input_dims[i + 1:]), dtype=int)
+                        )
+                    col_index = n
+
+                    total_map[row_index, col_index] += coef
+            return total_map
+
+        max_dimension = input_dims[0]
+
         total_map = np.zeros(
-            ((max_occupation_num + 1) ** self.n_legs, max_occupation_num + 1),
+            ((max_dimension) ** self.n_legs, max_dimension),
             dtype=complex,
         )
 
-        # the default - non dagger - map is 1 -> n wires
-        for n in range(max_occupation_num + 1):
+        for n in range(max_dimension):
 
             # get all allowed occupation configurations for n photons
             # (symmetric Fock space basis states)
@@ -368,16 +359,14 @@ class W(Box):
 
                 # find idx of the matrix where to put the coefficient
                 row_index = 0
+
                 for i, s_i in enumerate(configuration):
-                    row_index += s_i * (max_occupation_num + 1) ** (
+                    row_index += s_i * (max_dimension) ** (
                         self.n_legs - i - 1
                     )
-
                 col_index = n
                 total_map[row_index, col_index] += coef
 
-        if self.is_dagger:
-            return total_map
         return total_map.conj().T
 
     def dagger(self) -> Diagram:
@@ -444,7 +433,7 @@ class Z(Box):
             self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
-        super().__init__(f"B{self.amplitudes}", PRO(legs_in), PRO(legs_out))
+        super().__init__(f"Z{self.amplitudes}", PRO(legs_in), PRO(legs_out))
         self.name = self.__repr__()
         self.legs_in = legs_in
         self.legs_out = legs_out
@@ -452,12 +441,19 @@ class Z(Box):
         self.shape = "rectangle"
         self.color = "green"
 
-    def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
+        if len(input_dims) == 0:
+            max_dimension = 2
+        else:
+            max_dimension = min(input_dims)
 
-        dim = max_occupation_num + 1
         result_matrix = np.zeros(
-            (dim**self.legs_out, dim**self.legs_in), dtype=complex
+            (
+                int(max_dimension**self.legs_out),
+                int(np.prod(np.array(input_dims))),
+            ),
+            dtype=complex,
         )
 
         if self.legs_in == 0 and self.legs_out == 0:
@@ -465,15 +461,16 @@ class Z(Box):
                 return np.array([self.amplitudes], dtype=complex)
             return np.array([self.amplitudes[0]], dtype=complex)
 
-        for i in range(dim):
+        for i in range(max_dimension):
             row_index = 0
             col_index = 0
 
             for j in range(self.legs_out):
-                row_index += i * dim ** (self.legs_out - j - 1)
+                row_index += i * max_dimension ** (self.legs_out - j - 1)
             for j in range(self.legs_in):
-                col_index += i * dim ** (self.legs_in - j - 1)
-
+                col_index += i * (
+                    np.prod(np.array(input_dims[j + 1:]), dtype=int)
+                )
             if not isinstance(self.amplitudes, IndexableAmplitudes):
                 if i >= len(self.amplitudes):
                     result_matrix[row_index, col_index] = 0
@@ -520,9 +517,13 @@ class Create(Box):
         super().__init__(str(n_photons), PRO(0), PRO(1))
         self.n_photons = n_photons
 
-    def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
+    def truncated_array(self, _) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
-        result_matrix = np.zeros((max_occupation_num + 1, 1), dtype=complex)
+        if self.n_photons == 0:
+            dims_out = 2
+        else:
+            dims_out = self.n_photons + 1
+        result_matrix = np.zeros((dims_out, 1), dtype=complex)
         result_matrix[self.n_photons, 0] = 1.0
         return result_matrix
 
@@ -558,10 +559,10 @@ class Select(Box):
             return False
         return self.n_photons == other.n_photons
 
-    def truncated_array(self, max_occupation_num: int) -> np.ndarray[complex]:
+    def truncated_array(self, input_dims: list) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
 
-        result_matrix = np.zeros((1, max_occupation_num + 1), dtype=complex)
+        result_matrix = np.zeros((1, input_dims[0]), dtype=complex)
         result_matrix[0, self.n_photons] = 1.0
         return result_matrix
 
@@ -581,11 +582,11 @@ def tn_output_2_perceval_output(
 
     n_photons_out = n_extra_photons - n_selections + n_creations
 
-    max_occupation_num = diagram.get_max_occupation_num()
+    cod = list(diagram.to_tensor().cod.inside)
 
     idxs = list(occupation_numbers(n_photons_out, wires_out))
 
-    ix = [get_index_from_list(i, max_occupation_num) for i in idxs]
+    ix = [get_index_from_list(i, cod) for i in idxs]
     res_ = []
     for i in ix:
         if i < len(tn_output):
@@ -619,3 +620,19 @@ def calculate_num_creations_selections(diagram: Diagram) -> tuple:
         n_selections = max(i[0] for i in arr_selections_creations)
         n_creations = max(i[1] for i in arr_selections_creations)
     return n_selections, n_creations
+
+
+def filter_occupation_numbers(
+    allowed_occupation_configurations: list[list[int]], input_dims: list[int]
+) -> list[list[int]]:
+    """Filter the occupation numbers based on the input dimensions"""
+    return [
+        config
+        for config in allowed_occupation_configurations
+        if all(list(config[i] <= input_dims[i] for i in
+                    range(len(input_dims))))
+    ]
+
+
+Diagram.swap_factory = Swap
+Diagram.swap = Swap

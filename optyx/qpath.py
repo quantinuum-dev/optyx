@@ -78,7 +78,7 @@ from discopy.monoidal import PRO
 from discopy.utils import unbiased
 from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
-import optyx.zw as zw
+from optyx import zw
 
 
 def npperm(matrix):
@@ -806,14 +806,12 @@ BS = Box("BS", 2, 2, data=bs_matrix)
 
 Zb_i = zw.Z(np.array([1, 1j / (np.sqrt(2))]), 1, 1)
 Zb_1 = zw.Z(np.array([1, 1 / (np.sqrt(2))]), 1, 1)
-beam_splitter = (
-    zw.W(2) @ zw.W(2)
-    >> Zb_i @ Zb_1 @ Zb_1 @ Zb_i
-    >> zw.Id(1) @ zw.Swap() @ zw.Id(1)
-    >> zw.W(2).dagger() @ zw.W(2).dagger()
-)
-
-BS.to_zw = lambda: beam_splitter
+# beam_splitter = (
+#     zw.W(2) @ zw.W(2)
+#     >> Zb_i @ Zb_1 @ Zb_1 @ Zb_i
+#     >> zw.Id(1) @ zw.Swap() @ zw.Id(1)
+#     >> zw.W(2).dagger() @ zw.W(2).dagger()
+# )
 
 Diagram.swap_factory = Swap
 SWAP = Swap(PRO(1), PRO(1))

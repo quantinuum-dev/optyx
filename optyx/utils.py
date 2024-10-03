@@ -77,7 +77,7 @@ def compare_arrays_of_different_sizes(array_1: list | np.ndarray,
 
 
 def get_index_from_list(indices: list | np.ndarray,
-                        max_sum: int = 0):
+                        max_index_sizes: int = 0):
     """Each index from indices specifies the index
     of a "1" in a state basis vector (the occupation number),
     max_sum is the length of the vector minus 1 (the max occupation number),
@@ -85,12 +85,9 @@ def get_index_from_list(indices: list | np.ndarray,
     if we tensor the state basis vectors
     """
 
-    n = len(indices)
     j = 0
-    if max_sum == 0:
-        s = np.sum(indices) + 1
-    else:
-        s = max_sum + 1
     for k, i_k in enumerate(indices):
-        j += i_k * (s ** (n - k - 1))
+        j += i_k * (
+            np.prod(np.array(max_index_sizes[k+1:]), dtype=int)
+        )
     return j
