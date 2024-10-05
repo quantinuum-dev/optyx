@@ -2,9 +2,9 @@ import pytest
 
 import networkx as nx
 
-from optyx.compiler.mbqc import OpenGraph, Measurement
+from optyx.mbqc.mbqc import OpenGraph, Measurement
 
-from optyx.compiler.semm import (
+from optyx.mbqc.semm import (
     compile_to_semm,
     decompile_from_semm,
 )

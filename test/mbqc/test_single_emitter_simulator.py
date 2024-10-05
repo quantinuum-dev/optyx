@@ -1,8 +1,8 @@
 import pytest
 import math
 
-from optyx.compiler.mbqc import Measurement
-from optyx.compiler.semm_decompiler import (
+from optyx.mbqc.mbqc import Measurement
+from optyx.mbqc.semm_decompiler import (
     SemmDecompiler,
 )
 

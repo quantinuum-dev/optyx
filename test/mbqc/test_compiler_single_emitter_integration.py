@@ -1,9 +1,9 @@
 import pytest
 import math
 
-from optyx.compiler.semm import fn_to_semm
+from optyx.mbqc.semm import fn_to_semm
 
-from optyx.compiler.mbqc import (
+from optyx.mbqc.mbqc import (
     PartialOrder,
     Measurement,
     add_fusion_order,
@@ -12,13 +12,13 @@ from optyx.compiler.mbqc import (
     pattern_satisfies_order,
 )
 
-from optyx.compiler.patterns import (
+from optyx.mbqc.patterns import (
     FusionOp,
     MeasureOp,
     NextNodeOp,
 )
 
-from optyx.compiler.semm_decompiler import (
+from optyx.mbqc.semm_decompiler import (
     decompile_to_fusion_network,
 )
 

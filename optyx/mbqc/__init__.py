@@ -56,18 +56,18 @@ Example
 This example defines an open graph and compiles it into a fusion network and
 then into a series of instruction to be executed on a SEMM machine.
 
-This procedure is captured in the :meth:`optyx.compiler.semm.compile_to_semm`
+This procedure is captured in the :meth:`optyx.mbqc.semm.compile_to_semm`
 method.
 
 >>> import networkx as nx
->>> from optyx.compiler.patterns import NextNodeOp, MeasureOp
->>> from optyx.compiler.mbqc import (
+>>> from optyx.mbqc.patterns import NextNodeOp, MeasureOp
+>>> from optyx.mbqc.mbqc import (
 ...     OpenGraph,
 ...     Measurement,
 ...     FusionNetwork,
 ...     add_fusion_order,
 ... )
->>> from optyx.compiler.semm import (
+>>> from optyx.mbqc.semm import (
 ...     compile_to_fusion_network,
 ...     fn_to_semm,
 ... )

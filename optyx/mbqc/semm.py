@@ -14,7 +14,7 @@ single emitter multiple measure (SEMM) machine
 from copy import deepcopy
 import networkx as nx
 
-from optyx.compiler.mbqc import (
+from optyx.mbqc.mbqc import (
     OpenGraph,
     PartialOrder,
     get_fused_neighbours,
@@ -25,16 +25,16 @@ from optyx.compiler.mbqc import (
     Fusion,
 )
 
-from optyx.compiler.path_cover import find_min_path_cover
+from optyx.mbqc.path_cover import find_min_path_cover
 
-from optyx.compiler.patterns import (
+from optyx.mbqc.patterns import (
     Instruction,
     FusionOp,
     MeasureOp,
     NextNodeOp,
 )
 
-from optyx.compiler.semm_decompiler import (
+from optyx.mbqc.semm_decompiler import (
     decompile_to_fusion_network,
 )
 
@@ -48,15 +48,15 @@ def compile_to_semm(
     -------
     >>> import networkx as nx
     >>> g = nx.Graph([(0, 1), (1, 2)])
-    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
+    >>> from optyx.mbqc.mbqc import OpenGraph, Measurement, FusionNetwork
     >>>
     >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
     >>> inputs = {0}
     >>> outputs = {2}
     >>>
     >>> og = OpenGraph(g, meas, inputs, outputs)
-    >>> from optyx.compiler.semm import compile_to_semm
-    >>> from optyx.compiler.patterns import (
+    >>> from optyx.mbqc.semm import compile_to_semm
+    >>> from optyx.mbqc.patterns import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,
@@ -96,9 +96,9 @@ def decompile_from_semm(
 
     Example
     -------
-    >>> from optyx.compiler.mbqc import OpenGraph, Measurement, FusionNetwork
-    >>> from optyx.compiler.semm import decompile_from_semm
-    >>> from optyx.compiler.patterns import (
+    >>> from optyx.mbqc.mbqc import OpenGraph, Measurement, FusionNetwork
+    >>> from optyx.mbqc.semm import decompile_from_semm
+    >>> from optyx.mbqc.patterns import (
     ...    FusionOp,
     ...    MeasureOp,
     ...    NextNodeOp,

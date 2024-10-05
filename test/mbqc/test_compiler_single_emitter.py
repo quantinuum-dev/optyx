@@ -1,14 +1,14 @@
 import pytest
 import math
 
-from optyx.compiler.mbqc import FusionNetwork, Fusion, Measurement
-from optyx.compiler.semm import (
+from optyx.mbqc.mbqc import FusionNetwork, Fusion, Measurement
+from optyx.mbqc.semm import (
     get_measurement_times,
     get_creation_times,
     fn_to_semm,
 )
 
-from optyx.compiler.patterns import (
+from optyx.mbqc.patterns import (
     MeasureOp,
     FusionOp,
     NextNodeOp,
