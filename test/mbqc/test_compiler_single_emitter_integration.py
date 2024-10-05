@@ -3,7 +3,7 @@ import math
 import pytest
 
 from optyx.mbqc.graph import Measurement, PartialOrder
-from optyx.mbqc.mbqc import (
+from optyx.mbqc.network import (
     Fusion,
     FusionNetwork,
     add_fusion_order,

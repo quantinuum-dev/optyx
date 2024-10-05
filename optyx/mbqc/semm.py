@@ -16,7 +16,7 @@ from copy import deepcopy
 import networkx as nx
 
 from optyx.mbqc.graph import Measurement, OpenGraph, PartialOrder
-from optyx.mbqc.mbqc import (
+from optyx.mbqc.network import (
     Fusion,
     FusionNetwork,
     add_fusion_order,
@@ -37,7 +37,7 @@ def compile_to_semm(
     -------
     >>> import networkx as nx
     >>> g = nx.Graph([(0, 1), (1, 2)])
-    >>> from optyx.mbqc.mbqc import OpenGraph, Measurement, FusionNetwork
+    >>> from optyx.mbqc.network import OpenGraph, Measurement, FusionNetwork
     >>>
     >>> meas = {i: Measurement(i, 'XY') for i in range(3)}
     >>> inputs = {0}
@@ -85,7 +85,7 @@ def decompile_from_semm(
 
     Example
     -------
-    >>> from optyx.mbqc.mbqc import OpenGraph, Measurement, FusionNetwork
+    >>> from optyx.mbqc.network import OpenGraph, Measurement, FusionNetwork
     >>> from optyx.mbqc.semm import decompile_from_semm
     >>> from optyx.mbqc.patterns import (
     ...    FusionOp,

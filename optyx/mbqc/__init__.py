@@ -61,7 +61,7 @@ method.
 
 >>> import networkx as nx
 >>> from optyx.mbqc.patterns import NextNodeOp, MeasureOp
->>> from optyx.mbqc.mbqc import (
+>>> from optyx.mbqc.network import (
 ...     OpenGraph,
 ...     Measurement,
 ...     FusionNetwork,
@@ -92,6 +92,6 @@ method.
 """
 
 from .graph import GFlow, Measurement, OpenGraph, PartialOrder
-from .mbqc import FusionNetwork, pattern_satisfies_order
+from .network import FusionNetwork, pattern_satisfies_order
 from .patterns import Instruction
 from .semm import compile_to_semm, decompile_from_semm

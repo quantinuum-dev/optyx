@@ -1,7 +1,7 @@
 import networkx as nx
 import pytest
 
-from optyx.mbqc.mbqc import Measurement, OpenGraph, fn_to_open_graph
+from optyx.mbqc.network import Measurement, OpenGraph, fn_to_open_graph
 from optyx.mbqc.semm import compile_to_fusion_network
 
 

@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from optyx.mbqc.mbqc import Measurement
+from optyx.mbqc.network import Measurement
 from optyx.mbqc.semm_decompiler import SemmDecompiler
 
 

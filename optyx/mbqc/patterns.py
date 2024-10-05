@@ -5,7 +5,7 @@ measurement calculus"""
 
 from dataclasses import dataclass
 
-from optyx.mbqc.mbqc import Measurement
+from optyx.mbqc.network import Measurement
 
 
 @dataclass

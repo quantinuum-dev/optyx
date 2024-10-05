@@ -3,7 +3,7 @@ import math
 import pytest
 
 from optyx.mbqc.graph import Measurement
-from optyx.mbqc.mbqc import Fusion, FusionNetwork
+from optyx.mbqc.network import Fusion, FusionNetwork
 from optyx.mbqc.patterns import FusionOp, MeasureOp, NextNodeOp
 from optyx.mbqc.semm import (
     fn_to_semm,
