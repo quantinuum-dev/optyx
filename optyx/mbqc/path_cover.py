@@ -1,6 +1,7 @@
 """Provides algorithm for computing the minimum path cover of a graph"""
 
 from typing import Optional
+
 import networkx as nx
 
 

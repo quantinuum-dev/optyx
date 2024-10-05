@@ -4,6 +4,7 @@ The standard is still in development, but it already looks to be similar to the
 measurement calculus"""
 
 from dataclasses import dataclass
+
 from optyx.mbqc.mbqc import Measurement
 
 

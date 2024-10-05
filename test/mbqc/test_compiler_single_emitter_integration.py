@@ -1,26 +1,17 @@
-import pytest
 import math
 
-from optyx.mbqc.semm import fn_to_semm
+import pytest
 
+from optyx.mbqc.graph import Measurement, PartialOrder
 from optyx.mbqc.mbqc import (
-    PartialOrder,
-    Measurement,
-    add_fusion_order,
-    FusionNetwork,
     Fusion,
-    pattern_satisfies_order,
+    FusionNetwork,
+    add_fusion_order,
+    pattern_satisfies_order
 )
-
-from optyx.mbqc.patterns import (
-    FusionOp,
-    MeasureOp,
-    NextNodeOp,
-)
-
-from optyx.mbqc.semm_decompiler import (
-    decompile_to_fusion_network,
-)
+from optyx.mbqc.patterns import FusionOp, MeasureOp, NextNodeOp
+from optyx.mbqc.semm import fn_to_semm
+from optyx.mbqc.semm_decompiler import decompile_to_fusion_network
 
 
 def numeric_order(n: int) -> list[int]:

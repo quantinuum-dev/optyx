@@ -1,17 +1,14 @@
-import pytest
 import math
 
-from optyx.mbqc.mbqc import FusionNetwork, Fusion, Measurement
-from optyx.mbqc.semm import (
-    get_measurement_times,
-    get_creation_times,
-    fn_to_semm,
-)
+import pytest
 
-from optyx.mbqc.patterns import (
-    MeasureOp,
-    FusionOp,
-    NextNodeOp,
+from optyx.mbqc.graph import Measurement
+from optyx.mbqc.mbqc import Fusion, FusionNetwork
+from optyx.mbqc.patterns import FusionOp, MeasureOp, NextNodeOp
+from optyx.mbqc.semm import (
+    fn_to_semm,
+    get_creation_times,
+    get_measurement_times
 )
 
 

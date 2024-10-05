@@ -1,8 +1,8 @@
-import pytest
 import networkx as nx
+import pytest
 
+from optyx.mbqc.mbqc import Measurement, OpenGraph, fn_to_open_graph
 from optyx.mbqc.semm import compile_to_fusion_network
-from optyx.mbqc.mbqc import OpenGraph, Measurement, fn_to_open_graph
 
 
 # Generate many random graphs and confirm all of them can be compiled and

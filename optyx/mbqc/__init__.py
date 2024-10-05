@@ -91,18 +91,7 @@ method.
 ... ]
 """
 
-from .mbqc import (
-    Measurement,
-    OpenGraph,
-    GFlow,
-    PartialOrder,
-    FusionNetwork,
-    pattern_satisfies_order,
-)
-
+from .graph import GFlow, Measurement, OpenGraph, PartialOrder
+from .mbqc import FusionNetwork, pattern_satisfies_order
 from .patterns import Instruction
-
-from .semm import (
-    compile_to_semm,
-    decompile_from_semm,
-)
+from .semm import compile_to_semm, decompile_from_semm
