@@ -1,16 +1,33 @@
 """
 ZW diagrams and their mapping to :class:`tensor.Diagram`.
 
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    Diagram
+    Box
+    W
+    Z
+    Id
+    Swap
+
 .. admonition:: Functions
+
     .. autosummary::
         :template: function.rst
         :nosignatures:
         :toctree:
 
+        tn_output_2_perceval_output
+
+
 Example
 -------
-Axioms (from 2306.02114)
+We check the axioms of the ZW calculus.
 
+W commutativity
 
 >>> from optyx.utils import compare_arrays_of_different_sizes
 >>> bSym_l = W(2)
@@ -19,6 +36,7 @@ Axioms (from 2306.02114)
 ...             bSym_l.to_tensor().eval().array,\\
 ...             bSym_r.to_tensor().eval().array)
 
+W associativity
 
 >>> bAso_l = W(2) >> W(2) @ Id(1)
 >>> bAso_r = W(2) >> Id(1) @ W(2)
@@ -26,6 +44,15 @@ Axioms (from 2306.02114)
 ...             bAso_l.to_tensor().eval().array,\\
 ...             bAso_r.to_tensor().eval().array)
 
+W unit
+
+>>> bId_l = W(2) >> Select(0) @ Id(1)
+>>> bId_r = Id(1)
+>>> assert compare_arrays_of_different_sizes(\\
+...             bId_l.to_tensor().eval().array,\\
+...             bId_r.to_tensor().eval().array)
+
+W bialgebra
 
 >>> bBa_l = W(2) @ W(2) >>\\
 ...             Id(1) @ Swap() @ Id(1) >>\\
@@ -35,13 +62,7 @@ Axioms (from 2306.02114)
 ...             bBa_l.to_tensor().eval().array,\\
 ...             bBa_r.to_tensor().eval().array)
 
-
->>> bId_l = W(2) >> Select(0) @ Id(1)
->>> bId_r = Id(1)
->>> assert compare_arrays_of_different_sizes(\\
-...             bId_l.to_tensor().eval().array,\\
-...             bId_r.to_tensor().eval().array)
-
+ZW bialgebra
 
 >>> from math import factorial
 >>> N = [float(np.sqrt(factorial(i))) for i in range(5)]
@@ -55,6 +76,7 @@ Axioms (from 2306.02114)
 ...             bZBA_l.to_tensor().eval().array,\\
 ...             bZBA_r.to_tensor().eval().array)
 
+Z copies n-photon states
 
 >>> K0_infty_l = Create(4) >> Z([1, 1, 1, 1, 1], 1, 2)
 >>> K0_infty_r = Create(4) @ Create(4)
@@ -62,19 +84,8 @@ Axioms (from 2306.02114)
 ...             K0_infty_l.to_tensor().eval().array,\\
 ...             K0_infty_r.to_tensor().eval().array)
 
-Lemma B7 from 2306.02114
 
->>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
-...             Z(lambda i: 1, 2, 0)
->>> lemma_B7_r = W(2) @ Id(2) >>\\
-...             Id(1) @ Id(1) @ Swap() >>\\
-...             Id(1) @ Swap() @ Id(1) >>\\
-...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
->>> assert compare_arrays_of_different_sizes(\\
-...             lemma_B7_l.to_tensor().eval().array,\\
-...             lemma_B7_r.to_tensor().eval().array)
-
-Hong-Ou-Mandel interference
+Check the Hong-Ou-Mandel interference
 
 >>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
 >>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
@@ -88,6 +99,18 @@ Hong-Ou-Mandel interference
 >>> assert compare_arrays_of_different_sizes(\\
 ...             Hong_Ou_Mandel.to_tensor().eval().array,\\
 ...             np.array([0]))
+
+Check Lemma B7 from 2306.02114
+
+>>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
+...             Z(lambda i: 1, 2, 0)
+>>> lemma_B7_r = W(2) @ Id(2) >>\\
+...             Id(1) @ Id(1) @ Swap() >>\\
+...             Id(1) @ Swap() @ Id(1) >>\\
+...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
+>>> assert compare_arrays_of_different_sizes(\\
+...             lemma_B7_l.to_tensor().eval().array,\\
+...             lemma_B7_r.to_tensor().eval().array)
 """
 
 from typing import Union
@@ -231,7 +254,7 @@ class Sum(monoidal.Sum, Box, Diagram):
 
 
 class Swap(monoidal.Box, Diagram):
-    """A ZW Swap"""
+    """Swap in a ZW diagram"""
 
     def __init__(self, cod=2, dom=2):
         super().__init__("SWAP", PRO(2), PRO(2))
