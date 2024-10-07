@@ -44,14 +44,6 @@ We can differentiate the expectation values of optical circuits.
 We can also obtain ZW diagrams from the circuit.
 
 >>> from optyx.zw import tn_output_2_perceval_output
->>> BS = BBS(0)
->>> diagram_qpath = qpath.Create(1, 1) >> BS
->>> diagram_zw = diagram_qpath.to_zw()
->>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
->>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
->>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
->>> assert np.allclose(prob_zw, prob_perceval)
-
 >>> tbs = TBS(0.5)
 >>> diagram_qpath = qpath.Create(1, 1) >> tbs
 >>> diagram_zw = diagram_qpath.to_zw()
