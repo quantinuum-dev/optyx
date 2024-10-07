@@ -7,7 +7,5 @@ API
 
     optyx.qpath
     optyx.circuit
-    optyx.zx
+    optyx.zw
     optyx.compiler
-    optyx.compiler.semm
-    optyx.compiler.semm_decompiler
