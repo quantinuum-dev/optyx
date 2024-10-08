@@ -147,7 +147,19 @@ class OpenGraph(gx.opengraph.OpenGraph):
     def find_gflow(self) -> Optional[GFlow]:
         """Finds gflow of the open graph.
 
-        Returns None if it does not exist."""
+        Returns None if it does not exist.
+
+        Example
+        -------
+        >>> g = nx.Graph([(0, 1), (1, 2), (2, 3)])
+        >>> meas = {
+        ...     0: Measurement(0, "XY"),
+        ...     1: Measurement(0, "YZ"),
+        ...     2: Measurement(0, "XZ"),
+        ... }
+        >>> og = OpenGraph(g, meas, [0], [3])
+        >>> og.find_gflow()
+        """
 
         def to_graphix_plane(plane: str) -> Plane:
             if plane == "XY":
