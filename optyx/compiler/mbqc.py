@@ -1,13 +1,11 @@
 """Contains the fundamental classes requirement to define MBQC patterns"""
 
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Callable, Optional
 
 import graphix as gx
 import graphix.opengraph
 import networkx as nx
-import numpy as np
 from graphix.pauli import Plane
 
 
@@ -37,6 +35,19 @@ class Fusion:
     fusion_type: str
 
     def __eq__(self, other) -> bool:
+        """Indicates equality between fusions
+
+        Example
+        -------
+        >>> Fusion(0, 1, "X") == Fusion(0, 1, "X")
+        True
+        >>> Fusion(1, 0, "X") == Fusion(0, 1, "X")
+        True
+        >>> Fusion(0, 1, "X") == Fusion(0, 1, "Y")
+        False
+        >>> Fusion(0, 2, "X") == Fusion(0, 1, "X")
+        False
+        """
         if self.fusion_type != other.fusion_type:
             return False
 
@@ -136,14 +147,6 @@ class OpenGraph(gx.opengraph.OpenGraph):
     inputs: set[int]
     outputs: set[int]
 
-    def __deepcopy__(self, memo):
-        return OpenGraph(
-            inside=deepcopy(self.inside, memo),
-            measurements=deepcopy(self.measurements, memo),
-            inputs=deepcopy(self.inputs, memo),
-            outputs=deepcopy(self.outputs, memo),
-        )
-
     def find_gflow(self) -> Optional[GFlow]:
         """Finds gflow of the open graph.
 
@@ -169,7 +172,8 @@ class OpenGraph(gx.opengraph.OpenGraph):
             if plane == "XZ":
                 return Plane.XZ
             raise ValueError(
-                f"unexpected measurement plane {plane}, expected: 'XY', 'YZ', or 'XZ'"
+                f"unexpected measurement plane {plane}, "
+                + "expected: 'XY', 'YZ', or 'XZ'"
             )
 
         meas_planes = {}
@@ -287,7 +291,16 @@ def get_fused_neighbours(fusions: list[Fusion], node: int) -> list[int]:
 def fn_to_open_graph(
     sfn: FusionNetwork, inputs: set[int], outputs: set[int]
 ) -> OpenGraph:
-    """Converts a fusion network into an open graph"""
+    """Converts a fusion network into an open graph
+
+    Example
+    -------
+    >>> path = [0, 1, 2]
+    >>> meas = {i: Measurement(i, "XY") for i in range(2)}
+    >>> fusions = [Fusion(0, 1, "Y")]
+    >>> fn = FusionNetwork(path, meas, fusions)
+    >>> og = fn_to_open_graph(fn, {0}, {2})
+    """
 
     g = nx.path_graph(sfn.path)
 
@@ -301,7 +314,16 @@ def pattern_satisfies_order(
     measurements: list[tuple[int, Measurement]], order: PartialOrder
 ) -> bool:
     """Checks every measurement happens only after everything in its past has
-    been measured."""
+    been measured.
+
+    Example
+    -------
+    >>> meas = [(0, Measurement(0, "XY")), (1, Measurement(0, "YZ"))]
+    >>> # Linear order
+    >>> order = lambda n: list(range(n))
+    >>> pattern_satisfies_order(meas, order)
+    True
+    """
     seen: set[int] = set()
 
     for v, _ in measurements:
