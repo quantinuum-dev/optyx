@@ -22,10 +22,6 @@ class Measurement(gx.opengraph.Measurement):
     angle: float
     plane: str
 
-    def is_z_measurement(self) -> bool:
-        """Indicates whether it is a Z measurement"""
-        return np.allclose(self.angle, 0.0) and self.plane == "XY"
-
 
 @dataclass
 class Fusion:
