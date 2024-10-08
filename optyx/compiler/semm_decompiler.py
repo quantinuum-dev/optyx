@@ -13,17 +13,12 @@ compilation pipelines.
     ValidationError
 """
 
-from optyx.compiler.mbqc import (
-    Measurement,
-    FusionNetwork,
-    Fusion,
-)
-
+from optyx.compiler.mbqc import Fusion, FusionNetwork, Measurement
 from optyx.compiler.patterns import (
     FusionOp,
-    MeasureOp,
-    NextNodeOp,
     Instruction,
+    MeasureOp,
+    NextNodeOp
 )
 
 

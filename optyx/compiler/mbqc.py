@@ -1,63 +1,24 @@
 """Contains the fundamental classes requirement to define MBQC patterns"""
 
-from typing import Callable, Optional
-from copy import deepcopy
 from dataclasses import dataclass
-import networkx as nx
-import graphix
-import numpy as np
+from typing import Callable, Optional
 
+import graphix as gx
+import graphix.opengraph
+import networkx as nx
 from graphix.pauli import Plane
 
 
-@dataclass
-class Measurement:
+@dataclass(frozen=True)
+class Measurement(gx.opengraph.Measurement):
     """An MBQC measurement.
 
     :param angle: the angle of the measurement. Should be between [0, 2pi)
     :param plane: the measurement plane: 'XY', 'XZ', 'YZ'
-
-    Example
-    -------
-    >>> import networkx as nx
-    >>> from . import OpenGraph, Measurement
-    >>>
-    >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
-    >>>
-    >>> m = Measurement(0, "XY")
-    >>> m = Measurement(0, "YZ")
-    >>> m = Measurement(0, "XZ")
-    >>> try:
-    ...     m = Measurement(0, "AB")
-    ... except ValueError as e:
-    ...     print(e)
-    plane 'AB' must be either XY, YZ, or XZ
     """
 
     angle: float
-    plane: Plane
-
-    def __init__(self, angle: float, plane: str):
-        self.angle = angle
-
-        if plane == "XY":
-            self.plane = Plane.XY
-        elif plane == "YZ":
-            self.plane = Plane.YZ
-        elif plane == "XZ":
-            self.plane = Plane.XZ
-        else:
-            raise ValueError(f"plane '{plane}' must be either XY, YZ, or XZ")
-
-    def __eq__(self, other):
-        """Checks if two measurements are equal"""
-        return (
-            np.allclose(self.angle, other.angle) and self.plane == other.plane
-        )
-
-    def is_z_measurement(self) -> bool:
-        """Indicates whether it is a Z measurement"""
-        return np.allclose(self.angle, 0.0) and self.plane == Plane.XY
+    plane: str
 
 
 @dataclass
@@ -74,6 +35,19 @@ class Fusion:
     fusion_type: str
 
     def __eq__(self, other) -> bool:
+        """Indicates equality between fusions
+
+        Example
+        -------
+        >>> Fusion(0, 1, "X") == Fusion(0, 1, "X")
+        True
+        >>> Fusion(1, 0, "X") == Fusion(0, 1, "X")
+        True
+        >>> Fusion(0, 1, "X") == Fusion(0, 1, "Y")
+        False
+        >>> Fusion(0, 2, "X") == Fusion(0, 1, "X")
+        False
+        """
         if self.fusion_type != other.fusion_type:
             return False
 
@@ -141,8 +115,8 @@ class GFlow:
         return order
 
 
-@dataclass
-class OpenGraph:
+@dataclass(frozen=True)
+class OpenGraph(gx.opengraph.OpenGraph):
     """Open graph contains the graph, measurement, and input and output
     nodes. This is the graph we wish to implement deterministically
 
@@ -160,7 +134,7 @@ class OpenGraph:
     >>>
     >>> inside_graph = nx.Graph([(0, 1), (1, 2), (2, 0)])
     >>>
-    >>> measurements = [Measurement(0.5 * i, "XY") for i in range(3)]
+    >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
     >>> inputs = {0}
     >>> outputs = {2}
     >>> og = OpenGraph(inside_graph, measurements, inputs, outputs)
@@ -173,59 +147,42 @@ class OpenGraph:
     inputs: set[int]
     outputs: set[int]
 
-    def __eq__(self, other):
-        """Checks the two open graphs are equal
-
-        This doesn't check they are equal up to an isomorphism"""
-
-        g1 = self.perform_z_deletions()
-        g2 = other.perform_z_deletions()
-
-        return (
-            g1.inputs == g2.inputs
-            and g1.outputs == g2.outputs
-            and nx.utils.graphs_equal(g1.inside, g2.inside)
-            and g1.measurements == g2.measurements
-        )
-
-    def __deepcopy__(self, memo):
-        return OpenGraph(
-            inside=deepcopy(self.inside, memo),
-            measurements=deepcopy(self.measurements, memo),
-            inputs=deepcopy(self.inputs, memo),
-            outputs=deepcopy(self.outputs, memo),
-        )
-
-    def perform_z_deletions_in_place(self):
-        """Removes the Z-deleted nodes from the graph in place"""
-        zero_nodes = [
-            id for id, m in self.measurements.items() if m.is_z_measurement()
-        ]
-
-        for node in zero_nodes:
-            self.inside.remove_node(node)
-
-        # Remove the deleted node's measurements
-        self.measurements = {
-            id: m
-            for id, m in self.measurements.items()
-            if not m.is_z_measurement()
-        }
-
-    def perform_z_deletions(self):
-        """Removes the Z-deleted nodes from the graph"""
-        g = deepcopy(self)
-        g.perform_z_deletions_in_place()
-        return g
-
     def find_gflow(self) -> Optional[GFlow]:
         """Finds gflow of the open graph.
 
-        Returns None if it does not exist."""
+        Returns None if it does not exist.
 
-        meas_planes = {i: meas.plane for i, meas in self.measurements.items()}
+        Example
+        -------
+        >>> g = nx.Graph([(0, 1), (1, 2), (2, 3)])
+        >>> meas = {
+        ...     0: Measurement(0, "XY"),
+        ...     1: Measurement(0, "YZ"),
+        ...     2: Measurement(0, "XZ"),
+        ... }
+        >>> og = OpenGraph(g, meas, [0], [3])
+        >>> og.find_gflow()
+        """
+
+        def to_graphix_plane(plane: str) -> Plane:
+            if plane == "XY":
+                return Plane.XY
+            if plane == "YZ":
+                return Plane.YZ
+            if plane == "XZ":
+                return Plane.XZ
+            raise ValueError(
+                f"unexpected measurement plane {plane}, "
+                + "expected: 'XY', 'YZ', or 'XZ'"
+            )
+
+        meas_planes = {}
+        for node_id, m in self.measurements.items():
+            plane = to_graphix_plane(m.plane)
+            meas_planes[node_id] = plane
+
         g, layers = graphix.gflow.find_gflow(
-            self.inside, self.inputs, self.outputs, meas_planes
+            self.inside, set(self.inputs), set(self.outputs), meas_planes
         )
 
         if g is None or layers is None:
@@ -334,7 +291,16 @@ def get_fused_neighbours(fusions: list[Fusion], node: int) -> list[int]:
 def fn_to_open_graph(
     sfn: FusionNetwork, inputs: set[int], outputs: set[int]
 ) -> OpenGraph:
-    """Converts a fusion network into an open graph"""
+    """Converts a fusion network into an open graph
+
+    Example
+    -------
+    >>> path = [0, 1, 2]
+    >>> meas = {i: Measurement(i, "XY") for i in range(2)}
+    >>> fusions = [Fusion(0, 1, "Y")]
+    >>> fn = FusionNetwork(path, meas, fusions)
+    >>> og = fn_to_open_graph(fn, {0}, {2})
+    """
 
     g = nx.path_graph(sfn.path)
 
@@ -348,7 +314,16 @@ def pattern_satisfies_order(
     measurements: list[tuple[int, Measurement]], order: PartialOrder
 ) -> bool:
     """Checks every measurement happens only after everything in its past has
-    been measured."""
+    been measured.
+
+    Example
+    -------
+    >>> meas = [(0, Measurement(0, "XY")), (1, Measurement(0, "YZ"))]
+    >>> # Linear order
+    >>> order = lambda n: list(range(n))
+    >>> pattern_satisfies_order(meas, order)
+    True
+    """
     seen: set[int] = set()
 
     for v, _ in measurements:

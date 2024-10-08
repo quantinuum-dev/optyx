@@ -1,13 +1,8 @@
+import networkx as nx
 import pytest
 
-import networkx as nx
-
-from optyx.compiler.mbqc import OpenGraph, Measurement
-
-from optyx.compiler.semm import (
-    compile_to_semm,
-    decompile_from_semm,
-)
+from optyx.compiler.mbqc import Measurement, OpenGraph
+from optyx.compiler.semm import compile_to_semm, decompile_from_semm
 
 
 # Generate many random graphs and confirm all of them can be compiled and
@@ -22,7 +17,7 @@ def test_fuzz_semm_compiler(num_vertices: int):
         lines = f.readlines()
 
     graphs = nx.read_graph6(lines)
-    meas = {i: Measurement(i, "XY") for i in range(num_vertices)}
+    meas = {i: Measurement(i, "XY") for i in range(num_vertices - 1)}
 
     # This choice of inputs and outputs is completely arbitary.
     # Should write more tests with different inputs and output combinations
@@ -32,7 +27,7 @@ def test_fuzz_semm_compiler(num_vertices: int):
     # For some reason nx.read_graph6 returns a list of graphs if there are many
     # graphs, and the actual graph if there is only one graph, so we need to
     # convert it back into a list here
-    graphs = graphs if type(graphs) is list else [graphs]
+    graphs = graphs if isinstance(graphs, list) else [graphs]
 
     for graph in graphs:
         og = OpenGraph(graph, meas, inputs, outputs)
@@ -45,4 +40,4 @@ def test_fuzz_semm_compiler(num_vertices: int):
         ins = compile_to_semm(og)
         og_reconstructed = decompile_from_semm(ins, inputs, outputs)
 
-        assert og == og_reconstructed
+        assert og.isclose(og_reconstructed)

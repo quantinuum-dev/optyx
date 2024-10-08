@@ -1,17 +1,13 @@
-import pytest
 import math
 
-from optyx.compiler.mbqc import FusionNetwork, Fusion, Measurement
-from optyx.compiler.semm import (
-    get_measurement_times,
-    get_creation_times,
-    fn_to_semm,
-)
+import pytest
 
-from optyx.compiler.patterns import (
-    MeasureOp,
-    FusionOp,
-    NextNodeOp,
+from optyx.compiler.mbqc import Fusion, FusionNetwork, Measurement
+from optyx.compiler.patterns import FusionOp, MeasureOp, NextNodeOp
+from optyx.compiler.semm import (
+    fn_to_semm,
+    get_creation_times,
+    get_measurement_times
 )
 
 
@@ -101,8 +97,7 @@ def test_triangle_with_interesting_order_measurements():
     def custom_order(n: int) -> list[int]:
         if n == 0:
             return [2, 0]
-        else:
-            return [n]
+        return [n]
 
     c = [2, 3, 5]
     m = get_measurement_times(fn, custom_order, c)
