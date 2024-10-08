@@ -3,12 +3,7 @@ import math
 import pytest
 
 from optyx.mbqc.graph import Measurement, PartialOrder
-from optyx.mbqc.network import (
-    Fusion,
-    FusionNetwork,
-    add_fusion_order,
-    pattern_satisfies_order
-)
+from optyx.mbqc.network import Fusion, FusionNetwork, add_fusion_order
 from optyx.mbqc.patterns import FusionOp, MeasureOp, NextNodeOp
 from optyx.mbqc.semm import fn_to_semm
 from optyx.mbqc.semm_decompiler import decompile_to_fusion_network
@@ -55,22 +50,6 @@ def test_triangle_reverse_compilation():
         return list(range(n, 3))
 
     compile_and_verify(fn, reverse_order)
-
-
-# Tests that some cases compiled without fusion ordering, will fail to satisfy
-# the partial order that takes the fusion order into account
-def test_triangle_reverse_compilation_fails():
-    m = create_unique_measurements(4)
-    fn = FusionNetwork([0, 1, 2, 3], m, [Fusion(0, 2, "X")])
-
-    ins = fn_to_semm(fn, numeric_order)
-
-    fn_decompiled = decompile_to_fusion_network(ins)
-    assert fn == fn_decompiled
-
-    order_with_fusions = add_fusion_order(fn.fusions, numeric_order)
-    with pytest.raises(Exception):
-        pattern_satisfies_order(fn_decompiled.measurements, order_with_fusions)
 
 
 # Tests that the fusion order is being respected when we add it

@@ -21,6 +21,19 @@ class Fusion:
     fusion_type: str
 
     def __eq__(self, other) -> bool:
+        """Indicates whether two fusions are logically the same
+
+        Example
+        -------
+        >>> Fusion(1, 2, 'X') == Fusion(1, 2, 'X')
+        True
+        >>> Fusion(1, 2, 'X') == Fusion(2, 1, 'X')
+        True
+        >>> Fusion(1, 2, 'X') == Fusion(1, 3, 'X')
+        False
+        >>> Fusion(1, 2, 'X') == Fusion(1, 2, 'Y')
+        False
+        """
         if self.fusion_type != other.fusion_type:
             return False
 
@@ -168,19 +181,3 @@ def fn_to_open_graph(
         g.add_edge(fusion.node1, fusion.node2)
 
     return OpenGraph(g, sfn.measurements, inputs, outputs)
-
-
-def pattern_satisfies_order(
-    measurements: list[tuple[int, Measurement]], order: PartialOrder
-) -> bool:
-    """Checks every measurement happens only after everything in its past has
-    been measured."""
-    seen: set[int] = set()
-
-    for v, _ in measurements:
-        past = order(v)
-        seen.add(v)
-        if not set(past).issubset(seen):
-            return False
-
-    return True

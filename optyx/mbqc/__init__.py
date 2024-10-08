@@ -36,8 +36,6 @@ emitter and a single measurement device. This functionality is contained in the
     compile_to_semm
     decompile_from_semm
 
-    pattern_satisfies_order
-
 ----------
 Submodules
 ----------
@@ -92,6 +90,6 @@ method.
 """
 
 from .graph import GFlow, Measurement, OpenGraph, PartialOrder
-from .network import FusionNetwork, pattern_satisfies_order
+from .network import FusionNetwork
 from .patterns import Instruction
 from .semm import compile_to_semm, decompile_from_semm
