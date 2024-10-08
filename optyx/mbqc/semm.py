@@ -243,7 +243,7 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetwork:
     pc = find_min_path_cover(og.inside)
     path, new_vertices = _join_paths(pc)
 
-    fusions = _calculate_x_fusions(og.inside, pc)
+    fusions = _calculate_y_fusions(og.inside, pc)
 
     meas = deepcopy(og.measurements)
 
@@ -254,8 +254,8 @@ def compile_to_fusion_network(og: OpenGraph) -> FusionNetwork:
     return FusionNetwork(path, meas, fusions)
 
 
-# Calculates the X fusions required to implement the graph given the path cover
-def _calculate_x_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
+# Calculates the Y fusions required to implement the graph given the path cover
+def _calculate_y_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
     path_cover_edges: set[tuple[int, int]] = set()
 
     for path in paths:
@@ -273,7 +273,7 @@ def _calculate_x_fusions(g: nx.Graph, paths: list[list[int]]) -> list[Fusion]:
 
     remaining_edges = list(graph_edges_sorted - path_cover_edges_sorted)
 
-    fusions = [Fusion(e[0], e[1], "X") for e in remaining_edges]
+    fusions = [Fusion(e[0], e[1], "Y") for e in remaining_edges]
     return fusions
 
 
