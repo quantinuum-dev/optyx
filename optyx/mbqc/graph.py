@@ -7,6 +7,7 @@ from typing import Callable, Optional
 import graphix
 import networkx as nx
 import numpy as np
+from graphix.pauli import Plane
 
 
 @dataclass
@@ -141,7 +142,22 @@ class OpenGraph:
 
         Returns None if it does not exist."""
 
-        meas_planes = {i: meas.plane for i, meas in self.measurements.items()}
+        def to_graphix_plane(plane: str) -> Plane:
+            if plane == "XY":
+                return Plane.XY
+            if plane == "YZ":
+                return Plane.YZ
+            if plane == "XZ":
+                return Plane.XZ
+            raise ValueError(
+                f"unexpected measurement plane {plane}, expected: 'XY', 'YZ', or 'XZ'"
+            )
+
+        meas_planes = {}
+        for node_id, m in self.measurements.items():
+            plane = to_graphix_plane(m.plane)
+            meas_planes[node_id] = plane
+
         g, layers = graphix.gflow.find_gflow(
             self.inside, self.inputs, self.outputs, meas_planes
         )
