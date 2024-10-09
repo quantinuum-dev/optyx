@@ -254,29 +254,54 @@ class Sum(monoidal.Sum, Box, Diagram):
 
 
 class Swap(monoidal.Box, Diagram):
-    """Swap in a ZW diagram"""
+    """Permute wires in a ZW diagram"""
 
-    def __init__(self, cod=2, dom=2):
-        super().__init__("SWAP", PRO(2), PRO(2))
+    def __init__(self, dom: int = 2, 
+                 cod: int = 2, 
+                 permutation: list[int] = [1, 0], 
+                 is_dagger: bool = False):
+        """
+        Args:
+            dom: The total number of input wires.
+            cod: The total number of output wires (should match dom for a permutation).
+            permutation: List of indices representing the permutation.
+                         Each entry indicates where the corresponding input goes in the output.
+        """
+        assert len(permutation) == dom, "Permutation must match the number of input wires."
+        self.is_dagger = is_dagger
+        super().__init__("PERMUTE", PRO(dom), PRO(cod))
+        self.permutation = permutation
 
-    # create an array like in 2306.02114
-    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
-        """Create an array that swaps the occupation
-        numbers based on the input dimensions."""
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray:
+        """Create an array that permutes the occupation numbers based on the input dimensions."""
+        
+        input_total_dim = np.prod(input_dims)
+        
+        perm_matrix = np.zeros((input_total_dim, input_total_dim), dtype=complex)
 
-        input_total_dim = (input_dims[0]) * (input_dims[1])
+        output_dims = [input_dims[self.permutation[i]]
+                       for i in range(len(self.permutation))]
 
-        swap = np.zeros((input_total_dim, input_total_dim), dtype=complex)
+        for input_index in np.ndindex(*input_dims):
+            permuted_index = tuple(input_index[self.permutation[i]]
+                                   for i in range(len(self.permutation)))
+            input_flat_index = np.ravel_multi_index(input_index, input_dims)
+            permuted_flat_index = np.ravel_multi_index(permuted_index, output_dims)
+            perm_matrix[permuted_flat_index, input_flat_index] = 1
+        
+        return perm_matrix.T
 
-        # Iterate over the dimensions for both wires
-        for i in range(input_dims[1]):
-            for j in range(input_dims[0]):
-                swap[i * (input_dims[0]) + j, j * (input_dims[1]) + i] = 1
-
-        return swap.T
 
     def dagger(self) -> Diagram:
-        return Swap()
+        n = len(self.permutation)
+        inverse_permutation = [0] * n
+        for i, j in enumerate(self.permutation):
+            inverse_permutation[j] = i
+
+        return Swap(int(np.sum(self.dom.inside)),
+                    int(np.sum(self.cod.inside)),
+                    inverse_permutation, 
+                    not self.is_dagger)
 
 
 class Id(Box):
