@@ -269,7 +269,7 @@ class Swap(monoidal.Box, Diagram):
         """
         assert len(permutation) == dom, "Permutation must match the number of input wires."
         self.is_dagger = is_dagger
-        super().__init__("PERMUTE", PRO(dom), PRO(cod))
+        super().__init__(str(permutation), PRO(dom), PRO(cod))
         self.permutation = permutation
 
     def truncated_array(self, input_dims: list[int]) -> np.ndarray:
