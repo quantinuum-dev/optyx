@@ -206,7 +206,8 @@ class Diagram(monoidal.Diagram):
     ) -> tuple:
         dims_in = layer_dims[off: off + len(box.dom)]
         if isinstance(box, Swap):
-            dims_out = [dims_in[1], dims_in[0]]
+            permutation = box.permutation
+            dims_out = [dims_in[permutation[i]] for i in range(len(permutation))]
 
         elif isinstance(box, Z):
             dims_out = max(dims_in + [0])
@@ -275,7 +276,7 @@ class Swap(monoidal.Box, Diagram):
     def truncated_array(self, input_dims: list[int]) -> np.ndarray:
         """Create an array that permutes the occupation numbers based on the input dimensions."""
         
-        input_total_dim = np.prod(input_dims)
+        input_total_dim = int(np.prod(input_dims))
         
         perm_matrix = np.zeros((input_total_dim, input_total_dim), dtype=complex)
 
@@ -552,7 +553,14 @@ class Z(Box):
     def dagger(self) -> Diagram:
         return Z(np.conj(self.amplitudes), self.legs_out, self.legs_in)
 
-
+    def conjugate(self) -> Diagram:
+        """Conjugate the amplitudes"""
+        if isinstance(self.amplitudes, IndexableAmplitudes):
+            self.amplitudes.conjugate()
+        else:
+            self.amplitudes = np.conj(self.amplitudes)
+        return self
+    
 class Create(Box):
     """
     n-photon initialisation map from the ZW calculus.

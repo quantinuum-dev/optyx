@@ -108,7 +108,7 @@ class Z(zw.Diagram):
                           PRO(0)),
                     Layer(PRO(legs_in), zw.Z(amplitudes, 
                                              legs_in, 
-                                             legs_out).dagger(), 
+                                             legs_out).conjugate(), 
                           PRO(0)),
                     Layer(PRO(0), zw.Z(amplitudes, 
                                        legs_in, 
@@ -131,7 +131,7 @@ class Id(zw.Diagram):
     -------
 
     """
-    def __init__(self, n_legs: int):
+    def __init__(self, n_legs: int = 0):
         """
         Args:
             n_legs: The number of legs.
