@@ -54,8 +54,70 @@ from discopy import symmetric, rigid, frobenius
 from optyx import qpath, circuit
 
 
+class Z(zx.Z):
+    """Z spider from discopy with array property."""
+
+    def __init__(self, n_legs_in, n_legs_out, phase=0):
+        self.n_legs_in = n_legs_in
+        self.n_legs_out = n_legs_out
+
+        super().__init__(n_legs_in, n_legs_out, phase)
+
+    @property
+    def array(self):
+
+        return_array = np.zeros(
+            (2**self.n_legs_out, 2**self.n_legs_in), dtype=complex
+        )
+
+        return_array[0, 0] = 1
+        return_array[2**self.n_legs_out - 1, 2**self.n_legs_in - 1] = (
+            np.exp(1j * self.phase * 2 * np.pi)
+        )
+
+        return return_array
+
+
+class Scalar(zx.Scalar):
+    """Scalar from discopy with array property."""
+
+    @property
+    def array(self):
+        return np.array([[self.data]], dtype=complex)
+
+
+class X(zx.X):
+    """X spider from discopy with array property."""
+    def __init__(self, n_legs_in, n_legs_out, phase=0):
+        self.n_legs_in = n_legs_in
+        self.n_legs_out = n_legs_out
+
+        super().__init__(n_legs_in, n_legs_out, phase)
+
+    @property
+    def array(self):
+
+        return_array = (1 / (np.sqrt(2))) ** (
+            self.n_legs_out + self.n_legs_in
+        ) * np.ones((2**self.n_legs_out, 2**self.n_legs_in), dtype=complex)
+
+        vec_out = 1
+        for _ in range(self.n_legs_out):
+            vec_out = np.kron(vec_out, 1 / (np.sqrt(2)) * np.array([1, -1]))
+
+        vec_in = 1
+        for _ in range(self.n_legs_in):
+            vec_in = np.kron(vec_in, 1 / (np.sqrt(2)) * np.array([1, -1]))
+
+        return_array = return_array + (
+            np.exp(1j * self.phase * 2 * np.pi) * np.outer(vec_out, vec_in)
+        )
+
+        return return_array
+
+
 def make_spiders(n):
-    """ Constructs the Z spider 1 -> n from spiders 1 -> 2.
+    """Constructs the Z spider 1 -> n from spiders 1 -> 2.
 
     >>> assert len(make_spiders(6)) == 5
     """
@@ -77,8 +139,11 @@ def decomp_ar(box):
         phase = box.phase
         if (n, m) in ((1, 0), (0, 1)):
             return box
-        box = zx.Id().tensor(*[zx.H] * n) >> zx.Z(n, m, phase)\
+        box = (
+            zx.Id().tensor(*[zx.H] * n)
+            >> zx.Z(n, m, phase)
             >> zx.Id().tensor(*[zx.H] * m)
+        )
         return decomp(box)
     if isinstance(box, zx.Z):
         phase = box.phase
@@ -91,8 +156,9 @@ def decomp_ar(box):
     return box
 
 
-decomp = symmetric.Functor(ob=lambda x: x, ar=decomp_ar,
-                           cod=frobenius.Category(rigid.PRO, zx.Diagram))
+decomp = symmetric.Functor(
+    ob=lambda x: x, ar=decomp_ar, cod=frobenius.Category(rigid.PRO, zx.Diagram)
+)
 
 unit = qpath.Create(0)
 counit = qpath.Select(0)
@@ -105,7 +171,7 @@ Id = qpath.Id
 
 
 def ar_zx2path(box):
-    """ Mapping from ZX generators to QPath diagrams
+    """Mapping from ZX generators to QPath diagrams
 
     >>> zx2path(decomp(zx.X(0, 1) @ zx.X(0, 1) >> zx.Z(2, 1))).eval()
     Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
@@ -115,7 +181,7 @@ def ar_zx2path(box):
         return qpath.Scalar(box.data)
     if isinstance(box, zx.X):
         phase = 1 + box.phase if box.phase < 0 else box.phase
-        root2 = qpath.Scalar(2 ** 0.5)
+        root2 = qpath.Scalar(2**0.5)
         if (n, m, phase) == (0, 1, 0):
             return create @ unit @ root2
         if (n, m, phase) == (0, 1, 0.5):
@@ -143,14 +209,17 @@ def ar_zx2path(box):
             fusion = Id(1) @ plus.dagger() @ Id(1) >> plus.dagger()
             return bot >> mid >> (Id(2) @ fusion @ Id(2))
     if box == zx.H:
-        hbs_array = (1/2) ** (1/2) * np.array([[1, 1], [1, -1]])
-        hadamard_bs = circuit.Gate(hbs_array, 2, 2, 'HBS')
+        hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
+        hadamard_bs = circuit.Gate(hbs_array, 2, 2, "HBS")
         return hadamard_bs
-    raise NotImplementedError(f'No translation of {box} in QPath.')
+    raise NotImplementedError(f"No translation of {box} in QPath.")
 
 
-zx2path = symmetric.Functor(ob=lambda x: 2 * len(x), ar=ar_zx2path,
-                            cod=symmetric.Category(int, qpath.Diagram))
+zx2path = symmetric.Functor(
+    ob=lambda x: 2 * len(x),
+    ar=ar_zx2path,
+    cod=symmetric.Category(int, qpath.Diagram),
+)
 
 
 def zx_to_path(diagram: zx.Diagram) -> qpath.Diagram:
