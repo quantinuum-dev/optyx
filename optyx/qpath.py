@@ -78,7 +78,7 @@ from discopy.monoidal import PRO
 from discopy.utils import unbiased
 from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
-from optyx import zw
+from optyx import zw, diagram
 
 
 def npperm(matrix):
@@ -457,7 +457,7 @@ class Probabilities(underlying.Matrix):
 
 
 @factory
-class Diagram(symmetric.Diagram):
+class Diagram(diagram.Diagram):
     """
     QPath diagram in the sense of https://arxiv.org/abs/2204.12985.
     """
@@ -513,7 +513,7 @@ class Diagram(symmetric.Diagram):
     grad = tensor.Diagram.grad
 
 
-class Box(symmetric.Box, Diagram):
+class Box(diagram.Box, Diagram):
     """Box in a :class:`Diagram`"""
 
     def to_path(self, dtype=complex):
@@ -530,7 +530,7 @@ class Box(symmetric.Box, Diagram):
         return self.lambdify(*syms)(*exprs)
 
 
-class Sum(symmetric.Sum, Box):
+class Sum(diagram.Sum, Box):
     """
     Formal sum of QPath diagrams.
 
@@ -542,7 +542,7 @@ class Sum(symmetric.Sum, Box):
     >>> assert np.allclose(state0.eval().array, state1.eval().array)
     """
 
-    __ambiguous_inheritance__ = (symmetric.Sum,)
+    __ambiguous_inheritance__ = (diagram.Sum,)
     ty_factory = PRO
 
     def eval(self, n_photons=0, permanent=npperm, dtype=complex):
@@ -566,7 +566,7 @@ class Sum(symmetric.Sum, Box):
         return sum(term.grad(var, **params) for term in self.terms)
 
 
-class Swap(symmetric.Swap, Box):
+class Swap(diagram.Swap, Box):
     """Swap in a :class:`Diagram`"""
 
     def to_path(self, dtype=complex) -> Matrix:

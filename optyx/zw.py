@@ -115,26 +115,28 @@ Check Lemma B7 from 2306.02114
 
 from typing import Union
 import numpy as np
-from discopy import monoidal
-from discopy.monoidal import Layer, PRO
+from optyx import diagram
+from optyx.diagram import Mode
+from discopy.monoidal import Layer
 from discopy.cat import factory
 from discopy import tensor
 from discopy.frobenius import Dim
 from optyx.utils import occupation_numbers, multinomial, get_index_from_list
 
-
 @factory
-class Diagram(monoidal.Diagram):
+class Diagram(diagram.Diagram):
     """
     ZW diagram
     """
+    # ty_factory = Mode
+    #
 
     def f_ob(self, dims: np.ndarray | list) -> Dim:
         """Converts a list of dimensions to a Dim object"""
         return Dim(*[int(i) for i in dims])
 
     def f_ar(
-        self, box: monoidal.Box, dims_in: list, dims_out: list
+        self, box: diagram.Box, dims_in: list, dims_out: list
     ) -> tensor.Box:
         """Converts a ZW box to a tensor.Box object
         with the correct dimensions and array"""
@@ -202,7 +204,7 @@ class Diagram(monoidal.Diagram):
         return diagram
 
     def __determine_dimensions(
-        self, box: monoidal.Box, off: int, layer_dims: list
+        self, box: diagram.Box, off: int, layer_dims: list
     ) -> tuple:
         dims_in = layer_dims[off: off + len(box.dom)]
         if isinstance(box, Swap):
@@ -238,26 +240,26 @@ class Diagram(monoidal.Diagram):
         return Sum([self, other])
 
 
-class Box(monoidal.Box, Diagram):
+class Box(diagram.Box, Diagram):
     """A ZW box"""
 
-    __ambiguous_inheritance__ = (monoidal.Box,)
+    __ambiguous_inheritance__ = (diagram.Box,)
 
-    def __init__(self, name: str, dom: PRO, cod: PRO, **params):
+    def __init__(self, name: str, dom: Mode, cod: Mode, **params):
         super().__init__(name, dom, cod, **params)
 
 
-class Sum(monoidal.Sum, Box, Diagram):
+class Sum(diagram.Sum, Box, Diagram):
     """A sum of ZW diagrams"""
 
-    __ambiguous_inheritance__ = (monoidal.Sum,)
+    __ambiguous_inheritance__ = (diagram.Sum,)
 
 
-class Swap(monoidal.Box, Diagram):
+class Swap(diagram.Box, Diagram):
     """Swap in a ZW diagram"""
 
     def __init__(self, cod=2, dom=2):
-        super().__init__("SWAP", PRO(2), PRO(2))
+        super().__init__("SWAP", Mode(2), Mode(2))
 
     # create an array like in 2306.02114
     def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
@@ -283,7 +285,7 @@ class Id(Box):
     """An identity wire"""
 
     def __init__(self, n_wires: int = 0):
-        super().__init__("Id", PRO(n_wires), PRO(n_wires))
+        super().__init__("Id", Mode(n_wires), Mode(n_wires))
         self.n_wires = n_wires
         self.draw_as_wires = True
         self.draw_as_braid = False
@@ -313,8 +315,8 @@ class W(Box):
     color = "white"
 
     def __init__(self, n_legs: int, is_dagger: bool = False):
-        dom = PRO(n_legs) if is_dagger else PRO(1)
-        cod = PRO(1) if is_dagger else PRO(n_legs)
+        dom = Mode(n_legs) if is_dagger else Mode(1)
+        cod = Mode(1) if is_dagger else Mode(n_legs)
         super().__init__("W", dom, cod)
         self.n_legs = n_legs
         self.is_dagger = is_dagger
@@ -456,7 +458,7 @@ class Z(Box):
             self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
-        super().__init__(f"Z{self.amplitudes}", PRO(legs_in), PRO(legs_out))
+        super().__init__(f"Z{self.amplitudes}", Mode(legs_in), Mode(legs_out))
         self.name = self.__repr__()
         self.legs_in = legs_in
         self.legs_out = legs_out
@@ -537,7 +539,7 @@ class Create(Box):
     color = "blue"
 
     def __init__(self, n_photons: int):
-        super().__init__(str(n_photons), PRO(0), PRO(1))
+        super().__init__(str(n_photons), Mode(0), Mode(1))
         self.n_photons = n_photons
 
     def truncated_array(self, _) -> np.ndarray[complex]:
@@ -571,7 +573,7 @@ class Select(Box):
     color = "blue"
 
     def __init__(self, n_photons: int):
-        super().__init__(str(n_photons), PRO(1), PRO(0))
+        super().__init__(str(n_photons), Mode(1), Mode(0))
         self.n_photons = n_photons
 
     def __repr__(self):

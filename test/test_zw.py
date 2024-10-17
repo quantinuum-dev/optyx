@@ -37,6 +37,11 @@ legs_b_in = range(1, 3)
 legs_a_out = range(1, 3)
 legs_b_out = range(1, 3)
 legs_between = range(1, 3)
+legs_a_in = range(1, 2)
+legs_b_in = range(1, 2)
+legs_a_out = range(1, 2)
+legs_b_out = range(1, 2)
+legs_between = range(1, 2)
 
 # a set of arbitrary functions of i
 fs = [
