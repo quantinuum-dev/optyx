@@ -143,24 +143,27 @@ class Diagram(monoidal.Diagram):
             box.name, self.f_ob(dims_in), self.f_ob(dims_out), arr
         )
 
-    def to_tensor(self) -> tensor.Diagram:
+    def to_tensor(self, input_dims: list = None) -> tensor.Diagram:
         """Returns a maximum occupation number to perform
         truncation of the generators"""
 
         # check if the diagram is not a sum of diagrams
         # - otherwise we need to run this function for all terms in the sum
-        if isinstance(list(self)[0], Layer):
+        if not isinstance(self, Sum):
 
             # get idx of max offset
-            layer_dims = [2 for _ in range(max(list(
-                len(box.dom) + off
-                for box, off in zip(self.boxes, self.offsets)
-            )))]
+            if input_dims is None:
+                layer_dims = [2 for _ in range(len(self.dom))]
+            else:
+                layer_dims = input_dims
+
             right_dim = len(self.dom)
 
             for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
-                dims_in, dims_out = self.__determine_dimensions(
-                    box, off, layer_dims
+                dims_in = layer_dims[off: off + len(box.dom)]
+
+                dims_out = box.determine_dimensions(
+                    dims_in
                 )
 
                 left = Dim()
@@ -196,43 +199,10 @@ class Diagram(monoidal.Diagram):
         else:
             for i, term in enumerate(self):
                 if i == 0:
-                    diagram = term.to_tensor()
+                    diagram = term.to_tensor(input_dims)
                 else:
-                    diagram += term.to_tensor()
+                    diagram += term.to_tensor(input_dims)
         return diagram
-
-    def __determine_dimensions(
-        self, box: monoidal.Box, off: int, layer_dims: list
-    ) -> tuple:
-        dims_in = layer_dims[off: off + len(box.dom)]
-        if isinstance(box, Swap):
-            dims_out = [dims_in[1], dims_in[0]]
-
-        elif isinstance(box, Z):
-            dims_out = max(dims_in + [0])
-            dims_out = [dims_out for _ in range(len(box.cod))]
-
-        elif isinstance(box, W) and box.is_dagger:
-            dims_out = sum(np.array(dims_in, dtype=int) - 1) + 1
-            dims_out = [dims_out for _ in range(len(box.cod))]
-
-        elif isinstance(box, W) and not box.is_dagger:
-            dims_out = max(dims_in + [0])
-            dims_out = [dims_out for _ in range(len(box.cod))]
-
-        elif isinstance(box, Create):
-            if box.n_photons == 0:
-                dims_out = [2]
-            else:
-                dims_out = [box.n_photons + 1]
-            dims_in = []
-        elif isinstance(box, Select):
-            dims_out = []
-        elif isinstance(box, Id):
-            dims_out = dims_in
-        else:
-            raise ValueError("Unknown box type")
-        return dims_in, dims_out
 
     def __add__(self, other: "Diagram") -> "Diagram":
         return Sum([self, other])
@@ -254,29 +224,66 @@ class Sum(monoidal.Sum, Box, Diagram):
 
 
 class Swap(monoidal.Box, Diagram):
-    """Swap in a ZW diagram"""
+    """Permute wires in a ZW diagram"""
 
-    def __init__(self, cod=2, dom=2):
-        super().__init__("SWAP", PRO(2), PRO(2))
+    def __init__(self, dom: int = 2,
+                 cod: int = 2,
+                 permutation: list[int] = None,
+                 is_dagger: bool = False):
+        """
+        Args:
+            dom: The total number of input wires.
+            cod: The total number of output wires (should match
+                                            dom for a permutation).
+            permutation: List of indices representing the permutation.
+                         Each entry indicates where the
+                         corresponding input goes in the output.
+        """
+        if permutation is None:
+            permutation = [1, 0]
 
-    # create an array like in 2306.02114
-    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
-        """Create an array that swaps the occupation
+        assert len(permutation) == dom, \
+            "Permutation must match the number of input wires."
+        self.is_dagger = is_dagger
+        super().__init__(str(permutation), PRO(dom), PRO(cod))
+        self.permutation = permutation
+
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray:
+        """Create an array that permutes the occupation
         numbers based on the input dimensions."""
 
-        input_total_dim = (input_dims[0]) * (input_dims[1])
+        input_total_dim = int(np.prod(input_dims))
 
-        swap = np.zeros((input_total_dim, input_total_dim), dtype=complex)
+        perm_matrix = np.zeros((input_total_dim, input_total_dim),
+                               dtype=complex)
 
-        # Iterate over the dimensions for both wires
-        for i in range(input_dims[1]):
-            for j in range(input_dims[0]):
-                swap[i * (input_dims[0]) + j, j * (input_dims[1]) + i] = 1
+        output_dims = [input_dims[self.permutation[i]]
+                       for i in range(len(self.permutation))]
 
-        return swap.T
+        for input_index in np.ndindex(*input_dims):
+            permuted_index = tuple(input_index[self.permutation[i]]
+                                   for i in range(len(self.permutation)))
+            input_flat_index = np.ravel_multi_index(input_index, input_dims)
+            permuted_flat_index = np.ravel_multi_index(permuted_index,
+                                                       output_dims)
+            perm_matrix[permuted_flat_index, input_flat_index] = 1
+
+        return perm_matrix.T
+
+    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions based on the permutation."""
+        return [input_dims[i] for i in self.permutation]
 
     def dagger(self) -> Diagram:
-        return Swap()
+        n = len(self.permutation)
+        inverse_permutation = [0] * n
+        for i, j in enumerate(self.permutation):
+            inverse_permutation[j] = i
+
+        return Swap(int(np.sum(self.dom.inside)),
+                    int(np.sum(self.cod.inside)),
+                    inverse_permutation,
+                    not self.is_dagger)
 
 
 class Id(Box):
@@ -291,6 +298,10 @@ class Id(Box):
     def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
         return np.eye(int(np.prod(np.array(input_dims))))
+
+    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions."""
+        return input_dims
 
     def dagger(self) -> Diagram:
         return self
@@ -391,6 +402,13 @@ class W(Box):
                 total_map[row_index, col_index] += coef
 
         return total_map.conj().T
+
+    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions."""
+        if self.is_dagger:
+            dims_out = np.sum(np.array(input_dims) - 1) + 1
+            return [dims_out for _ in range(len(self.cod))]
+        return [input_dims[0] for _ in range(len(self.cod))]
 
     def dagger(self) -> Diagram:
         return W(self.n_legs, not self.is_dagger)
@@ -504,6 +522,10 @@ class Z(Box):
 
         return result_matrix
 
+    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions."""
+        return [min(input_dims) for _ in range(len(self.cod))]
+
     def __repr__(self):
         if isinstance(self.amplitudes, IndexableAmplitudes):
             s = ", ".join(str(self.amplitudes[i]) for i in range(2)) + ", ..."
@@ -550,6 +572,12 @@ class Create(Box):
         result_matrix[self.n_photons, 0] = 1.0
         return result_matrix
 
+    def determine_dimensions(self, _: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions."""
+        return [
+            2 if self.n_photons == 0 else self.n_photons + 1
+        ]
+
     def __repr__(self):
         return f"Create({self.n_photons})"
 
@@ -588,6 +616,10 @@ class Select(Box):
         result_matrix = np.zeros((1, input_dims[0]), dtype=complex)
         result_matrix[0, self.n_photons] = 1.0
         return result_matrix
+
+    def determine_dimensions(self, _: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions."""
+        return []
 
     def dagger(self) -> Diagram:
         return Create(self.n_photons)
