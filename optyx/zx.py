@@ -45,6 +45,14 @@ X(0, 1) >> H >> Z(1, 2)
 Create() >> PRO(1) @ Create((0,))
 >>> pyzx_ampl = diagram.to_pyzx().to_tensor()
 >>> assert np.allclose(pyzx_ampl, zx_to_path(diagram).eval().array)
+
+The array properties of Z and X spiders agree with PyZX.
+
+>>> z = Z(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
+>>> assert np.allclose(z.array.flatten(), z.to_pyzx().to_tensor().flatten())
+
+>>> x = X(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
+>>> assert np.allclose(x.array.flatten(), x.to_pyzx().to_tensor().flatten())
 """
 
 import numpy as np
@@ -97,23 +105,25 @@ class X(zx.X):
     @property
     def array(self):
 
-        return_array = (1 / (np.sqrt(2))) ** (
-            self.n_legs_out + self.n_legs_in
-        ) * np.ones((2**self.n_legs_out, 2**self.n_legs_in), dtype=complex)
+        dim_out = 2 ** self.n_legs_out
+        dim_in = 2 ** self.n_legs_in
 
-        vec_out = 1
-        for _ in range(self.n_legs_out):
-            vec_out = np.kron(vec_out, 1 / (np.sqrt(2)) * np.array([1, -1]))
+        matrix = np.ones((dim_out, dim_in),
+                         dtype=complex) / (2 ** ((self.n_legs_out +
+                                                  self.n_legs_in) / 2))
 
-        vec_in = 1
-        for _ in range(self.n_legs_in):
-            vec_in = np.kron(vec_in, 1 / (np.sqrt(2)) * np.array([1, -1]))
+        signs_out = (-1) ** np.array([bin(i).count('1')
+                                      for i in range(dim_out)])
+        signs_in = (-1) ** np.array([bin(i).count('1')
+                                     for i in range(dim_in)])
 
-        return_array = return_array + (
-            np.exp(1j * self.phase * 2 * np.pi) * np.outer(vec_out, vec_in)
-        )
+        phase_term = (np.exp(1j * self.phase * 2 * np.pi) *
+                      np.outer(signs_out, signs_in) /
+                      (2 ** ((self.n_legs_out + self.n_legs_in) / 2)))
 
-        return return_array
+        matrix += phase_term
+
+        return matrix
 
 
 def make_spiders(n):
