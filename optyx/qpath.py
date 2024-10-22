@@ -11,16 +11,9 @@ of matrices with creations and post-selections.
     Matrix
     Amplitudes
     Probabilities
-    Diagram
-    Box
     Sum
-    Swap
-    Create
-    Select
-    Merge
-    Split
-    Endo
     Scalar
+    Endo
 
 .. admonition:: Functions
 
@@ -72,14 +65,17 @@ from math import factorial
 import numpy as np
 import perceval as pcvl
 
-from discopy import symmetric, tensor
+from discopy import symmetric, tensor, frobenius
 from discopy.cat import factory, assert_iscomposable
-from discopy.monoidal import PRO
 from discopy.utils import unbiased
 from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
-from optyx import zw
+from optyx import optyx, zw
+from optyx.zw import Mode
+#from optyx.zw import Mode, W, Create, Select
 
+# Split = lambda n: W(2) if n is None else W(n)
+# Merge = lambda n: W(2).dagger() if n is None else W(n).dagger()
 
 def npperm(matrix):
     """
@@ -342,13 +338,13 @@ class Matrix(underlying.Matrix):
         >>> theta, phi = np.pi / 4, 0
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)
-        >>> optyx_bs = Split() @ Split() >> Id(PRO(1)) @ SWAP @ Id(PRO(1)) \\
+        >>> optyx_bs = Split() @ Split() >> Id(Mode(1)) @ SWAP @ Id(Mode(1)) \\
         ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
         ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
         >>> assert optyx_bs.prob_with_perceval(n_photons=1).round(1)\\
         ...     == Probabilities[complex](
         ...         [0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
-        >>> z_spider = optyx_bs >> Endo(2) @ 1 >> optyx_bs
+        >>> z_spider = optyx_bs >> Endo(2) @ Id(1) >> optyx_bs
         >>> assert z_spider.prob_with_perceval(n_photons=1).round(1)\\
         ...     == Probabilities[complex](
         ...         [0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, cod=2)
@@ -457,12 +453,10 @@ class Probabilities(underlying.Matrix):
 
 
 @factory
-class Diagram(symmetric.Diagram):
+class Diagram(optyx.Diagram):
     """
     QPath diagram in the sense of https://arxiv.org/abs/2204.12985.
     """
-
-    ty_factory = PRO
 
     def to_path(self, dtype: type = complex) -> Matrix:
         """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
@@ -500,21 +494,18 @@ class Diagram(symmetric.Diagram):
             d = Scalar(scalar) @ d
         return d
 
-    def to_zw(self) -> zw.Diagram:
-        """Converts a :class:`qpath.Diagram` to a :class:`zw.Diagram`."""
-
-        return symmetric.Functor(
-            ob=lambda ob: PRO(len(ob)),
-            ar=lambda ar: ar.to_zw(),
-            dom=symmetric.Category(PRO, self),
-            cod=symmetric.Category(PRO, zw.Diagram),
-        )(self)
-
     grad = tensor.Diagram.grad
 
 
-class Box(symmetric.Box, Diagram):
+class Box(optyx.Box, Diagram):
     """Box in a :class:`Diagram`"""
+
+    def __init__(self, name, dom, cod, **params):
+        if isinstance(dom, int):
+            dom = Mode(dom)
+        if isinstance(cod, int):
+            cod = Mode(cod)
+        super().__init__(name=name, dom=dom, cod=cod, **params)
 
     def to_path(self, dtype=complex):
         if isinstance(self.data, Matrix):
@@ -543,7 +534,6 @@ class Sum(symmetric.Sum, Box):
     """
 
     __ambiguous_inheritance__ = (symmetric.Sum,)
-    ty_factory = PRO
 
     def eval(self, n_photons=0, permanent=npperm, dtype=complex):
         return sum(
@@ -566,14 +556,11 @@ class Sum(symmetric.Sum, Box):
         return sum(term.grad(var, **params) for term in self.terms)
 
 
-class Swap(symmetric.Swap, Box):
+class Swap(optyx.Swap, Box):
     """Swap in a :class:`Diagram`"""
 
     def to_path(self, dtype=complex) -> Matrix:
         return Matrix([0, 1, 1, 0], 2, 2)
-
-    def to_zw(self) -> zw.Diagram:
-        return zw.Swap()
 
     def dagger(self):
         return self
@@ -604,12 +591,6 @@ class Create(Box):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def to_zw(self) -> zw.Diagram:
-        create = zw.Id()
-        for n in self.photons:
-            create = create @ zw.Create(n)
-        return create
-
     def dagger(self) -> Diagram:
         return Select(*self.photons)
 
@@ -638,12 +619,6 @@ class Select(Box):
             array, len(self.photons), 0, selections=self.photons
         )
 
-    def to_zw(self) -> zw.Diagram:
-        select = zw.Id()
-        for n in self.photons:
-            select = select @ zw.Select(n)
-        return select
-
     def dagger(self) -> Diagram:
         return Create(*self.photons)
 
@@ -671,9 +646,6 @@ class Merge(Box):
     def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n)
         return Matrix[dtype](array, self.n, 1)
-
-    def to_zw(self) -> zw.Diagram:
-        return zw.W(self.n).dagger()
 
     def dagger(self) -> Diagram:
         return Split(n=self.n)
@@ -707,6 +679,40 @@ class Split(Box):
 
     def dagger(self) -> Diagram:
         return Merge(n=self.n)
+
+
+class Scalar(Box):
+    """
+    Scalar in a diagram
+
+    Example
+    -------
+    >>> assert Scalar(0.45).to_path() == Matrix(
+    ...     [], dom=0, cod=0,
+    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> assert np.isclose(s.eval().array[0], 1)
+    """
+
+    def __init__(self, scalar: complex):
+        self.scalar = scalar
+        super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
+
+    def to_path(self, dtype=complex):
+        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
+
+    def to_zw(self) -> zw.Diagram:
+        return zw.Z([self.scalar], legs_in=0, legs_out=0)
+
+    def dagger(self) -> Diagram:
+        return Scalar(self.scalar.conjugate())
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
 
 
 class Endo(Box):
@@ -766,43 +772,9 @@ class Endo(Box):
         )
 
 
-class Scalar(Box):
-    """
-    Scalar in a QPath diagram
-
-    Example
-    -------
-    >>> assert Scalar(0.45).to_path() == Matrix(
-    ...     [], dom=0, cod=0,
-    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
-    >>> assert np.isclose(s.eval().array[0], 1)
-    """
-
-    def __init__(self, scalar: complex):
-        self.scalar = scalar
-        super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
-
-    def to_path(self, dtype=complex):
-        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
-
-    def to_zw(self) -> zw.Diagram:
-        return zw.Z([self.scalar], legs_in=0, legs_out=0)
-
-    def dagger(self) -> Diagram:
-        return Scalar(self.scalar.conjugate())
-
-    def lambdify(self, *symbols, **kwargs):
-        from sympy import lambdify
-
-        return lambda *xs: type(self)(
-            lambdify(symbols, self.scalar, **kwargs)(*xs)
-        )
-
-
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 bs_matrix = Matrix(bs_array, 2, 2)
-BS = Box("BS", 2, 2, data=bs_matrix)
+BS = Box("BS", Mode(2), Mode(2), data=bs_matrix)
 
 Zb_i = zw.Z(np.array([1, 1j / (np.sqrt(2))]), 1, 1)
 Zb_1 = zw.Z(np.array([1, 1 / (np.sqrt(2))]), 1, 1)
@@ -814,6 +786,6 @@ Zb_1 = zw.Z(np.array([1, 1 / (np.sqrt(2))]), 1, 1)
 # )
 
 Diagram.swap_factory = Swap
-SWAP = Swap(PRO(1), PRO(1))
-Id = Diagram.id
+SWAP = Swap(Mode(1), Mode(1))
+Id = lambda n: Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
 Diagram.sum_factory = Sum

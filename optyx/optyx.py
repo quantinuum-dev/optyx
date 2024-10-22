@@ -148,3 +148,4 @@ class Permutation(Box):
 
 Diagram.swap_factory = Swap
 Diagram.swap = Swap
+Id = Diagram.id
