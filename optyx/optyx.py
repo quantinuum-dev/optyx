@@ -23,6 +23,13 @@ class Diagram(frobenius.Diagram):
 
     grad = tensor.Diagram.grad
 
+    def to_zw(self) -> Diagram:
+        return symmetric.Functor(
+            ob= lambda x: x,
+            ar= lambda f: f.to_zw(),
+            cod=symmetric.Category(Ty, Diagram),
+        )(self)
+
     def to_path(self, dtype: type = complex) -> Matrix:
         """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
         from optyx import qpath
@@ -94,6 +101,12 @@ class Box(frobenius.Box, Diagram):
 
     __ambiguous_inheritance__ = (frobenius.Box,)
 
+    def to_zw(self):
+        raise NotImplementedError
+
+    def to_path(self):
+        raise NotImplementedError
+
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
         return lambda *xs: self
@@ -125,6 +138,17 @@ class Swap(frobenius.Swap, Box):
 
     def to_path(self, dtype=complex) -> Matrix:
         return Matrix([0, 1, 1, 0], 2, 2)
+
+    def to_zw(self):
+        return self
+
+    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions."""
+        return input_dims[::-1]
+
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray:
+        """Determine the output dimensions based on the input dimensions."""
+        return Permutation(self.dom, [1, 0]).truncated_array(input_dims)
 
 
 class Permutation(Box):

@@ -117,6 +117,7 @@ Check Lemma B7 from 2306.02114
 from typing import Union
 import numpy as np
 from discopy import tensor, frobenius
+from discopy import monoidal
 from optyx.optyx import Diagram, Mode, Dim, Swap, Permutation, mode
 from optyx.utils import occupation_numbers, multinomial, get_index_from_list
 from optyx.qpath import Matrix
@@ -135,6 +136,9 @@ class Box(optyx.Box):
         if isinstance(cod, int):
             cod = Mode(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
+
+    def to_zw(self):
+        return self
 
     def to_path(self, dtype=complex):
         if isinstance(self.data, Matrix):
@@ -402,7 +406,7 @@ class Create(Box):
     """
 
     draw_as_spider = True
-    color = "grey"
+    color = "blue"
 
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
@@ -418,22 +422,16 @@ class Create(Box):
     def truncated_array(self, _) -> np.ndarray[complex]:
         """Create an array like in 2306.02114
         Currently only works for a single mode."""
-        n_photons = sum(self.photons)
-        if n_photons == 0:
-            dims_out = 2
-        else:
-            dims_out = n_photons + 1
-        result_matrix = np.zeros((dims_out, 1), dtype=complex)
-        result_matrix[n_photons, 0] = 1.0
+        dims_out = self.determine_dimensions(_)
+        result_matrix = np.zeros((*dims_out, 1), dtype=complex)
+        for i, n_i in enumerate(self.photons):
+            l = [0] * i + [n_i] + [0] * (len(self.photons) - i)
+            result_matrix[*l] = 1.0
         return result_matrix
 
     def determine_dimensions(self, _: list[int]) -> list[int]:
-        """Determine the output dimensions based on the input dimensions.
-        Only works for a simgle mode"""
-        n_photons = sum(self.photons)
-        return [
-            2 if n_photons == 0 else n_photons + 1
-        ]
+        """Determine the output dimensions based on the input dimensions."""
+        return [self.photons[i] + 1 for i in range(len(self.cod))]
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
@@ -453,7 +451,7 @@ class Select(Box):
     """
 
     draw_as_spider = True
-    color = "grey"
+    color = "blue"
 
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
@@ -467,8 +465,7 @@ class Select(Box):
         )
 
     def truncated_array(self, input_dims: list) -> np.ndarray[complex]:
-        """Create an array like in 2306.02114
-        TO BE FIXED"""
+        """Create an array like in 2306.02114"""
 
         n_photons = sum(self.photons)
         result_matrix = np.zeros((1, input_dims[0]), dtype=complex)
@@ -476,8 +473,7 @@ class Select(Box):
         return result_matrix
 
     def determine_dimensions(self, _: list[int]) -> list[int]:
-        """Determine the output dimensions based on the input dimensions.
-        TO BE FIXED"""
+        """Determine the output dimensions based on the input dimensions."""
         return []
 
     def dagger(self) -> Diagram:
@@ -603,7 +599,7 @@ def calculate_num_creations_selections(diagram: Diagram) -> tuple:
     n_selections = 0
     n_creations = 0
 
-    if isinstance(terms[0], frobenius.Layer):
+    if isinstance(terms[0], monoidal.Layer):
         for box, _ in zip(diagram.boxes, diagram.offsets):
             if isinstance(box, Create):
                 n_creations += box.photons[0]

@@ -29,23 +29,26 @@ We can differentiate the expectation values of optical circuits.
 >>> observable = num_op @ Id(1)
 >>> expectation = state >> observable >> state.dagger()
 >>> assert np.allclose(
-...     expectation.subs((psi, 1/2)).eval().array, np.array([0.]))
+...     expectation.subs((psi, 1/2)).to_path().eval().array, np.array([0.]))
 >>> assert np.allclose(
-...     expectation.subs((psi, 1/4)).eval().array, np.array([1.]))
+...     expectation.subs((psi, 1/4)).to_path().eval().array, np.array([1.]))
+>>> exp = expectation.grad(psi).subs((psi, 1/2))
 >>> assert np.allclose(
-...     expectation.grad(psi).subs((psi, 1/2)).eval().array, np.array([0.]))
+...     sum([exp.terms[i].to_path().eval().array[0] for i in range(len(exp.terms))]), 0.)
+>>> exp = expectation.grad(psi).subs((psi, 1/4))
 >>> assert np.allclose(
-...     expectation.grad(psi).subs((psi, 1/4)).eval().array,
-...     np.array([-2*np.pi]))
+...     sum([exp.terms[i].to_path().eval().array[0] for i in range(len(exp.terms))]),
+...     -2*np.pi)
+>>> exp = expectation.grad(psi).grad(psi).subs((psi, 1/4))
 >>> assert np.allclose(
-...     expectation.grad(psi).grad(psi).subs((psi, 1/4)).eval().array,
+...     sum([exp.terms[i].to_path().eval().array[0] for i in range(len(exp.terms))]),
 ...     np.array([0.]))
 
 We can also obtain ZW diagrams from the circuit.
 
 >>> from optyx.zw import tn_output_2_perceval_output
 >>> tbs = TBS(0.5)
->>> diagram_qpath = qpath.Create(1, 1) >> tbs
+>>> diagram_qpath = Create(1, 1) >> tbs
 >>> diagram_zw = diagram_qpath.to_zw()
 >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
 >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
@@ -57,11 +60,10 @@ import numpy as np
 from sympy import Expr, lambdify
 import sympy as sp
 
-from optyx import qpath
-from optyx.qpath import Box, Id, Matrix, Scalar
-from optyx.qpath import Create, Select, Split, Merge
-from optyx.zw import Z, W, Swap
-from optyx.zw import Id as zw_Id
+from optyx.optyx import Mode, Box
+from optyx.qpath import Matrix
+from optyx.zw import Z, W, Create, Select, Scalar
+from optyx.zw import Split, Merge, Id, SWAP
 
 
 class Gate(Box):
@@ -79,15 +81,15 @@ class Gate(Box):
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate(hbs_array, 2, 2, "HBS")
     >>> assert np.allclose(
-    ...     (HBS.dagger() >> HBS).eval(2).array, Id(2).eval(2).array)
+    ...     (HBS.dagger() >> HBS).to_path().eval(2).array, Id(2).to_path().eval(2).array)
     """
 
     def __init__(self, array, dom: int, cod: int, name: str, is_dagger=False):
         self.array = array
         super().__init__(
             f"{name}" + ".dagger()" if is_dagger else "",
-            dom,
-            cod,
+            Mode(dom),
+            Mode(cod),
             is_dagger=is_dagger,
         )
 
@@ -97,9 +99,9 @@ class Gate(Box):
 
     def dagger(self):
         return Gate(
-            self.array,
-            self.dom,
-            self.cod,
+            np.conjugate(self.array.T),
+            len(self.cod),
+            len(self.dom),
             self.name,
             is_dagger=not self.is_dagger,
         )
@@ -114,16 +116,16 @@ class Phase(Box):
 
     Example
     -------
-    >>> Phase(1/2).eval(1).array.round(3)
+    >>> Phase(1/2).to_path().eval(1).array.round(3)
     array([[-1.+0.j]])
     >>> from sympy.abc import psi
-    >>> derivative = Phase(psi).grad(psi).subs((psi, 0.5)).eval(2).array
+    >>> derivative = Phase(psi).grad(psi).subs((psi, 0.5)).to_path().eval(2).array
     >>> assert np.allclose(derivative, 4 * np.pi * 1j)
     """
 
     def __init__(self, angle: float):
         self.angle = angle
-        super().__init__(f"Phase({angle})", 1, 1, data=angle)
+        super().__init__(f"Phase({angle})", Mode(1), Mode(1), data=angle)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -177,24 +179,24 @@ class BBS(Box):
     We can check the Hong-Ou-Mandel effect:
 
     >>> diagram = Create(1, 1) >> BS
-    >>> assert np.isclose((diagram >> Select(0, 2)).prob().array, 0.5)
-    >>> assert np.isclose((diagram >> Select(2, 0)).prob().array, 0.5)
-    >>> assert np.isclose((diagram >> Select(1, 1)).prob().array, 0)
+    >>> assert np.isclose((diagram >> Select(0, 2)).to_path().prob().array, 0.5)
+    >>> assert np.isclose((diagram >> Select(2, 0)).to_path().prob().array, 0.5)
+    >>> assert np.isclose((diagram >> Select(1, 1)).to_path().prob().array, 0)
 
     Check the dagger:
 
     >>> y = BBS(0.4)
     >>> assert np.allclose((
-    ...     y >> y.dagger()).eval(2).array, Id(2).eval(2).array)
+    ...     y >> y.dagger()).to_path().eval(2).array, Id(2).to_path().eval(2).array)
     >>> comp = (y @ y >> Id(1) @ y @ Id(1)) >> (y @ y >> Id(1) @ y @ Id(1)
     ...   ).dagger()
-    >>> assert np.allclose(comp.eval(2).array, Id(4).eval(2).array)
+    >>> assert np.allclose(comp.to_path().eval(2).array, Id(4).to_path().eval(2).array)
 
     We can convert the beam splitter to a ZW diagram:
 
     >>> from optyx.zw import tn_output_2_perceval_output
     >>> bs = BBS(0)
-    >>> diagram_qpath = qpath.Create(1, 1) >> bs
+    >>> diagram_qpath = Create(1, 1) >> bs
     >>> diagram_zw = diagram_qpath.to_zw()
     >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
     >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
@@ -205,7 +207,7 @@ class BBS(Box):
 
     def __init__(self, bias):
         self.bias = bias
-        super().__init__(f"BBS({bias})", 2, 2, data=bias)
+        super().__init__(f"BBS({bias})", Mode(2), Mode(2), data=bias)
 
     def __repr__(self):
         return "BS" if self.bias == 0 else super().__repr__()
@@ -231,7 +233,7 @@ class BBS(Box):
         beam_splitter = (
             W(2) @ W(2)
             >> zb_i @ zb_1 @ zb_1 @ zb_i
-            >> zw_Id(1) @ Swap() @ zw_Id(1)
+            >> Id(1) @ SWAP @ Id(1)
             >> W(2).dagger() @ W(2).dagger()
         )
 
@@ -278,7 +280,7 @@ class TBS(Box):
 
     >>> from optyx.zw import tn_output_2_perceval_output
     >>> tbs = TBS(0.5)
-    >>> diagram_qpath = qpath.Create(1, 1) >> tbs
+    >>> diagram_qpath = Create(1, 1) >> tbs
     >>> diagram_zw = diagram_qpath.to_zw()
     >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
     >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
@@ -289,7 +291,7 @@ class TBS(Box):
     def __init__(self, theta, is_dagger=False):
         self.theta = theta
         name = f"TBS({theta})"
-        super().__init__(name, 2, 2, is_dagger=is_dagger, data=theta)
+        super().__init__(name, Mode(2), Mode(2), is_dagger=is_dagger, data=theta)
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -320,7 +322,7 @@ class TBS(Box):
         beam_splitter = (
             W(2) @ W(2)
             >> sin @ cos @ cos @ minus_sin
-            >> zw_Id(1) @ Swap() @ zw_Id(1)
+            >> Id(1) @ SWAP @ Id(1)
             >> W(2).dagger() @ W(2).dagger()
         )
 
@@ -387,7 +389,7 @@ class MZI(Box):
 
     >>> from optyx.zw import tn_output_2_perceval_output
     >>> mzi = MZI(0.5, 0.5)
-    >>> diagram_qpath = qpath.Create(1, 1) >> mzi
+    >>> diagram_qpath = Create(1, 1) >> mzi
     >>> diagram_zw = diagram_qpath.to_zw()
     >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
     >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
@@ -398,7 +400,7 @@ class MZI(Box):
     def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
         data = {theta, phi}
-        super().__init__("MZI", 2, 2, is_dagger=is_dagger, data=data)
+        super().__init__("MZI", Mode(2), Mode(2), is_dagger=is_dagger, data=data)
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -422,9 +424,9 @@ class MZI(Box):
     def to_zw(self):
         mzi = (
             BBS(0).to_zw()
-            >> Phase(self.theta).to_zw() @ zw_Id(1)
+            >> Phase(self.theta).to_zw() @ Id(1)
             >> BBS(0).to_zw()
-            >> Phase(self.phi).to_zw() @ zw_Id(1)
+            >> Phase(self.phi).to_zw() @ Id(1)
         )
 
         return mzi
@@ -450,8 +452,8 @@ class MZI(Box):
         return self._decomp().grad(var)
 
 
-BS = qpath.BS
-num_op = Split() >> Id(1) @ (Select() >> Create()) >> Merge()
+BS = BBS(0)
+num_op = Split(2) >> Id(1) @ (Select() >> Create()) >> Merge(2)
 
 
 def ansatz(width, depth):
