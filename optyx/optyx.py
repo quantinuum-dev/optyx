@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from discopy import frobenius, tensor
+from discopy import symmetric, frobenius, tensor
 from discopy.cat import factory
 from discopy.frobenius import Dim
 
@@ -20,6 +20,17 @@ class Mode(Ty):
 @factory
 class Diagram(frobenius.Diagram):
     """ Optyx diagram """
+
+    grad = tensor.Diagram.grad
+
+    def to_path(self, dtype: type = complex) -> Matrix:
+        """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
+        from optyx import qpath
+        return symmetric.Functor(
+            ob=len,
+            ar=lambda f: f.to_path(dtype),
+            cod=symmetric.Category(int, qpath.Matrix[dtype]),
+        )(self)
 
     def to_tensor(self, input_dims: list = None) -> tensor.Diagram:
         """Returns a a tensor.Diagram for evaluation"""
@@ -83,11 +94,38 @@ class Box(frobenius.Box, Diagram):
 
     __ambiguous_inheritance__ = (frobenius.Box,)
 
+    def lambdify(self, *symbols, **kwargs):
+        # Non-symbolic gates can be returned directly
+        return lambda *xs: self
+
+    def subs(self, *args) -> Diagram:
+        syms, exprs = zip(*args)
+        return self.lambdify(*syms)(*exprs)
+
+
+class Sum(symmetric.Sum, Box):
+    """
+    Formal sum of optyx diagrams
+    """
+
+    __ambiguous_inheritance__ = (symmetric.Sum,)
+
+    def to_path(self, dtype=complex):
+        return sum(term.to_path(dtype) for term in self.terms)
+
+    def grad(self, var, **params):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return sum(term.grad(var, **params) for term in self.terms)
+
 
 class Swap(frobenius.Swap, Box):
     """Swap in optyx diagram"""
 
-    pass
+    def to_path(self, dtype=complex) -> Matrix:
+        return Matrix([0, 1, 1, 0], 2, 2)
+
 
 class Permutation(Box):
     """Permute wires in an optyx diagram"""
@@ -148,4 +186,5 @@ class Permutation(Box):
 
 Diagram.swap_factory = Swap
 Diagram.swap = Swap
+Diagram.sum_factory = Sum
 Id = Diagram.id
