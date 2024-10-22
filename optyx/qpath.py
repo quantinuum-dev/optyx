@@ -11,9 +11,7 @@ of matrices with creations and post-selections.
     Matrix
     Amplitudes
     Probabilities
-    Sum
-    Scalar
-    Endo
+    
 
 .. admonition:: Functions
 
@@ -23,39 +21,39 @@ of matrices with creations and post-selections.
         :toctree:
 
         npperm
-        occupation_numbers
 
 Examples
 --------
 
 We can check the Hong-Ou-Mandel effect:
 
+>>> from optyx.zw import Create, Select, BS, Split, Merge, Id
 >>> HOM = Create(1, 1) >> BS
->>> HOM.eval()
+>>> HOM.to_path().eval()
 Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
->>> HOM.prob()
+>>> HOM.to_path().prob()
 Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
->>> left.prob()
+>>> left.to_path().prob()
 Probabilities[complex]([0.5+0.j], dom=1, cod=1)
 
 We can construct a Bell state in dual rail encoding:
 
->>> plus = Create() >> Split()
+>>> plus = Create() >> Split(2)
 >>> state = plus >> Id(1) @ plus @ Id(1)
 >>> bell = state @ state\\
 ...     >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose(
-...     (bell >> H @ H).eval().array, (bell >> V @ V).eval().array)
+...     (bell >> H @ H).to_path().eval().array, (bell >> V @ V).to_path().eval().array)
 >>> assert np.allclose(
-...     (bell >> V @ H).eval().array, (bell >> H @ V).eval().array)
+...     (bell >> V @ H).to_path().eval().array, (bell >> H @ V).to_path().eval().array)
 
 We can define the number operator and compute its expectation.
 
->>> num_op = Split() >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge()
+>>> num_op = Split(2) >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge(2)
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
->>> assert np.allclose(expectation(5).eval().array, np.array([5.]))
+>>> assert np.allclose(expectation(5).to_path().eval().array, np.array([5.]))
 """
 
 from __future__ import annotations
@@ -70,12 +68,8 @@ from discopy.cat import factory, assert_iscomposable
 from discopy.utils import unbiased
 from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
-from optyx import optyx, zw
-from optyx.zw import Mode
-#from optyx.zw import Mode, W, Create, Select
-
-# Split = lambda n: W(2) if n is None else W(n)
-# Merge = lambda n: W(2).dagger() if n is None else W(n).dagger()
+from optyx import optyx
+from optyx.utils import multinomial
 
 def npperm(matrix):
     """
@@ -118,12 +112,13 @@ class Matrix(underlying.Matrix):
 
     Example
     -------
+    >>> from optyx.zw import Split, Select, Create, Merge, Id
     >>> array = np.array([[1, 1], [1, 0]])
     >>> matrix = Matrix(array, 1, 1, creations=(1,), selections=(1,))
     >>> matrix.eval(3)
     Amplitudes([3.+0.j], dom=1, cod=1)
-    >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
-    >>> assert np.allclose(num_op.eval(4).array, matrix.eval(4).array)
+    >>> num_op = Split(2) >> Select() @ Id(1) >> Create() @ Id(1) >> Merge(2)
+    >>> assert np.allclose(num_op.to_path().eval(4).array, matrix.eval(4).array)
     """
 
     dtype = complex
@@ -244,11 +239,12 @@ class Matrix(underlying.Matrix):
 
         Example
         -------
-        >>> num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
+        >>> from optyx.zw import Split, Select, Create, Merge, Id
+        >>> num_op = Split(2) >> Select() @ Id(1) >> Create() @ Id(1) >> Merge(2)
         >>> U = num_op.to_path().dilate()
         >>> assert np.allclose(
         ...     (U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
-        >>> assert np.allclose(U.eval(5).array, num_op.eval(5).array)
+        >>> assert np.allclose(U.eval(5).array, num_op.to_path().eval(5).array)
         """
         dom, cod = self.umatrix.dom, self.umatrix.cod
         A = self.umatrix.array
@@ -335,17 +331,18 @@ class Matrix(underlying.Matrix):
         Example
         -------
         >>> import numpy as np
+        >>> from optyx.zw import Split, Select, Create, Merge, Id, Endo, SWAP
         >>> theta, phi = np.pi / 4, 0
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)
-        >>> optyx_bs = Split() @ Split() >> Id(Mode(1)) @ SWAP @ Id(Mode(1)) \\
+        >>> optyx_bs = Split(2) @ Split(2) >> Id(1) @ SWAP @ Id(1) \\
         ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
-        ...            @ Endo(-np.conj(r)) >> Merge() @ Merge()
-        >>> assert optyx_bs.prob_with_perceval(n_photons=1).round(1)\\
+        ...            @ Endo(-np.conj(r)) >> Merge(2) @ Merge(2)
+        >>> assert optyx_bs.to_path().prob_with_perceval(n_photons=1).round(1)\\
         ...     == Probabilities[complex](
         ...         [0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
         >>> z_spider = optyx_bs >> Endo(2) @ Id(1) >> optyx_bs
-        >>> assert z_spider.prob_with_perceval(n_photons=1).round(1)\\
+        >>> assert z_spider.to_path().prob_with_perceval(n_photons=1).round(1)\\
         ...     == Probabilities[complex](
         ...         [0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, cod=2)
         """
@@ -413,11 +410,12 @@ class Amplitudes(underlying.Matrix):
 
     Example
     -------
-    >>> BS.eval(1)
+    >>> from optyx.zw import BS, Select, Id
+    >>> BS.to_path().eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
-    >>> assert isinstance(BS.eval(2), Amplitudes)
-    >>> (BS >> Select(1) @ Id(1)).eval(2)
+    >>> assert isinstance(BS.to_path().eval(2), Amplitudes)
+    >>> (BS >> Select(1) @ Id(1)).to_path().eval(2)
     Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=3, cod=1)
     """
 
@@ -433,9 +431,10 @@ class Probabilities(underlying.Matrix):
 
     Example
     -------
-    >>> BS.prob(1).round(1)
+    >>> from optyx.zw import BS, Create
+    >>> BS.to_path().prob(1).round(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
-    >>> (Create(1, 1) >> BS).prob().round(1)
+    >>> (Create(1, 1) >> BS).to_path().prob().round(1)
     Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
     """
 
@@ -450,342 +449,3 @@ class Probabilities(underlying.Matrix):
             dom=self.dom,
             cod=self.cod,
         )
-
-
-@factory
-class Diagram(optyx.Diagram):
-    """
-    QPath diagram in the sense of https://arxiv.org/abs/2204.12985.
-    """
-
-    def to_path(self, dtype: type = complex) -> Matrix:
-        """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
-        return symmetric.Functor(
-            ob=len,
-            ar=lambda f: f.to_path(dtype),
-            cod=symmetric.Category(int, Matrix[dtype]),
-        )(self)
-
-    def eval(self, n_photons=0, permanent=npperm, dtype=complex):
-        return self.to_path(dtype).eval(n_photons, permanent)
-
-    def prob(
-        self, n_photons=0, permanent=npperm, dtype=complex, with_perceval=False
-    ) -> Probabilities:
-        return self.to_path(dtype).prob(n_photons, permanent, with_perceval)
-
-    def prob_with_perceval(
-        self, n_photons=0, simulator: str = "SLOS", dtype: type = complex
-    ) -> Probabilities:
-        return self.to_path(dtype).prob_with_perceval(n_photons, simulator)
-
-    @classmethod
-    def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        d = cls.id(n_modes)
-        annil = Split() >> Select(1) @ Id(1)
-        create = annil.dagger()
-        for idx, dagger in operators:
-            if not (0 <= idx < n_modes):
-                raise ValueError(f"Index {idx} out of bounds.")
-            box = create if dagger else annil
-            d = d >> Id(idx) @ box @ Id(n_modes - idx - 1)
-
-        if scalar != 1:
-            d = Scalar(scalar) @ d
-        return d
-
-    grad = tensor.Diagram.grad
-
-
-class Box(optyx.Box, Diagram):
-    """Box in a :class:`Diagram`"""
-
-    def __init__(self, name, dom, cod, **params):
-        if isinstance(dom, int):
-            dom = Mode(dom)
-        if isinstance(cod, int):
-            cod = Mode(cod)
-        super().__init__(name=name, dom=dom, cod=cod, **params)
-
-    def to_path(self, dtype=complex):
-        if isinstance(self.data, Matrix):
-            return self.data
-        raise NotImplementedError
-
-    def lambdify(self, *symbols, **kwargs):
-        # Non-symbolic gates can be returned directly
-        return lambda *xs: self
-
-    def subs(self, *args) -> Diagram:
-        syms, exprs = zip(*args)
-        return self.lambdify(*syms)(*exprs)
-
-
-class Sum(symmetric.Sum, Box):
-    """
-    Formal sum of QPath diagrams.
-
-    Example
-    -------
-    >>> s0, s1 = 1/2 ** 1/2, 1j * 1/2 ** 1/2
-    >>> state0 = Scalar(s0) @ Create(1, 0) + Scalar(s1) @ Create(0, 1)
-    >>> state1 = Create(1) >> Split() >> Endo(s0) @ Endo(s1)
-    >>> assert np.allclose(state0.eval().array, state1.eval().array)
-    """
-
-    __ambiguous_inheritance__ = (symmetric.Sum,)
-
-    def eval(self, n_photons=0, permanent=npperm, dtype=complex):
-        return sum(
-            term.eval(n_photons, permanent, dtype) for term in self.terms
-        )
-
-    def prob(
-        self, n_photons=0, permanent=npperm, dtype=complex
-    ) -> Probabilities:
-        amplitudes = self.eval(n_photons, permanent, dtype)
-        probabilities = np.abs(amplitudes.array) ** 2
-        return Probabilities[dtype](
-            probabilities, amplitudes.dom, amplitudes.cod
-        )
-
-    def grad(self, var, **params):
-        """Gradient with respect to :code:`var`."""
-        if var not in self.free_symbols:
-            return self.sum_factory((), self.dom, self.cod)
-        return sum(term.grad(var, **params) for term in self.terms)
-
-
-class Swap(optyx.Swap, Box):
-    """Swap in a :class:`Diagram`"""
-
-    def to_path(self, dtype=complex) -> Matrix:
-        return Matrix([0, 1, 1, 0], 2, 2)
-
-    def dagger(self):
-        return self
-
-
-class Create(Box):
-    """
-    Creation of photons on modes given a list of occupation numbers.
-
-    Parameters:
-        photons : Occupation numbers.
-
-    Example
-    -------
-    >>> assert Create() == Create(1)
-    >>> Create(1).eval()
-    Amplitudes([1.+0.j], dom=1, cod=1)
-    """
-
-    def __init__(self, *photons: int):
-        self.photons = photons or (1,)
-        name = "Create()" if self.photons == (1,) else f"Create({photons})"
-        super().__init__(name, 0, len(self.photons))
-
-    def to_path(self, dtype=complex):
-        array = np.eye(len(self.photons))
-        return Matrix[dtype](
-            array, 0, len(self.photons), creations=self.photons
-        )
-
-    def dagger(self) -> Diagram:
-        return Select(*self.photons)
-
-
-class Select(Box):
-    """
-    Post-selection of photons given a list of occupation numbers.
-
-    Parameters:
-        photons : Occupation numbers.
-
-    Example
-    -------
-    >>> assert Select() == Select(1)
-    >>> assert Select(2).dagger() == Create(2)
-    """
-
-    def __init__(self, *photons: int):
-        self.photons = photons or (1,)
-        name = "Select(1)" if self.photons == (1,) else f"Select{photons}"
-        super().__init__(name, len(self.photons), 0)
-
-    def to_path(self, dtype=complex) -> Matrix:
-        array = np.eye(len(self.photons))
-        return Matrix[dtype](
-            array, len(self.photons), 0, selections=self.photons
-        )
-
-    def dagger(self) -> Diagram:
-        return Create(*self.photons)
-
-
-class Merge(Box):
-    """
-    Merge map with 2n inputs and n outputs.
-
-    Parameters:
-        n : number of output wires
-
-    Example
-    -------
-    >>> sqrt2 = Create() >> Endo(2 ** -.5) >> Select()
-    >>> assert (sqrt2 @ Create() @ Create() >> Merge()).eval()\\
-    ...     == Create(2).eval()
-    >>> assert Merge().dagger() == Split()
-    """
-
-    def __init__(self, n=2):
-        self.n = n
-        name = "Merge()" if n == 2 else f"Merge({n})"
-        super().__init__(name, n, 1)
-
-    def to_path(self, dtype=complex) -> Matrix:
-        array = np.ones(self.n)
-        return Matrix[dtype](array, self.n, 1)
-
-    def dagger(self) -> Diagram:
-        return Split(n=self.n)
-
-
-class Split(Box):
-    """
-    Split map with n inputs and 2n outputs.
-
-    Parameters:
-        n : number of input wires
-
-    Example
-    -------
-    >>> (Create() >> Split()).eval()
-    Amplitudes([1.+0.j, 1.+0.j], dom=1, cod=2)
-    >>> assert Split().dagger() == Merge()
-    """
-
-    def __init__(self, n=2):
-        self.n = n
-        name = "Split()" if n == 2 else f"Split({n})"
-        super().__init__(name, 1, n)
-
-    def to_path(self, dtype=complex) -> Matrix:
-        array = np.ones(self.n)
-        return Matrix[dtype](array, 1, self.n)
-
-    def to_zw(self) -> zw.Diagram:
-        return zw.W(self.n)
-
-    def dagger(self) -> Diagram:
-        return Merge(n=self.n)
-
-
-class Scalar(Box):
-    """
-    Scalar in a diagram
-
-    Example
-    -------
-    >>> assert Scalar(0.45).to_path() == Matrix(
-    ...     [], dom=0, cod=0,
-    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
-    >>> assert np.isclose(s.eval().array[0], 1)
-    """
-
-    def __init__(self, scalar: complex):
-        self.scalar = scalar
-        super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
-
-    def to_path(self, dtype=complex):
-        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
-
-    def to_zw(self) -> zw.Diagram:
-        return zw.Z([self.scalar], legs_in=0, legs_out=0)
-
-    def dagger(self) -> Diagram:
-        return Scalar(self.scalar.conjugate())
-
-    def lambdify(self, *symbols, **kwargs):
-        from sympy import lambdify
-
-        return lambda *xs: type(self)(
-            lambdify(symbols, self.scalar, **kwargs)(*xs)
-        )
-
-
-class Endo(Box):
-    """
-    Endomorphism with one input and one output.
-
-    Parameters:
-        scalar : complex
-
-    Example
-    -------
-    >>> assert (Create(2) >> Split() >> Id(1) @ Endo(0.5)).to_path()\\
-    ...     == Matrix(
-    ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
-    ...         creations=(2,), selections=(), normalisation=1)
-    >>> from sympy import Expr
-    >>> from sympy.abc import psi
-    >>> import sympy as sp
-    >>> assert Endo(3 * psi ** 2).to_path(Expr)\\
-    ...     == Matrix[Expr]([3*psi**2], dom=1, cod=1)
-    >>> phase = Endo(sp.exp(1j * psi * 2 * sp.pi))
-    >>> derivative = phase.grad(psi).subs((psi, 0.5)).eval(2).array
-    >>> assert np.allclose(derivative, 4 * np.pi * 1j)
-    """
-
-    def __init__(self, scalar: complex):
-        try:
-            scalar = complex(scalar)
-        except TypeError:
-            pass
-        self.scalar = scalar
-        super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
-
-    def to_path(self, dtype=complex) -> Matrix:
-        """Returns an equivalent :class:`Matrix` object"""
-        return Matrix[dtype]([self.scalar], 1, 1)
-
-    def to_zw(self) -> zw.Diagram:
-        return zw.Z(lambda i: self.scalar**i, 1, 1)
-
-    def dagger(self) -> Diagram:
-        return Endo(self.scalar.conjugate())
-
-    def grad(self, var):
-        if var not in self.free_symbols:
-            return self.sum_factory((), self.dom, self.cod)
-        s = self.scalar.diff(var) / self.scalar
-        num_op = Split() >> Id(1) @ (Select() >> Create()) >> Merge()
-        d = Scalar(s) @ (self >> num_op)
-        return d
-
-    def lambdify(self, *symbols, **kwargs):
-        from sympy import lambdify
-
-        return lambda *xs: type(self)(
-            lambdify(symbols, self.scalar, **kwargs)(*xs)
-        )
-
-
-bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
-bs_matrix = Matrix(bs_array, 2, 2)
-BS = Box("BS", Mode(2), Mode(2), data=bs_matrix)
-
-Zb_i = zw.Z(np.array([1, 1j / (np.sqrt(2))]), 1, 1)
-Zb_1 = zw.Z(np.array([1, 1 / (np.sqrt(2))]), 1, 1)
-# beam_splitter = (
-#     zw.W(2) @ zw.W(2)
-#     >> Zb_i @ Zb_1 @ Zb_1 @ Zb_i
-#     >> zw.Id(1) @ zw.Swap() @ zw.Id(1)
-#     >> zw.W(2).dagger() @ zw.W(2).dagger()
-# )
-
-Diagram.swap_factory = Swap
-SWAP = Swap(Mode(1), Mode(1))
-Id = lambda n: Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
-Diagram.sum_factory = Sum

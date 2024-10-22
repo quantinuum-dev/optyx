@@ -8,6 +8,10 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
 
     W
     Z
+    Create
+    Select
+    Endo
+    Scalar
 
 .. admonition:: Functions
 
@@ -21,6 +25,7 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
 
 Example
 -------
+
 We check the axioms of the ZW calculus.
 
 W commutativity
@@ -112,15 +117,37 @@ Check Lemma B7 from 2306.02114
 from typing import Union
 import numpy as np
 from discopy import tensor, frobenius
-from optyx.optyx import Box, Diagram, Mode, Dim, Permutation, mode
+from optyx.optyx import Diagram, Mode, Dim, Swap, Permutation, mode
 from optyx.utils import occupation_numbers, multinomial, get_index_from_list
+from optyx.qpath import Matrix
+from optyx import optyx
 
 swap = Permutation(mode @ mode, [1, 0])
 Id = lambda n: Diagram.id(mode ** n)
 
+
+class Box(optyx.Box):
+    """Box in a :class:`Diagram`"""
+
+    def __init__(self, name, dom, cod, **params):
+        if isinstance(dom, int):
+            dom = Mode(dom)
+        if isinstance(cod, int):
+            cod = Mode(cod)
+        super().__init__(name=name, dom=dom, cod=cod, **params)
+
+    def to_path(self, dtype=complex):
+        if isinstance(self.data, Matrix):
+            return self.data
+        raise NotImplementedError
+
+    def truncated_array(self, input_dims):
+        raise NotImplementedError
+
+
 class W(Box):
     """
-    W gate from the ZW calculus - one input and n outputs
+    W node from the infinite ZW calculus - one input and n outputs
     """
 
     draw_as_spider = False
@@ -213,6 +240,13 @@ class W(Box):
             return [dims_out for _ in range(len(self.cod))]
         return [input_dims[0] for _ in range(len(self.cod))]
 
+    
+    def to_path(self, dtype=complex) -> Matrix:
+        array = np.ones(self.n_legs)
+        if self.is_dagger:
+            return Matrix[dtype](array, self.n_legs, 1)
+        return Matrix[dtype](array, 1, self.n_legs)
+    
     def dagger(self) -> Diagram:
         return W(self.n_legs, not self.is_dagger)
 
@@ -263,7 +297,7 @@ class IndexableAmplitudes:
 
 class Z(Box):
     """
-    Z gate from the ZW calculus.
+    Z spider from the ZW calculus.
     """
 
     def __init__(
@@ -355,77 +389,184 @@ class Z(Box):
 
 class Create(Box):
     """
-    n-photon initialisation map from the ZW calculus.
+    Creation of photons on modes given a list of occupation numbers.
+
+    Parameters:
+        photons : Occupation numbers.
+
+    Example
+    -------
+    >>> assert Create() == Create(1)
+    >>> Create(1).to_path().eval()
+    Amplitudes([1.+0.j], dom=1, cod=1)
     """
 
     draw_as_spider = True
-    color = "blue"
+    color = "grey"
 
-    def __init__(self, n_photons: int):
-        super().__init__(str(n_photons), Mode(0), Mode(1))
-        self.n_photons = n_photons
+    def __init__(self, *photons: int):
+        self.photons = photons or (1,)
+        name = "Create()" if self.photons == (1,) else f"Create({photons})"
+        super().__init__(name, 0, len(self.photons))
+
+    def to_path(self, dtype=complex):
+        array = np.eye(len(self.photons))
+        return Matrix[dtype](
+            array, 0, len(self.photons), creations=self.photons
+        )
 
     def truncated_array(self, _) -> np.ndarray[complex]:
-        """Create an array like in 2306.02114"""
-        if self.n_photons == 0:
+        """Create an array like in 2306.02114
+        Currently only works for a single mode."""
+        n_photons = sum(self.photons)
+        if n_photons == 0:
             dims_out = 2
         else:
-            dims_out = self.n_photons + 1
+            dims_out = n_photons + 1
         result_matrix = np.zeros((dims_out, 1), dtype=complex)
-        result_matrix[self.n_photons, 0] = 1.0
+        result_matrix[n_photons, 0] = 1.0
         return result_matrix
 
     def determine_dimensions(self, _: list[int]) -> list[int]:
-        """Determine the output dimensions based on the input dimensions."""
+        """Determine the output dimensions based on the input dimensions.
+        Only works for a simgle mode"""
+        n_photons = sum(self.photons)
         return [
-            2 if self.n_photons == 0 else self.n_photons + 1
+            2 if n_photons == 0 else n_photons + 1
         ]
 
-    def __repr__(self):
-        return f"Create({self.n_photons})"
-
-    def __eq__(self, other: "Create") -> bool:
-        if not isinstance(other, Create):
-            return False
-        return self.n_photons == other.n_photons
-
     def dagger(self) -> Diagram:
-        return Select(self.n_photons)
+        return Select(*self.photons)
 
 
 class Select(Box):
     """
-    n-photon postselection map from the ZW calculus.
+    Post-selection of photons given a list of occupation numbers.
+
+    Parameters:
+        photons : Occupation numbers.
+
+    Example
+    -------
+    >>> assert Select() == Select(1)
+    >>> assert Select(2).dagger() == Create(2)
     """
 
     draw_as_spider = True
-    color = "blue"
+    color = "grey"
 
-    def __init__(self, n_photons: int):
-        super().__init__(str(n_photons), Mode(1), Mode(0))
-        self.n_photons = n_photons
+    def __init__(self, *photons: int):
+        self.photons = photons or (1,)
+        name = "Select(1)" if self.photons == (1,) else f"Select{photons}"
+        super().__init__(name, len(self.photons), 0)
 
-    def __repr__(self):
-        return f"Select({self.n_photons})"
-
-    def __eq__(self, other: "Select") -> bool:
-        if not isinstance(other, Select):
-            return False
-        return self.n_photons == other.n_photons
+    def to_path(self, dtype=complex) -> Matrix:
+        array = np.eye(len(self.photons))
+        return Matrix[dtype](
+            array, len(self.photons), 0, selections=self.photons
+        )
 
     def truncated_array(self, input_dims: list) -> np.ndarray[complex]:
-        """Create an array like in 2306.02114"""
+        """Create an array like in 2306.02114
+        TO BE FIXED"""
 
+        n_photons = sum(self.photons)
         result_matrix = np.zeros((1, input_dims[0]), dtype=complex)
-        result_matrix[0, self.n_photons] = 1.0
+        result_matrix[0, n_photons] = 1.0
         return result_matrix
 
     def determine_dimensions(self, _: list[int]) -> list[int]:
-        """Determine the output dimensions based on the input dimensions."""
+        """Determine the output dimensions based on the input dimensions.
+        TO BE FIXED"""
         return []
 
     def dagger(self) -> Diagram:
-        return Create(self.n_photons)
+        return Create(*self.photons)
+
+
+class Endo(Box):
+    """
+    Endomorphism with one input and one output.
+
+    Parameters:
+        scalar : complex
+
+    Example
+    -------
+    >>> assert (Create(2) >> Split(2) >> Id(1) @ Endo(0.5)).to_path()\\
+    ...     == Matrix(
+    ...         [1. +0.j, 0.5+0.j], dom=0, cod=2,
+    ...         creations=(2,), selections=(), normalisation=1)
+    >>> from sympy import Expr
+    >>> from sympy.abc import psi
+    >>> import sympy as sp
+    >>> assert Endo(3 * psi ** 2).to_path(Expr)\\
+    ...     == Matrix[Expr]([3*psi**2], dom=1, cod=1)
+    >>> phase = Endo(sp.exp(1j * psi * 2 * sp.pi))
+    >>> derivative = phase.grad(psi).subs((psi, 0.5)).to_path().eval(2).array
+    >>> assert np.allclose(derivative, 4 * np.pi * 1j)
+    """
+
+    def __init__(self, scalar: complex):
+        try:
+            scalar = complex(scalar)
+        except TypeError:
+            pass
+        self.scalar = scalar
+        super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
+
+    def to_path(self, dtype=complex) -> Matrix:
+        """Returns an equivalent :class:`Matrix` object"""
+        return Matrix[dtype]([self.scalar], 1, 1)
+
+    def dagger(self) -> Diagram:
+        return Endo(self.scalar.conjugate())
+
+    def grad(self, var):
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        s = self.scalar.diff(var) / self.scalar
+        num_op = Split(2) >> Id(1) @ (Select() >> Create()) >> Merge(2)
+        d = Scalar(s) @ (self >> num_op)
+        return d
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
+
+
+class Scalar(Box):
+    """
+    Scalar in a diagram
+
+    Example
+    -------
+    >>> assert Scalar(0.45).to_path() == Matrix(
+    ...     [], dom=0, cod=0,
+    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> assert np.isclose(s.to_path().eval().array[0], 1)
+    """
+
+    def __init__(self, scalar: complex):
+        self.scalar = scalar
+        super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
+
+    def to_path(self, dtype=complex):
+        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
+
+    def dagger(self) -> Diagram:
+        return Scalar(self.scalar.conjugate())
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
 
 
 def tn_output_2_perceval_output(
@@ -465,9 +606,9 @@ def calculate_num_creations_selections(diagram: Diagram) -> tuple:
     if isinstance(terms[0], frobenius.Layer):
         for box, _ in zip(diagram.boxes, diagram.offsets):
             if isinstance(box, Create):
-                n_creations += box.n_photons
+                n_creations += box.photons[0]
             elif isinstance(box, Select):
-                n_selections += box.n_photons
+                n_selections += box.photons[0]
 
     else:
         arr_selections_creations = []
@@ -491,3 +632,27 @@ def filter_occupation_numbers(
                     range(len(input_dims))))
     ]
 
+
+def from_bosonic_operator(n_modes, operators, scalar=1):
+    """ Builds a the diagram corresponding to a product of creation and annihilation operators"""
+    d = Id(n_modes)
+    annil = Split(2) >> Select(1) @ Id(1)
+    create = annil.dagger()
+    for idx, dagger in operators:
+        if not (0 <= idx < n_modes):
+            raise ValueError(f"Index {idx} out of bounds.")
+        box = create if dagger else annil
+        d = d >> Id(idx) @ box @ Id(n_modes - idx - 1)
+
+    if scalar != 1:
+        d = Scalar(scalar) @ d
+    return d
+
+
+bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
+bs_matrix = Matrix(bs_array, 2, 2)
+BS = Box("BS", Mode(2), Mode(2), data=bs_matrix)
+Split = lambda n: W(n)
+Merge = lambda n: W(n).dagger()
+SWAP = Swap(Mode(1), Mode(1))
+Id = lambda n: Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
