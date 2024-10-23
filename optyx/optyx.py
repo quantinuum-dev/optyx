@@ -58,41 +58,47 @@ class Diagram(frobenius.Diagram):
             layer_dims = [2 for _ in range(len(self.dom))]
         else:
             layer_dims = input_dims
+        if not isinstance(self, Sum):
 
-        right_dim = len(self.dom)
+            right_dim = len(self.dom)
+            for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
+                dims_in = layer_dims[off: off + len(box.dom)]
 
-        for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
-            dims_in = layer_dims[off: off + len(box.dom)]
-
-            dims_out = box.determine_dimensions(
-                dims_in
-            )
-
-            left = Dim()
-            if off > 0:
-                left = f_ob(layer_dims[0:off])
-            right = Dim()
-            if off + len(box.dom) < right_dim:
-                right = f_ob(
-                    layer_dims[off + len(box.dom): right_dim]
+                dims_out = box.determine_dimensions(
+                    dims_in
                 )
 
-            cod_right_dim = right_dim - len(box.dom) + len(box.cod)
-            cod_layer_dims = (
-                layer_dims[0:off]
-                + dims_out
-                + layer_dims[off + len(box.dom):]
-            )
+                left = Dim()
+                if off > 0:
+                    left = f_ob(layer_dims[0:off])
+                right = Dim()
+                if off + len(box.dom) < right_dim:
+                    right = f_ob(
+                        layer_dims[off + len(box.dom): right_dim]
+                    )
 
-            diagram_ = left @ f_ar(box, dims_in, dims_out) @ right
+                cod_right_dim = right_dim - len(box.dom) + len(box.cod)
+                cod_layer_dims = (
+                    layer_dims[0:off]
+                    + dims_out
+                    + layer_dims[off + len(box.dom):]
+                )
 
-            if i == 0:
-                diagram = diagram_
-            else:
-                diagram = diagram >> diagram_
+                diagram_ = left @ f_ar(box, dims_in, dims_out) @ right
 
-            right_dim = cod_right_dim
-            layer_dims = cod_layer_dims
+                if i == 0:
+                    diagram = diagram_
+                else:
+                    diagram = diagram >> diagram_
+
+                right_dim = cod_right_dim
+                layer_dims = cod_layer_dims
+        else:
+            for i, term in enumerate(self):
+                if i == 0:
+                    diagram = term.to_tensor(input_dims)
+                else:
+                    diagram += term.to_tensor(input_dims)        
         return diagram
 
 
