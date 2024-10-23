@@ -424,12 +424,21 @@ class Create(Box):
         Currently only works for a single mode."""
         dims_out = self.determine_dimensions()
         result_matrix = np.zeros((np.prod(dims_out), 1), dtype=complex)
-        result_matrix[-1, 0] = 1.0
+        index = 0
+        factor = 1
+        for max_dim, occ_num in zip(reversed(dims_out), reversed(self.photons)):
+            index += occ_num * factor
+            factor *= max_dim
+        
+        # Create the composite state vector with a 1 at the calculated index
+        result_matrix = np.zeros((np.prod(dims_out), 1))
+        result_matrix[index, 0] = 1
+        #result_matrix[-1, 0] = 1.0
         return result_matrix
 
     def determine_dimensions(self, _: list[int] = None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
-        return [self.photons[i] + 1 for i in range(len(self.cod))]
+        return [self.photons[i] + 1 if self.photons[i] != 0 else 2 for i in range(len(self.cod))]
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
