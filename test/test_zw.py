@@ -107,7 +107,7 @@ def test_IndexableAmplitudes():
 
 def test_bSym():
     bSym_l = W(2)
-    bSym_r = W(2) >> Swap()
+    bSym_r = W(2) >> Swap(mode, mode)
 
     assert test_arrays_of_different_sizes(
         bSym_l.to_tensor().eval().array,
@@ -126,7 +126,7 @@ def test_bAso():
 
 
 def test_doubleSWAP():
-    swap_l = Swap() >> Swap()
+    swap_l = Swap(mode, mode) >> Swap(mode, mode)
     swap_r = Id(2)
 
     assert test_arrays_of_different_sizes(
@@ -136,8 +136,8 @@ def test_doubleSWAP():
 
 
 def test_SWAP_dagger_SWAP():
-    swap_l = Swap().dagger()
-    swap_r = Swap()
+    swap_l = Swap(mode, mode).dagger()
+    swap_r = Swap(mode, mode)
 
     assert test_arrays_of_different_sizes(
         swap_l.to_tensor().eval().array,
@@ -182,7 +182,7 @@ def test_Id_dagger_Id(k: int):
 
 def test_bBa():
     bBa_l = (
-        W(2) @ W(2) >> Id(1) @ Swap() @ Id(1) >> W(2).dagger() @ W(2).dagger()
+        W(2) @ W(2) >> Id(1) @ Swap(mode, mode) @ Id(1) >> W(2).dagger() @ W(2).dagger()
     )
     bBa_r = W(2).dagger() >> W(2)
 
@@ -210,7 +210,7 @@ def test_bZBA():
 
     bZBA_l = (
         Z(N, 1, 2) @ Z(N, 1, 2)
-        >> Id(1) @ Swap() @ Id(1)
+        >> Id(1) @ Swap(mode, mode) @ Id(1)
         >> W(2).dagger() @ W(2).dagger()
         >> Id(1) @ Z(frac_N, 1, 1)
     )
@@ -276,7 +276,7 @@ def test_normalisation(k: int):
 
     normalisation_l = Create(k) @ Z([np.sqrt(factorial(k))], 0, 0)
 
-    normalisation_r = Id()
+    normalisation_r = Id(0)
     for _ in range(k):
         normalisation_r = normalisation_r @ Create(1)
 
@@ -344,8 +344,8 @@ def test_lemma_B7():
 
     lemma_B7_r = (
         W(2) @ Id(2)
-        >> Id(1) @ Id(1) @ Swap()
-        >> Id(1) @ Swap() @ Id(1)
+        >> Id(1) @ Id(1) @ Swap(mode, mode)
+        >> Id(1) @ Swap(mode, mode) @ Id(1)
         >> Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
     )
 
@@ -367,7 +367,7 @@ def test_prop_54():
     prop_54_r = (
         Create(1) @ Id(1)
         >> Z(lambda i: 1, 1, 2) @ Id(1)
-        >> Swap() @ Id(1)
+        >> Swap(mode, mode) @ Id(1)
         >> W(2) @ W(2) @ W(2)
         >> Id(1) @ Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0) @ Id(1)
         >> W(2).dagger()
@@ -399,7 +399,7 @@ def test_hom(postselect_and_prob: list):
     beam_splitter = (
         W(2) @ W(2)
         >> Zb_i @ Zb_1 @ Zb_1 @ Zb_i
-        >> Id(1) @ Swap() @ Id(1)
+        >> Id(1) @ Swap(mode, mode) @ Id(1)
         >> W(2).dagger() @ W(2).dagger()
     )
 

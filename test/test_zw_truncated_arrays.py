@@ -21,7 +21,7 @@ test_pairs = [(i, j) for i in range(0, 10) for j in range(0, 10, 2)]
 
 @pytest.mark.parametrize("i, j", test_pairs)
 def test_swap(i, j):
-    assert np.allclose(kron_truncated_array_swap([i, j]), Swap().truncated_array([i, j]))
+    assert np.allclose(kron_truncated_array_swap([i, j]), Swap(mode, mode).truncated_array([i, j]))
 
 @pytest.mark.skip(reason="Helper function for testing")
 def kron_truncated_array_W(diagram, input_dims: list[int]) -> np.ndarray[complex]:

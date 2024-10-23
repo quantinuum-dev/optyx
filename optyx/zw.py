@@ -419,17 +419,15 @@ class Create(Box):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def truncated_array(self, _) -> np.ndarray[complex]:
+    def truncated_array(self, _ = None) -> np.ndarray[complex]:
         """Create an array like in 2306.02114
         Currently only works for a single mode."""
-        dims_out = self.determine_dimensions(_)
-        result_matrix = np.zeros((*dims_out, 1), dtype=complex)
-        for i, n_i in enumerate(self.photons):
-            l = [0] * i + [n_i] + [0] * (len(self.photons) - i)
-            result_matrix[*l] = 1.0
+        dims_out = self.determine_dimensions()
+        result_matrix = np.zeros((np.prod(dims_out), 1), dtype=complex)
+        result_matrix[-1, 0] = 1.0
         return result_matrix
 
-    def determine_dimensions(self, _: list[int]) -> list[int]:
+    def determine_dimensions(self, _: list[int] = None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         return [self.photons[i] + 1 for i in range(len(self.cod))]
 
@@ -466,11 +464,24 @@ class Select(Box):
 
     def truncated_array(self, input_dims: list) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
+        print(input_dims)
+        result_matrix = np.zeros((1, np.prod(input_dims)), 
+                                 dtype=complex)
+        index = 0
+        factor = 1
+        for max_dim, occ_num in zip(reversed(input_dims), reversed(self.photons)):
+            index += occ_num * factor
+            factor *= max_dim
 
-        n_photons = sum(self.photons)
-        result_matrix = np.zeros((1, input_dims[0]), dtype=complex)
-        result_matrix[0, n_photons] = 1.0
-        return result_matrix
+        if index < np.prod(input_dims):
+            result_matrix[0, index] = 1.0
+            return result_matrix
+        # if the occupation number on which we are postselecting is large than the 
+        # maximum dimension of the input, then we return the zero matrix because
+        # the inner product is zero anyway
+        else:
+            return result_matrix
+        
 
     def determine_dimensions(self, _: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -602,9 +613,9 @@ def calculate_num_creations_selections(diagram: Diagram) -> tuple:
     if isinstance(terms[0], monoidal.Layer):
         for box, _ in zip(diagram.boxes, diagram.offsets):
             if isinstance(box, Create):
-                n_creations += box.photons[0]
+                n_creations += sum(box.photons)
             elif isinstance(box, Select):
-                n_selections += box.photons[0]
+                n_selections += sum(box.photons)
 
     else:
         arr_selections_creations = []
