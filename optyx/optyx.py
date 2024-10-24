@@ -117,7 +117,6 @@ class Diagram(frobenius.Diagram):
 
             for i in range(len(terms)):
                 terms[i].cod = Dim(*max_dims)
-                print(terms[i])
                 boxes_dims_offsets = self._find_boxes_to_modify_for_sums(terms[i], max_dims.copy())
                 terms[i] = self._modify_boxes_for_sums(terms[i], boxes_dims_offsets)
 
