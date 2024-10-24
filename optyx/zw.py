@@ -473,7 +473,6 @@ class Select(Box):
 
     def truncated_array(self, input_dims: list) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
-        print(input_dims)
         result_matrix = np.zeros((1, np.prod(input_dims)), 
                                  dtype=complex)
         index = 0
