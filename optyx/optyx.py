@@ -13,10 +13,14 @@ mode = Ty('mode')
 bit = Ty('bit')
 
 class Mode(Ty):
-    def __init__(self, n):
+    def __init__(self, n=0):
         self.n = n
         super().__init__(*['mode' for _ in range(n)])
 
+class Bit(Ty):
+    def __init__(self, n=0):
+        self.n = n
+        super().__init__(*['bit' for _ in range(n)])
 
 @factory
 class Diagram(frobenius.Diagram):
@@ -126,7 +130,7 @@ class Diagram(frobenius.Diagram):
                 else:
                     diagram += term   
             return diagram
-        
+
     def _find_boxes_to_modify_for_sums(self, term, max_dims):
         boxes_dims_offsets = []
         len_max_dims = len(max_dims)
@@ -165,7 +169,6 @@ class Diagram(frobenius.Diagram):
     def _modify_boxes_for_sums(self, term, boxes_dims_offsets):
         inside = list(term.inside)
 
-
         # modify the diagrams for all the terms
         for box, dims, off, idx in boxes_dims_offsets:
             old_layer = term.inside[idx]
@@ -185,6 +188,190 @@ class Diagram(frobenius.Diagram):
         term.inside = tuple(inside)   
         
         return term
+
+    def grad(self, var, **params) -> Diagram.Sum:
+        """
+        Gradient with respect to `var`.
+
+        Parameters
+        ----------
+        var : sympy.Symbol
+            Differentiated variable.
+
+        Examples
+        --------
+        >>> from sympy.abc import phi
+        >>> from optyx.zx import Z
+        >>> assert Z(1, 1, phi).grad(phi) == scalar(pi) @ Z(1, 1, phi + .5)
+        """
+        """ Gradient with respect to :code:`var`. """
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        left, box, right, tail = tuple(self.inside[0]) + (self[1:], )
+        t1 = self.id(left) @ box.grad(var, **params) @ self.id(right) >> tail
+        t2 = self.id(left) @ box @ self.id(right) >> tail.grad(var, **params)
+        return t1 + t2
+    
+        #return super().grad(var, **params)
+
+    def to_pyzx(self):
+        """
+        Returns a :class:`pyzx.Graph`.
+
+        >>> import optyx.zx as zx
+        >>> bialgebra = zx.Z(1, 2, .25) @ zx.Z(1, 2, .75)\\
+        ...     >> Id(Bit(1)) @ zx.SWAP @ Id(Bit(1)) >> zx.X(2, 1, .5) @ zx.X(2, 1, .5)
+        >>> graph = bialgebra.to_pyzx()
+        >>> assert len(graph.vertices()) == 8
+        >>> assert (graph.inputs(), graph.outputs()) == ((0, 1), (6, 7))
+        >>> from pyzx import VertexType
+        >>> assert graph.type(2) == graph.type(3) == VertexType.Z
+        >>> assert graph.phase(2) == 2 * .25 and graph.phase(3) == 2 * .75
+        >>> assert graph.type(4) == graph.type(5) == VertexType.X
+        >>> assert graph.phase(4) == graph.phase(5) == 2 * .5
+        >>> assert graph.graph == {
+        ...     0: {2: 1},
+        ...     1: {3: 1},
+        ...     2: {0: 1, 4: 1, 5: 1},
+        ...     3: {1: 1, 4: 1, 5: 1},
+        ...     4: {2: 1, 3: 1, 6: 1},
+        ...     5: {2: 1, 3: 1, 7: 1},
+        ...     6: {4: 1},
+        ...     7: {5: 1}}
+        """
+        from pyzx import Graph, VertexType, EdgeType
+        import optyx.zx as zx
+
+        graph, scan = Graph(), []
+        for i, _ in enumerate(self.dom):
+            node, hadamard = graph.add_vertex(VertexType.BOUNDARY), False
+            scan.append((node, hadamard))
+            graph.set_inputs(graph.inputs() + (node,))
+            graph.set_position(node, i, 0)
+        for row, (box, offset) in enumerate(zip(self.boxes, self.offsets)):
+            if isinstance(box, zx.Spider):
+                node = graph.add_vertex(
+                    VertexType.Z if isinstance(box, zx.Z) else VertexType.X,
+                    phase=box.phase * 2 if box.phase else None)
+                graph.set_position(node, offset, row + 1)
+                for i, _ in enumerate(box.dom):
+                    source, hadamard = scan[offset + i]
+                    etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
+                    graph.add_edge((source, node), etype)
+                scan = scan[:offset] + len(box.cod) * [(node, False)]\
+                    + scan[offset + len(box.dom):]
+            elif isinstance(box, Swap):
+                scan = scan[:offset] + [scan[offset + 1], scan[offset]]\
+                    + scan[offset + 2:]
+            elif isinstance(box, zx.Scalar):
+                graph.scalar.add_float(box.data)
+            elif box == zx.H:
+                node, hadamard = scan[offset]
+                scan[offset] = (node, not hadamard)
+            else:
+                raise NotImplementedError
+        for i, _ in enumerate(self.cod):
+            target = graph.add_vertex(VertexType.BOUNDARY)
+            source, hadamard = scan[i]
+            etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
+            graph.add_edge((source, target), etype)
+            graph.set_position(target, i, len(self) + 1)
+            graph.set_outputs(graph.outputs() + (target,))
+        return graph
+
+    @staticmethod
+    def from_pyzx(graph):
+        """
+        Takes a :class:`pyzx.Graph` returns a :class:`zx.Diagram`.
+
+        Examples
+        --------
+
+        >>> import optyx.zx as zx
+        >>> bialgebra = zx.Z(1, 2, .25) @ zx.Z(1, 2, .75)\\
+        ...     >> zx.Id(Bit(1)) @ zx.SWAP @ zx.Id(Bit(1)) >> zx.X(2, 1, .5) @ zx.X(2, 1, .5)
+        >>> graph = bialgebra.to_pyzx()
+        >>> assert Diagram.from_pyzx(graph) == bialgebra
+
+        Note
+        ----
+
+        Raises :code:`ValueError` if either:
+        * a boundary node is not in :code:`graph.inputs() + graph.outputs()`,
+        * or :code:`set(graph.inputs()).intersection(graph.outputs())`.
+        """
+        from pyzx import VertexType, EdgeType
+        import optyx.zx as zx
+
+        def node2box(node, n_legs_in, n_legs_out):
+            if graph.type(node) not in {VertexType.Z, VertexType.X}:
+                raise NotImplementedError  # pragma: no cover
+            return \
+                (zx.Z if graph.type(node) == VertexType.Z else zx.X)(  # noqa: E721
+                    n_legs_in, n_legs_out, graph.phase(node) * .5)
+
+        def move(scan, source, target):
+            if target < source:
+                swaps = Id(Bit(target))\
+                    @ Diagram.swap(Bit(source - target), Bit(1))\
+                    @ Id(Bit(len(scan) - source - 1))
+                scan = scan[:target] + (scan[source],)\
+                    + scan[target:source] + scan[source + 1:]
+            elif target > source:
+                swaps = Id(Bit(source))\
+                    @ Diagram.swap(1, target - source)\
+                    @ Id(Bit(len(scan) - target - 1))
+                scan = scan[:source] + scan[source + 1:target]\
+                    + (scan[source],) + scan[target:]
+            else:
+                swaps = Id(Bit(len(scan)))
+            return scan, swaps
+
+        def make_wires_adjacent(scan, diagram, inputs):
+            if not inputs:
+                return scan, diagram, len(scan)
+            offset = scan.index(inputs[0])
+            for i, _ in enumerate(inputs[1:]):
+                source, target = scan.index(inputs[i + 1]), offset + i + 1
+                scan, swaps = move(scan, source, target)
+                diagram = diagram >> swaps
+            return scan, diagram, offset
+
+        missing_boundary = any(
+            graph.type(node) == VertexType.BOUNDARY  # noqa: E721
+            and node not in graph.inputs() + graph.outputs()
+            for node in graph.vertices())
+        if missing_boundary:
+            raise ValueError
+        duplicate_boundary = set(graph.inputs()).intersection(graph.outputs())
+        if duplicate_boundary:
+            raise ValueError
+        diagram, scan = Id(Bit(len(graph.inputs()))), graph.inputs()
+        for node in [v for v in graph.vertices()
+                     if v not in graph.inputs() + graph.outputs()]:
+            inputs = [v for v in graph.neighbors(node) if v < node
+                      and v not in graph.outputs() or v in graph.inputs()]
+            inputs.sort(key=scan.index)
+            outputs = [v for v in graph.neighbors(node) if v > node
+                       and v not in graph.inputs() or v in graph.outputs()]
+            scan, diagram, offset = make_wires_adjacent(scan, diagram, inputs)
+            hadamards = Id(Bit(0)).tensor(*[
+                zx.H if graph.edge_type((i, node)) == EdgeType.HADAMARD
+                else Id(Bit(1)) for i in scan[offset: offset + len(inputs)]])
+            box = node2box(node, len(inputs), len(outputs))
+            diagram = diagram >> Id(Bit(offset)) @ (hadamards >> box)\
+                @ Id(Bit(len(diagram.cod) - offset - len(inputs)))
+            scan = scan[:offset] + len(outputs) * (node,)\
+                + scan[offset + len(inputs):]
+        for target, output in enumerate(graph.outputs()):
+            node, = graph.neighbors(output)
+            etype = graph.edge_type((node, output))
+            hadamard = zx.H if etype == EdgeType.HADAMARD else Id(Bit(1))
+            scan, swaps = move(scan, scan.index(node), target)
+            diagram = diagram >> swaps\
+                >> Id(Bit(target)) @ hadamard @ Id(Bit(len(scan) - target - 1))
+        return diagram
+
 
 class Box(frobenius.Box, Diagram):
     """A box in an optyx diagram"""
@@ -226,7 +413,8 @@ class Sum(symmetric.Sum, Box):
 class Swap(frobenius.Swap, Box):
     """Swap in optyx diagram"""
 
-    def to_path(self, dtype=complex) -> Matrix:
+    def to_path(self, dtype=complex):
+        from optyx.qpath import Matrix
         return Matrix([0, 1, 1, 0], 2, 2)
 
     def to_zw(self):
