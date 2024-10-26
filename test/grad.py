@@ -1,4 +1,4 @@
-from optyx.qpath import Id, Endo, Scalar, Diagram
+from optyx.zw import Id, Endo, Scalar, Diagram, Mode
 from optyx.circuit import Phase, BS, TBS, MZI
 from sympy.abc import psi, phi, theta
 import numpy as np
@@ -9,7 +9,7 @@ import pytest
 
 param_circuits = [
     Phase(psi),
-    BS >> Phase(psi) @ Id(1) >> BS,
+    BS >> Phase(psi) @ Id(Mode(1)) >> BS,
     Phase(3 * psi ** 3),
     TBS(psi),
     MZI(psi, 0.123),
