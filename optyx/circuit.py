@@ -63,7 +63,7 @@ import sympy as sp
 from optyx.optyx import Mode, Box
 from optyx.qpath import Matrix
 from optyx.zw import Z, W, Create, Select, Scalar
-from optyx.zw import Split, Merge, Id, SWAP
+from optyx.zw import Split, Merge, Id, SWAP, BS
 
 
 class Gate(Box):
@@ -338,7 +338,7 @@ class TBS(Box):
         )
 
     def _decomp(self):
-        d = BS >> Id(1) @ Phase(self.theta) >> BS
+        d = BS >> Id(Mode(1)) @ Phase(self.theta) >> BS
         return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
@@ -442,7 +442,7 @@ class MZI(Box):
 
     def _decomp(self):
         x, y = self.theta, self.phi
-        d = BS >> Id(1) @ Phase(x) >> BS >> Phase(y) @ Id(1)
+        d = BS >> Id(Mode(1)) @ Phase(x) >> BS >> Phase(y) @ Id(Mode(1))
         return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
@@ -450,9 +450,7 @@ class MZI(Box):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         return self._decomp().grad(var)
-
-
-BS = BBS(0)
+    
 num_op = Split(2) >> Id(1) @ (Select() >> Create()) >> Merge(2)
 
 

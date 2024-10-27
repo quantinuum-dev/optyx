@@ -449,3 +449,4 @@ class Probabilities(underlying.Matrix):
             dom=self.dom,
             cod=self.cod,
         )
+    

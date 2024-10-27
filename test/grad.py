@@ -23,6 +23,7 @@ values = [x * 0.123 for x in range(10)]
 def test_daggers_cancel(circ, value):
     d = circ >> circ.dagger()
     out = d.grad(psi).subs((psi, value)).eval(2).array
+    print(out)
     assert np.allclose(out, np.zeros(shape=out.shape))
 
 
