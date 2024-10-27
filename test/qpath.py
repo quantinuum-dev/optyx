@@ -1,18 +1,18 @@
-from optyx.qpath import *
+from optyx.zw import *
 
 
 def test_num_op():
-    num_op = Split() >> Select() @ Id(1) >> Create() @ Id(1) >> Merge()
-    num_op2 = Split() @ Create() >> Id(1) @ SWAP >> Merge() @ Select()
-    assert (num_op @ Id(1)).eval(2) == (num_op2 @ Id(1)).eval(2)
-    assert (num_op @ Id(1)).eval(3) == (num_op2 @ Id(1)).eval(3)
-    assert (Id(1) @ Create(1) >> num_op @ Id(1) >> Id(1) @ Select(1)).eval(
+    num_op = Split(2) >> Select() @ Id(Mode(1)) >> Create() @ Id(Mode(1)) >> Merge(2)
+    num_op2 = Split(2) @ Create() >> Id(Mode(1)) @ SWAP >> Merge(2) @ Select()
+    assert (num_op @ Id(Mode(1))).to_path().eval(2) == (num_op2 @ Id(Mode(1))).to_path().eval(2)
+    assert (num_op @ Id(Mode(1))).to_path().eval(3) == (num_op2 @ Id(Mode(1))).to_path().eval(3)
+    assert (Id(Mode(1)) @ Create(1) >> num_op @ Id(Mode(1)) >> Id(Mode(1)) @ Select(1)).to_path().eval(
         3
-    ) == num_op.eval(3)
-    assert (num_op @ (Create(1) >> Select(1))).eval(3) == num_op.eval(3)
-    assert (Create(1) @ Id(1) >> Id(1) @ Split() >> Select(1) @ Id(2)).eval(
+    ) == num_op.to_path().eval(3)
+    assert (num_op @ (Create(1) >> Select(1))).to_path().eval(3) == num_op.to_path().eval(3)
+    assert (Create(1) @ Id(Mode(1)) >> Id(Mode(1)) @ Split(2) >> Select(1) @ Id(Mode(2))).to_path().eval(
         3
-    ) == Split().eval(3)
+    ) == Split(2).to_path().eval(3)
 
 def test_dilate():
     matrices = [Matrix(np.random.random((n + 2, m + 1)), dom = n, cod = m, 
@@ -33,9 +33,9 @@ def test_bosonic_operator():
         scalar=2.1
     )
 
-    annil = Split() >> Select(1) @ Id(1)
+    annil = Split(2) >> Select(1) @ Id(Mode(1))
     create = annil.dagger()
 
-    d2 = Scalar(2.1) @ annil @ Id(1) >> Id(1) @ annil >> create @ Id(1)
+    d2 = Scalar(2.1) @ annil @ Id(Mode(1)) >> Id(Mode(1)) @ annil >> create @ Id(Mode(1))
 
     assert d1 == d2

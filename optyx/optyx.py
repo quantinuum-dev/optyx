@@ -201,8 +201,8 @@ class Diagram(frobenius.Diagram):
         Examples
         --------
         >>> from sympy.abc import phi
-        >>> from optyx.zx import Z
-        >>> assert Z(1, 1, phi).grad(phi) == scalar(pi) @ Z(1, 1, phi + .5)
+        >>> from optyx.zx import scalar, Z
+        >>> assert Z(1, 1, phi).grad(phi) == scalar(np.pi) @ Z(1, 1, phi + .5)
         """
         """ Gradient with respect to :code:`var`. """
         if var not in self.free_symbols:
@@ -211,8 +211,24 @@ class Diagram(frobenius.Diagram):
         t1 = self.id(left) @ box.grad(var, **params) @ self.id(right) >> tail
         t2 = self.id(left) @ box @ self.id(right) >> tail.grad(var, **params)
         return t1 + t2
-    
-        #return super().grad(var, **params)
+
+
+    @classmethod
+    def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+        from optyx.zw import Split, Select, Id, Mode, Scalar
+        d = cls.id(Mode(n_modes))
+        annil = Split(2) >> Select(1) @ Id(Mode(1))
+        create = annil.dagger()
+        for idx, dagger in operators:
+            if not (0 <= idx < n_modes):
+                raise ValueError(f"Index {idx} out of bounds.")
+            box = create if dagger else annil
+            d = d >> Id(idx) @ box @ Id(n_modes - idx - 1)
+
+        if scalar != 1:
+            d = Scalar(scalar) @ d
+        return d
+
 
     def to_pyzx(self):
         """
@@ -402,6 +418,16 @@ class Sum(symmetric.Sum, Box):
 
     def to_path(self, dtype=complex):
         return sum(term.to_path(dtype) for term in self.terms)
+
+    def eval(self, n_photons=0, permanent=None, dtype=complex):
+        # we need to implement the proper sums of qpath diagrams
+        # this is only a temporary solution, so that the grad tests pass
+        if permanent is None:
+            from optyx.qpath import npperm
+            permanent = npperm
+        return sum(
+            term.to_path(dtype).eval(n_photons, permanent) for term in self.terms
+        )
 
     def grad(self, var, **params):
         """Gradient with respect to :code:`var`."""
