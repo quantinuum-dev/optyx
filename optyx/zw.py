@@ -610,23 +610,6 @@ def filter_occupation_numbers(
                     range(len(input_dims))))
     ]
 
-
-def from_bosonic_operator(n_modes, operators, scalar=1):
-    """ Builds a the diagram corresponding to a product of creation and annihilation operators"""
-    d = Id(n_modes)
-    annil = Split(2) >> Select(1) @ Id(1)
-    create = annil.dagger()
-    for idx, dagger in operators:
-        if not (0 <= idx < n_modes):
-            raise ValueError(f"Index {idx} out of bounds.")
-        box = create if dagger else annil
-        d = d >> Id(idx) @ box @ Id(n_modes - idx - 1)
-
-    if scalar != 1:
-        d = Scalar(scalar) @ d
-    return d
-
-
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 bs_matrix = Matrix(bs_array, 2, 2)
 BS = Box("BS", Mode(2), Mode(2), data=bs_matrix)
