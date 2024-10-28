@@ -23,8 +23,8 @@ Evaluating ZX diagrams using PyZX or via the dual rail encoding is equivalent.
 
 >>> ket = lambda *xs: Id(Bit(0)).tensor(\\
 ...         *[X(0, 1, 0.5 if x == 1 else 0) for x in xs])
->>> cnot = Z(1, 2) @ Id(Bit(1)) >> Id(Bit(1)) @ X(2, 1)
->>> control = lambda x: ket(x) @ Id(Bit(1)) >> cnot >> ket(x).dagger() @ Id(Bit(1))
+>>> cnot = Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1)
+>>> control = lambda x: ket(x) @ Id(1) >> cnot >> ket(x).dagger() @ Id(1)
 >>> assert np.allclose(zx_to_path(control(0)).to_path().eval(1).array, \\
 ...                    control(0).to_pyzx().to_tensor())
 >>> assert np.allclose(zx_to_path(control(1)).to_path().eval(1).array, \\
@@ -38,7 +38,7 @@ Corner case where :py:`to_pyzx` and :py:`zx_to_path` agree only up to global
 phase.
 
 >>> diagram = X(0, 2) @ Z(0, 1, 0.25) @ Scalar(1/2)\\
-...     >> Id(Bit(1)) @ Z(2, 1) >> X(2, 0, 0.35)
+...     >> Id(1) @ Z(2, 1) >> X(2, 0, 0.35)
 >>> print(decomp(diagram)[:3])
 X(0, 1) >> H >> Z(1, 2)
 >>> print(zx_to_path(diagram)[:2])
@@ -62,7 +62,7 @@ from discopy import quantum
 from discopy import symmetric
 from discopy import cat
 from discopy.quantum.gates import (
-    Bra, Ket, Rz, Rx, CX, CZ, Controlled, format_number)
+    Bra, Ket, Rz, Rx, CX, CZ, Controlled)
 from discopy.quantum.circuit import qubit, Circuit
 from discopy.quantum.gates import Scalar as GatesScalar
 from discopy.monoidal import PRO
@@ -197,7 +197,7 @@ def make_spiders(n):
 
     >>> assert len(make_spiders(6)) == 5
     """
-    spider = optyx.Id(Bit(1))
+    spider = optyx.Id(1)
     for k in range(n - 1):
         spider = spider >> Z(1, 2) @ optyx.Id(Bit(k))
     return spider
@@ -223,7 +223,7 @@ def decomp_ar(box):
         return decomp(box)
     if isinstance(box, Z):
         phase = box.phase
-        rot = optyx.Id(Bit(1)) if phase == 0 else Z(1, 1, phase)
+        rot = optyx.Id(1) if phase == 0 else Z(1, 1, phase)
         if n == 0:
             return X(0, 1) >> H >> rot >> make_spiders(m)
         if m == 0:
@@ -234,7 +234,6 @@ def decomp_ar(box):
 decomp = symmetric.Functor(
     ob=lambda x: Bit(len(x)),
     ar=decomp_ar, 
-    #dom=symmetric.Category(Bit, Diagram),
     cod=symmetric.Category(Bit, Diagram)
 )
 
@@ -245,7 +244,7 @@ annil = zw.Select(1)
 comonoid = zw.Split(2)
 monoid = zw.Merge(2)
 BS = zw.BS
-Id = zw.Id
+Id = lambda n: Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Bit(n))
 
 
 def ar_zx2path(box):
@@ -320,13 +319,13 @@ def gate2zx(box):
         return (Z if isinstance(box, Rz) else X)(1, 1, box.phase)
     if isinstance(box, Controlled) and box.name.startswith('CRz'):
         return Z(1, 2) @ Z(1, 2, box.phase / 2)\
-            >> Id(Bit(1)) @ (X(2, 1) >> Z(1, 0, -box.phase / 2)) @ Id(1) @ root2
+            >> Id(1) @ (X(2, 1) >> Z(1, 0, -box.phase / 2)) @ Id(1) @ root2
     if isinstance(box, Controlled) and box.name.startswith('CRx'):
         return X(1, 2) @ X(1, 2, box.phase / 2)\
-            >> Id(Bit(1)) @ (Z(2, 1) >> X(1, 0, -box.phase / 2)) @ Id(1) @ root2
+            >> Id(1) @ (Z(2, 1) >> X(1, 0, -box.phase / 2)) @ Id(1) @ root2
     if isinstance(box, quantum.CU1):
         return Z(1, 2, box.phase) @ Z(1, 2, box.phase)\
-            >> Id(Bit(1)) @ (X(2, 1) >> Z(1, 0, -box.phase)) @ Id(1)
+            >> Id(1) @ (X(2, 1) >> Z(1, 0, -box.phase)) @ Id(1)
     if isinstance(box, GatesScalar):
         if box.is_mixed:
             raise NotImplementedError

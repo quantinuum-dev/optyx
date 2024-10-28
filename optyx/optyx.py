@@ -461,7 +461,6 @@ class Swap(frobenius.Swap, Box):
         return input_dims[::-1]
 
     def truncated_array(self, input_dims: list[int]) -> np.ndarray:
-        """Determine the output dimensions based on the input dimensions."""
         return Permutation(self.dom, [1, 0]).truncated_array(input_dims)
 
 
