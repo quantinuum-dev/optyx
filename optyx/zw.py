@@ -122,8 +122,6 @@ from optyx.utils import occupation_numbers, multinomial, get_index_from_list
 from optyx.qpath import Matrix
 from optyx import optyx
 
-Id = lambda n: Diagram.id(mode ** n)
-
 class Box(optyx.Box):
     """Box in a :class:`Diagram`"""
 
@@ -359,6 +357,8 @@ class Z(Box):
 
     def determine_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
+        if self.legs_in == 0:
+            return [2 for _ in range(len(self.cod))]
         return [min(input_dims) for _ in range(len(self.cod))]
 
     def __repr__(self):
