@@ -92,7 +92,7 @@ class Spider(Box):
     """ Abstract spider box. """
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        super().__init__("Spider", n_legs_in, n_legs_out)
+        super().__init__("Spider", n_legs_in, n_legs_out, data=phase)
         self.phase = phase
         self.n_legs_in = n_legs_in
         self.n_legs_out = n_legs_out
