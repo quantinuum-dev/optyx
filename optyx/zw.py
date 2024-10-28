@@ -32,7 +32,7 @@ W commutativity
 
 >>> from optyx.utils import compare_arrays_of_different_sizes
 >>> bSym_l = W(2)
->>> bSym_r = W(2) >> swap
+>>> bSym_r = W(2) >> SWAP
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bSym_l.to_tensor().eval().array,\\
 ...             bSym_r.to_tensor().eval().array)
@@ -56,7 +56,7 @@ W unit
 W bialgebra
 
 >>> bBa_l = W(2) @ W(2) >>\\
-...             Id(1) @ swap @ Id(1) >>\\
+...             Id(1) @ SWAP @ Id(1) >>\\
 ...             W(2).dagger() @ W(2).dagger()
 >>> bBa_r = W(2).dagger() >> W(2)
 >>> assert compare_arrays_of_different_sizes(\\
@@ -69,7 +69,7 @@ ZW bialgebra
 >>> N = [float(np.sqrt(factorial(i))) for i in range(5)]
 >>> frac_N = [float(1/np.sqrt(factorial(i))) for i in range(5)]
 >>> bZBA_l = Z(N, 1, 2) @ Z(N, 1, 2) >>\\
-...             Id(1) @ swap @ Id(1) >>\\
+...             Id(1) @ SWAP @ Id(1) >>\\
 ...             W(2).dagger() @ W(2).dagger() >>\\
 ...             Id(1) @ Z(frac_N, 1, 1)
 >>> bZBA_r = W(2).dagger() >> Z([1, 1, 1, 1, 1], 1, 2)
@@ -92,7 +92,7 @@ Check the Hong-Ou-Mandel interference
 >>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
 >>> beam_splitter = W(2) @ W(2) >> \\
 ...               Zb_i @ Zb_1 @ Zb_1 @ Zb_i >> \\
-...               Id(1) @ swap @ Id(1) >> \\
+...               Id(1) @ SWAP @ Id(1) >> \\
 ...               W(2).dagger() @ W(2).dagger()
 >>> Hong_Ou_Mandel = Create(1) @ Create(1) >> \\
 ...                beam_splitter >> \\
@@ -106,8 +106,8 @@ Check Lemma B7 from 2306.02114
 >>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
 ...             Z(lambda i: 1, 2, 0)
 >>> lemma_B7_r = W(2) @ Id(2) >>\\
-...             Id(1) @ Id(1) @ swap >>\\
-...             Id(1) @ swap @ Id(1) >>\\
+...             Id(1) @ Id(1) @ SWAP >>\\
+...             Id(1) @ SWAP @ Id(1) >>\\
 ...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
 >>> assert compare_arrays_of_different_sizes(\\
 ...             lemma_B7_l.to_tensor().eval().array,\\
@@ -116,16 +116,13 @@ Check Lemma B7 from 2306.02114
 
 from typing import Union
 import numpy as np
-from discopy import tensor, frobenius
 from discopy import monoidal
-from optyx.optyx import Diagram, Mode, Dim, Swap, Permutation, mode
+from optyx.optyx import Diagram, Mode, Swap, mode, Scalar
 from optyx.utils import occupation_numbers, multinomial, get_index_from_list
 from optyx.qpath import Matrix
 from optyx import optyx
 
-swap = Permutation(mode @ mode, [1, 0])
 Id = lambda n: Diagram.id(mode ** n)
-
 
 class Box(optyx.Box):
     """Box in a :class:`Diagram`"""
@@ -143,9 +140,6 @@ class Box(optyx.Box):
     def to_path(self, dtype=complex):
         if isinstance(self.data, Matrix):
             return self.data
-        raise NotImplementedError
-
-    def truncated_array(self, input_dims):
         raise NotImplementedError
 
 
@@ -423,7 +417,6 @@ class Create(Box):
         """Create an array like in 2306.02114
         Currently only works for a single mode."""
         dims_out = self.determine_dimensions()
-        result_matrix = np.zeros((np.prod(dims_out), 1), dtype=complex)
         index = 0
         factor = 1
         for max_dim, occ_num in zip(reversed(dims_out), reversed(self.photons)):
@@ -433,7 +426,6 @@ class Create(Box):
         # Create the composite state vector with a 1 at the calculated index
         result_matrix = np.zeros((np.prod(dims_out), 1))
         result_matrix[index, 0] = 1
-        #result_matrix[-1, 0] = 1.0
         return result_matrix
 
     def determine_dimensions(self, _: list[int] = None) -> list[int]:
@@ -551,38 +543,9 @@ class Endo(Box):
         return lambda *xs: type(self)(
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
-
-
-class Scalar(Box):
-    """
-    Scalar in a diagram
-
-    Example
-    -------
-    >>> assert Scalar(0.45).to_path() == Matrix(
-    ...     [], dom=0, cod=0,
-    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
-    >>> assert np.isclose(s.to_path().eval().array[0], 1)
-    """
-
-    def __init__(self, scalar: complex):
-        self.scalar = scalar
-        super().__init__(f"Scalar({scalar})", 0, 0, data=scalar)
-
-    def to_path(self, dtype=complex):
-        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
-
-    def dagger(self) -> Diagram:
-        return Scalar(self.scalar.conjugate())
-
-    def lambdify(self, *symbols, **kwargs):
-        from sympy import lambdify
-
-        return lambda *xs: type(self)(
-            lambdify(symbols, self.scalar, **kwargs)(*xs)
-        )
-
+    
+    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
+        return Z(lambda x: self.scalar**x, 1, 1).truncated_array(input_dims)
 
 def tn_output_2_perceval_output(
     tn_output: list | np.ndarray, diagram: Diagram, n_extra_photons: int = 0

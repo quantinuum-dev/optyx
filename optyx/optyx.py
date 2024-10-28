@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import numpy as np
+from sympy.core import Symbol, Mul
 from discopy import symmetric, frobenius, tensor
-from discopy.cat import factory
+from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.monoidal import Layer
+from discopy.quantum.gates import (format_number)
 
 class Ty(frobenius.Ty):
     pass
@@ -400,6 +402,15 @@ class Box(frobenius.Box, Diagram):
     def to_path(self):
         raise NotImplementedError
 
+    def truncated_array(self, input_dims):
+        raise NotImplementedError
+    
+    def array(self):
+        raise NotImplementedError
+    
+    def determine_dimensions(self, input_dims):
+        raise NotImplementedError
+
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
         return lambda *xs: self
@@ -407,7 +418,6 @@ class Box(frobenius.Box, Diagram):
     def subs(self, *args) -> Diagram:
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
-
 
 class Sum(symmetric.Sum, Box):
     """
@@ -507,10 +517,68 @@ class Permutation(Box):
         for i, j in enumerate(self.permutation):
             inverse_permutation[j] = i
 
-        return Swap(int(np.sum(self.dom.inside)),
+        return Permutation(int(np.sum(self.dom.inside)),
                     int(np.sum(self.cod.inside)),
                     inverse_permutation, 
                     not self.is_dagger)
+    
+class Scalar(Box):
+    """
+    Scalar in a diagram
+
+    Example
+    -------
+    >>> from optyx.qpath import Matrix
+    >>> from optyx.zw import Create, Select, BS
+    >>> assert Scalar(0.45).to_path() == Matrix(
+    ...     [], dom=0, cod=0,
+    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> assert np.isclose(s.to_path().eval().array[0], 1)
+    """
+
+    def __init__(self, scalar: complex | Symbol):
+        if not isinstance(scalar, (Symbol, Mul)):
+            self.scalar = complex(scalar)
+        else:
+            self.scalar = scalar
+        super().__init__(name=f"scalar", dom=Mode(0), cod=Mode(0), data=self.scalar)
+
+    @property
+    def array(self):
+        return np.array([self.scalar], dtype=complex)
+
+    def __str__(self):
+        return f"scalar({format_number(self.data)})"
+
+    def to_path(self, dtype=complex):
+        from optyx.qpath import Matrix
+        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
+
+    def dagger(self) -> Diagram:
+        return Scalar(self.scalar.conjugate())
+
+    def subs(self, *args):
+        data = rsubs(self.scalar, *args)
+        return Scalar(data)
+
+    def grad(self, var, **params):
+        if var not in self.free_symbols:
+            return Sum((), self.dom, self.cod)
+        return Scalar(self.scalar.diff(var))
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
+
+    def truncated_array(self, _: list[int]) -> np.ndarray[complex]:
+        return self.array
+    
+    def determine_dimensions(self, _: list[int]) -> list[int]:
+        return [1]
 
 Diagram.swap_factory = Swap
 Diagram.swap = Swap
