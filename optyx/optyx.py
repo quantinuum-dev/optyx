@@ -521,6 +521,13 @@ class Permutation(Box):
                     inverse_permutation, 
                     not self.is_dagger)
     
+    def to_path(self):
+        from optyx.qpath import Matrix
+        array = np.zeros((len(self.cod.inside), len(self.dom.inside)), dtype=complex)
+        for i, p in enumerate(self.permutation):
+            array[p, i] = 1
+        return Matrix(array, len(self.dom), len(self.cod))
+    
 class Scalar(Box):
     """
     Scalar in a diagram
