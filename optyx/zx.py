@@ -197,9 +197,9 @@ def make_spiders(n):
 
     >>> assert len(make_spiders(6)) == 5
     """
-    spider = optyx.Id(1)
+    spider = Id(1)
     for k in range(n - 1):
-        spider = spider >> Z(1, 2) @ optyx.Id(Bit(k))
+        spider = spider >> Z(1, 2) @ Id(k)
     return spider
 
 
@@ -216,14 +216,14 @@ def decomp_ar(box):
         if (n, m) in ((1, 0), (0, 1)):
             return box
         box = (
-            optyx.Id(Bit(0)).tensor(*[H] * n)
+            Id(0).tensor(*[H] * n)
             >> Z(n, m, phase)
-            >> optyx.Id(Bit(0)).tensor(*[H] * m)
+            >> Id(0).tensor(*[H] * m)
         )
         return decomp(box)
     if isinstance(box, Z):
         phase = box.phase
-        rot = optyx.Id(1) if phase == 0 else Z(1, 1, phase)
+        rot = Id(1) if phase == 0 else Z(1, 1, phase)
         if n == 0:
             return X(0, 1) >> H >> rot >> make_spiders(m)
         if m == 0:
@@ -276,7 +276,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return optyx.Id(Mode(1)) @ circuit.Phase(phase)
+            return Id(Mode(1)) @ circuit.Phase(phase)
         if (n, m, phase) == (2, 1, 0):
             return Id(Mode(1)) @ (monoid >> annil) @ Id(Mode(1))
         if (n, m, phase) == (1, 2, 0):
