@@ -158,76 +158,27 @@ class W(Box):
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
 
     def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
-        """Create an array like in 2306.02114"""
+        """Create a truncated array like in 2306.02114."""
+        max_dim = np.sum(np.array(input_dims) - 1) + 1 if self.is_dagger else input_dims[0]
+        shape = (np.prod(input_dims), max_dim) if self.is_dagger else (max_dim ** self.n_legs, max_dim)
+        total_map = np.zeros(shape, dtype=complex)
 
-        if self.is_dagger:
-            max_dimension = np.sum(np.array(input_dims) - 1) + 1
+        for n in range(max_dim):
+            allowed_configs = occupation_numbers(n, self.n_legs)
+            if self.is_dagger:
+                allowed_configs = filter_occupation_numbers(allowed_configs, np.array(input_dims) - 1)
 
-            total_map = np.zeros(
-                (np.prod(np.array(input_dims)), max_dimension),
-                dtype=complex,
-            )
+            for config in allowed_configs:
+                coef = np.sqrt(multinomial(config))
 
-            for n in range(max_dimension):
+                if self.is_dagger:
+                    row_idx = sum(s * np.prod(input_dims[i + 1:], dtype=int) for i, s in enumerate(config))
+                else:
+                    row_idx = sum(s * (max_dim ** (self.n_legs - i - 1)) for i, s in enumerate(config))
+                
+                total_map[row_idx, n] += coef
 
-                # get all allowed occupation configurations for n photons
-                # (symmetric Fock space basis states)
-                allowed_occupation_configurations = occupation_numbers(
-                    n, self.n_legs
-                )
-
-                allowed_occupation_configurations = filter_occupation_numbers(
-                    allowed_occupation_configurations, np.array(input_dims) - 1
-                )
-
-                for configuration in allowed_occupation_configurations:
-
-                    # get the coefficient for the configuration
-                    coef = np.sqrt(multinomial(configuration))
-
-                    # find idx of the matrix where to put the coefficient
-                    row_index = 0
-
-                    for i, s_i in enumerate(configuration):
-                        row_index += s_i * (
-                            np.prod(np.array(input_dims[i + 1:]), dtype=int)
-                        )
-                    col_index = n
-
-                    total_map[row_index, col_index] += coef
-            return total_map
-
-        max_dimension = input_dims[0]
-
-        total_map = np.zeros(
-            ((max_dimension) ** self.n_legs, max_dimension),
-            dtype=complex,
-        )
-
-        for n in range(max_dimension):
-
-            # get all allowed occupation configurations for n photons
-            # (symmetric Fock space basis states)
-            allowed_occupation_configurations = occupation_numbers(
-                n, self.n_legs
-            )
-
-            for configuration in allowed_occupation_configurations:
-
-                # get the coefficient for the configuration
-                coef = np.sqrt(multinomial(configuration))
-
-                # find idx of the matrix where to put the coefficient
-                row_index = 0
-
-                for i, s_i in enumerate(configuration):
-                    row_index += s_i * (max_dimension) ** (
-                        self.n_legs - i - 1
-                    )
-                col_index = n
-                total_map[row_index, col_index] += coef
-
-        return total_map.conj().T
+        return total_map if self.is_dagger else total_map.conj().T
 
     def determine_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -617,3 +568,8 @@ Split = lambda n: W(n)
 Merge = lambda n: W(n).dagger()
 SWAP = Swap(Mode(1), Mode(1))
 Id = lambda n: Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
+
+
+
+
+
