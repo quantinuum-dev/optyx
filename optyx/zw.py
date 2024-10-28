@@ -298,9 +298,9 @@ class Z(Box):
 
     def __init__(
         self,
-        amplitudes: Union[np.ndarray, list, callable, IndexableAmplitudes],
-        legs_in: int,
-        legs_out: int,
+        amplitudes: Union[np.ndarray, list, callable, IndexableAmplitudes] = lambda i: i,
+        legs_in: int = 1,
+        legs_out: int = 1,
     ):
         # if amplitudes are a function then make it indexable, "conjugable"
         if callable(amplitudes):
