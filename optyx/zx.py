@@ -59,7 +59,7 @@ from math import pi
 
 import numpy as np
 from discopy import quantum
-from discopy import symmetric, rigid, frobenius
+from discopy import symmetric
 from discopy import cat
 from discopy.quantum.gates import (
     Bra, Ket, Rz, Rx, CX, CZ, Controlled, format_number)
@@ -69,8 +69,8 @@ from discopy.monoidal import PRO
 from discopy.cat import Category
 from optyx import optyx
 from optyx import zw
-from optyx import qpath, circuit
-from optyx.optyx import Diagram, Bit, Sum, Swap, bit, Mode
+from optyx import circuit
+from optyx.optyx import Diagram, Bit, Sum, Swap, bit, Mode, Scalar
 from discopy.utils import factory_name
 
 class Box(optyx.Box):
@@ -79,13 +79,7 @@ class Box(optyx.Box):
             dom = Bit(dom)
         if isinstance(cod, int):
             cod = Bit(cod)
-        super().__init__(name=name, dom=dom, cod=cod, **params)    
-
-    # def to_pyzx(self):
-    #     pass
-
-    def array(self):
-        raise NotImplementedError()
+        super().__init__(name=name, dom=dom, cod=cod, **params)
 
 
 class Spider(Box):
@@ -135,12 +129,18 @@ class Spider(Box):
     @property
     def array(self):
         return None
+    
+    def determine_dimensions(self, input_dims):
+        return [2 for _ in range(self.n_legs_out)]
 
 
 class Z(Spider):
     """ Z spider. """
     tikzstyle_name = 'Z'
     color = 'green'
+
+    def truncated_array(self, _):
+        return self.array
 
     @property
     def array(self):
@@ -155,12 +155,14 @@ class Z(Spider):
         )
 
         return return_array
-    
 
 class X(Spider):
     """ X spider. """
     tikzstyle_name = 'X'
     color = "red"
+
+    def truncated_array(self, _):
+        return self.array
 
     @property
     def array(self):
@@ -184,34 +186,7 @@ class X(Spider):
         matrix += phase_term
 
         return matrix
-
-
-class Scalar(Box):
-    """ Scalar in a ZX diagram. """
-    def __init__(self, data):
-        super().__init__("scalar", 0, 0, data=data)
-        self.drawing_name = format_number(data)
-
-    def __str__(self):
-        return f"scalar({format_number(self.data)})"
-
-    def subs(self, *args):
-        data = cat.rsubs(self.data, *args)
-        return Scalar(data)
-
-    def dagger(self):
-        return Scalar(self.data.conjugate())
-
-    def grad(self, var, **params):
-        if var not in self.free_symbols:
-            return Sum((), self.dom, self.cod)
-        return Scalar(self.data.diff(var))
-
-    @property
-    def array(self):
-        return np.array([[self.data]], dtype=complex)
     
-
 def scalar(data):
     """ Returns a scalar. """
     return Scalar(data)
@@ -380,5 +355,6 @@ H.drawing_name, H.tikzstyle_name, = '', 'H'
 H.color, H.shape = "yellow", "rectangle"
 
 SWAP = Swap(bit, bit)
+SWAP.array = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+SWAP.truncated_array = lambda _: SWAP.array
 Diagram.braid_factory, Diagram.sum_factory = Swap, Sum
-#Id = Diagram.id
