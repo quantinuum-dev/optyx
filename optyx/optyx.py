@@ -5,7 +5,6 @@ from sympy.core import Symbol, Mul
 from discopy import symmetric, frobenius, tensor
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
-from discopy.monoidal import Layer
 from discopy.quantum.gates import (format_number)
 
 class Ty(frobenius.Ty):
@@ -49,6 +48,11 @@ class Diagram(frobenius.Diagram):
     def to_tensor(self, input_dims: list = None) -> tensor.Diagram:
         """Returns a a tensor.Diagram for evaluation"""
 
+        if input_dims is None:
+            layer_dims = [2 for _ in range(len(self.dom))]
+        else:
+            layer_dims = input_dims
+
         def f_ob(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
             return Dim(*[int(i) for i in dims])
@@ -68,29 +72,22 @@ class Diagram(frobenius.Diagram):
             embedding_tensor = tensor.Box("Embedding", Dim(input_dim), Dim(output_dim), embedding_array.T)
             return embedding_tensor
 
+        def get_diagram_for_identities(layer_dims):
+            dims_in = layer_dims[:len(self.dom)]
+            dims_out = dims_in
 
-        if input_dims is None:
-            layer_dims = [2 for _ in range(len(self.dom))]
-        else:
-            layer_dims = input_dims
+            diagram = tensor.Box(
+                "Id", f_ob(dims_in), f_ob(dims_out), np.eye(int(np.prod(np.array(dims_in)))) 
+            )
+            
+            return diagram
 
-        if not isinstance(self, Sum):
+        def get_diagram_for_a_single_term(layer_dims):
             right_dim = len(self.dom)
-
-            if len(self.boxes) == 0 and len(self.offsets) == 0:
-                dims_in = layer_dims[:len(self.dom)]
-                dims_out = dims_in
-
-                diagram = tensor.Box(
-                    "Id", f_ob(dims_in), f_ob(dims_out), np.eye(int(np.prod(np.array(dims_in)))) 
-                )
-                
-                return diagram
-    
             for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
                 dims_in = layer_dims[off: off + len(box.dom)]
 
-                dims_out = box.determine_dimensions(
+                dims_out = box.determine_output_dimensions(
                     dims_in
                 )
 
@@ -120,14 +117,14 @@ class Diagram(frobenius.Diagram):
                 right_dim = cod_right_dim
                 layer_dims = cod_layer_dims
             return diagram
-        
-        # if the diagram is a sum,
-        # need to find the common dimensions for the cod for all the terms
-        # can do it by finding the max dims for each idx and set it for all the terms
-        # - then we can apply the new dims to all the last boxes on each wire
-        # for all the terms
-        else:
-            # find the common dimensions for all the terms
+
+        def get_diagram_for_sums(input_dims):            
+            """ If the diagram is a sum,
+            need to find the common dimensions for the cod for all the terms - 
+            can do it by finding the max dims for each idx and set it for all the terms
+            - then we can apply the new dims to all the last boxes on each wire
+            for all the terms """
+            
             terms = [t.to_tensor(input_dims) for t in self]
             cods = [list(t.cod.inside) for t in terms]
 
@@ -150,6 +147,14 @@ class Diagram(frobenius.Diagram):
                 else:
                     diagram += term   
             return diagram
+
+        if isinstance(self, Sum):
+            return get_diagram_for_sums(input_dims)
+        else:            
+            if len(self.boxes) == 0 and len(self.offsets) == 0:
+                return get_diagram_for_identities(layer_dims)
+    
+            return get_diagram_for_a_single_term(layer_dims)
 
     def grad(self, var, **params) -> Diagram.Sum:
         """
@@ -368,7 +373,7 @@ class Box(frobenius.Box, Diagram):
     def array(self):
         raise NotImplementedError
     
-    def determine_dimensions(self, input_dims):
+    def determine_output_dimensions(self, input_dims):
         raise NotImplementedError
 
     def lambdify(self, *symbols, **kwargs):
@@ -416,7 +421,7 @@ class Swap(frobenius.Swap, Box):
     def to_zw(self):
         return self
 
-    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         return input_dims[::-1]
 
@@ -440,21 +445,21 @@ class Permutation(Box):
         assert len(permutation) == len(dom)
 
         cod = Ty.tensor(*[dom[i] for i in permutation])
-        self.is_dagger = is_dagger
         super().__init__(str(permutation), dom, cod)
+        self.is_dagger = is_dagger
         self.permutation = permutation
 
-    def truncated_array(self, input_dims: list[int]) -> np.ndarray:
+    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray:
         """Create an array that permutes the occupation
         numbers based on the input dimensions."""
 
+        if output_dims is None:
+            output_dims = self.determine_output_dimensions(input_dims)
+
         input_total_dim = int(np.prod(input_dims))
-
-        perm_matrix = np.zeros((input_total_dim, input_total_dim),
+        output_total_dim = int(np.prod(output_dims))
+        perm_matrix = np.zeros((output_total_dim, input_total_dim),
                                dtype=complex)
-
-        output_dims = [input_dims[self.permutation[i]]
-                       for i in range(len(self.permutation))]
 
         for input_index in np.ndindex(*input_dims):
             permuted_index = tuple(input_index[self.permutation[i]]
@@ -466,7 +471,7 @@ class Permutation(Box):
 
         return perm_matrix.T
 
-    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the permutation."""
         return [input_dims[i] for i in self.permutation]
 
@@ -540,10 +545,10 @@ class Scalar(Box):
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
 
-    def truncated_array(self, _: list[int]) -> np.ndarray[complex]:
+    def truncated_array(self, _= None, __ = None) -> np.ndarray[complex]:
         return self.array
     
-    def determine_dimensions(self, _: list[int]) -> list[int]:
+    def determine_output_dimensions(self, _ = None) -> list[int]:
         return [1]
 
 Diagram.swap_factory = Swap

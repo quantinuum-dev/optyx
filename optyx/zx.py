@@ -130,7 +130,7 @@ class Spider(Box):
     def array(self):
         return None
     
-    def determine_dimensions(self, input_dims):
+    def determine_output_dimensions(self, _ = None):
         return [2 for _ in range(self.n_legs_out)]
 
 
@@ -139,7 +139,7 @@ class Z(Spider):
     tikzstyle_name = 'Z'
     color = 'green'
 
-    def truncated_array(self, _):
+    def truncated_array(self, _ = None, __ = None):
         return self.array
 
     @property
@@ -161,7 +161,7 @@ class X(Spider):
     tikzstyle_name = 'X'
     color = "red"
 
-    def truncated_array(self, _):
+    def truncated_array(self, _ = None, __ = None):
         return self.array
 
     @property
