@@ -116,8 +116,7 @@ Check Lemma B7 from 2306.02114
 
 from typing import Union
 import numpy as np
-from discopy import monoidal
-from optyx.optyx import Diagram, Mode, Swap, mode, Scalar
+from optyx.optyx import Diagram, Mode, Swap, Scalar
 from optyx.utils import occupation_numbers, multinomial, get_index_from_list
 from optyx.qpath import Matrix
 from optyx import optyx
@@ -139,75 +138,6 @@ class Box(optyx.Box):
         if isinstance(self.data, Matrix):
             return self.data
         raise NotImplementedError
-
-
-class W(Box):
-    """
-    W node from the infinite ZW calculus - one input and n outputs
-    """
-
-    draw_as_spider = False
-    color = "white"
-
-    def __init__(self, n_legs: int, is_dagger: bool = False):
-        dom = Mode(n_legs) if is_dagger else Mode(1)
-        cod = Mode(1) if is_dagger else Mode(n_legs)
-        super().__init__("W", dom, cod)
-        self.n_legs = n_legs
-        self.is_dagger = is_dagger
-        self.shape = "triangle_up" if not is_dagger else "triangle_down"
-
-    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
-        """Create a truncated array like in 2306.02114."""
-        if output_dims is None:
-            output_dims = self.determine_dimensions(input_dims)
-
-        max_dim = output_dims[0] if self.is_dagger else input_dims[0]
-        shape = (np.prod(input_dims), output_dims[0]) if self.is_dagger else (np.prod(output_dims), input_dims[0])
-        total_map = np.zeros(shape, dtype=complex)
-
-        for n in range(max_dim):
-            allowed_configs = occupation_numbers(n, self.n_legs)
-            if self.is_dagger:
-                allowed_configs = filter_occupation_numbers(allowed_configs, np.array(input_dims) - 1)
-
-            for config in allowed_configs:
-                coef = np.sqrt(multinomial(config))                 
-
-                if self.is_dagger:
-                    row_idx = sum(s * np.prod(input_dims[i + 1:], dtype=int) for i, s in enumerate(config))
-                else:
-                    row_idx = sum(s * np.prod(output_dims[i + 1:], dtype=int) for i, s in enumerate(config))
-                
-                total_map[row_idx, n] += coef
-
-        return total_map if self.is_dagger else total_map.conj().T
-
-    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
-        """Determine the output dimensions based on the input dimensions."""
-        if self.is_dagger:
-            dims_out = np.sum(np.array(input_dims) - 1) + 1
-            return [dims_out]
-        return [input_dims[0] for _ in range(len(self.cod))]
-
-    
-    def to_path(self, dtype=complex) -> Matrix:
-        array = np.ones(self.n_legs)
-        if self.is_dagger:
-            return Matrix[dtype](array, self.n_legs, 1)
-        return Matrix[dtype](array, 1, self.n_legs)
-    
-    def dagger(self) -> Diagram:
-        return W(self.n_legs, not self.is_dagger)
-
-    def __repr__(self):
-        attr = ", dagger=True" if self.is_dagger else ""
-        return f"W({self.n_legs}{attr})"
-
-    def __eq__(self, other: "W") -> bool:
-        if not isinstance(other, W):
-            return False
-        return (self.n_legs, self.is_dagger) == (other.n_legs, other.is_dagger)
 
 
 class IndexableAmplitudes:
@@ -245,6 +175,74 @@ class IndexableAmplitudes:
         return self.func.__code__.co_code == other.func.__code__.co_code
 
 
+class W(Box):
+    """
+    W node from the infinite ZW calculus - one input and n outputs
+    """
+
+    draw_as_spider = False
+    color = "white"
+
+    def __init__(self, n_legs: int, is_dagger: bool = False):
+        dom = Mode(n_legs) if is_dagger else Mode(1)
+        cod = Mode(1) if is_dagger else Mode(n_legs)
+        super().__init__("W", dom, cod)
+        self.n_legs = n_legs
+        self.is_dagger = is_dagger
+        self.shape = "triangle_up" if not is_dagger else "triangle_down"
+
+    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
+        """Create a truncated array like in 2306.02114."""
+        if output_dims is None:
+            output_dims = self.determine_output_dimensions(input_dims)
+
+        max_dim = output_dims[0] if self.is_dagger else input_dims[0]
+        shape = (np.prod(input_dims), output_dims[0]) if self.is_dagger else (np.prod(output_dims), input_dims[0])
+        result_matrix = np.zeros(shape, dtype=complex)
+
+        for n in range(max_dim):
+            allowed_configs = occupation_numbers(n, self.n_legs)
+            if self.is_dagger:
+                allowed_configs = filter_occupation_numbers(allowed_configs, np.array(input_dims) - 1)
+
+            for config in allowed_configs:
+                coef = np.sqrt(multinomial(config))                 
+
+                if self.is_dagger:
+                    row_idx = sum(s * np.prod(input_dims[i + 1:], dtype=int) for i, s in enumerate(config))
+                else:
+                    row_idx = sum(s * np.prod(output_dims[i + 1:], dtype=int) for i, s in enumerate(config))
+                
+                result_matrix[row_idx, n] += coef
+
+        return result_matrix if self.is_dagger else result_matrix.conj().T
+
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions."""
+        if self.is_dagger:
+            dims_out = np.sum(np.array(input_dims) - 1) + 1
+            return [dims_out]
+        return [input_dims[0] for _ in range(len(self.cod))]
+    
+    def to_path(self, dtype=complex) -> Matrix:
+        array = np.ones(self.n_legs)
+        if self.is_dagger:
+            return Matrix[dtype](array, self.n_legs, 1)
+        return Matrix[dtype](array, 1, self.n_legs)
+    
+    def dagger(self) -> Diagram:
+        return W(self.n_legs, not self.is_dagger)
+
+    def __repr__(self):
+        attr = ", dagger=True" if self.is_dagger else ""
+        return f"W({self.n_legs}{attr})"
+
+    def __eq__(self, other: "W") -> bool:
+        if not isinstance(other, W):
+            return False
+        return (self.n_legs, self.is_dagger) == (other.n_legs, other.is_dagger)
+
+
 class Z(Box):
     """
     Z spider from the ZW calculus.
@@ -262,22 +260,15 @@ class Z(Box):
         else:
             self.amplitudes = amplitudes
         super().__init__(f"Z{self.amplitudes}", Mode(legs_in), Mode(legs_out))
-        self.name = self.__repr__()
         self.legs_in = legs_in
         self.legs_out = legs_out
-        self.drawing_name = self.__repr__()
         self.shape = "rectangle"
         self.color = "green"
 
     def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
         if output_dims is None:
-            output_dims = self.determine_dimensions(input_dims)
-
-        if len(input_dims) == 0:
-            max_dimension = 2
-        else:
-            max_dimension = min(input_dims)
+            output_dims = self.determine_output_dimensions(input_dims)
 
         result_matrix = np.zeros(
             (
@@ -287,10 +278,16 @@ class Z(Box):
             dtype=complex,
         )
 
-        if self.legs_in == 0 and self.legs_out == 0:
-            if not isinstance(self.amplitudes, IndexableAmplitudes):
-                return np.array([self.amplitudes], dtype=complex)
-            return np.array([self.amplitudes[0]], dtype=complex)
+        if self.legs_in == 0:
+            max_dimension = 2
+
+            # a scalar  
+            if self.legs_out == 0:
+                if not isinstance(self.amplitudes, IndexableAmplitudes):
+                    return np.array([self.amplitudes], dtype=complex)
+                return np.array([self.amplitudes[0]], dtype=complex)
+        else: 
+            max_dimension = min(input_dims)
 
         for i in range(max_dimension):
             row_index = 0
@@ -314,7 +311,7 @@ class Z(Box):
 
         return result_matrix
 
-    def determine_dimensions(self, input_dims: list[int]) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         if self.legs_in == 0:
             return [2 for _ in range(len(self.cod))]
@@ -375,7 +372,7 @@ class Create(Box):
     def truncated_array(self, _ = None, output_dims: list[int] = None) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
         if output_dims is None:
-            output_dims = self.determine_dimensions()
+            output_dims = self.determine_output_dimensions()
         index = 0
         factor = 1
         for max_dim, occ_num in zip(reversed(output_dims), reversed(self.photons)):
@@ -387,9 +384,11 @@ class Create(Box):
         result_matrix[index, 0] = 1
         return result_matrix
 
-    def determine_dimensions(self, _: list[int] = None) -> list[int]:
+    def determine_output_dimensions(self, _ = None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
-        return [self.photons[i] + 1 if self.photons[i] != 0 else 2 for i in range(len(self.cod))]
+        # for this class we don't need the input dimensions
+        return [self.photons[i] + 1 if self.photons[i] != 0 
+                else 2 for i in range(len(self.cod))]
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
@@ -443,7 +442,7 @@ class Select(Box):
             return result_matrix
         
 
-    def determine_dimensions(self, _: list[int]) -> list[int]:
+    def determine_output_dimensions(self, _ = None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         return []
 
@@ -506,6 +505,9 @@ class Endo(Box):
     
     def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
         return Z(lambda x: self.scalar**x, 1, 1).truncated_array(input_dims, output_dims)
+    
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+        return input_dims
 
 def tn_output_2_perceval_output(
     tn_output: list | np.ndarray, diagram: Diagram, n_extra_photons: int = 0
@@ -536,18 +538,16 @@ def tn_output_2_perceval_output(
 
 def calculate_num_creations_selections(diagram: Diagram) -> tuple:
     """Calculate the number of creations and selections in the diagram"""
-    terms = list(diagram)
 
     n_selections = 0
     n_creations = 0
 
-    if isinstance(terms[0], monoidal.Layer):
+    if not isinstance(diagram, optyx.Sum):
         for box, _ in zip(diagram.boxes, diagram.offsets):
             if isinstance(box, Create):
                 n_creations += sum(box.photons)
             elif isinstance(box, Select):
                 n_selections += sum(box.photons)
-
     else:
         arr_selections_creations = []
         for term in diagram:
