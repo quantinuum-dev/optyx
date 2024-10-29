@@ -157,10 +157,13 @@ class W(Box):
         self.is_dagger = is_dagger
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
 
-    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
+    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
         """Create a truncated array like in 2306.02114."""
-        max_dim = np.sum(np.array(input_dims) - 1) + 1 if self.is_dagger else input_dims[0]
-        shape = (np.prod(input_dims), max_dim) if self.is_dagger else (max_dim ** self.n_legs, max_dim)
+        if output_dims is None:
+            output_dims = self.determine_dimensions(input_dims)
+
+        max_dim = output_dims[0] if self.is_dagger else input_dims[0]
+        shape = (np.prod(input_dims), output_dims[0]) if self.is_dagger else (np.prod(output_dims), input_dims[0])
         total_map = np.zeros(shape, dtype=complex)
 
         for n in range(max_dim):
@@ -169,12 +172,12 @@ class W(Box):
                 allowed_configs = filter_occupation_numbers(allowed_configs, np.array(input_dims) - 1)
 
             for config in allowed_configs:
-                coef = np.sqrt(multinomial(config))
+                coef = np.sqrt(multinomial(config))                 
 
                 if self.is_dagger:
                     row_idx = sum(s * np.prod(input_dims[i + 1:], dtype=int) for i, s in enumerate(config))
                 else:
-                    row_idx = sum(s * (max_dim ** (self.n_legs - i - 1)) for i, s in enumerate(config))
+                    row_idx = sum(s * np.prod(output_dims[i + 1:], dtype=int) for i, s in enumerate(config))
                 
                 total_map[row_idx, n] += coef
 
@@ -184,7 +187,7 @@ class W(Box):
         """Determine the output dimensions based on the input dimensions."""
         if self.is_dagger:
             dims_out = np.sum(np.array(input_dims) - 1) + 1
-            return [dims_out for _ in range(len(self.cod))]
+            return [dims_out]
         return [input_dims[0] for _ in range(len(self.cod))]
 
     
@@ -266,8 +269,11 @@ class Z(Box):
         self.shape = "rectangle"
         self.color = "green"
 
-    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
+    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
+        if output_dims is None:
+            output_dims = self.determine_dimensions(input_dims)
+
         if len(input_dims) == 0:
             max_dimension = 2
         else:
@@ -275,7 +281,7 @@ class Z(Box):
 
         result_matrix = np.zeros(
             (
-                int(max_dimension**self.legs_out),
+                int(np.prod(np.array(output_dims))),
                 int(np.prod(np.array(input_dims))),
             ),
             dtype=complex,
@@ -291,7 +297,9 @@ class Z(Box):
             col_index = 0
 
             for j in range(self.legs_out):
-                row_index += i * max_dimension ** (self.legs_out - j - 1)
+                row_index += i * (
+                    np.prod(np.array(output_dims[j + 1:]), dtype=int)
+                )
             for j in range(self.legs_in):
                 col_index += i * (
                     np.prod(np.array(input_dims[j + 1:]), dtype=int)
@@ -364,18 +372,18 @@ class Create(Box):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def truncated_array(self, _ = None) -> np.ndarray[complex]:
-        """Create an array like in 2306.02114
-        Currently only works for a single mode."""
-        dims_out = self.determine_dimensions()
+    def truncated_array(self, _ = None, output_dims: list[int] = None) -> np.ndarray[complex]:
+        """Create an array like in 2306.02114"""
+        if output_dims is None:
+            output_dims = self.determine_dimensions()
         index = 0
         factor = 1
-        for max_dim, occ_num in zip(reversed(dims_out), reversed(self.photons)):
+        for max_dim, occ_num in zip(reversed(output_dims), reversed(self.photons)):
             index += occ_num * factor
             factor *= max_dim
         
         # Create the composite state vector with a 1 at the calculated index
-        result_matrix = np.zeros((np.prod(dims_out), 1))
+        result_matrix = np.zeros((np.prod(output_dims), 1))
         result_matrix[index, 0] = 1
         return result_matrix
 
@@ -414,13 +422,14 @@ class Select(Box):
             array, len(self.photons), 0, selections=self.photons
         )
 
-    def truncated_array(self, input_dims: list) -> np.ndarray[complex]:
+    def truncated_array(self, input_dims: list, _ = None) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
         result_matrix = np.zeros((1, np.prod(input_dims)), 
                                  dtype=complex)
         index = 0
         factor = 1
-        for max_dim, occ_num in zip(reversed(input_dims), reversed(self.photons)):
+        for max_dim, occ_num in zip(reversed(input_dims), 
+                                    reversed(self.photons)):
             index += occ_num * factor
             factor *= max_dim
 
@@ -495,8 +504,8 @@ class Endo(Box):
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
     
-    def truncated_array(self, input_dims: list[int]) -> np.ndarray[complex]:
-        return Z(lambda x: self.scalar**x, 1, 1).truncated_array(input_dims)
+    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
+        return Z(lambda x: self.scalar**x, 1, 1).truncated_array(input_dims, output_dims)
 
 def tn_output_2_perceval_output(
     tn_output: list | np.ndarray, diagram: Diagram, n_extra_photons: int = 0

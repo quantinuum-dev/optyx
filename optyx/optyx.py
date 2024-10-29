@@ -61,6 +61,14 @@ class Diagram(frobenius.Diagram):
                 box.name, f_ob(dims_in), f_ob(dims_out), arr
             )
 
+        def get_embedding_tensor(input_dim: int, output_dim: int) -> np.ndarray:
+            """Returns the embedding tensor for the given input and output dimensions."""
+            embedding_array = np.zeros((output_dim, input_dim), dtype=complex)
+            embedding_array[:input_dim, :input_dim] = np.eye(input_dim)
+            embedding_tensor = tensor.Box("Embedding", Dim(input_dim), Dim(output_dim), embedding_array.T)
+            return embedding_tensor
+
+
         if input_dims is None:
             layer_dims = [2 for _ in range(len(self.dom))]
         else:
@@ -78,7 +86,7 @@ class Diagram(frobenius.Diagram):
                 )
                 
                 return diagram
-
+    
             for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
                 dims_in = layer_dims[off: off + len(box.dom)]
 
@@ -113,83 +121,35 @@ class Diagram(frobenius.Diagram):
                 layer_dims = cod_layer_dims
             return diagram
         
+        # if the diagram is a sum,
+        # need to find the common dimensions for the cod for all the terms
+        # can do it by finding the max dims for each idx and set it for all the terms
+        # - then we can apply the new dims to all the last boxes on each wire
+        # for all the terms
         else:
             # find the common dimensions for all the terms
             terms = [t.to_tensor(input_dims) for t in self]
             cods = [list(t.cod.inside) for t in terms]
 
-            #figure out the max dims for each idx and set it for all the terms
+            # figure out the max dims for each idx and set it for all the terms
             max_dims = [max([c[i] if len(c) > 0 else 0 for c in cods]) for i in range(len(cods[0]))]
 
+            # modify the diagrams for all the terms
+            # add an embedding layer for each wire to fix the cods
             for i in range(len(terms)):
+                embedding_layer = tensor.Id(1)
+                for wire, d in enumerate(terms[i].cod):
+                    embedding_layer = embedding_layer @ get_embedding_tensor(d.inside[0], max_dims[wire])
+                terms[i] = terms[i] >> embedding_layer
                 terms[i].cod = Dim(*max_dims)
-                boxes_dims_offsets = self._find_boxes_to_modify_for_sums(terms[i], max_dims.copy())
-                terms[i] = self._modify_boxes_for_sums(terms[i], boxes_dims_offsets)
 
+            # assemble the diagram
             for i, term in enumerate(terms):
                 if i == 0:
                     diagram = term
                 else:
                     diagram += term   
             return diagram
-
-    def _find_boxes_to_modify_for_sums(self, term, max_dims):
-        boxes_dims_offsets = []
-        len_max_dims = len(max_dims)
-        #get the boxes which need to be modified together 
-        #with all the position "parameters"
-        for j, (box, off) in enumerate(zip(term.boxes[::-1], term.offsets[::-1])):   
-            # if the box is a postselection - no output wire               
-            if box.cod == Dim(1) and box.dom != Dim(1):
-                for _ in range(len(box.dom)):
-                    max_dims.insert(off, 0)
-                continue
-
-            #for all other wires
-            else:
-                boxes_dims_offsets.append((box, 
-                                           max_dims[off:off + len(box.cod)], 
-                                           off, 
-                                           len(term.boxes) - j - 1))
-
-                if len(box.cod) > len(box.dom):                            
-                    # replace the max_dims[off:off + len(box.cod)] with [0]*len(box.cod)
-                    max_dims[off:off + len(box.cod)] = [0]*len(box.cod)
-                elif len(box.cod) < len(box.dom):
-                    # insert 0s in the max_dims[off:off + len(box.cod)]
-                    for _ in range(len(box.dom) - len(box.cod)):
-                        max_dims.insert(off, 0)
-                else:
-                    pass
-
-            if len(boxes_dims_offsets) == len_max_dims:
-                break
-        
-        return boxes_dims_offsets
-
-
-    def _modify_boxes_for_sums(self, term, boxes_dims_offsets):
-        inside = list(term.inside)
-
-        # modify the diagrams for all the terms
-        for box, dims, off, idx in boxes_dims_offsets:
-            old_layer = term.inside[idx]
-            #get new arrays for all the terms
-            arr = np.reshape(box.array, (int(np.prod(box.cod.inside)), 
-                                         int(np.prod(box.dom.inside)))) 
-            # embed old array in new array
-            new_array = np.zeros((int(np.prod(dims)), int(arr.shape[1])))
-            new_array[:arr.shape[0], :arr.shape[1]] = arr
-
-            new_box = tensor.Box(
-                box.name, box.dom, Dim(*[int(i) for i in dims]), new_array
-            )
-            new_layer = Layer(old_layer[0], new_box, old_layer[2])
-            inside[idx] = new_layer
-
-        term.inside = tuple(inside)   
-        
-        return term
 
     def grad(self, var, **params) -> Diagram.Sum:
         """
@@ -590,3 +550,11 @@ Diagram.swap_factory = Swap
 Diagram.swap = Swap
 Diagram.sum_factory = Sum
 Id = Diagram.id
+
+
+
+
+
+
+
+
