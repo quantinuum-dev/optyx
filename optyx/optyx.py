@@ -392,7 +392,7 @@ class Diagram(frobenius.Diagram):
             if graph.type(node) not in {VertexType.Z, VertexType.X}:
                 raise NotImplementedError  # pragma: no cover
             return (
-                zx.Z if graph.type(node) == VertexType.Z else zx.X
+                zx.Z if graph.type(node) is VertexType.Z else zx.X
             )(  # noqa: E721
                 n_legs_in, n_legs_out, graph.phase(node) * 0.5
             )
