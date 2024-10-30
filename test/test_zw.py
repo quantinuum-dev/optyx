@@ -1,32 +1,33 @@
 import math
 
 from optyx.zw import *
+from optyx.optyx import mode, Permutation
 import itertools
 import pytest
 
 
 @pytest.mark.skip(reason="Helper function for testing")
 def test_arrays_of_different_sizes(array_1, array_2):
-    if not isinstance(array_1, np.ndarray):
-        array_1 = np.array([array_1])
-    if not isinstance(array_2, np.ndarray):
-        array_2 = np.array([array_2])
-    if len(array_1.flatten()) < len(array_2.flatten()):
-        ax_0 = array_1.shape[0]
-        if len(array_1.shape) == 1:
-            array_2 = array_2[:ax_0]
-        else:
-            ax_1 = array_1.shape[1]
-            array_2 = array_2[:ax_0, :ax_1]
-    elif len(array_1.flatten()) > len(array_2.flatten()):
-        ax_0 = array_2.shape[0]
-        if len(array_2.shape) == 1:
-            array_1 = array_1[:ax_0]
-        else:
-            ax_1 = array_2.shape[1]
-            array_1 = array_1[:ax_0, :ax_1]
-    else:
-        pass
+    # if not isinstance(array_1, np.ndarray):
+    #     array_1 = np.array([array_1])
+    # if not isinstance(array_2, np.ndarray):
+    #     array_2 = np.array([array_2])
+    # if len(array_1.flatten()) < len(array_2.flatten()):
+    #     ax_0 = array_1.shape[0]
+    #     if len(array_1.shape) == 1:
+    #         array_2 = array_2[:ax_0]
+    #     else:
+    #         ax_1 = array_1.shape[1]
+    #         array_2 = array_2[:ax_0, :ax_1]
+    # elif len(array_1.flatten()) > len(array_2.flatten()):
+    #     ax_0 = array_2.shape[0]
+    #     if len(array_2.shape) == 1:
+    #         array_1 = array_1[:ax_0]
+    #     else:
+    #         ax_1 = array_2.shape[1]
+    #         array_1 = array_1[:ax_0, :ax_1]
+    # else:
+    #     pass
     return np.allclose(array_1, array_2)
 
 
@@ -115,6 +116,16 @@ def test_bSym():
     )
 
 
+def test_bSym_input_dims():
+    bSym_l = W(2)
+    bSym_r = W(2) >> Swap(mode, mode)
+
+    assert test_arrays_of_different_sizes(
+        bSym_l.to_tensor([5]).eval().array,
+        bSym_r.to_tensor([5]).eval().array,
+    )
+
+
 def test_bAso():
     bAso_l = W(2) >> W(2) @ Id(1)
     bAso_r = W(2) >> Id(1) @ W(2)
@@ -152,6 +163,24 @@ def test_Id_eq(k: int):
 
     assert id_l == id_r
 
+
+def test_permutation_dagger():
+    perm = Permutation(Mode(2), [1, 0])
+
+    assert test_arrays_of_different_sizes(
+        perm.to_tensor().eval().array,
+        perm.dagger().to_tensor().eval().array,
+
+    )
+
+
+def test_permutation_path_dagger():
+    perm = Permutation(Mode(2), [1, 0])
+
+    assert test_arrays_of_different_sizes(
+        perm.to_path().array,
+        perm.dagger().to_path().array,
+    )
 
 @pytest.mark.parametrize("legs", range(1, 4))
 def test_Z_eq_IndexableAmplitudes(legs: int):

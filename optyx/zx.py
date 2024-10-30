@@ -19,7 +19,8 @@ Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
 mode @ W[::-1] @ mode >> mode @ Select(1) @ mode
 >>> assert zx2path(decomp(diagram)) == zx_to_path(diagram)
 
-Evaluating ZX diagrams using PyZX or via the dual rail encoding is equivalent.
+Evaluating ZX diagrams using PyZX or via the dual rail
+encoding is equivalent.
 
 >>> ket = lambda *xs: Id(Bit(0)).tensor(\\
 ...         *[X(0, 1, 0.5 if x == 1 else 0) for x in xs])
@@ -61,19 +62,19 @@ import numpy as np
 from discopy import quantum
 from discopy import symmetric
 from discopy import cat
-from discopy.quantum.gates import (
-    Bra, Ket, Rz, Rx, CX, CZ, Controlled)
+from discopy.quantum.gates import Bra, Ket, Rz, Rx, CX, CZ, Controlled
 from discopy.quantum.circuit import qubit, Circuit
 from discopy.quantum.gates import Scalar as GatesScalar
-from discopy.monoidal import PRO
 from discopy.cat import Category
+from discopy.utils import factory_name
 from optyx import optyx
 from optyx import zw
 from optyx import circuit
 from optyx.optyx import Diagram, Bit, Sum, Swap, bit, Mode, Scalar
-from discopy.utils import factory_name
+
 
 class Box(optyx.Box):
+    """ A box in a ZX diagram. """
     def __init__(self, name, dom, cod, **params):
         if isinstance(dom, int):
             dom = Bit(dom)
@@ -83,7 +84,7 @@ class Box(optyx.Box):
 
 
 class Spider(Box):
-    """ Abstract spider box. """
+    """Abstract spider box."""
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
         super().__init__("Spider", n_legs_in, n_legs_out, data=phase)
@@ -97,27 +98,34 @@ class Spider(Box):
     def __setstate__(self, state):
         if "_name" in state and state["_name"] == type(self).__name__:
             phase = state.get("_data", None)
-            phase_str = f', {phase}' if phase else ''
+            phase_str = f", {phase}" if phase else ""
             state["_name"] = (
-                type(self).__name__ +
-                f"({state['_dom'].n}, {state['_cod'].n}{phase_str})"
+                type(self).__name__
+                + f"({state['_dom'].n}, {state['_cod'].n}{phase_str})"
             )
         super().__setstate__(state)
 
     def __repr__(self):
-        return str(self).replace(type(self).__name__, factory_name(type(self)))
+        return str(self).replace(
+            type(self).__name__, factory_name(type(self))
+        )
 
     def subs(self, *args):
         phase = cat.rsubs(self.phase, *args)
         return type(self)(len(self.dom), len(self.cod), phase=phase)
 
     def grad(self, var, **params):
+        """ Gradient with respect to a variable. """
+
         if var not in self.free_symbols:
             return Sum((), self.dom, self.cod)
         gradient = self.phase.diff(var)
-        gradient = complex(gradient) if not gradient.free_symbols else gradient
-        return Scalar(pi * gradient)\
-            @ type(self)(len(self.dom), len(self.cod), self.phase + .5)
+        gradient = (
+            complex(gradient) if not gradient.free_symbols else gradient
+        )
+        return Scalar(pi * gradient) @ type(self)(
+            len(self.dom), len(self.cod), self.phase + 0.5
+        )
 
     def dagger(self):
         return type(self)(len(self.cod), len(self.dom), -self.phase)
@@ -129,17 +137,18 @@ class Spider(Box):
     @property
     def array(self):
         return None
-    
-    def determine_output_dimensions(self, _ = None):
+
+    def determine_output_dimensions(self, _=None):
         return [2 for _ in range(self.n_legs_out)]
 
 
 class Z(Spider):
-    """ Z spider. """
-    tikzstyle_name = 'Z'
-    color = 'green'
+    """Z spider."""
 
-    def truncated_array(self, _ = None, __ = None):
+    tikzstyle_name = "Z"
+    color = "green"
+
+    def truncated_array(self, _=None, __=None):
         return self.array
 
     @property
@@ -156,39 +165,46 @@ class Z(Spider):
 
         return return_array
 
+
 class X(Spider):
-    """ X spider. """
-    tikzstyle_name = 'X'
+    """X spider."""
+
+    tikzstyle_name = "X"
     color = "red"
 
-    def truncated_array(self, _ = None, __ = None):
+    def truncated_array(self, _=None, __=None):
         return self.array
 
     @property
     def array(self):
 
-        dim_out = 2 ** self.n_legs_out
-        dim_in = 2 ** self.n_legs_in
+        dim_out = 2**self.n_legs_out
+        dim_in = 2**self.n_legs_in
 
-        matrix = np.ones((dim_out, dim_in),
-                         dtype=complex) / (2 ** ((self.n_legs_out +
-                                                  self.n_legs_in) / 2))
+        matrix = np.ones((dim_out, dim_in), dtype=complex) / (
+            2 ** ((self.n_legs_out + self.n_legs_in) / 2)
+        )
 
-        signs_out = (-1) ** np.array([bin(i).count('1')
-                                      for i in range(dim_out)])
-        signs_in = (-1) ** np.array([bin(i).count('1')
-                                     for i in range(dim_in)])
+        signs_out = (-1) ** np.array(
+            [bin(i).count("1") for i in range(dim_out)]
+        )
+        signs_in = (-1) ** np.array(
+            [bin(i).count("1") for i in range(dim_in)]
+        )
 
-        phase_term = (np.exp(1j * self.phase * 2 * np.pi) *
-                      np.outer(signs_out, signs_in) /
-                      (2 ** ((self.n_legs_out + self.n_legs_in) / 2)))
+        phase_term = (
+            np.exp(1j * self.phase * 2 * np.pi)
+            * np.outer(signs_out, signs_in)
+            / (2 ** ((self.n_legs_out + self.n_legs_in) / 2))
+        )
 
         matrix += phase_term
 
         return matrix
-    
+
+
 def scalar(data):
-    """ Returns a scalar. """
+    """Returns a scalar."""
     return Scalar(data)
 
 
@@ -231,10 +247,11 @@ def decomp_ar(box):
         return make_spiders(n).dagger() >> rot >> make_spiders(m)
     return box
 
+
 decomp = symmetric.Functor(
     ob=lambda x: Bit(len(x)),
-    ar=decomp_ar, 
-    cod=symmetric.Category(Bit, Diagram)
+    ar=decomp_ar,
+    cod=symmetric.Category(Bit, Diagram),
 )
 
 unit = zw.Create(0)
@@ -244,7 +261,10 @@ annil = zw.Select(1)
 comonoid = zw.Split(2)
 monoid = zw.Merge(2)
 BS = zw.BS
-Id = lambda n: Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Bit(n))
+
+
+def Id(n):
+    return Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Bit(n))
 
 
 def ar_zx2path(box):
@@ -258,7 +278,6 @@ def ar_zx2path(box):
         return zw.Scalar(box.data)
     if isinstance(box, X):
         phase = 1 + box.phase if box.phase < 0 else box.phase
-        root2 = zw.Scalar(2**0.5)
         if (n, m, phase) == (0, 1, 0):
             return create @ unit @ root2
         if (n, m, phase) == (0, 1, 0.5):
@@ -281,9 +300,13 @@ def ar_zx2path(box):
             return Id(Mode(1)) @ (monoid >> annil) @ Id(Mode(1))
         if (n, m, phase) == (1, 2, 0):
             plus = create >> comonoid
-            bot = (plus >> Id(Mode(1)) @ plus @ Id(Mode(1))) @ (Id(Mode(1)) @ plus @ Id(Mode(1)))
+            bot = (plus >> Id(Mode(1)) @ plus @ Id(Mode(1))) @ (
+                Id(Mode(1)) @ plus @ Id(Mode(1))
+            )
             mid = Id(Mode(2)) @ BS.dagger() @ BS @ Id(Mode(2))
-            fusion = Id(Mode(1)) @ plus.dagger() @ Id(Mode(1)) >> plus.dagger()
+            fusion = (
+                Id(Mode(1)) @ plus.dagger() @ Id(Mode(1)) >> plus.dagger()
+            )
             return bot >> mid >> (Id(Mode(2)) @ fusion @ Id(Mode(2)))
     if box == H:
         hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
@@ -295,7 +318,7 @@ def ar_zx2path(box):
 zx2path = symmetric.Functor(
     ob=lambda x: Mode(2 * len(x)),
     ar=ar_zx2path,
-    #dom=symmetric.Category(Bit, Diagram),
+    # dom=symmetric.Category(Bit, Diagram),
     cod=symmetric.Category(Mode, Diagram),
 )
 
@@ -306,26 +329,34 @@ def zx_to_path(diagram: Diagram) -> optyx.Diagram:
     """
     return zx2path(decomp(diagram))
 
-root2 = scalar(2 ** 0.5)
+
+root2 = scalar(2**0.5)
 
 
 def gate2zx(box):
-    """ Turns gates into ZX diagrams. """
+    """Turns gates into ZX diagrams."""
     if isinstance(box, (Bra, Ket)):
         dom, cod = (1, 0) if isinstance(box, Bra) else (0, 1)
-        spiders = [X(dom, cod, phase=.5 * bit) for bit in box.bitstring]
-        return Id(Bit(0)).tensor(*spiders) @ scalar(pow(2, -len(box.bitstring) / 2))
+        spiders = [X(dom, cod, phase=0.5 * bit) for bit in box.bitstring]
+        return Id(Bit(0)).tensor(*spiders) @ scalar(
+            pow(2, -len(box.bitstring) / 2)
+        )
     if isinstance(box, (Rz, Rx)):
         return (Z if isinstance(box, Rz) else X)(1, 1, box.phase)
-    if isinstance(box, Controlled) and box.name.startswith('CRz'):
-        return Z(1, 2) @ Z(1, 2, box.phase / 2)\
+    if isinstance(box, Controlled) and box.name.startswith("CRz"):
+        return (
+            Z(1, 2) @ Z(1, 2, box.phase / 2)
             >> Id(1) @ (X(2, 1) >> Z(1, 0, -box.phase / 2)) @ Id(1) @ root2
-    if isinstance(box, Controlled) and box.name.startswith('CRx'):
-        return X(1, 2) @ X(1, 2, box.phase / 2)\
+        )
+    if isinstance(box, Controlled) and box.name.startswith("CRx"):
+        return (
+            X(1, 2) @ X(1, 2, box.phase / 2)
             >> Id(1) @ (Z(2, 1) >> X(1, 0, -box.phase / 2)) @ Id(1) @ root2
+        )
     if isinstance(box, quantum.CU1):
-        return Z(1, 2, box.phase) @ Z(1, 2, box.phase)\
-            >> Id(1) @ (X(2, 1) >> Z(1, 0, -box.phase)) @ Id(1)
+        return Z(1, 2, box.phase) @ Z(1, 2, box.phase) >> Id(1) @ (
+            X(2, 1) >> Z(1, 0, -box.phase)
+        ) @ Id(1)
     if isinstance(box, GatesScalar):
         if box.is_mixed:
             raise NotImplementedError
@@ -334,26 +365,41 @@ def gate2zx(box):
         return circuit2zx(box._decompose())
     standard_gates = {
         quantum.H: H,
-        quantum.Z: Z(1, 1, .5),
-        quantum.X: X(1, 1, .5),
-        quantum.Y: Z(1, 1, .5) >> X(1, 1, .5) @ scalar(1j),
-        quantum.S: Z(1, 1, .25),
-        quantum.T: Z(1, 1, .125),
-        CZ: Z(1, 2) @ Id(1) >> Id(1) @ H @ Id(1) >> Id(1) @ Z(2, 1) @ root2,
-        CX: Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1) @ root2}
+        quantum.Z: Z(1, 1, 0.5),
+        quantum.X: X(1, 1, 0.5),
+        quantum.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ scalar(1j),
+        quantum.S: Z(1, 1, 0.25),
+        quantum.T: Z(1, 1, 0.125),
+        CZ: Z(1, 2) @ Id(1)
+        >> Id(1) @ H @ Id(1)
+        >> Id(1) @ Z(2, 1) @ root2,
+        CX: Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1) @ root2,
+    }
     return standard_gates[box]
 
-circuit2zx = quantum.circuit.Functor(
-    ob={qubit: PRO(1)}, ar=gate2zx,
-    dom=Category(quantum.circuit.Ty, Circuit), cod=Category(Bit, Diagram))
 
-H = Box('H', 1, 1)
+circuit2zx = quantum.circuit.Functor(
+    ob={qubit: Bit(1)},
+    ar=gate2zx,
+    dom=Category(quantum.circuit.Ty, Circuit),
+    cod=Category(Bit, Diagram),
+)
+
+H = Box("H", 1, 1)
 H.dagger = lambda: H
 H.draw_as_spider = True
-H.drawing_name, H.tikzstyle_name, = '', 'H'
+(
+    H.drawing_name,
+    H.tikzstyle_name,
+) = (
+    "",
+    "H",
+)
 H.color, H.shape = "yellow", "rectangle"
 
 SWAP = Swap(bit, bit)
-SWAP.array = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+SWAP.array = np.array(
+    [[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]
+)
 SWAP.truncated_array = lambda _: SWAP.array
 Diagram.braid_factory, Diagram.sum_factory = Swap, Sum

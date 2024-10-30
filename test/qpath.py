@@ -15,7 +15,7 @@ def test_num_op():
     ) == Split(2).to_path().eval(3)
 
 def test_dilate():
-    matrices = [Matrix(np.random.random((n + 2, m + 1)), dom = n, cod = m, 
+    matrices = [Matrix(np.random.random((n + 2, m + 1)), dom = n, cod = m,
                        creations = (1, 1, ), selections = (2,),)
                 for n in range(1, 5) for m in range(1, 5)]
     for matrix in matrices:
