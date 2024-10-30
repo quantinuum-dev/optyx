@@ -34,14 +34,17 @@ We can differentiate the expectation values of optical circuits.
 ...     expectation.subs((psi, 1/4)).to_path().eval().array, np.array([1.]))
 >>> exp = expectation.grad(psi).subs((psi, 1/2))
 >>> assert np.allclose(
-...     sum([exp.terms[i].to_path().eval().array[0] for i in range(len(exp.terms))]), 0.)
+...     sum([exp.terms[i].to_path().eval().array[0] \\
+...      for i in range(len(exp.terms))]), 0.)
 >>> exp = expectation.grad(psi).subs((psi, 1/4))
 >>> assert np.allclose(
-...     sum([exp.terms[i].to_path().eval().array[0] for i in range(len(exp.terms))]),
+...     sum([exp.terms[i].to_path().eval().array[0] \\
+...      for i in range(len(exp.terms))]),
 ...     -2*np.pi)
 >>> exp = expectation.grad(psi).grad(psi).subs((psi, 1/4))
 >>> assert np.allclose(
-...     sum([exp.terms[i].to_path().eval().array[0] for i in range(len(exp.terms))]),
+...     sum([exp.terms[i].to_path().eval().array[0] \\
+...      for i in range(len(exp.terms))]),
 ...     np.array([0.]))
 
 We can also obtain ZW diagrams from the circuit.
@@ -81,10 +84,13 @@ class Gate(Box):
     >>> hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
     >>> HBS = Gate(hbs_array, 2, 2, "HBS")
     >>> assert np.allclose(
-    ...     (HBS.dagger() >> HBS).to_path().eval(2).array, Id(2).to_path().eval(2).array)
+    ...     (HBS.dagger() >> HBS).to_path().eval(2).array,
+    ...                 Id(2).to_path().eval(2).array)
     """
 
-    def __init__(self, array, dom: int, cod: int, name: str, is_dagger=False):
+    def __init__(
+        self, array, dom: int, cod: int, name: str, is_dagger=False
+    ):
         self.array = array
         super().__init__(
             f"{name}" + ".dagger()" if is_dagger else "",
@@ -119,7 +125,8 @@ class Phase(Box):
     >>> Phase(1/2).to_path().eval(1).array.round(3)
     array([[-1.+0.j]])
     >>> from sympy.abc import psi
-    >>> derivative = Phase(psi).grad(psi).subs((psi, 0.5)).to_path().eval(2).array
+    >>> derivative = Phase(psi).grad(psi).subs((psi,
+    ...                     0.5)).to_path().eval(2).array
     >>> assert np.allclose(derivative, 4 * np.pi * 1j)
     """
 
@@ -179,18 +186,23 @@ class BBS(Box):
     We can check the Hong-Ou-Mandel effect:
 
     >>> diagram = Create(1, 1) >> BS
-    >>> assert np.isclose((diagram >> Select(0, 2)).to_path().prob().array, 0.5)
-    >>> assert np.isclose((diagram >> Select(2, 0)).to_path().prob().array, 0.5)
-    >>> assert np.isclose((diagram >> Select(1, 1)).to_path().prob().array, 0)
+    >>> assert np.isclose((diagram >> Select(0, 2)).to_path().prob().array,
+    ...                                                                0.5)
+    >>> assert np.isclose((diagram >> Select(2, 0)).to_path().prob().array,
+    ...                                                                0.5)
+    >>> assert np.isclose((diagram >> Select(1, 1)).to_path().prob().array,
+    ...                                                                  0)
 
     Check the dagger:
 
     >>> y = BBS(0.4)
     >>> assert np.allclose((
-    ...     y >> y.dagger()).to_path().eval(2).array, Id(2).to_path().eval(2).array)
-    >>> comp = (y @ y >> Id(1) @ y @ Id(1)) >> (y @ y >> Id(1) @ y @ Id(1)
-    ...   ).dagger()
-    >>> assert np.allclose(comp.to_path().eval(2).array, Id(4).to_path().eval(2).array)
+    ...     y >> y.dagger()).to_path().eval(2).array,
+    ...             Id(2).to_path().eval(2).array)
+    >>> comp = (y @ y >> Id(1) @ y @ Id(1)) >> \\
+    ...             (y @ y >> Id(1) @ y @ Id(1)).dagger()
+    >>> assert np.allclose(comp.to_path().eval(2).array,
+    ...                     Id(4).to_path().eval(2).array)
 
     We can convert the beam splitter to a ZW diagram:
 
@@ -222,12 +234,15 @@ class BBS(Box):
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
         zb_i = Z(
-            lambda i: (backend.sin((0.25 + self.bias) * backend.pi) * 1j) ** i,
+            lambda i: (backend.sin((0.25 + self.bias) * backend.pi) * 1j)
+            ** i,
             1,
             1,
         )
         zb_1 = Z(
-            lambda i: (backend.cos((0.25 + self.bias) * backend.pi)) ** i, 1, 1
+            lambda i: (backend.cos((0.25 + self.bias) * backend.pi)) ** i,
+            1,
+            1,
         )
 
         beam_splitter = (
@@ -291,7 +306,9 @@ class TBS(Box):
     def __init__(self, theta, is_dagger=False):
         self.theta = theta
         name = f"TBS({theta})"
-        super().__init__(name, Mode(2), Mode(2), is_dagger=is_dagger, data=theta)
+        super().__init__(
+            name, Mode(2), Mode(2), is_dagger=is_dagger, data=theta
+        )
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -313,8 +330,12 @@ class TBS(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        sin = Z(lambda i: (backend.sin(self.theta * backend.pi)) ** i, 1, 1)
-        cos = Z(lambda i: (backend.cos(self.theta * backend.pi)) ** i, 1, 1)
+        sin = Z(
+            lambda i: (backend.sin(self.theta * backend.pi)) ** i, 1, 1
+        )
+        cos = Z(
+            lambda i: (backend.cos(self.theta * backend.pi)) ** i, 1, 1
+        )
         minus_sin = Z(
             lambda i: (-backend.sin(self.theta * backend.pi)) ** i, 1, 1
         )
@@ -400,7 +421,9 @@ class MZI(Box):
     def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
         data = {theta, phi}
-        super().__init__("MZI", Mode(2), Mode(2), is_dagger=is_dagger, data=data)
+        super().__init__(
+            "MZI", Mode(2), Mode(2), is_dagger=is_dagger, data=data
+        )
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -450,7 +473,8 @@ class MZI(Box):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         return self._decomp().grad(var)
-    
+
+
 num_op = Split(2) >> Id(1) @ (Select() >> Create()) >> Merge(2)
 
 

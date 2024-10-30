@@ -1,4 +1,5 @@
 from optyx.zw import *
+from optyx.optyx import mode
 import pytest
 
 @pytest.mark.skip(reason="Helper function for testing")
@@ -31,7 +32,7 @@ def kron_truncated_array_W(diagram, input_dims: list[int]) -> np.ndarray[complex
         total_map = np.zeros(
             ((max_occupation_num) ** diagram.n_legs, max_occupation_num),
             dtype=complex,
-        )   
+        )
 
         for n in range(max_occupation_num):
 
@@ -47,14 +48,14 @@ def kron_truncated_array_W(diagram, input_dims: list[int]) -> np.ndarray[complex
                 for i, d in enumerate(configuration):
                     vec = np.kron(vec, np.eye(max_occupation_num)[d])
                 total_map += coef * np.outer(vec, np.eye(max_occupation_num)[n])
-            
+
         return total_map.T
     else:
         max_occupation_num = np.sum(np.array(input_dims) - 1) + 1
 
         total_map = np.zeros(
             (np.prod(np.array(input_dims)), max_occupation_num),
-            dtype=complex,    
+            dtype=complex,
         )
 
         for n in range(max_occupation_num):
@@ -77,11 +78,11 @@ def kron_truncated_array_W(diagram, input_dims: list[int]) -> np.ndarray[complex
                 vec = 1
                 for i, d in enumerate(configuration):
                     vec = np.kron(vec, np.eye(input_dims[i])[d])
-                        
+
                 total_map += coef * np.outer(vec, np.eye(max_occupation_num)[n])
 
         return total_map
-    
+
 test_pairs = [[i] for i in range(1, 10, 2)]
 test_pairs += [[i, j] for i in range(1, 10, 2) for j in range(1, 10, 2)]
 test_pairs += [[i, j, k] for i in range(1, 10, 2) for j in range(1, 10, 2) for k in range(1, 10, 2)]
@@ -105,7 +106,7 @@ def kron_truncated_array_Z(diagram, input_dims: list[int]) -> np.ndarray[complex
     if diagram.legs_in == 0 and diagram.legs_out == 0:
         if not isinstance(diagram.amplitudes, IndexableAmplitudes):
             return np.array([diagram.amplitudes], dtype=complex)
-        return np.array([diagram.amplitudes[0]], dtype=complex)  
+        return np.array([diagram.amplitudes[0]], dtype=complex)
 
     for i in range(max_occupation_num):
         vec_in = 1
@@ -130,5 +131,5 @@ test_pairs += [[i, j, k] for i in range(0, 10, 2) for j in range(0, 10, 2) for k
 
 @pytest.mark.parametrize("comb", test_pairs)
 def test_Z(comb):
-    assert np.allclose(kron_truncated_array_Z(Z(lambda i : np.sqrt(i), len(comb), 3), comb), 
+    assert np.allclose(kron_truncated_array_Z(Z(lambda i : np.sqrt(i), len(comb), 3), comb),
                        Z(lambda i : np.sqrt(i), len(comb), 3).truncated_array(comb))

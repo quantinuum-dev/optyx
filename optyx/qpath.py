@@ -11,7 +11,7 @@ of matrices with creations and post-selections.
     Matrix
     Amplitudes
     Probabilities
-    
+
 
 .. admonition:: Functions
 
@@ -45,9 +45,11 @@ We can construct a Bell state in dual rail encoding:
 ...     >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose(
-...     (bell >> H @ H).to_path().eval().array, (bell >> V @ V).to_path().eval().array)
+...     (bell >> H @ H).to_path().eval().array,
+...     (bell >> V @ V).to_path().eval().array)
 >>> assert np.allclose(
-...     (bell >> V @ H).to_path().eval().array, (bell >> H @ V).to_path().eval().array)
+...     (bell >> V @ H).to_path().eval().array,
+...     (bell >> H @ V).to_path().eval().array)
 
 We can define the number operator and compute its expectation.
 
@@ -63,13 +65,11 @@ from math import factorial
 import numpy as np
 import perceval as pcvl
 
-from discopy import symmetric, tensor, frobenius
-from discopy.cat import factory, assert_iscomposable
+from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
 from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
-from optyx import optyx
-from optyx.utils import multinomial
+
 
 def npperm(matrix):
     """
@@ -118,7 +118,8 @@ class Matrix(underlying.Matrix):
     >>> matrix.eval(3)
     Amplitudes([3.+0.j], dom=1, cod=1)
     >>> num_op = Split(2) >> Select() @ Id(1) >> Create() @ Id(1) >> Merge(2)
-    >>> assert np.allclose(num_op.to_path().eval(4).array, matrix.eval(4).array)
+    >>> assert np.allclose(num_op.to_path().eval(4).array,
+    ...                    matrix.eval(4).array)
     """
 
     dtype = complex
@@ -158,7 +159,9 @@ class Matrix(underlying.Matrix):
         Underlying matrix with `len(creations) + dom` inputs and
         `len(selections) + cod` outputs.
         """
-        return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
+        return underlying.Matrix[self.dtype](
+            self.array, self.udom, self.ucod
+        )
 
     @unbiased
     def then(self, other: Matrix) -> Matrix:
@@ -240,7 +243,8 @@ class Matrix(underlying.Matrix):
         Example
         -------
         >>> from optyx.zw import Split, Select, Create, Merge, Id
-        >>> num_op = Split(2) >> Select() @ Id(1) >> Create() @ Id(1) >> Merge(2)
+        >>> num_op = Split(2) >> Select() @ Id(1) \\
+        ...           >> Create() @ Id(1) >> Merge(2)
         >>> U = num_op.to_path().dilate()
         >>> assert np.allclose(
         ...     (U.umatrix >> U.umatrix.dagger()).array, np.eye(4))
@@ -264,18 +268,29 @@ class Matrix(underlying.Matrix):
         creations = self.creations + cod * (0,)
         selections = self.selections + dom * (0,)
         return Matrix(
-            unitary, self.dom, self.cod, creations, selections, normalisation=s
+            unitary,
+            self.dom,
+            self.cod,
+            creations,
+            selections,
+            normalisation=s,
         )
 
     def eval(self, n_photons=0, permanent=npperm) -> Amplitudes:
         """Evaluates the :class:`Amplitudes` of a the QPath matrix"""
         dom_basis = occupation_numbers(n_photons, self.dom)
-        n_photons_out = n_photons - sum(self.selections) + sum(self.creations)
+        n_photons_out = (
+            n_photons - sum(self.selections) + sum(self.creations)
+        )
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
-        result = Amplitudes[self.dtype].zero(len(dom_basis), len(cod_basis))
-        normalisation = self.normalisation ** (n_photons + sum(self.creations))
+        result = Amplitudes[self.dtype].zero(
+            len(dom_basis), len(cod_basis)
+        )
+        normalisation = self.normalisation ** (
+            n_photons + sum(self.creations)
+        )
         for i, open_creations in enumerate(dom_basis):
             for j, open_selections in enumerate(cod_basis):
                 creations = open_creations + self.creations
@@ -300,7 +315,10 @@ class Matrix(underlying.Matrix):
                     np.prod([factorial(n) for n in creations + selections])
                 )
                 result.array[i, j] = (
-                    self.scalar * normalisation * permanent(matrix) / divisor
+                    self.scalar
+                    * normalisation
+                    * permanent(matrix)
+                    / divisor
                 )
         return result
 
@@ -338,12 +356,12 @@ class Matrix(underlying.Matrix):
         >>> optyx_bs = Split(2) @ Split(2) >> Id(1) @ SWAP @ Id(1) \\
         ...            >> Endo(r) @ Endo(t) @ Endo(np.conj(t)) \\
         ...            @ Endo(-np.conj(r)) >> Merge(2) @ Merge(2)
-        >>> assert optyx_bs.to_path().prob_with_perceval(n_photons=1).round(1)\\
-        ...     == Probabilities[complex](
+        >>> assert optyx_bs.to_path().prob_with_perceval\\
+        ...              (n_photons=1).round(1) == Probabilities[complex](
         ...         [0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
         >>> z_spider = optyx_bs >> Endo(2) @ Id(1) >> optyx_bs
-        >>> assert z_spider.to_path().prob_with_perceval(n_photons=1).round(1)\\
-        ...     == Probabilities[complex](
+        >>> assert z_spider.to_path().prob_with_perceval\\
+        ...               (n_photons=1).round(1)== Probabilities[complex](
         ...         [0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, cod=2)
         """
         if not self._umatrix_is_is_unitary():
@@ -365,7 +383,8 @@ class Matrix(underlying.Matrix):
         permutation = [
             analyzer.col(pcvl.BasicState(o))
             for o in occupation_numbers(
-                sum(self.creations) + n_photons, len(self.creations) + self.dom
+                sum(self.creations) + n_photons,
+                len(self.creations) + self.dom,
             )
             if post(pcvl.BasicState(o))
         ]
@@ -449,4 +468,3 @@ class Probabilities(underlying.Matrix):
             dom=self.dom,
             cod=self.cod,
         )
-    

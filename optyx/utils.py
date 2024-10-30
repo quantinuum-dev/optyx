@@ -48,8 +48,9 @@ def multinomial(lst: list) -> int:
     return res
 
 
-def compare_arrays_of_different_sizes(array_1: list | np.ndarray,
-                                      array_2: list | np.ndarray) -> bool:
+def compare_arrays_of_different_sizes(
+    array_1: list | np.ndarray, array_2: list | np.ndarray
+) -> bool:
     """ZW diagrams which are equal in infinite dimensions
     might be intrepreted as arrays of different dimensions
     if we truncate them to a finite number of dimensions"""
@@ -76,8 +77,9 @@ def compare_arrays_of_different_sizes(array_1: list | np.ndarray,
     return np.allclose(array_1, array_2)
 
 
-def get_index_from_list(indices: list | np.ndarray,
-                        max_index_sizes: int = 0):
+def get_index_from_list(
+    indices: list | np.ndarray, max_index_sizes: int = 0
+):
     """Each index from indices specifies the index
     of a "1" in a state basis vector (the occupation number),
     max_sum is the length of the vector minus 1 (the max occupation number),
@@ -87,7 +89,5 @@ def get_index_from_list(indices: list | np.ndarray,
 
     j = 0
     for k, i_k in enumerate(indices):
-        j += i_k * (
-            np.prod(np.array(max_index_sizes[k+1:]), dtype=int)
-        )
+        j += i_k * (np.prod(np.array(max_index_sizes[k + 1:]), dtype=int))
     return j

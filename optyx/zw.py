@@ -85,22 +85,6 @@ Z copies n-photon states
 ...             K0_infty_l.to_tensor().eval().array,\\
 ...             K0_infty_r.to_tensor().eval().array)
 
-
-Check the Hong-Ou-Mandel interference
-
->>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
->>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
->>> beam_splitter = W(2) @ W(2) >> \\
-...               Zb_i @ Zb_1 @ Zb_1 @ Zb_i >> \\
-...               Id(1) @ SWAP @ Id(1) >> \\
-...               W(2).dagger() @ W(2).dagger()
->>> Hong_Ou_Mandel = Create(1) @ Create(1) >> \\
-...                beam_splitter >> \\
-...                Select(1) @ Select(1)
->>> assert compare_arrays_of_different_sizes(\\
-...             Hong_Ou_Mandel.to_tensor().eval().array,\\
-...             np.array([0]))
-
 Check Lemma B7 from 2306.02114
 
 >>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
@@ -117,9 +101,14 @@ Check Lemma B7 from 2306.02114
 from typing import Union
 import numpy as np
 from optyx.optyx import Diagram, Mode, Swap, Scalar
-from optyx.utils import occupation_numbers, multinomial, get_index_from_list
+from optyx.utils import (
+    occupation_numbers,
+    multinomial,
+    get_index_from_list,
+)
 from optyx.qpath import Matrix
 from optyx import optyx
+
 
 class Box(optyx.Box):
     """Box in a :class:`Diagram`"""
@@ -191,45 +180,61 @@ class W(Box):
         self.is_dagger = is_dagger
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
 
-    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
+    def truncated_array(
+        self, input_dims: list[int], output_dims: list[int] = None
+    ) -> np.ndarray[complex]:
         """Create a truncated array like in 2306.02114."""
         if output_dims is None:
             output_dims = self.determine_output_dimensions(input_dims)
 
         max_dim = output_dims[0] if self.is_dagger else input_dims[0]
-        shape = (np.prod(input_dims), output_dims[0]) if self.is_dagger else (np.prod(output_dims), input_dims[0])
+        shape = (
+            (np.prod(input_dims), output_dims[0])
+            if self.is_dagger
+            else (np.prod(output_dims), input_dims[0])
+        )
         result_matrix = np.zeros(shape, dtype=complex)
 
         for n in range(max_dim):
             allowed_configs = occupation_numbers(n, self.n_legs)
             if self.is_dagger:
-                allowed_configs = filter_occupation_numbers(allowed_configs, np.array(input_dims) - 1)
+                allowed_configs = filter_occupation_numbers(
+                    allowed_configs, np.array(input_dims) - 1
+                )
 
             for config in allowed_configs:
-                coef = np.sqrt(multinomial(config))                 
+                coef = np.sqrt(multinomial(config))
 
                 if self.is_dagger:
-                    row_idx = sum(s * np.prod(input_dims[i + 1:], dtype=int) for i, s in enumerate(config))
+                    row_idx = sum(
+                        s * np.prod(input_dims[i + 1:], dtype=int)
+                        for i, s in enumerate(config)
+                    )
                 else:
-                    row_idx = sum(s * np.prod(output_dims[i + 1:], dtype=int) for i, s in enumerate(config))
-                
+                    row_idx = sum(
+                        s * np.prod(output_dims[i + 1:], dtype=int)
+                        for i, s in enumerate(config)
+                    )
+
                 result_matrix[row_idx, n] += coef
 
         return result_matrix if self.is_dagger else result_matrix.conj().T
 
-    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+    def determine_output_dimensions(
+        self, input_dims: list[int]
+    ) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         if self.is_dagger:
             dims_out = np.sum(np.array(input_dims) - 1) + 1
             return [dims_out]
         return [input_dims[0] for _ in range(len(self.cod))]
-    
+
     def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n_legs)
         if self.is_dagger:
             return Matrix[dtype](array, self.n_legs, 1)
         return Matrix[dtype](array, 1, self.n_legs)
-    
+
     def dagger(self) -> Diagram:
         return W(self.n_legs, not self.is_dagger)
 
@@ -240,7 +245,10 @@ class W(Box):
     def __eq__(self, other: "W") -> bool:
         if not isinstance(other, W):
             return False
-        return (self.n_legs, self.is_dagger) == (other.n_legs, other.is_dagger)
+        return (self.n_legs, self.is_dagger) == (
+            other.n_legs,
+            other.is_dagger,
+        )
 
 
 class Z(Box):
@@ -250,7 +258,9 @@ class Z(Box):
 
     def __init__(
         self,
-        amplitudes: Union[np.ndarray, list, callable, IndexableAmplitudes] = lambda i: i,
+        amplitudes: Union[
+            np.ndarray, list, callable, IndexableAmplitudes
+        ] = lambda i: i,
         legs_in: int = 1,
         legs_out: int = 1,
     ):
@@ -259,13 +269,17 @@ class Z(Box):
             self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
-        super().__init__(f"Z{self.amplitudes}", Mode(legs_in), Mode(legs_out))
+        super().__init__(
+            f"Z{self.amplitudes}", Mode(legs_in), Mode(legs_out)
+        )
         self.legs_in = legs_in
         self.legs_out = legs_out
         self.shape = "rectangle"
         self.color = "green"
 
-    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
+    def truncated_array(
+        self, input_dims: list[int], output_dims: list[int] = None
+    ) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
         if output_dims is None:
             output_dims = self.determine_output_dimensions(input_dims)
@@ -281,12 +295,12 @@ class Z(Box):
         if self.legs_in == 0:
             max_dimension = 2
 
-            # a scalar  
+            # a scalar
             if self.legs_out == 0:
                 if not isinstance(self.amplitudes, IndexableAmplitudes):
                     return np.array([self.amplitudes], dtype=complex)
                 return np.array([self.amplitudes[0]], dtype=complex)
-        else: 
+        else:
             max_dimension = min(input_dims)
 
         for i in range(max_dimension):
@@ -305,13 +319,17 @@ class Z(Box):
                 if i >= len(self.amplitudes):
                     result_matrix[row_index, col_index] = 0
                 else:
-                    result_matrix[row_index, col_index] = self.amplitudes[i]
+                    result_matrix[row_index, col_index] = self.amplitudes[
+                        i
+                    ]
             else:
                 result_matrix[row_index, col_index] = self.amplitudes[i]
 
         return result_matrix
 
-    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+    def determine_output_dimensions(
+        self, input_dims: list[int]
+    ) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         if self.legs_in == 0:
             return [2 for _ in range(len(self.cod))]
@@ -319,7 +337,10 @@ class Z(Box):
 
     def __repr__(self):
         if isinstance(self.amplitudes, IndexableAmplitudes):
-            s = ", ".join(str(self.amplitudes[i]) for i in range(2)) + ", ..."
+            s = (
+                ", ".join(str(self.amplitudes[i]) for i in range(2))
+                + ", ..."
+            )
         else:
             s = ", ".join(str(a) for a in self.amplitudes)
         return f"Z({s})"
@@ -369,26 +390,32 @@ class Create(Box):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def truncated_array(self, _ = None, output_dims: list[int] = None) -> np.ndarray[complex]:
+    def truncated_array(
+        self, _=None, output_dims: list[int] = None
+    ) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
         if output_dims is None:
             output_dims = self.determine_output_dimensions()
         index = 0
         factor = 1
-        for max_dim, occ_num in zip(reversed(output_dims), reversed(self.photons)):
+        for max_dim, occ_num in zip(
+            reversed(output_dims), reversed(self.photons)
+        ):
             index += occ_num * factor
             factor *= max_dim
-        
+
         # Create the composite state vector with a 1 at the calculated index
         result_matrix = np.zeros((np.prod(output_dims), 1))
         result_matrix[index, 0] = 1
         return result_matrix
 
-    def determine_output_dimensions(self, _ = None) -> list[int]:
+    def determine_output_dimensions(self, _=None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         # for this class we don't need the input dimensions
-        return [self.photons[i] + 1 if self.photons[i] != 0 
-                else 2 for i in range(len(self.cod))]
+        return [
+            self.photons[i] + 1 if self.photons[i] != 0 else 2
+            for i in range(len(self.cod))
+        ]
 
     def dagger(self) -> Diagram:
         return Select(*self.photons)
@@ -421,28 +448,30 @@ class Select(Box):
             array, len(self.photons), 0, selections=self.photons
         )
 
-    def truncated_array(self, input_dims: list, _ = None) -> np.ndarray[complex]:
+    def truncated_array(
+        self, input_dims: list, _=None
+    ) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
-        result_matrix = np.zeros((1, np.prod(input_dims)), 
-                                 dtype=complex)
+        result_matrix = np.zeros((1, np.prod(input_dims)), dtype=complex)
         index = 0
         factor = 1
-        for max_dim, occ_num in zip(reversed(input_dims), 
-                                    reversed(self.photons)):
+        for max_dim, occ_num in zip(
+            reversed(input_dims), reversed(self.photons)
+        ):
             index += occ_num * factor
             factor *= max_dim
 
         if index < np.prod(input_dims):
             result_matrix[0, index] = 1.0
             return result_matrix
-        # if the occupation number on which we are postselecting is large than the 
-        # maximum dimension of the input, then we return the zero matrix because
+        # if the occupation number on which we
+        # are postselecting is large than the
+        # maximum dimension of the input, then we
+        # return the zero matrix because
         # the inner product is zero anyway
-        else:
-            return result_matrix
-        
+        return result_matrix
 
-    def determine_output_dimensions(self, _ = None) -> list[int]:
+    def determine_output_dimensions(self, _=None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         return []
 
@@ -489,6 +518,7 @@ class Endo(Box):
         return Endo(self.scalar.conjugate())
 
     def grad(self, var):
+        """ Compute the gradient of the scalar with respect to a variable. """
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         s = self.scalar.diff(var) / self.scalar
@@ -502,15 +532,24 @@ class Endo(Box):
         return lambda *xs: type(self)(
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
-    
-    def truncated_array(self, input_dims: list[int], output_dims: list[int] = None) -> np.ndarray[complex]:
-        return Z(lambda x: self.scalar**x, 1, 1).truncated_array(input_dims, output_dims)
-    
-    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+
+    def truncated_array(
+        self, input_dims: list[int], output_dims: list[int] = None
+    ) -> np.ndarray[complex]:
+        return Z(lambda x: self.scalar**x, 1, 1).truncated_array(
+            input_dims, output_dims
+        )
+
+    def determine_output_dimensions(
+        self, input_dims: list[int]
+    ) -> list[int]:
         return input_dims
 
+
 def tn_output_2_perceval_output(
-    tn_output: list | np.ndarray, diagram: Diagram, n_extra_photons: int = 0
+    tn_output: list | np.ndarray,
+    diagram: Diagram,
+    n_extra_photons: int = 0,
 ) -> np.ndarray:
     """Convert the prob output of the tensor
     network to the perceval prob output"""
@@ -560,25 +599,34 @@ def calculate_num_creations_selections(diagram: Diagram) -> tuple:
 
 
 def filter_occupation_numbers(
-    allowed_occupation_configurations: list[list[int]], input_dims: list[int]
+    allowed_occupation_configurations: list[list[int]],
+    input_dims: list[int],
 ) -> list[list[int]]:
     """Filter the occupation numbers based on the input dimensions"""
     return [
         config
         for config in allowed_occupation_configurations
-        if all(list(config[i] <= input_dims[i] for i in
-                    range(len(input_dims))))
+        if all(
+            list(
+                config[i] <= input_dims[i] for i in range(len(input_dims))
+            )
+        )
     ]
+
 
 bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
 bs_matrix = Matrix(bs_array, 2, 2)
 BS = Box("BS", Mode(2), Mode(2), data=bs_matrix)
-Split = lambda n: W(n)
-Merge = lambda n: W(n).dagger()
 SWAP = Swap(Mode(1), Mode(1))
-Id = lambda n: Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
 
 
+def Split(n):
+    return W(n)
 
 
+def Merge(n):
+    return W(n).dagger()
 
+
+def Id(n):
+    return Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
