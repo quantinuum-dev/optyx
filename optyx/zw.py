@@ -613,6 +613,7 @@ def filter_occupation_numbers(
         )
     ]
 
+
 SWAP = Swap(Mode(1), Mode(1))
 
 
