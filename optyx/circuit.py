@@ -66,7 +66,7 @@ import sympy as sp
 from optyx.optyx import Mode, Box
 from optyx.qpath import Matrix
 from optyx.zw import Z, W, Create, Select, Scalar
-from optyx.zw import Split, Merge, Id, SWAP, BS
+from optyx.zw import Split, Merge, Id, SWAP
 
 
 class Gate(Box):
@@ -228,26 +228,26 @@ class BBS(Box):
         backend = sp if dtype is Expr else np
         sin = backend.sin((0.25 + self.bias) * backend.pi)
         cos = backend.cos((0.25 + self.bias) * backend.pi)
-        array = [sin, 1j * cos, 1j * cos, sin]
+        array = [1j * cos, sin, sin, 1j * cos]
         return Matrix[dtype](array, len(self.dom), len(self.cod))
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
         zb_i = Z(
-            lambda i: (backend.sin((0.25 + self.bias) * backend.pi) * 1j)
+            lambda i: (backend.sin((0.25 + self.bias) * backend.pi))
             ** i,
             1,
             1,
         )
         zb_1 = Z(
-            lambda i: (backend.cos((0.25 + self.bias) * backend.pi)) ** i,
+            lambda i: (backend.cos((0.25 + self.bias) * backend.pi) * 1j) ** i,
             1,
             1,
         )
 
         beam_splitter = (
             W(2) @ W(2)
-            >> zb_i @ zb_1 @ zb_1 @ zb_i
+            >> zb_1 @ zb_i @ zb_i @ zb_1
             >> Id(1) @ SWAP @ Id(1)
             >> W(2).dagger() @ W(2).dagger()
         )
@@ -282,7 +282,7 @@ class TBS(Box):
     Example
     -------
     >>> BS = BBS(0)
-    >>> tbs = lambda x: BS >> Phase(x) @ Id(1) >> BS
+    >>> tbs = lambda x: BS >> Id(1) @ Phase(x) >> BS
     >>> assert np.allclose(
     ...     TBS(0.15).to_path().array, tbs(0.15).to_path().array)
     >>> assert np.allclose(
@@ -513,3 +513,5 @@ def ansatz(width, depth):
         d >>= left.tensor(*[MZI(*p(i, j)) for j in range(n_mzi)]) @ right
 
     return d
+
+BS = BBS(0)

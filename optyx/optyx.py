@@ -125,9 +125,9 @@ class Diagram(frobenius.Diagram):
     def to_zw(self) -> Diagram:
         """ To be used with optyx.circuit diagrams """
         return symmetric.Functor(
-            ob=lambda x: x,
+            ob=lambda x: Mode(len(x)),
             ar=lambda f: f.to_zw(),
-            cod=symmetric.Category(Ty, Diagram),
+            cod=symmetric.Category(Mode, Diagram),
         )(self)
 
     def to_path(self, dtype: type = complex):
@@ -691,7 +691,8 @@ class Scalar(Box):
     Example
     -------
     >>> from optyx.qpath import Matrix
-    >>> from optyx.zw import Create, Select, BS
+    >>> from optyx.zw import Create, Select
+    >>> from optyx.circuit import BS
     >>> assert Scalar(0.45).to_path() == Matrix(
     ...     [], dom=0, cod=0,
     ...     creations=(), selections=(), normalisation=1, scalar=0.45)
