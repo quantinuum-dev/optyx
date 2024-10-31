@@ -260,7 +260,7 @@ create = zw.Create(1)
 annil = zw.Select(1)
 comonoid = zw.Split(2)
 monoid = zw.Merge(2)
-BS = zw.BS
+BS = circuit.BS
 
 
 def Id(n):
@@ -309,8 +309,13 @@ def ar_zx2path(box):
             )
             return bot >> mid >> (Id(Mode(2)) @ fusion @ Id(Mode(2)))
     if box == H:
-        hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1], [1, -1]])
-        hadamard_bs = circuit.Gate(hbs_array, 2, 2, "HBS")
+        hadamard_bs = (
+            comonoid @ comonoid >>
+            zw.Endo(np.sqrt(1/2)) @ zw.Endo(np.sqrt(1/2)) @
+            zw.Endo(np.sqrt(1/2)) @ zw.Endo(-np.sqrt(1/2)) >>
+            zw.Id(Mode(1)) @ zw.SWAP @ zw.Id(Mode(1)) >>
+            monoid @ monoid
+        )
         return hadamard_bs
     raise NotImplementedError(f"No translation of {box} in QPath.")
 
@@ -318,7 +323,6 @@ def ar_zx2path(box):
 zx2path = symmetric.Functor(
     ob=lambda x: Mode(2 * len(x)),
     ar=ar_zx2path,
-    # dom=symmetric.Category(Bit, Diagram),
     cod=symmetric.Category(Mode, Diagram),
 )
 

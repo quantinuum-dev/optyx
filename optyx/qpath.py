@@ -27,10 +27,11 @@ Examples
 
 We can check the Hong-Ou-Mandel effect:
 
->>> from optyx.zw import Create, Select, BS, Split, Merge, Id
+>>> from optyx.zw import Create, Select, Split, Merge, Id
+>>> from optyx.circuit import BS
 >>> HOM = Create(1, 1) >> BS
 >>> HOM.to_path().eval()
-Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
+Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
 >>> HOM.to_path().prob()
 Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
@@ -429,13 +430,14 @@ class Amplitudes(underlying.Matrix):
 
     Example
     -------
-    >>> from optyx.zw import BS, Select, Id
+    >>> from optyx.zw import Select, Id
+    >>> from optyx.circuit import BS
     >>> BS.to_path().eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
     >>> assert isinstance(BS.to_path().eval(2), Amplitudes)
     >>> (BS >> Select(1) @ Id(1)).to_path().eval(2)
-    Amplitudes([0.+0.70710678j, 0.+0.j    , 0.+0.70710678j], dom=3, cod=1)
+    Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], dom=3, cod=1)
     """
 
     dtype = complex
@@ -450,7 +452,8 @@ class Probabilities(underlying.Matrix):
 
     Example
     -------
-    >>> from optyx.zw import BS, Create
+    >>> from optyx.zw import Create
+    >>> from optyx.circuit import BS
     >>> BS.to_path().prob(1).round(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
     >>> (Create(1, 1) >> BS).to_path().prob().round(1)

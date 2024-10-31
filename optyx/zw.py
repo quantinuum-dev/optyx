@@ -613,10 +613,6 @@ def filter_occupation_numbers(
         )
     ]
 
-
-bs_array = (1 / 2) ** (1 / 2) * np.array([[1j, 1], [1, 1j]])
-bs_matrix = Matrix(bs_array, 2, 2)
-BS = Box("BS", Mode(2), Mode(2), data=bs_matrix)
 SWAP = Swap(Mode(1), Mode(1))
 
 
