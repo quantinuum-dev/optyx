@@ -514,4 +514,5 @@ def ansatz(width, depth):
 
     return d
 
+
 BS = BBS(0)
