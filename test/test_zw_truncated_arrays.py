@@ -124,7 +124,6 @@ def kron_truncated_array_Z(diagram, input_dims: list[int]) -> np.ndarray[complex
             result_matrix += np.outer(vec_out, vec_in) * diagram.amplitudes[i]
     return result_matrix
 
-test_pairs = []
 test_pairs = [[i] for i in range(0, 10, 2)]
 test_pairs += [[i, j] for i in range(0, 10, 2) for j in range(0, 10, 2)]
 test_pairs += [[i, j, k] for i in range(0, 10, 2) for j in range(0, 10, 2) for k in range(0, 10, 2)]

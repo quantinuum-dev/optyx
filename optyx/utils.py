@@ -49,32 +49,16 @@ def multinomial(lst: list) -> int:
 
 
 def compare_arrays_of_different_sizes(
-    array_1: list | np.ndarray, array_2: list | np.ndarray
+    array_1: list | np.ndarray, array_2: list | np.ndarray, tol: float = 1e-08
 ) -> bool:
     """ZW diagrams which are equal in infinite dimensions
     might be intrepreted as arrays of different dimensions
     if we truncate them to a finite number of dimensions"""
-    if not isinstance(array_1, np.ndarray):
-        array_1 = np.array([array_1])
-    if not isinstance(array_2, np.ndarray):
-        array_2 = np.array([array_2])
-    if len(array_1.flatten()) < len(array_2.flatten()):
-        ax_0 = array_1.shape[0]
-        if len(array_1.shape) == 1:
-            array_2 = array_2[:ax_0]
-        else:
-            ax_1 = array_1.shape[1]
-            array_2 = array_2[:ax_0, :ax_1]
-    elif len(array_1.flatten()) > len(array_2.flatten()):
-        ax_0 = array_2.shape[0]
-        if len(array_2.shape) == 1:
-            array_1 = array_1[:ax_0]
-        else:
-            ax_1 = array_2.shape[1]
-            array_1 = array_1[:ax_0, :ax_1]
-    else:
-        pass
-    return np.allclose(array_1, array_2)
+
+    # See https://stackoverflow.com/questions/46042469/compare-two-arrays-with-different-size-python-numpy  # noqa: E501
+    a, b = np.array(array_1).flatten(), np.array(array_2).flatten()
+    n = min(len(a), len(b))
+    return np.flatnonzero(np.abs(a[:n] - b[:n]) > tol).size == 0
 
 
 def get_index_from_list(

@@ -85,7 +85,7 @@ pythonpath = [
 testpaths = [
     "optyx",
     "test/*.py",
-    "test/compiler/*.py",
+    "test/*/*.py",
 ]
 addopts = "--doctest-modules"
 
@@ -95,6 +95,20 @@ filterwarnings = [
 	"ignore::DeprecationWarning:latexcodec",
 	"ignore::DeprecationWarning:pkg_resources",
 	"ignore::UserWarning:cotengra",
+]
+
+[tool.coverage.run]
+omit = [
+    "optyx/_version.py",
+    "optyx/__init__.py",
+    "optyx/*/__init__.py",
+    "test/*",
+]
+[tool.coverage.report]
+exclude_also = [
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "raise ValueError",
 ]
 
 [tool.black]
