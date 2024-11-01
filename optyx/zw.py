@@ -591,7 +591,7 @@ def calculate_num_creations_selections(diagram: Diagram) -> tuple:
         arr_selections_creations = []
         for term in diagram:
             arr_selections_creations.append(
-                term.calculate_num_creations_selections(diagram)
+                calculate_num_creations_selections(term)
             )
         n_selections = max(i[0] for i in arr_selections_creations)
         n_creations = max(i[1] for i in arr_selections_creations)

@@ -2,33 +2,9 @@ import math
 
 from optyx.zw import *
 from optyx.optyx import mode, Permutation
+from optyx.utils import compare_arrays_of_different_sizes
 import itertools
 import pytest
-
-
-@pytest.mark.skip(reason="Helper function for testing")
-def test_arrays_of_different_sizes(array_1, array_2):
-    # if not isinstance(array_1, np.ndarray):
-    #     array_1 = np.array([array_1])
-    # if not isinstance(array_2, np.ndarray):
-    #     array_2 = np.array([array_2])
-    # if len(array_1.flatten()) < len(array_2.flatten()):
-    #     ax_0 = array_1.shape[0]
-    #     if len(array_1.shape) == 1:
-    #         array_2 = array_2[:ax_0]
-    #     else:
-    #         ax_1 = array_1.shape[1]
-    #         array_2 = array_2[:ax_0, :ax_1]
-    # elif len(array_1.flatten()) > len(array_2.flatten()):
-    #     ax_0 = array_2.shape[0]
-    #     if len(array_2.shape) == 1:
-    #         array_1 = array_1[:ax_0]
-    #     else:
-    #         ax_1 = array_2.shape[1]
-    #         array_1 = array_1[:ax_0, :ax_1]
-    # else:
-    #     pass
-    return np.allclose(array_1, array_2)
 
 
 # Axioms
@@ -82,7 +58,7 @@ def test_spider_fusion(
 
     S1_infty_r = Z(fn_mult, legs_a_in + legs_b_in, legs_a_out + legs_b_out)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         S1_infty_l.to_tensor().eval().array,
         S1_infty_r.to_tensor().eval().array,
     )
@@ -93,7 +69,7 @@ def test_Z_conj(legs: int):
     Z_conj_l = Z(lambda i: 1j, legs, legs).dagger()
     Z_conj_r = Z(lambda i: -1j, legs, legs)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         Z_conj_l.to_tensor().eval().array,
         Z_conj_r.to_tensor().eval().array,
     )
@@ -110,7 +86,7 @@ def test_bSym():
     bSym_l = W(2)
     bSym_r = W(2) >> Swap(mode, mode)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         bSym_l.to_tensor().eval().array,
         bSym_r.to_tensor().eval().array,
     )
@@ -120,7 +96,7 @@ def test_bSym_input_dims():
     bSym_l = W(2)
     bSym_r = W(2) >> Swap(mode, mode)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         bSym_l.to_tensor([5]).eval().array,
         bSym_r.to_tensor([5]).eval().array,
     )
@@ -130,7 +106,7 @@ def test_bAso():
     bAso_l = W(2) >> W(2) @ Id(1)
     bAso_r = W(2) >> Id(1) @ W(2)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         bAso_l.to_tensor().eval().array,
         bAso_r.to_tensor().eval().array,
     )
@@ -140,7 +116,7 @@ def test_doubleSWAP():
     swap_l = Swap(mode, mode) >> Swap(mode, mode)
     swap_r = Id(2)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         swap_l.to_tensor().eval().array,
         swap_r.to_tensor().eval().array,
     )
@@ -150,7 +126,7 @@ def test_SWAP_dagger_SWAP():
     swap_l = Swap(mode, mode).dagger()
     swap_r = Swap(mode, mode)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         swap_l.to_tensor().eval().array,
         swap_r.to_tensor().eval().array,
     )
@@ -167,7 +143,7 @@ def test_Id_eq(k: int):
 def test_permutation_dagger():
     perm = Permutation(Mode(2), [1, 0])
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         perm.to_tensor().eval().array,
         perm.dagger().to_tensor().eval().array,
 
@@ -177,7 +153,7 @@ def test_permutation_dagger():
 def test_permutation_path_dagger():
     perm = Permutation(Mode(2), [1, 0])
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         perm.to_path().array,
         perm.dagger().to_path().array,
     )
@@ -203,7 +179,7 @@ def test_Id_dagger_Id(k: int):
     id_l = Id(k).dagger()
     id_r = Id(k)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         id_l.to_tensor().eval().array,
         id_r.to_tensor().eval().array,
     )
@@ -215,7 +191,7 @@ def test_bBa():
     )
     bBa_r = W(2).dagger() >> W(2)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         bBa_l.to_tensor().eval().array,
         bBa_r.to_tensor().eval().array,
     )
@@ -225,7 +201,7 @@ def test_bId():
     bId_l = W(2) >> Select(0) @ Id(1)
     bId_r = Id(1)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         bId_l.to_tensor().eval().array,
         bId_r.to_tensor().eval().array,
     )
@@ -245,7 +221,7 @@ def test_bZBA():
     )
     bZBA_r = W(2).dagger() >> Z(lambda i: 1, 1, 2)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         bZBA_l.to_tensor().eval().array,
         bZBA_r.to_tensor().eval().array,
     )
@@ -255,7 +231,7 @@ def test_K0_infty():
     K0_infty_l = Create(4) >> Z(lambda i: 1, 1, 2)
     K0_infty_r = Create(4) @ Create(4)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         K0_infty_l.to_tensor().eval().array,
         K0_infty_r.to_tensor().eval().array,
     )
@@ -265,7 +241,7 @@ def test_scalar():
     scalar_l = Create(1) >> Z([1, 2], 1, 1) >> Select(1)
     scalar_r = Z([2], 0, 0)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         scalar_l.to_tensor().eval().array,
         scalar_r.to_tensor().eval().array,
     )
@@ -275,7 +251,7 @@ def test_scalar_with_IndexableAmplitudes():
     scalar_l = Create(1) >> Z(lambda i: i, 1, 1) >> Select(1)
     scalar_r = Z(lambda i: i + 1, 0, 0)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         scalar_l.to_tensor().eval().array,
         scalar_r.to_tensor().eval().array,
     )
@@ -285,15 +261,15 @@ def test_bone():
     bone_l = Create(1) >> Select(0)
     bone_r = Create(0) >> Select(1)
 
-    assert test_arrays_of_different_sizes(bone_l.to_tensor().eval().array, 0)
-    assert test_arrays_of_different_sizes(0, bone_r.to_tensor().eval().array)
+    assert compare_arrays_of_different_sizes(bone_l.to_tensor().eval().array, [0])
+    assert compare_arrays_of_different_sizes([0], bone_r.to_tensor().eval().array)
 
 
 def test_branching():
     branching_l = Create(1) >> W(2)
     branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         branching_l.to_tensor().eval().array,
         branching_r.to_tensor().eval().array,
     )
@@ -311,7 +287,7 @@ def test_normalisation(k: int):
 
     normalisation_r = normalisation_r >> W(k).dagger()
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         normalisation_l.to_tensor().eval().array,
         normalisation_r.to_tensor().eval().array,
     )
@@ -326,7 +302,7 @@ def test_lemma_B6(k: int):
     lemma_B6_l = Create(k) >> Z(lambda i: i + 1, 1, 1)
     lemma_B6_r = Create(k) @ Z([k + 1], 0, 0)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         lemma_B6_l.to_tensor().eval().array,
         lemma_B6_r.to_tensor().eval().array,
     )
@@ -344,12 +320,19 @@ def test_select_eq():
     assert Select(2) != Select(1)
 
 
-def calculate_num_creations_selections():
+def test_calculate_num_creations_selections():
     d1 = Create(1) + Create(1)
     d2 = Create(1)
     assert calculate_num_creations_selections(
         d1
     ) == calculate_num_creations_selections(d2)
+    d3 = Create(1) >> Select(0) @ Create(1)
+    assert calculate_num_creations_selections(
+        d1
+    ) != calculate_num_creations_selections(d3)
+    assert calculate_num_creations_selections(
+        d2 + d3
+    ) == calculate_num_creations_selections(d3)
 
 
 def test_lemma_B8():
@@ -362,7 +345,7 @@ def test_lemma_B8():
 
     lemma_B8_r = Create(1) >> W(2) >> Z([1, 1], 1, 2) @ Z([1, 1], 1, 0)
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         lemma_B8_l.to_tensor().eval().array,
         lemma_B8_r.to_tensor().eval().array,
     )
@@ -378,7 +361,7 @@ def test_lemma_B7():
         >> Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
     )
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         lemma_B7_l.to_tensor().eval().array,
         lemma_B7_r.to_tensor().eval().array,
     )
@@ -402,7 +385,7 @@ def test_prop_54():
         >> W(2).dagger()
     )
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         prop_54_l.to_tensor().eval().array,
         prop_54_r.to_tensor().eval().array,
     )
@@ -438,7 +421,7 @@ def test_hom(postselect_and_prob: list):
         >> Select(select_1) @ Select(select_2)
     )
 
-    assert test_arrays_of_different_sizes(
+    assert compare_arrays_of_different_sizes(
         Hong_Ou_Mandel.to_tensor().eval().array,
         prob,
     )
