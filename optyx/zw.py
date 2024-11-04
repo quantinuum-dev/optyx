@@ -394,8 +394,10 @@ class Create(Box):
         self, _=None, output_dims: list[int] = None
     ) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
+
         if output_dims is None:
             output_dims = self.determine_output_dimensions()
+
         index = 0
         factor = 1
         for max_dim, occ_num in zip(

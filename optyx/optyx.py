@@ -90,6 +90,7 @@ from discopy import symmetric, frobenius, tensor
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
+from optyx.utils import modify_io_dims_against_max_dim
 
 
 class Ty(frobenius.Ty):
@@ -140,13 +141,19 @@ class Diagram(frobenius.Diagram):
             cod=symmetric.Category(int, qpath.Matrix[dtype]),
         )(self)
 
-    def to_tensor(self, input_dims: list = None) -> tensor.Diagram:
+    def to_tensor(self, input_dims: list = None,
+                  max_dim: int = None) -> tensor.Diagram:
         """Returns a tensor.Diagram for evaluation"""
 
         if input_dims is None:
             layer_dims = [2 for _ in range(len(self.dom))]
         else:
             layer_dims = input_dims
+
+        if max_dim is not None:
+            layer_dims, _ = modify_io_dims_against_max_dim(
+                layer_dims, None, max_dim
+            )
 
         def f_ob(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
@@ -155,7 +162,7 @@ class Diagram(frobenius.Diagram):
         def f_ar(box: Box, dims_in: list, dims_out: list) -> tensor.Box:
             """Converts a box to a tensor.Box object
             with the correct dimensions and array"""
-            arr = box.truncated_array(np.array(dims_in))
+            arr = box.truncated_array(np.array(dims_in), np.array(dims_out))
             return tensor.Box(box.name, f_ob(dims_in), f_ob(dims_out), arr)
 
         def get_embedding_tensor(
@@ -194,6 +201,11 @@ class Diagram(frobenius.Diagram):
                 dims_in = layer_dims[off: off + len(box.dom)]
 
                 dims_out = box.determine_output_dimensions(dims_in)
+
+                if max_dim is not None:
+                    dims_out, _ = modify_io_dims_against_max_dim(
+                        dims_out, None, max_dim
+                    )
 
                 left = Dim()
                 if off > 0:
@@ -601,8 +613,11 @@ class Swap(frobenius.Swap, Box):
         """Determine the output dimensions based on the input dimensions."""
         return input_dims[::-1]
 
-    def truncated_array(self, input_dims: list[int]) -> np.ndarray:
-        return Permutation(self.dom, [1, 0]).truncated_array(input_dims)
+    def truncated_array(self,
+                        input_dims: list[int],
+                        output_dims: list[int] = None) -> np.ndarray:
+        return Permutation(self.dom, [1, 0]).truncated_array(input_dims,
+                                                             output_dims)
 
 
 class Permutation(Box):
@@ -626,7 +641,8 @@ class Permutation(Box):
         self.permutation = permutation
 
     def truncated_array(
-        self, input_dims: list[int], output_dims: list[int] = None
+        self, input_dims: list[int],
+        output_dims: list[int] = None
     ) -> np.ndarray:
         """Create an array that permutes the occupation
         numbers based on the input dimensions."""

@@ -75,3 +75,12 @@ def get_index_from_list(
     for k, i_k in enumerate(indices):
         j += i_k * (np.prod(np.array(max_index_sizes[k + 1:]), dtype=int))
     return j
+
+
+def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
+    """Modify the input and output dimensions against the maximum dimension"""
+    if input_dims is not None:
+        input_dims = [max_dim if i > max_dim else i for i in input_dims]
+    if output_dims is not None:
+        output_dims = [max_dim if i > max_dim else i for i in output_dims]
+    return input_dims, output_dims
