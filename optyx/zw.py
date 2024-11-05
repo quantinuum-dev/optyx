@@ -96,8 +96,7 @@ from discopy import tensor
 from optyx.optyx import Diagram, Mode, Swap, Scalar
 from optyx.utils import (
     occupation_numbers,
-    multinomial,
-    basis_vector_from_kets,
+    multinomial
 )
 from optyx.qpath import Matrix
 from optyx import optyx
