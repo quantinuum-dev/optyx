@@ -70,9 +70,9 @@ from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
 import discopy.matrix as underlying
 from discopy.tensor import Tensor
-from discopy.frobenius import Dim
 from optyx.utils import (occupation_numbers,
                          amplitudes_output_2_tensor)
+
 
 def npperm(matrix):
     """
@@ -279,7 +279,10 @@ class Matrix(underlying.Matrix):
             normalisation=s,
         )
 
-    def eval(self, n_photons=0, permanent=npperm, as_tensor=False) -> Amplitudes:
+    def eval(self,
+             n_photons=0,
+             permanent=npperm,
+             as_tensor=False) -> Amplitudes:
         """Evaluates the :class:`Amplitudes` of a the QPath matrix"""
         dom_basis = occupation_numbers(n_photons, self.dom)
         n_photons_out = (
@@ -326,11 +329,17 @@ class Matrix(underlying.Matrix):
                 )
                 result.array[i, j] = val
         if as_tensor:
-            return amplitudes_output_2_tensor(result.array, dom_basis, cod_basis)
+            return amplitudes_output_2_tensor(result.array,
+                                              dom_basis,
+                                              cod_basis)
         return result
 
     def prob(
-        self, n_photons=0, permanent=npperm, with_perceval=False, as_tensor=False
+        self,
+        n_photons=0,
+        permanent=npperm,
+        with_perceval=False,
+        as_tensor=False
     ) -> Probabilities:
         """Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:

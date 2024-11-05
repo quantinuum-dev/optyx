@@ -46,17 +46,6 @@ We can differentiate the expectation values of optical circuits.
 ...     sum([exp.terms[i].to_path().eval().array[0] \\
 ...      for i in range(len(exp.terms))]),
 ...     np.array([0.]))
-
-We can also obtain ZW diagrams from the circuit.
-
->>> from optyx.zw import tn_output_2_perceval_output
->>> tbs = TBS(0.5)
->>> diagram_qpath = Create(1, 1) >> tbs
->>> diagram_zw = diagram_qpath.to_zw()
->>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
->>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
->>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
->>> assert np.allclose(prob_zw, prob_perceval)
 """
 
 import numpy as np
@@ -204,17 +193,6 @@ class BBS(Box):
     >>> assert np.allclose(comp.to_path().eval(2).array,
     ...                     Id(4).to_path().eval(2).array)
 
-    We can convert the beam splitter to a ZW diagram:
-
-    >>> from optyx.zw import tn_output_2_perceval_output
-    >>> bs = BBS(0)
-    >>> diagram_qpath = Create(1, 1) >> bs
-    >>> diagram_zw = diagram_qpath.to_zw()
-    >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
-    >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
-    >>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
-    >>> assert np.allclose(prob_zw, prob_perceval)
-
     """
 
     def __init__(self, bias):
@@ -291,16 +269,6 @@ class TBS(Box):
     >>> assert (TBS(0.25).dagger().global_phase() ==\\
     ...         np.conjugate(TBS(0.25).global_phase()))
 
-    We can convert the tunable beam splitter to a ZW diagram:
-
-    >>> from optyx.zw import tn_output_2_perceval_output
-    >>> tbs = TBS(0.5)
-    >>> diagram_qpath = Create(1, 1) >> tbs
-    >>> diagram_zw = diagram_qpath.to_zw()
-    >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
-    >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
-    >>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
-    >>> assert np.allclose(prob_zw, prob_perceval)
     """
 
     def __init__(self, theta, is_dagger=False):
@@ -406,16 +374,6 @@ class MZI(Box):
     ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
     ...     Id(2).to_path().array)
 
-    We can convert the Mach-Zender interferometer to a ZW diagram:
-
-    >>> from optyx.zw import tn_output_2_perceval_output
-    >>> mzi = MZI(0.5, 0.5)
-    >>> diagram_qpath = Create(1, 1) >> mzi
-    >>> diagram_zw = diagram_qpath.to_zw()
-    >>> prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
-    >>> prob_zw = tn_output_2_perceval_output(prob_zw, diagram_zw)
-    >>> prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
-    >>> assert np.allclose(prob_zw, prob_perceval)
     """
 
     def __init__(self, theta, phi, is_dagger=False):

@@ -84,16 +84,20 @@ def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
 
 
 def amplitudes_output_2_tensor(perceval_result,
-                                input_occ,
-                                output_occ):
+                               input_occ,
+                               output_occ):
 
     from discopy.tensor import Tensor
     from discopy.frobenius import Dim
 
-    dom_dims = [int(max(np.array(input_occ)[:, i]) + 1) for i in range(len(input_occ[0]))]
-    cod_dims = [int(max(np.array(output_occ)[:, i]) + 1) for i in range(len(output_occ[0]))]
+    dom_dims = [int(max(np.array(input_occ)[:, i]) + 1)
+                for i in range(len(input_occ[0]))]
+    cod_dims = [int(max(np.array(output_occ)[:, i]) + 1)
+                for i in range(len(output_occ[0]))]
 
-    tensor_result_array = np.zeros((int(np.prod(dom_dims)), int(np.prod(cod_dims))), dtype=complex)
+    tensor_result_array = np.zeros((int(np.prod(dom_dims)),
+                                    int(np.prod(cod_dims))), dtype=complex)
+
     for i, o in enumerate(input_occ):
         for j, o_out in enumerate(output_occ):
             i_basis = basis_vector_from_kets(o, dom_dims)

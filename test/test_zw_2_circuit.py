@@ -126,13 +126,14 @@ def tn_output_2_amplitudes_output(
     network to the perceval prob output"""
 
     if diagram is None:
-        tn_output = np.array(tn.array).flatten()
 
         wires_out = len(tn.cod)
 
         cod = list(tn.cod.inside)
 
-        idxs = list(occupation_numbers(n_photons_out, wires_out))
+        idxs = list(occupation_numbers(n_extra_photons, wires_out))
+
+        tn = np.array(tn.array).flatten()
     else:
         n_selections, n_creations = zw.calculate_num_creations_selections(diagram)
 
