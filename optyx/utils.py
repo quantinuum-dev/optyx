@@ -104,4 +104,3 @@ def amplitudes_output_2_tensor(perceval_result,
             j_basis = basis_vector_from_kets(o_out, cod_dims)
             tensor_result_array[i_basis, j_basis] = perceval_result[i, j]
     return Tensor(tensor_result_array, Dim(*dom_dims), Dim(*cod_dims))
-

@@ -76,7 +76,6 @@ from optyx.utils import (occupation_numbers,
                          basis_vector_from_kets)
 from discopy.frobenius import Dim
 
-
 def npperm(matrix):
     """
     Numpy code for computing the permanent of a matrix,
