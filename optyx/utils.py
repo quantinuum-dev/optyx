@@ -61,14 +61,11 @@ def compare_arrays_of_different_sizes(
     return np.flatnonzero(np.abs(a[:n] - b[:n]) > tol).size == 0
 
 
-def get_index_from_list(
-    indices: list | np.ndarray, max_index_sizes: int = 0
+def basis_vector_from_kets(
+    indices: list | np.ndarray, max_index_sizes: list | np.ndarray
 ):
     """Each index from indices specifies the index
-    of a "1" in a state basis vector (the occupation number),
-    max_sum is the length of the vector minus 1 (the max occupation number),
-    the function returns the index of the "1"
-    if we tensor the state basis vectors
+    of a "1" in a state basis vector (the occupation number)
     """
 
     j = 0

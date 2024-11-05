@@ -106,7 +106,7 @@ from optyx.optyx import Diagram, Mode, Swap, Scalar
 from optyx.utils import (
     occupation_numbers,
     multinomial,
-    get_index_from_list,
+    basis_vector_from_kets,
 )
 from optyx.qpath import Matrix
 from optyx import optyx
@@ -585,7 +585,7 @@ def tn_output_2_perceval_output(
 
     idxs = list(occupation_numbers(n_photons_out, wires_out))
 
-    ix = [get_index_from_list(i, cod) for i in idxs]
+    ix = [basis_vector_from_kets(i, cod) for i in idxs]
     res_ = []
     for i in ix:
         if i < len(tn_output):

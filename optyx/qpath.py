@@ -68,9 +68,10 @@ import perceval as pcvl
 
 from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
-from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
-
+from discopy.tensor import Tensor
+from discopy.frobenius import Dim
+from optyx.utils import occupation_numbers, basis_vector_from_kets
 
 def npperm(matrix):
     """
@@ -277,7 +278,7 @@ class Matrix(underlying.Matrix):
             normalisation=s,
         )
 
-    def eval(self, n_photons=0, permanent=npperm) -> Amplitudes:
+    def eval(self, n_photons=0, permanent=npperm, as_tensor=False) -> Amplitudes:
         """Evaluates the :class:`Amplitudes` of a the QPath matrix"""
         dom_basis = occupation_numbers(n_photons, self.dom)
         n_photons_out = (
@@ -286,9 +287,14 @@ class Matrix(underlying.Matrix):
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
-        result = Amplitudes[self.dtype].zero(
-            len(dom_basis), len(cod_basis)
-        )
+        if as_tensor:
+            dom_dims = [int(max(np.array(dom_basis)[:, i]) + 1) for i in range(len(dom_basis[0]))]
+            cod_dims = [int(max(np.array(cod_basis)[:, i]) + 1) for i in range(len(cod_basis[0]))]
+            tensor_result_array = np.zeros((int(np.prod(dom_dims)), int(np.prod(cod_dims))), dtype=complex)
+        else:
+            result = Amplitudes[self.dtype].zero(
+                len(dom_basis), len(cod_basis)
+            )
         normalisation = self.normalisation ** (
             n_photons + sum(self.creations)
         )
@@ -315,22 +321,32 @@ class Matrix(underlying.Matrix):
                 divisor = np.sqrt(
                     np.prod([factorial(n) for n in creations + selections])
                 )
-                result.array[i, j] = (
+                val = (
                     self.scalar
                     * normalisation
                     * permanent(matrix)
                     / divisor
                 )
+                if as_tensor:
+                    i_basis = basis_vector_from_kets(open_creations, dom_dims)
+                    j_basis = basis_vector_from_kets(open_selections, cod_dims)
+                    tensor_result_array[i_basis, j_basis] = val
+                else:
+                    result.array[i, j] = val
+        if as_tensor:
+            return Tensor(tensor_result_array, Dim(*dom_dims), Dim(*cod_dims))
         return result
 
     def prob(
-        self, n_photons=0, permanent=npperm, with_perceval=False
+        self, n_photons=0, permanent=npperm, with_perceval=False, as_tensor=False
     ) -> Probabilities:
         """Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:
-            return self.prob_with_perceval(n_photons)
-        amplitudes = self.eval(n_photons, permanent)
+            return self.prob_with_perceval(n_photons, as_tensor)
+        amplitudes = self.eval(n_photons, permanent, as_tensor)
         probabilities = np.abs(amplitudes.array) ** 2
+        if as_tensor:
+            return probabilities
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )
