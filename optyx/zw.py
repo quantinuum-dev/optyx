@@ -13,15 +13,6 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
     Endo
     Scalar
 
-.. admonition:: Functions
-
-    .. autosummary::
-        :template: function.rst
-        :nosignatures:
-        :toctree:
-
-        tn_output_2_perceval_output
-
 
 Example
 -------
@@ -565,35 +556,6 @@ class Endo(Box):
         self, input_dims: list[int]
     ) -> list[int]:
         return input_dims
-
-
-def tn_output_2_perceval_output(
-    tn_output: list | np.ndarray,
-    diagram: Diagram,
-    n_extra_photons: int = 0,
-) -> np.ndarray:
-    """Convert the prob output of the tensor
-    network to the perceval prob output"""
-
-    n_selections, n_creations = calculate_num_creations_selections(diagram)
-
-    wires_out = len(diagram.cod)
-
-    n_photons_out = n_extra_photons - n_selections + n_creations
-
-    cod = list(diagram.to_tensor().cod.inside)
-
-    idxs = list(occupation_numbers(n_photons_out, wires_out))
-
-    ix = [basis_vector_from_kets(i, cod) for i in idxs]
-    res_ = []
-    for i in ix:
-        if i < len(tn_output):
-            res_.append(tn_output[i])
-        else:
-            res_.append(0.0)
-
-    return np.array(res_)
 
 
 def calculate_num_creations_selections(diagram: Diagram) -> tuple:
