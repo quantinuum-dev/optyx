@@ -145,133 +145,60 @@ class Diagram(frobenius.Diagram):
                   max_dim: int = None) -> tensor.Diagram:
         """Returns a tensor.Diagram for evaluation"""
 
+        def list_to_dim(dims: np.ndarray | list) -> Dim:
+            """Converts a list of dimensions to a Dim object"""
+            return Dim(*[int(i) for i in dims])
+
         if input_dims is None:
             layer_dims = [2 for _ in range(len(self.dom))]
         else:
             layer_dims = input_dims
 
-        if max_dim is not None:
-            layer_dims, _ = modify_io_dims_against_max_dim(
-                layer_dims, None, max_dim
-            )
-
-        def list_to_dim(dims: np.ndarray | list) -> Dim:
-            """Converts a list of dimensions to a Dim object"""
-            return Dim(*[int(i) for i in dims])
-
-        def get_embedding_tensor(
-            input_dim: int, output_dim: int
-        ) -> np.ndarray:
-            """Returns the embedding tensor for the given
-            input and output dimensions."""
-            embedding_array = np.zeros(
-                (output_dim, input_dim), dtype=complex
-            )
-            embedding_array[:input_dim, :input_dim] = np.eye(input_dim)
-            embedding_tensor = tensor.Box(
-                "Embedding",
-                Dim(input_dim),
-                Dim(output_dim),
-                embedding_array.T,
-            )
-            return embedding_tensor
-
-        def get_diagram_for_identities(layer_dims):
-            dims_in = layer_dims[: len(self.dom)]
-            dims_out = dims_in
-
-            diagram = tensor.Box(
-                "Id",
-                list_to_dim(dims_in),
-                list_to_dim(dims_out),
-                np.eye(int(np.prod(np.array(dims_in)))),
-            )
-
-            return diagram
-
-        def get_diagram_for_a_single_term(layer_dims):
-            right_dim = len(self.dom)
-            for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
-                dims_in = layer_dims[off: off + len(box.dom)]
-
-                dims_out = box.determine_output_dimensions(dims_in)
-
-                if max_dim is not None:
-                    dims_out, _ = modify_io_dims_against_max_dim(
-                        dims_out, None, max_dim
-                    )
-
-                left = Dim()
-                if off > 0:
-                    left = list_to_dim(layer_dims[0:off])
-                right = Dim()
-                if off + len(box.dom) < right_dim:
-                    right = list_to_dim(
-                        layer_dims[off + len(box.dom): right_dim]
-                    )
-
-                cod_right_dim = right_dim - len(box.dom) + len(box.cod)
-                cod_layer_dims = (
-                    layer_dims[0:off]
-                    + dims_out
-                    + layer_dims[off + len(box.dom):]
+            if max_dim is not None:
+                layer_dims, _ = modify_io_dims_against_max_dim(
+                    layer_dims, None, max_dim
                 )
 
-                diagram_ = left @ box.truncation(dims_in, dims_out) @ right
-
-                if i == 0:
-                    diagram = diagram_
-                else:
-                    diagram = diagram >> diagram_
-
-                right_dim = cod_right_dim
-                layer_dims = cod_layer_dims
-            return diagram
-
-        def get_diagram_for_sums(input_dims):
-            """If the diagram is a sum,
-            need to find the common dimensions for the cod for all the terms -
-            can do it by finding the max dims for each idx
-            and set it for all the terms
-            - then we can apply the new dims to all
-            the last boxes on each wire
-            for all the terms"""
-
-            terms = [t.to_tensor(input_dims) for t in self]
-            cods = [list(t.cod.inside) for t in terms]
-
-            # figure out the max dims for each idx and set it for all the terms
-            max_dims = [
-                max(c[i] if len(c) > 0 else 0 for c in cods)
-                for i in range(len(cods[0]))
-            ]
-
-            # modify the diagrams for all the terms
-            # add an embedding layer for each wire to fix the cods
-            for i, term in enumerate(terms):
-                embedding_layer = tensor.Id(1)
-                for wire, d in enumerate(term.cod):
-                    embedding_layer = (
-                        embedding_layer
-                        @ get_embedding_tensor(d.inside[0], max_dims[wire])
-                    )
-                terms[i] = terms[i] >> embedding_layer
-                terms[i].cod = Dim(*max_dims)
-
-            # assemble the diagram
-            for i, term in enumerate(terms):
-                if i == 0:
-                    diagram = term
-                else:
-                    diagram += term
-            return diagram
-
-        if isinstance(self, Sum):
-            return get_diagram_for_sums(input_dims)
         if len(self.boxes) == 0 and len(self.offsets) == 0:
-            return get_diagram_for_identities(layer_dims)
+            return tensor.Diagram.id(list_to_dim(layer_dims))
 
-        return get_diagram_for_a_single_term(layer_dims)
+        right_dim = len(self.dom)
+        for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
+            dims_in = layer_dims[off: off + len(box.dom)]
+
+            dims_out = box.determine_output_dimensions(dims_in)
+
+            if max_dim is not None:
+                dims_out, _ = modify_io_dims_against_max_dim(
+                    dims_out, None, max_dim
+                )
+
+            left = Dim()
+            if off > 0:
+                left = list_to_dim(layer_dims[0:off])
+            right = Dim()
+            if off + len(box.dom) < right_dim:
+                right = list_to_dim(
+                    layer_dims[off + len(box.dom): right_dim]
+                )
+
+            cod_right_dim = right_dim - len(box.dom) + len(box.cod)
+            cod_layer_dims = (
+                layer_dims[0:off]
+                + dims_out
+                + layer_dims[off + len(box.dom):]
+            )
+
+            diagram_ = left @ box.truncation(dims_in, dims_out) @ right
+
+            if i == 0:
+                diagram = diagram_
+            else:
+                diagram = diagram >> diagram_
+
+            right_dim = cod_right_dim
+            layer_dims = cod_layer_dims
+        return diagram
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
@@ -583,6 +510,37 @@ class Sum(symmetric.Sum, Box):
             for term in self.terms
         )
 
+    def to_tensor(self, input_dims=None, max_dim=None):
+
+        terms = [t.to_tensor(input_dims, max_dim) for t in self]
+        cods = [list(t.cod.inside) for t in terms]
+
+        # figure out the max dims for each idx and set it for all the terms
+        max_dims = [
+            max(c[i] if len(c) > 0 else 0 for c in cods)
+            for i in range(len(cods[0]))
+        ]
+
+        # modify the diagrams for all the terms
+        # add an embedding layer for each wire to fix the cods
+        for i, term in enumerate(terms):
+            embedding_layer = tensor.Id(1)
+            for wire, d in enumerate(term.cod):
+                embedding_layer = (
+                    embedding_layer
+                    @ EmbeddingTensor(d.inside[0], max_dims[wire])
+                )
+            terms[i] = terms[i] >> embedding_layer
+            terms[i].cod = Dim(*max_dims)
+
+        # assemble the diagram
+        for i, term in enumerate(terms):
+            if i == 0:
+                diagram = term
+            else:
+                diagram += term
+        return diagram
+
     def grad(self, var, **params):
         """Gradient with respect to :code:`var`."""
         if var not in self.free_symbols:
@@ -759,6 +717,21 @@ class Scalar(Box):
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         return [1]
+
+class EmbeddingTensor(tensor.Box):
+    def __init__(self, input_dim: int, output_dim: int):
+
+        embedding_array = np.zeros(
+            (output_dim, input_dim), dtype=complex
+        )
+        embedding_array[:input_dim, :input_dim] = np.eye(input_dim)
+
+        super().__init__(
+            "Embedding",
+            Dim(input_dim),
+            Dim(output_dim),
+            embedding_array.T
+        )
 
 
 Diagram.swap_factory = Swap
