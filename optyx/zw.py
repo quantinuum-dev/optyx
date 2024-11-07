@@ -100,6 +100,8 @@ Check Lemma B7 from 2306.02114
 
 from typing import Union
 import numpy as np
+from discopy.frobenius import Dim
+from discopy import tensor
 from optyx.optyx import Diagram, Mode, Swap, Scalar
 from optyx.utils import (
     occupation_numbers,
@@ -108,8 +110,6 @@ from optyx.utils import (
 )
 from optyx.qpath import Matrix
 from optyx import optyx
-from discopy.frobenius import Dim
-import discopy.tensor as tensor
 
 
 class Box(optyx.Box):

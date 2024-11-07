@@ -404,8 +404,10 @@ SWAP.array = np.array(
     [[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]
 )
 
+
 def swap_truncation(diagram, _, __):
-        return tensor.Box(diagram.name, Dim(2, 2), Dim(2, 2), diagram.array)
+    return tensor.Box(diagram.name, Dim(2, 2), Dim(2, 2), diagram.array)
+
 
 SWAP.truncation = swap_truncation
 
