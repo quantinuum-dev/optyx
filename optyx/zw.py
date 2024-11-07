@@ -108,6 +108,8 @@ from optyx.utils import (
 )
 from optyx.qpath import Matrix
 from optyx import optyx
+from discopy.frobenius import Dim
+import discopy.tensor as tensor
 
 
 class Box(optyx.Box):
@@ -180,7 +182,7 @@ class W(Box):
         self.is_dagger = is_dagger
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
 
-    def truncated_array(
+    def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
     ) -> np.ndarray[complex]:
         """Create a truncated array like in 2306.02114."""
@@ -218,7 +220,12 @@ class W(Box):
 
                 result_matrix[row_idx, n] += coef
 
-        return result_matrix if self.is_dagger else result_matrix.conj().T
+        out_dims = Dim(*[int(i) for i in output_dims])
+        in_dims = Dim(*[int(i) for i in input_dims])
+
+        if self.is_dagger:
+            return tensor.Box(self.name, in_dims, out_dims, result_matrix)
+        return tensor.Box(self.name, in_dims, out_dims, result_matrix.conj().T)
 
     def determine_output_dimensions(
         self, input_dims: list[int]
@@ -277,7 +284,7 @@ class Z(Box):
         self.shape = "rectangle"
         self.color = "green"
 
-    def truncated_array(
+    def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
     ) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
@@ -298,8 +305,9 @@ class Z(Box):
             # a scalar
             if self.legs_out == 0:
                 if not isinstance(self.amplitudes, IndexableAmplitudes):
-                    return np.array([self.amplitudes], dtype=complex)
-                return np.array([self.amplitudes[0]], dtype=complex)
+                    arr = np.array([self.amplitudes], dtype=complex)
+                arr = np.array([self.amplitudes[0]], dtype=complex)
+                return tensor.Box(self.name, Dim(1), Dim(1), arr)
         else:
             max_dimension = min(input_dims)
 
@@ -325,7 +333,10 @@ class Z(Box):
             else:
                 result_matrix[row_index, col_index] = self.amplitudes[i]
 
-        return result_matrix
+        out_dims = Dim(*[int(i) for i in output_dims])
+        in_dims = Dim(*[int(i) for i in input_dims])
+
+        return tensor.Box(self.name, in_dims, out_dims, result_matrix)
 
     def determine_output_dimensions(
         self, input_dims: list[int]
@@ -390,7 +401,7 @@ class Create(Box):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def truncated_array(
+    def truncation(
         self, _=None, output_dims: list[int] = None
     ) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
@@ -409,7 +420,11 @@ class Create(Box):
         # Create the composite state vector with a 1 at the calculated index
         result_matrix = np.zeros((np.prod(output_dims), 1))
         result_matrix[index, 0] = 1
-        return result_matrix
+
+        out_dims = Dim(*[int(i) for i in output_dims])
+        in_dims = Dim(1)
+
+        return tensor.Box(self.name, in_dims, out_dims, result_matrix)
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -450,7 +465,7 @@ class Select(Box):
             array, len(self.photons), 0, selections=self.photons
         )
 
-    def truncated_array(
+    def truncation(
         self, input_dims: list, _=None
     ) -> np.ndarray[complex]:
         """Create an array like in 2306.02114"""
@@ -463,15 +478,19 @@ class Select(Box):
             index += occ_num * factor
             factor *= max_dim
 
-        if index < np.prod(input_dims):
-            result_matrix[0, index] = 1.0
-            return result_matrix
+        out_dims = Dim(1)
+        in_dims = Dim(*[int(i) for i in input_dims])
+
         # if the occupation number on which we
         # are postselecting is large than the
         # maximum dimension of the input, then we
         # return the zero matrix because
         # the inner product is zero anyway
-        return result_matrix
+        if index < np.prod(input_dims):
+            result_matrix[0, index] = 1.0
+            return tensor.Box(self.name, in_dims, out_dims, result_matrix)
+
+        return tensor.Box(self.name, in_dims, out_dims, result_matrix)
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -535,10 +554,10 @@ class Endo(Box):
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
 
-    def truncated_array(
+    def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
     ) -> np.ndarray[complex]:
-        return Z(lambda x: self.scalar**x, 1, 1).truncated_array(
+        return Z(lambda x: self.scalar**x, 1, 1).truncation(
             input_dims, output_dims
         )
 

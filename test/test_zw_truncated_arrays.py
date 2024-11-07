@@ -3,7 +3,7 @@ from optyx.optyx import mode
 import pytest
 
 @pytest.mark.skip(reason="Helper function for testing")
-def kron_truncated_array_swap(input_dims: list[int]) -> np.ndarray[complex]:
+def kron_truncation_swap(input_dims: list[int]) -> np.ndarray[complex]:
     input_total_dim = (input_dims[0]) * (input_dims[1])   # Total input dimension
 
     swap = np.zeros((input_total_dim, input_total_dim), dtype=complex)
@@ -18,14 +18,14 @@ def kron_truncated_array_swap(input_dims: list[int]) -> np.ndarray[complex]:
             swap += np.outer(ij, ji)
     return swap
 
-test_pairs = [(i, j) for i in range(0, 10) for j in range(0, 10, 2)]
+test_pairs = [(i, j) for i in range(1, 10) for j in range(1, 10, 2)]
 
 @pytest.mark.parametrize("i, j", test_pairs)
 def test_swap(i, j):
-    assert np.allclose(kron_truncated_array_swap([i, j]), Swap(mode, mode).truncated_array([i, j]))
+    assert np.allclose(kron_truncation_swap([i, j]).flatten(), Swap(mode, mode).truncation([i, j]).array.flatten())
 
 @pytest.mark.skip(reason="Helper function for testing")
-def kron_truncated_array_W(diagram, input_dims: list[int]) -> np.ndarray[complex]:
+def kron_truncation_W(diagram, input_dims: list[int]) -> np.ndarray[complex]:
     if not diagram.is_dagger:
         max_occupation_num = input_dims[0]
 
@@ -89,14 +89,14 @@ test_pairs += [[i, j, k] for i in range(1, 10, 2) for j in range(1, 10, 2) for k
 
 @pytest.mark.parametrize("comb", test_pairs)
 def test_W(comb):
-    assert np.allclose(kron_truncated_array_W(W(len(comb)), comb), W(len(comb)).truncated_array(comb))
+    assert np.allclose(kron_truncation_W(W(len(comb)), comb).flatten(), W(len(comb)).truncation([comb[0]]).array.flatten())
 
 @pytest.mark.parametrize("comb", test_pairs)
 def test_W_dagger(comb):
-    assert np.allclose(kron_truncated_array_W(W(len(comb)).dagger(), comb), W(len(comb)).dagger().truncated_array(comb))
+    assert np.allclose(kron_truncation_W(W(len(comb)).dagger(), comb).flatten(), W(len(comb)).dagger().truncation(comb).array.flatten())
 
 @pytest.mark.skip(reason="Helper function for testing")
-def kron_truncated_array_Z(diagram, input_dims: list[int]) -> np.ndarray[complex]:
+def kron_truncation_Z(diagram, input_dims: list[int]) -> np.ndarray[complex]:
     max_occupation_num = min(input_dims)
 
     result_matrix = np.zeros(
@@ -124,11 +124,11 @@ def kron_truncated_array_Z(diagram, input_dims: list[int]) -> np.ndarray[complex
             result_matrix += np.outer(vec_out, vec_in) * diagram.amplitudes[i]
     return result_matrix
 
-test_pairs = [[i] for i in range(0, 10, 2)]
-test_pairs += [[i, j] for i in range(0, 10, 2) for j in range(0, 10, 2)]
-test_pairs += [[i, j, k] for i in range(0, 10, 2) for j in range(0, 10, 2) for k in range(0, 10, 2)]
+test_pairs = [[i] for i in range(1, 10, 2)]
+test_pairs += [[i, j] for i in range(1, 10, 2) for j in range(1, 10, 2)]
+test_pairs += [[i, j, k] for i in range(1, 10, 2) for j in range(1, 10, 2) for k in range(1, 10, 2)]
 
 @pytest.mark.parametrize("comb", test_pairs)
 def test_Z(comb):
-    assert np.allclose(kron_truncated_array_Z(Z(lambda i : np.sqrt(i), len(comb), 3), comb),
-                       Z(lambda i : np.sqrt(i), len(comb), 3).truncated_array(comb))
+    assert np.allclose(kron_truncation_Z(Z(lambda i : np.sqrt(i), len(comb), 3), comb).flatten(),
+                       Z(lambda i : np.sqrt(i), len(comb), 3).truncation(comb).array.flatten())

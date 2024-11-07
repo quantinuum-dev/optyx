@@ -67,6 +67,8 @@ from discopy.quantum.circuit import qubit, Circuit
 from discopy.quantum.gates import Scalar as GatesScalar
 from discopy.cat import Category
 from discopy.utils import factory_name
+from discopy.frobenius import Dim
+import discopy.tensor as tensor
 from optyx import optyx
 from optyx import zw
 from optyx import circuit
@@ -138,8 +140,11 @@ class Z(Spider):
     tikzstyle_name = "Z"
     color = "green"
 
-    def truncated_array(self, _=None, __=None):
-        return self.array
+    def truncation(self, _=None, __=None):
+        out_dims = Dim(*[int(2) for i in self.n_legs_out])
+        in_dims = Dim(*[int(2) for i in self.n_legs_out])
+
+        return tensor.Box(self.name, in_dims, out_dims, self.array)
 
     @property
     def array(self):
@@ -162,8 +167,11 @@ class X(Spider):
     tikzstyle_name = "X"
     color = "red"
 
-    def truncated_array(self, _=None, __=None):
-        return self.array
+    def truncation(self, _=None, __=None):
+        out_dims = Dim(*[int(2) for i in self.n_legs_out])
+        in_dims = Dim(*[int(2) for i in self.n_legs_out])
+
+        return tensor.Box(self.name, in_dims, out_dims, self.array)
 
     @property
     def array(self):
@@ -395,5 +403,10 @@ SWAP = Swap(bit, bit)
 SWAP.array = np.array(
     [[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]
 )
-SWAP.truncated_array = lambda _: SWAP.array
+
+def swap_truncation(diagram, _, __):
+        return tensor.Box(diagram.name, Dim(2, 2), Dim(2, 2), diagram.array)
+
+SWAP.truncation = swap_truncation
+
 Diagram.braid_factory, Diagram.sum_factory = Swap, Sum
