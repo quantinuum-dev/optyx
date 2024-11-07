@@ -566,10 +566,10 @@ class Swap(frobenius.Swap, Box):
         return input_dims[::-1]
 
     def truncation(self,
-                        input_dims: list[int],
-                        output_dims: list[int] = None) -> np.ndarray:
+                   input_dims: list[int],
+                   output_dims: list[int] = None) -> np.ndarray:
         return Permutation(self.dom, [1, 0]).truncation(input_dims,
-                                                             output_dims)
+                                                        output_dims)
 
 
 class Permutation(Box):
@@ -717,6 +717,7 @@ class Scalar(Box):
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         return [1]
+
 
 class EmbeddingTensor(tensor.Box):
     def __init__(self, input_dim: int, output_dim: int):
