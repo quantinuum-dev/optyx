@@ -159,12 +159,6 @@ class Diagram(frobenius.Diagram):
             """Converts a list of dimensions to a Dim object"""
             return Dim(*[int(i) for i in dims])
 
-        def f_ar(box: Box, dims_in: list, dims_out: list) -> tensor.Box:
-            """Converts a box to a tensor.Box object
-            with the correct dimensions and array"""
-            arr = box.truncated_array(np.array(dims_in), np.array(dims_out))
-            return tensor.Box(box.name, f_ob(dims_in), f_ob(dims_out), arr)
-
         def get_embedding_tensor(
             input_dim: int, output_dim: int
         ) -> np.ndarray:
@@ -223,7 +217,7 @@ class Diagram(frobenius.Diagram):
                     + layer_dims[off + len(box.dom):]
                 )
 
-                diagram_ = left @ f_ar(box, dims_in, dims_out) @ right
+                diagram_ = left @ box.truncation(dims_in, dims_out) @ right
 
                 if i == 0:
                     diagram = diagram_
@@ -531,7 +525,7 @@ class Box(frobenius.Box, Diagram):
     def to_path(self, dtype: type = complex):
         raise NotImplementedError
 
-    def truncated_array(self, input_dims):
+    def truncation(self, input_dims, output_dims=None):
         """ Create array in the semantics of a ZW diagram """
         raise NotImplementedError
 
@@ -613,10 +607,10 @@ class Swap(frobenius.Swap, Box):
         """Determine the output dimensions based on the input dimensions."""
         return input_dims[::-1]
 
-    def truncated_array(self,
+    def truncation(self,
                         input_dims: list[int],
                         output_dims: list[int] = None) -> np.ndarray:
-        return Permutation(self.dom, [1, 0]).truncated_array(input_dims,
+        return Permutation(self.dom, [1, 0]).truncation(input_dims,
                                                              output_dims)
 
 
@@ -640,7 +634,7 @@ class Permutation(Box):
         self.is_dagger = is_dagger
         self.permutation = permutation
 
-    def truncated_array(
+    def truncation(
         self, input_dims: list[int],
         output_dims: list[int] = None
     ) -> np.ndarray:
@@ -669,7 +663,10 @@ class Permutation(Box):
             )
             perm_matrix[permuted_flat_index, input_flat_index] = 1
 
-        return perm_matrix.T
+        out_dims = Dim(*[int(i) for i in output_dims])
+        in_dims = Dim(*[int(i) for i in input_dims])
+
+        return tensor.Box(self.name, in_dims, out_dims, perm_matrix.T)
 
     def determine_output_dimensions(
         self, input_dims: list[int]
@@ -757,7 +754,7 @@ class Scalar(Box):
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
 
-    def truncated_array(self, _=None, __=None) -> np.ndarray[complex]:
+    def truncation(self, _=None, __=None) -> np.ndarray[complex]:
         return self.array
 
     def determine_output_dimensions(self, _=None) -> list[int]:
