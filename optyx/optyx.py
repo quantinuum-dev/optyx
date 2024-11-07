@@ -155,7 +155,7 @@ class Diagram(frobenius.Diagram):
                 layer_dims, None, max_dim
             )
 
-        def f_ob(dims: np.ndarray | list) -> Dim:
+        def list_to_dim(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
             return Dim(*[int(i) for i in dims])
 
@@ -182,8 +182,8 @@ class Diagram(frobenius.Diagram):
 
             diagram = tensor.Box(
                 "Id",
-                f_ob(dims_in),
-                f_ob(dims_out),
+                list_to_dim(dims_in),
+                list_to_dim(dims_out),
                 np.eye(int(np.prod(np.array(dims_in)))),
             )
 
@@ -203,10 +203,10 @@ class Diagram(frobenius.Diagram):
 
                 left = Dim()
                 if off > 0:
-                    left = f_ob(layer_dims[0:off])
+                    left = list_to_dim(layer_dims[0:off])
                 right = Dim()
                 if off + len(box.dom) < right_dim:
-                    right = f_ob(
+                    right = list_to_dim(
                         layer_dims[off + len(box.dom): right_dim]
                     )
 
