@@ -71,9 +71,7 @@ from discopy.utils import unbiased
 import discopy.matrix as underlying
 from discopy.tensor import Tensor
 from optyx.utils import (occupation_numbers,
-                         amplitudes_output_2_tensor,
-                         basis_vector_from_kets)
-from discopy.frobenius import Dim
+                         amplitudes_output_2_tensor)
 
 
 def npperm(matrix):
