@@ -61,14 +61,11 @@ def compare_arrays_of_different_sizes(
     return np.flatnonzero(np.abs(a[:n] - b[:n]) > tol).size == 0
 
 
-def get_index_from_list(
-    indices: list | np.ndarray, max_index_sizes: int = 0
+def basis_vector_from_kets(
+    indices: list | np.ndarray, max_index_sizes: list | np.ndarray
 ):
     """Each index from indices specifies the index
-    of a "1" in a state basis vector (the occupation number),
-    max_sum is the length of the vector minus 1 (the max occupation number),
-    the function returns the index of the "1"
-    if we tensor the state basis vectors
+    of a "1" in a state basis vector (the occupation number)
     """
 
     j = 0
@@ -84,3 +81,26 @@ def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
     if output_dims is not None:
         output_dims = [max_dim if i > max_dim else i for i in output_dims]
     return input_dims, output_dims
+
+
+def amplitudes_output_2_tensor(perceval_result,
+                               input_occ,
+                               output_occ):
+
+    from discopy.tensor import Tensor
+    from discopy.frobenius import Dim
+
+    dom_dims = [int(max(np.array(input_occ)[:, i]) + 1)
+                for i in range(len(input_occ[0]))]
+    cod_dims = [int(max(np.array(output_occ)[:, i]) + 1)
+                for i in range(len(output_occ[0]))]
+
+    tensor_result_array = np.zeros((int(np.prod(dom_dims)),
+                                    int(np.prod(cod_dims))), dtype=complex)
+
+    for i, o in enumerate(input_occ):
+        for j, o_out in enumerate(output_occ):
+            i_basis = basis_vector_from_kets(o, dom_dims)
+            j_basis = basis_vector_from_kets(o_out, cod_dims)
+            tensor_result_array[i_basis, j_basis] = perceval_result[i, j]
+    return Tensor(tensor_result_array, Dim(*dom_dims), Dim(*cod_dims))

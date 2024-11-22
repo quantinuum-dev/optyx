@@ -68,8 +68,10 @@ import perceval as pcvl
 
 from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
-from optyx.utils import occupation_numbers
 import discopy.matrix as underlying
+from discopy.tensor import Tensor
+from optyx.utils import (occupation_numbers,
+                         amplitudes_output_2_tensor)
 
 
 def npperm(matrix):
@@ -277,7 +279,10 @@ class Matrix(underlying.Matrix):
             normalisation=s,
         )
 
-    def eval(self, n_photons=0, permanent=npperm) -> Amplitudes:
+    def eval(self,
+             n_photons=0,
+             permanent=npperm,
+             as_tensor=False) -> Amplitudes:
         """Evaluates the :class:`Amplitudes` of a the QPath matrix"""
         dom_basis = occupation_numbers(n_photons, self.dom)
         n_photons_out = (
@@ -286,6 +291,7 @@ class Matrix(underlying.Matrix):
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
+
         result = Amplitudes[self.dtype].zero(
             len(dom_basis), len(cod_basis)
         )
@@ -315,28 +321,39 @@ class Matrix(underlying.Matrix):
                 divisor = np.sqrt(
                     np.prod([factorial(n) for n in creations + selections])
                 )
-                result.array[i, j] = (
+                val = (
                     self.scalar
                     * normalisation
                     * permanent(matrix)
                     / divisor
                 )
+                result.array[i, j] = val
+        if as_tensor:
+            return amplitudes_output_2_tensor(result.array,
+                                              dom_basis,
+                                              cod_basis)
         return result
 
     def prob(
-        self, n_photons=0, permanent=npperm, with_perceval=False
+        self,
+        n_photons=0,
+        permanent=npperm,
+        with_perceval=False,
+        as_tensor=False
     ) -> Probabilities:
         """Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:
-            return self.prob_with_perceval(n_photons)
-        amplitudes = self.eval(n_photons, permanent)
+            return self.prob_with_perceval(n_photons, as_tensor=as_tensor)
+        amplitudes = self.eval(n_photons, permanent, as_tensor)
         probabilities = np.abs(amplitudes.array) ** 2
+        if as_tensor:
+            return Tensor(probabilities, amplitudes.dom, amplitudes.cod)
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )
 
     def prob_with_perceval(
-        self, n_photons=0, simulator: str = "SLOS"
+        self, n_photons=0, simulator: str = "SLOS", as_tensor=False
     ) -> Probabilities:
         """
         Computes the Born rule of the amplitudes of the :class:`Matrix` using
@@ -375,22 +392,28 @@ class Matrix(underlying.Matrix):
         proc.set_circuit(circ)
         proc.set_postselection(post)
 
+        input_occ = occupation_numbers(n_photons, self.dom)
+        output_occ = occupation_numbers(
+                sum(self.creations) + n_photons,
+                len(self.creations) + self.dom,
+            )
+
         states = [
             pcvl.BasicState(o + self.creations)
-            for o in occupation_numbers(n_photons, self.dom)
+            for o in input_occ
         ]
         analyzer = pcvl.algorithm.Analyzer(proc, states, "*")
 
         permutation = [
             analyzer.col(pcvl.BasicState(o))
-            for o in occupation_numbers(
-                sum(self.creations) + n_photons,
-                len(self.creations) + self.dom,
-            )
+            for o in output_occ
             if post(pcvl.BasicState(o))
         ]
+        result = analyzer.distribution[:, permutation]
+        if as_tensor:
+            return amplitudes_output_2_tensor(result, input_occ, output_occ)
         return Probabilities[self.dtype](
-            analyzer.distribution[:, permutation],
+            result,
             dom=len(states),
             cod=len(permutation),
         )
