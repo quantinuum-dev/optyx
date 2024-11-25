@@ -1,6 +1,6 @@
 import optyx.zw as zw
 import optyx.circuit as circuit
-from optyx.utils import basis_vector_from_kets, occupation_numbers
+from optyx.utils import tn_2_amplitudes
 import optyx.circuit as qpath
 import itertools
 import pytest
@@ -15,10 +15,12 @@ def test_BS(photons_1, photons_2):
 
     diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
+    tensor = diagram_zw.to_tensor()
 
-    prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
-    prob_zw = tn_output_2_amplitudes_output(prob_zw, diagram_zw)
+    n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
 
+    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
@@ -35,10 +37,12 @@ def test_BBS(photons_1, photons_2, bias):
 
     diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
+    tensor = diagram_zw.to_tensor()
 
-    prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
-    prob_zw = tn_output_2_amplitudes_output(prob_zw, diagram_zw)
+    n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
 
+    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
@@ -50,10 +54,12 @@ def test_TBS(photons_1, photons_2, theta):
 
     diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
+    tensor = diagram_zw.to_tensor()
 
-    prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
-    prob_zw = tn_output_2_amplitudes_output(prob_zw, diagram_zw)
+    n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
 
+    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
@@ -72,10 +78,12 @@ def test_MZI(photons_1, photons_2, theta, phi):
 
     diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
+    tensor = diagram_zw.to_tensor()
 
-    prob_zw = np.abs(diagram_zw.to_tensor().eval().array).flatten() ** 2
-    prob_zw = tn_output_2_amplitudes_output(prob_zw, diagram_zw)
+    n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
 
+    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
@@ -92,12 +100,9 @@ circs = [
 
 @pytest.mark.parametrize("circ", circs)
 def test_conversion_from_amplitudes_to_tensor(circ):
-    ts = circ.to_path().eval(0, as_tensor=True)
-    amps = circ.to_path().eval(0)
-
-    np.allclose(tn_output_2_amplitudes_output(tn=ts,
-                                              n_extra_photons=sum(circ.to_path().selections) + sum(circ.to_path().creations)),
-                                              amps.array)
+    ts = [i for i in circ.to_path().eval(0, as_tensor=True).array.flatten()[::-1] if i > 1e-10]
+    amps = [i for i in circ.to_path().eval(0).array.flatten() if i > 1e-10]
+    assert np.allclose(ts, amps)
 
 circs = [
     (circuit.BBS(0.3), 2),
@@ -110,47 +115,6 @@ circs = [
 
 @pytest.mark.parametrize("circ, n_extra_photons", circs)
 def test_eval_tensor_and_perceval_tensor(circ, n_extra_photons):
-    ts = circ.to_path().prob(n_extra_photons, as_tensor=True)
-    amps = circ.to_path().prob_with_perceval(n_extra_photons, as_tensor=True)
-
-    np.allclose(tn_output_2_amplitudes_output(tn=ts, n_extra_photons=n_extra_photons), amps.array)
-
-
-@pytest.mark.skip(reason="Helper function")
-def tn_output_2_amplitudes_output(
-    tn,
-    diagram=None,
-    n_extra_photons=0,
-) -> np.ndarray:
-    """Convert the prob output of the tensor
-    network to the perceval prob output"""
-
-    if diagram is None:
-
-        wires_out = len(tn.cod)
-
-        cod = list(tn.cod.inside)
-
-        idxs = list(occupation_numbers(n_extra_photons, wires_out))
-
-        tn = np.array(tn.array).flatten()
-    else:
-        n_selections, n_creations = zw.calculate_num_creations_selections(diagram)
-
-        wires_out = len(diagram.cod)
-
-        n_photons_out = n_extra_photons - n_selections + n_creations
-
-        cod = list(diagram.to_tensor().cod.inside)
-
-        idxs = list(occupation_numbers(n_photons_out, wires_out))
-
-    ix = [basis_vector_from_kets(i, cod) for i in idxs]
-    res_ = []
-    for i in ix:
-        if i < len(tn):
-            res_.append(tn[i])
-        else:
-            res_.append(0.0)
-
-    return np.array(res_)
+    ts = [i for i in circ.to_path().eval(n_extra_photons, as_tensor=True).array.flatten()[::-1] if i > 1e-10]
+    amps = [i for i in circ.to_path().eval(n_extra_photons).array.flatten() if i > 1e-10]
+    assert np.allclose(ts, amps)

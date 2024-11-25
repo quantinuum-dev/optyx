@@ -695,6 +695,10 @@ class Scalar(Box):
     def dagger(self) -> Diagram:
         return Scalar(self.scalar.conjugate())
 
+    def to_zw(self):
+        from optyx.zw import Z
+        return Z(self.array, 0, 0)
+
     def subs(self, *args):
         data = rsubs(self.scalar, *args)
         return Scalar(data)
@@ -713,7 +717,8 @@ class Scalar(Box):
         )
 
     def truncation(self, _=None, __=None) -> np.ndarray[complex]:
-        return self.array
+        return tensor.Box(self.name, Dim(1), Dim(1), self.array)
+
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         return [1]
