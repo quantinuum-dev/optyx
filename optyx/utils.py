@@ -111,7 +111,7 @@ def amplitudes_2_tensor(perceval_result,
     return Tensor(tensor_result_array, Dim(*dom_dims), Dim(*cod_dims))
 
 
-def tn_2_amplitudes(
+def tensor_2_amplitudes(
     tn_diagram,
     n_photons_out,
 ) -> np.ndarray:

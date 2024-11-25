@@ -84,6 +84,19 @@ class Box(optyx.Box):
             cod = Bit(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
 
+    @property
+    def array(self):
+        raise NotImplementedError
+
+    def determine_output_dimensions(self, _=None):
+        return [2 for _ in range(len(self.cod))]
+
+    def truncation(self, _=None, __=None):
+        out_dims = Dim(*[2 for i in range(len(self.cod))])
+        in_dims = Dim(*[2 for i in range(len(self.dom))])
+
+        return tensor.Box(self.name, in_dims, out_dims, self.array)
+
 
 class Spider(Box):
     """Abstract spider box."""
@@ -126,25 +139,12 @@ class Spider(Box):
         del left
         return type(self)(len(self.cod), len(self.dom), self.phase)
 
-    @property
-    def array(self):
-        return None
-
-    def determine_output_dimensions(self, _=None):
-        return [2 for _ in range(self.n_legs_out)]
-
 
 class Z(Spider):
     """Z spider."""
 
     tikzstyle_name = "Z"
     color = "green"
-
-    def truncation(self, _=None, __=None):
-        out_dims = Dim(*[int(2) for i in self.n_legs_out])
-        in_dims = Dim(*[int(2) for i in self.n_legs_out])
-
-        return tensor.Box(self.name, in_dims, out_dims, self.array)
 
     @property
     def array(self):
@@ -168,8 +168,8 @@ class X(Spider):
     color = "red"
 
     def truncation(self, _=None, __=None):
-        out_dims = Dim(*[int(2) for i in self.n_legs_out])
-        in_dims = Dim(*[int(2) for i in self.n_legs_out])
+        out_dims = Dim(*[2 for i in range(self.n_legs_out)])
+        in_dims = Dim(*[2 for i in range(self.n_legs_out)])
 
         return tensor.Box(self.name, in_dims, out_dims, self.array)
 

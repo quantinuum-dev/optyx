@@ -1,6 +1,6 @@
 import optyx.zw as zw
 import optyx.circuit as circuit
-from optyx.utils import tn_2_amplitudes
+from optyx.utils import tensor_2_amplitudes
 import optyx.circuit as qpath
 import itertools
 import pytest
@@ -20,7 +20,7 @@ def test_BS(photons_1, photons_2):
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
     n_photons_out = n_photons_out[1] - n_photons_out[0]
 
-    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
+    prob_zw = np.abs(tensor_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
@@ -42,7 +42,7 @@ def test_BBS(photons_1, photons_2, bias):
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
     n_photons_out = n_photons_out[1] - n_photons_out[0]
 
-    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
+    prob_zw = np.abs(tensor_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
@@ -59,7 +59,7 @@ def test_TBS(photons_1, photons_2, theta):
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
     n_photons_out = n_photons_out[1] - n_photons_out[0]
 
-    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
+    prob_zw = np.abs(tensor_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
@@ -83,7 +83,7 @@ def test_MZI(photons_1, photons_2, theta, phi):
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
     n_photons_out = n_photons_out[1] - n_photons_out[0]
 
-    prob_zw = np.abs(tn_2_amplitudes(tensor, n_photons_out)) ** 2
+    prob_zw = np.abs(tensor_2_amplitudes(tensor, n_photons_out)) ** 2
     prob_perceval = diagram_qpath.to_path().prob_with_perceval().array
 
     assert np.allclose(prob_zw, prob_perceval)
