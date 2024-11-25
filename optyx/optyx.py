@@ -724,6 +724,22 @@ class Scalar(Box):
         return [1]
 
 
+class DualRail(Box):
+    def __init__(self):
+        dom = Bit(1)
+        cod = Mode(2)
+        super().__init__("2R", dom, cod)
+
+    def truncation(self, input_dims=None, output_dims=None):
+        array = np.zeros((2, 2, 2), dtype=complex)
+        array[0, 1, 0] = 1
+        array[1, 0, 1] = 1
+        return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
+
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+        return [2, 2]
+
+
 class EmbeddingTensor(tensor.Box):
     def __init__(self, input_dim: int, output_dim: int):
 

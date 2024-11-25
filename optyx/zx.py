@@ -86,7 +86,9 @@ class Box(optyx.Box):
 
     @property
     def array(self):
-        raise NotImplementedError
+        if self.data is not None:
+            return self.data
+        raise NotImplementedError(f"Array not implemented for {self}.")
 
     def determine_output_dimensions(self, _=None):
         return [2 for _ in range(len(self.cod))]
@@ -166,12 +168,6 @@ class X(Spider):
 
     tikzstyle_name = "X"
     color = "red"
-
-    def truncation(self, _=None, __=None):
-        out_dims = Dim(*[2 for i in range(self.n_legs_out)])
-        in_dims = Dim(*[2 for i in range(self.n_legs_out)])
-
-        return tensor.Box(self.name, in_dims, out_dims, self.array)
 
     @property
     def array(self):
@@ -397,6 +393,7 @@ H.draw_as_spider = True
     "",
     "H",
 )
+H.data = np.array([[1, 1], [1, -1]]) / 2**0.5
 H.color, H.shape = "yellow", "rectangle"
 
 SWAP = Swap(bit, bit)
