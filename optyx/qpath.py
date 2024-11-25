@@ -331,8 +331,8 @@ class Matrix(underlying.Matrix):
                 result.array[i, j] = val
         if as_tensor:
             return amplitudes_2_tensor(result.array,
-                                              dom_basis,
-                                              cod_basis)
+                                       dom_basis,
+                                       cod_basis)
         return result
 
     def prob(

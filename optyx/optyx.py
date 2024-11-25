@@ -719,7 +719,6 @@ class Scalar(Box):
     def truncation(self, _=None, __=None) -> np.ndarray[complex]:
         return tensor.Box(self.name, Dim(1), Dim(1), self.array)
 
-
     def determine_output_dimensions(self, _=None) -> list[int]:
         return [1]
 

@@ -69,9 +69,9 @@ def basis_vector_from_kets(
     - max_index_sizes specifies the maximum index size (not the maximum index)
     """
 
-    #check if indices are smaller than max_index_sizes
-    if any([i >= j for i, j in zip(indices, max_index_sizes)]):
-        raise ValueError("Each index must be smaller than the corresponding max index size")
+    if any(i >= j for i, j in zip(indices, max_index_sizes)):
+        raise ValueError("Each index must be smaller than "
+                         "the corresponding max index size")
 
     j = 0
     for k, i_k in enumerate(indices):
@@ -117,6 +117,7 @@ def tensor_2_amplitudes(
 ) -> np.ndarray:
     """Convert the prob output of the tensor
     network to the perceval prob output"""
+    import warnings
 
     output = tn_diagram.eval().array.flatten()
     idxs = list(occupation_numbers(n_photons_out,
@@ -124,10 +125,10 @@ def tensor_2_amplitudes(
     cod = list(tn_diagram.cod.inside)
 
     if sum(cod) < n_photons_out:
-        Warning("It is likely that the Tensor diagram has been "
-                "truncated with dimensions which are "
-                "too low for the n_photons_out. "
-                "The results might be incorrect.")
+        warnings.warn("It is likely that the Tensor diagram has been "
+                      "truncated with dimensions which are "
+                      "too low for the n_photons_out. "
+                      "The results might be incorrect.")
 
     res = []
     for i in idxs:
@@ -136,7 +137,7 @@ def tensor_2_amplitudes(
             res.append(output[basis])
         except ValueError:
             res.append(0.0)
-            Warning(f"The basis vector {i} is out of bounds of "
-                    f"the codomain {cod}. Setting to 0.")
+            warnings.warn(f"The basis vector {i} is out of bounds of "
+                          f"the codomain {cod}. Setting to 0.")
 
     return np.array(res)

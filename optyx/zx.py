@@ -68,7 +68,7 @@ from discopy.quantum.gates import Scalar as GatesScalar
 from discopy.cat import Category
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
-import discopy.tensor as tensor
+from discopy import tensor
 from optyx import optyx
 from optyx import zw
 from optyx import circuit
@@ -98,6 +98,12 @@ class Box(optyx.Box):
         in_dims = Dim(*[2 for i in range(len(self.dom))])
 
         return tensor.Box(self.name, in_dims, out_dims, self.array)
+
+    def __eq__(self, other):
+        return (isinstance(other, type(self)) and
+                self.name == other.name and
+                self.dom == other.dom and
+                np.all(self.data == other.data))
 
 
 class Spider(Box):
