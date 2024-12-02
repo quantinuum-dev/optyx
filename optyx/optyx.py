@@ -738,6 +738,9 @@ class DualRail(Box):
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         return [2, 2]
 
+    def to_zw(self):
+        return self
+
 
 class EmbeddingTensor(tensor.Box):
     def __init__(self, input_dim: int, output_dim: int):

@@ -270,7 +270,7 @@ class Matrix(underlying.Matrix):
         )
         creations = self.creations + cod * (0,)
         selections = self.selections + dom * (0,)
-        unitary = unitary.T if self.dom == 0 or self.cod == 0 else unitary
+
         return Matrix(
             unitary,
             self.dom,
