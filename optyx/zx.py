@@ -68,7 +68,7 @@ from discopy.quantum.gates import Scalar as GatesScalar
 from discopy.cat import Category
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
-import discopy.tensor as tensor
+from discopy import tensor
 from optyx import optyx
 from optyx import zw
 from optyx import circuit
@@ -83,6 +83,27 @@ class Box(optyx.Box):
         if isinstance(cod, int):
             cod = Bit(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
+
+    @property
+    def array(self):
+        if self.data is not None:
+            return self.data
+        raise NotImplementedError(f"Array not implemented for {self}.")
+
+    def determine_output_dimensions(self, _=None):
+        return [2 for _ in range(len(self.cod))]
+
+    def truncation(self, _=None, __=None):
+        out_dims = Dim(*[2 for i in range(len(self.cod))])
+        in_dims = Dim(*[2 for i in range(len(self.dom))])
+
+        return tensor.Box(self.name, in_dims, out_dims, self.array)
+
+    def __eq__(self, other):
+        return (isinstance(other, type(self)) and
+                self.name == other.name and
+                self.dom == other.dom and
+                np.all(self.data == other.data))
 
 
 class Spider(Box):
@@ -126,25 +147,12 @@ class Spider(Box):
         del left
         return type(self)(len(self.cod), len(self.dom), self.phase)
 
-    @property
-    def array(self):
-        return None
-
-    def determine_output_dimensions(self, _=None):
-        return [2 for _ in range(self.n_legs_out)]
-
 
 class Z(Spider):
     """Z spider."""
 
     tikzstyle_name = "Z"
     color = "green"
-
-    def truncation(self, _=None, __=None):
-        out_dims = Dim(*[int(2) for i in self.n_legs_out])
-        in_dims = Dim(*[int(2) for i in self.n_legs_out])
-
-        return tensor.Box(self.name, in_dims, out_dims, self.array)
 
     @property
     def array(self):
@@ -166,12 +174,6 @@ class X(Spider):
 
     tikzstyle_name = "X"
     color = "red"
-
-    def truncation(self, _=None, __=None):
-        out_dims = Dim(*[int(2) for i in self.n_legs_out])
-        in_dims = Dim(*[int(2) for i in self.n_legs_out])
-
-        return tensor.Box(self.name, in_dims, out_dims, self.array)
 
     @property
     def array(self):
@@ -397,6 +399,7 @@ H.draw_as_spider = True
     "",
     "H",
 )
+H.data = np.array([[1, 1], [1, -1]]) / 2**0.5
 H.color, H.shape = "yellow", "rectangle"
 
 SWAP = Swap(bit, bit)

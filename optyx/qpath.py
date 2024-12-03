@@ -71,7 +71,7 @@ from discopy.utils import unbiased
 import discopy.matrix as underlying
 from discopy.tensor import Tensor
 from optyx.utils import (occupation_numbers,
-                         amplitudes_output_2_tensor)
+                         amplitudes_2_tensor)
 
 
 def npperm(matrix):
@@ -270,6 +270,7 @@ class Matrix(underlying.Matrix):
         )
         creations = self.creations + cod * (0,)
         selections = self.selections + dom * (0,)
+
         return Matrix(
             unitary,
             self.dom,
@@ -329,9 +330,9 @@ class Matrix(underlying.Matrix):
                 )
                 result.array[i, j] = val
         if as_tensor:
-            return amplitudes_output_2_tensor(result.array,
-                                              dom_basis,
-                                              cod_basis)
+            return amplitudes_2_tensor(result.array,
+                                       dom_basis,
+                                       cod_basis)
         return result
 
     def prob(
@@ -411,7 +412,7 @@ class Matrix(underlying.Matrix):
         ]
         result = analyzer.distribution[:, permutation]
         if as_tensor:
-            return amplitudes_output_2_tensor(result, input_occ, output_occ)
+            return amplitudes_2_tensor(result, input_occ, output_occ)
         return Probabilities[self.dtype](
             result,
             dom=len(states),

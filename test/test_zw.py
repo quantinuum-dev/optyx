@@ -1,12 +1,13 @@
 import math
 
 from optyx.zw import *
-from optyx.optyx import mode, Permutation
+from optyx.optyx import mode, Permutation, DualRail, EmbeddingTensor
 from optyx.utils import compare_arrays_of_different_sizes
+import optyx.zx as zx
+import optyx.circuit as circuit
 import itertools
 import pytest
-
-
+import numpy as np
 # Axioms
 
 legs_a_in = range(1, 3)
@@ -432,3 +433,35 @@ def test_hom(postselect_and_prob: list):
         Hong_Ou_Mandel.to_tensor().eval().array,
         prob,
     )
+
+def test_DR_X():
+    left = Create(1, 0)
+    right = zx.X(0, 1) @ optyx.Scalar((1/2)**(1/2)) >> DualRail()
+    assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)
+
+def test_DR_X_pi():
+    left = Create(0, 1)
+    right = zx.X(0, 1, phase=0.5) @ optyx.Scalar((1/2)**(1/2)) >> DualRail()
+    assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)
+
+def test_DR_beamsplitter():
+    beam_splitter = (
+        W(2) @ W(2)
+        >> Z(lambda i: ((1/2)**(1/2))**i, 1, 1) @ Z(lambda i: ((1/2)**(1/2))**i, 1, 1) @ Z(lambda i: ((1/2)**(1/2))**i, 1, 1) @ Z(lambda i: (-(1/2)**(1/2))**i, 1, 1)
+        >> Id(1) @ SWAP @ Id(1)
+        >> W(2).dagger() @ W(2).dagger()
+    )
+
+
+    left = DualRail().to_zw() >> beam_splitter
+    right = zx.H >> DualRail()
+    assert compare_arrays_of_different_sizes((right.to_tensor() >>
+                                            EmbeddingTensor(2, 3) @ EmbeddingTensor(2, 3)).eval().array.flatten(),
+                                            left.to_tensor().eval().array.flatten())
+
+phases = phases = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+@pytest.mark.parametrize("phase", phases)
+def test_DR_phase_shift(phase):
+    left = DualRail().to_zw() >> circuit.Id(1) @ circuit.Phase(phase).to_zw()
+    right = zx.Z(1, 1, phase=phase) >> DualRail()
+    assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)

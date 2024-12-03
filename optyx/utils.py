@@ -66,7 +66,12 @@ def basis_vector_from_kets(
 ):
     """Each index from indices specifies the index
     of a "1" in a state basis vector (the occupation number)
+    - max_index_sizes specifies the maximum index size (not the maximum index)
     """
+
+    if any(i >= j for i, j in zip(indices, max_index_sizes)):
+        raise ValueError("Each index must be smaller than "
+                         "the corresponding max index size")
 
     j = 0
     for k, i_k in enumerate(indices):
@@ -83,9 +88,9 @@ def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
     return input_dims, output_dims
 
 
-def amplitudes_output_2_tensor(perceval_result,
-                               input_occ,
-                               output_occ):
+def amplitudes_2_tensor(perceval_result,
+                        input_occ,
+                        output_occ):
 
     from discopy.tensor import Tensor
     from discopy.frobenius import Dim
@@ -104,3 +109,35 @@ def amplitudes_output_2_tensor(perceval_result,
             j_basis = basis_vector_from_kets(o_out, cod_dims)
             tensor_result_array[i_basis, j_basis] = perceval_result[i, j]
     return Tensor(tensor_result_array, Dim(*dom_dims), Dim(*cod_dims))
+
+
+def tensor_2_amplitudes(
+    tn_diagram,
+    n_photons_out,
+) -> np.ndarray:
+    """Convert the prob output of the tensor
+    network to the perceval prob output"""
+    import warnings
+
+    output = tn_diagram.eval().array.flatten()
+    idxs = list(occupation_numbers(n_photons_out,
+                                   len(tn_diagram.cod)))
+    cod = list(tn_diagram.cod.inside)
+
+    if sum(cod) < n_photons_out:
+        warnings.warn("It is likely that the Tensor diagram has been "
+                      "truncated with dimensions which are "
+                      "too low for the n_photons_out. "
+                      "The results might be incorrect.")
+
+    res = []
+    for i in idxs:
+        try:
+            basis = basis_vector_from_kets(i, cod)
+            res.append(output[basis])
+        except ValueError:
+            res.append(0.0)
+            warnings.warn(f"The basis vector {i} is out of bounds of "
+                          f"the codomain {cod}. Setting to 0.")
+
+    return np.array(res)

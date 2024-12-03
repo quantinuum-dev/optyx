@@ -695,6 +695,10 @@ class Scalar(Box):
     def dagger(self) -> Diagram:
         return Scalar(self.scalar.conjugate())
 
+    def to_zw(self):
+        from optyx.zw import Z
+        return Z(self.array, 0, 0)
+
     def subs(self, *args):
         data = rsubs(self.scalar, *args)
         return Scalar(data)
@@ -713,10 +717,29 @@ class Scalar(Box):
         )
 
     def truncation(self, _=None, __=None) -> np.ndarray[complex]:
-        return self.array
+        return tensor.Box(self.name, Dim(1), Dim(1), self.array)
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         return [1]
+
+
+class DualRail(Box):
+    def __init__(self):
+        dom = Bit(1)
+        cod = Mode(2)
+        super().__init__("2R", dom, cod)
+
+    def truncation(self, input_dims=None, output_dims=None):
+        array = np.zeros((2, 2, 2), dtype=complex)
+        array[0, 1, 0] = 1
+        array[1, 0, 1] = 1
+        return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
+
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+        return [2, 2]
+
+    def to_zw(self):
+        return self
 
 
 class EmbeddingTensor(tensor.Box):
