@@ -1,5 +1,14 @@
 """
-Linear optical circuits
+
+Overview
+--------
+
+Linear optical circuits built from biased/tunable beam splitters, phase shifters, Mach-Zender interferometers. This module
+represents the heralded linear optical circuits, which are physically implementable. The gates can be perceived as
+having an underlying QPath diagram representation [FC23]_ (which are a subset of :math:`ZW_{\infty}` diagrams [FSP+23]_).
+
+Generators and diagrams
+------------------------
 
 .. autosummary::
     :template: class.rst
@@ -12,15 +21,45 @@ Linear optical circuits
     TBS
     MZI
 
-.. admonition:: Functions
+Functions
+----------
 
-    .. autosummary::
-        :template: function.rst
-        :nosignatures:
-        :toctree:
+.. autosummary::
+    :template: function.rst
+    :nosignatures:
+    :toctree:
 
-Example
--------
+    ansatz
+
+Examples of usage
+------------------
+
+Let us check if a beam splitter enables a valid Hang-Ou-Mandel effect:
+
+>>> BS = BBS(0)
+>>> diagram = Create(1, 1) >> BS
+>>> assert np.isclose((diagram >> Select(0, 2)).to_path().prob().array, 0.5)
+>>> diagram.draw(path='docs/_static/BS.png')
+
+.. image:: /_static/BS.png
+    :align: center
+
+The function :code:`ansatz` generates a universal interferometer:
+
+>>> ansatz(6, 4).draw(path='docs/_static/ansatz6_4.png')
+
+.. image:: /_static/ansatz6_4.png
+    :align: center
+
+Each diagram of the module can be converted to a :math:`ZW_{\infty}` diagram:
+
+>>> BS = BBS(0)
+>>> double_BS = BS @ BS.to_zw()
+>>> double_BS.draw(path='docs/_static/double_BS.png')
+
+.. image:: /_static/double_BS.png
+    :align: center
+
 We can differentiate the expectation values of optical circuits.
 
 >>> from sympy.abc import psi
@@ -46,6 +85,11 @@ We can differentiate the expectation values of optical circuits.
 ...     sum([exp.terms[i].to_path().eval().array[0] \\
 ...      for i in range(len(exp.terms))]),
 ...     np.array([0.]))
+
+References
+----------
+.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via String Diagrams. In Proceedings 19th International Conference on Quantum Physics and Logic, Wolfson College, Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
+.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., & Coecke, B. (2023). Light-Matter Interaction in the ZXW Calculus. In  Proceedings of the Twentieth International Conference on Quantum Physics and Logic,  Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
 """
 
 import numpy as np

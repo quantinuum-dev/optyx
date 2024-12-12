@@ -10,7 +10,7 @@ Optyx diagrams combine three diagrammatic calculi:
 - :math:`LO` calculus: for linear optics (Mode type).
 - ZX calculus: for qubit systems (Bit type).
 
-:math:`LO` calculus diagrams are a subset of :math:`ZW_{\infty}` diagrams and we can express them using :math:`ZW_{\infty}` generators.
+:math:`LO` calculus diagrams [FC23]_ are a subset of :math:`ZW_{\infty}` diagrams [FSP+23]_ and we can express them using :math:`ZW_{\infty}` generators.
 :math:`LO` diagrams are used to model linear optical circuits build from beam splitters, phase shifters, and other optical elements while :math:`ZW_{\infty}`
 are able to express more general maps on the bosonic Fock space. ZX diagrams are used to model qubit circuits and we can go from photonic modes to qubits using the
 dual-rail encoding (using the :code:`DualRail` box). This is crucial if we want to combine the reasoning about photonic circuits, dual rail encoded qubit circuits, and classical
@@ -157,12 +157,14 @@ The :code:`to_path` method supports evaluation by calculating a permanent of an 
 >>> assert counit_l.to_path().eval(2) == counit_r.to_path().eval(2)
 
 References
-----------
+-----------
 .. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via String Diagrams. In Proceedings 19th International Conference on Quantum Physics and Logic, Wolfson College, Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
 .. [KW20] Kissinger, A., & Wetering, J. (2020). PyZX: Large Scale Automated Diagrammatic Reasoning. In  Proceedings 16th International Conference on Quantum Physics and Logic,  Chapman University, Orange, CA, USA., 10-14 June 2019 (pp. 229-241). Open Publishing Association.
 .. [Gray18] Gray, J. (2018). quimb: A python package for quantum information and many-body calculations. Journal of Open Source Software, 3(29), 819.
 .. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
 .. [FTC21] Felice, G., Toumi, A., & Coecke, B. (2021). DisCoPy: Monoidal Categories in Python. In  Proceedings of the 3rd Annual International Applied Category Theory Conference 2020,  Cambridge, USA, 6-10th July 2020 (pp. 183-197). Open Publishing Association.
+.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., & Coecke, B. (2023). Light-Matter Interaction in the ZXW Calculus. In  Proceedings of the Twentieth International Conference on Quantum Physics and Logic,  Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
+
 """
 
 from __future__ import annotations

@@ -1,5 +1,11 @@
 """
-ZW diagrams and their mapping to :class:`tensor.Diagram`.
+Overview
+--------
+
+:math:`ZW_{\infty}` diagrams and their mapping to :class:`tensor.Diagram` from DisCoPy [FTC21]_.
+
+Generators and diagrams
+------------------------
 
 .. autosummary::
     :template: class.rst
@@ -14,12 +20,12 @@ ZW diagrams and their mapping to :class:`tensor.Diagram`.
     Scalar
 
 
-Example
--------
+Examples of usage
+------------------
 
-We check the axioms of the ZW calculus.
+We check the axioms of the :math:`ZW_{\infty}`.
 
-W commutativity
+**W commutativity**
 
 >>> from optyx.utils import compare_arrays_of_different_sizes
 >>> bSym_l = W(2)
@@ -28,7 +34,7 @@ W commutativity
 ...             bSym_l.to_tensor().eval().array,\\
 ...             bSym_r.to_tensor().eval().array)
 
-W associativity
+**W associativity**
 
 >>> bAso_l = W(2) >> W(2) @ Id(1)
 >>> bAso_r = W(2) >> Id(1) @ W(2)
@@ -36,7 +42,7 @@ W associativity
 ...             bAso_l.to_tensor().eval().array,\\
 ...             bAso_r.to_tensor().eval().array)
 
-W unit
+**W unit**
 
 >>> bId_l = W(2) >> Select(0) @ Id(1)
 >>> bId_r = W(2) >> Id(1) @ Select(0)
@@ -44,7 +50,7 @@ W unit
 ...             bId_l.to_tensor().eval().array,\\
 ...             bId_r.to_tensor().eval().array)
 
-W bialgebra
+**W bialgebra**
 
 >>> bBa_l = W(2) @ W(2) >>\\
 ...             Id(1) @ SWAP @ Id(1) >>\\
@@ -54,7 +60,7 @@ W bialgebra
 ...             bBa_l.to_tensor().eval().array,\\
 ...             bBa_r.to_tensor().eval().array)
 
-ZW bialgebra
+**ZW bialgebra**
 
 >>> from math import factorial
 >>> N = [float(np.sqrt(factorial(i))) for i in range(5)]
@@ -68,7 +74,7 @@ ZW bialgebra
 ...             bZBA_l.to_tensor().eval().array,\\
 ...             bZBA_r.to_tensor().eval().array)
 
-Z copies n-photon states
+**Z copies n-photon states**
 
 >>> K0_infty_l = Create(4) >> Z([1, 1, 1, 1, 1], 1, 2)
 >>> K0_infty_r = Create(4) @ Create(4)
@@ -76,7 +82,7 @@ Z copies n-photon states
 ...             K0_infty_l.to_tensor().eval().array,\\
 ...             K0_infty_r.to_tensor().eval().array)
 
-Check Lemma B7 from 2306.02114
+**Check Lemma B7 from 2306.02114**
 
 >>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
 ...             Z(lambda i: 1, 2, 0)
