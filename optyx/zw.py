@@ -2,7 +2,11 @@
 Overview
 --------
 
-:math:`ZW_{\infty}` diagrams and their mapping to :class:`tensor.Diagram` from DisCoPy [FTC21]_.
+:math:`ZW_{\infty}` diagrams [FSP+23]_ and their mapping to :class:`tensor.Diagram` from DisCoPy [FTC21]_. :math:`ZW_{\infty}` enables
+us to express a wider class of linear maps on the bosonic Fock space than by simply using the physically motivated diagarms of
+:math:`LO`. This however means that some of the maps might not be directly physically realisable.
+
+The calculus is encompassing both the :math:`LO` and :math:`QPath` calculi.
 
 Generators and diagrams
 ------------------------
@@ -28,11 +32,17 @@ We check the axioms of the :math:`ZW_{\infty}`.
 **W commutativity**
 
 >>> from optyx.utils import compare_arrays_of_different_sizes
+>>> from discopy.drawing import Equation
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> SWAP
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bSym_l.to_tensor().eval().array,\\
 ...             bSym_r.to_tensor().eval().array)
+>>> Equation(bSym_l, bSym_r, symbol="$=$").draw(\\
+... path="docs/_static/zw_commutativity.svg")
+
+.. image:: /_static/zw_commutativity.svg
+    :align: center
 
 **W associativity**
 
@@ -41,6 +51,11 @@ We check the axioms of the :math:`ZW_{\infty}`.
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bAso_l.to_tensor().eval().array,\\
 ...             bAso_r.to_tensor().eval().array)
+>>> Equation(bAso_l, bAso_r, symbol="$=$").draw(\\
+... path="docs/_static/zw_associativity.svg")
+
+.. image:: /_static/zw_associativity.svg
+    :align: center
 
 **W unit**
 
@@ -49,6 +64,11 @@ We check the axioms of the :math:`ZW_{\infty}`.
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bId_l.to_tensor().eval().array,\\
 ...             bId_r.to_tensor().eval().array)
+>>> Equation(bId_l, bId_r, symbol="$=$").draw(\\
+... path="docs/_static/zw_unit.svg")
+
+.. image:: /_static/zw_unit.svg
+    :align: center
 
 **W bialgebra**
 
@@ -59,6 +79,11 @@ We check the axioms of the :math:`ZW_{\infty}`.
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bBa_l.to_tensor().eval().array,\\
 ...             bBa_r.to_tensor().eval().array)
+>>> Equation(bBa_l, bBa_r, symbol="$=$").draw(\\
+... path="docs/_static/zw_bialgebra.svg")
+
+.. image:: /_static/zw_bialgebra.svg
+    :align: center
 
 **ZW bialgebra**
 
@@ -73,6 +98,12 @@ We check the axioms of the :math:`ZW_{\infty}`.
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bZBA_l.to_tensor().eval().array,\\
 ...             bZBA_r.to_tensor().eval().array)
+>>> Equation(bZBA_l, bZBA_r, symbol="$=$").draw(\\
+... path="docs/_static/zw_zw_bialgebra.svg")
+
+.. image:: /_static/zw_zw_bialgebra.svg
+    :align: center
+
 
 **Z copies n-photon states**
 
@@ -81,6 +112,12 @@ We check the axioms of the :math:`ZW_{\infty}`.
 >>> assert compare_arrays_of_different_sizes(\\
 ...             K0_infty_l.to_tensor().eval().array,\\
 ...             K0_infty_r.to_tensor().eval().array)
+>>> Equation(K0_infty_l, K0_infty_r, symbol="$=$").draw(\\
+... path="docs/_static/zw_z_copies.svg")
+
+.. image:: /_static/zw_z_copies.svg
+    :align: center
+
 
 **Check Lemma B7 from 2306.02114**
 
@@ -93,6 +130,11 @@ We check the axioms of the :math:`ZW_{\infty}`.
 >>> assert compare_arrays_of_different_sizes(\\
 ...             lemma_B7_l.to_tensor().eval().array,\\
 ...             lemma_B7_r.to_tensor().eval().array)
+>>> Equation(lemma_B7_l, lemma_B7_r, symbol="$=$").draw(\\
+... path="docs/_static/zw_lemma_B7.svg")
+
+.. image:: /_static/zw_lemma_B7.svg
+    :align: center
 """
 
 from typing import Union
