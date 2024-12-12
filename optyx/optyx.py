@@ -164,7 +164,7 @@ References
 .. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
 .. [FTC21] Felice, G., Toumi, A., & Coecke, B. (2021). DisCoPy: Monoidal Categories in Python. In  Proceedings of the 3rd Annual International Applied Category Theory Conference 2020,  Cambridge, USA, 6-10th July 2020 (pp. 183-197). Open Publishing Association.
 .. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., & Coecke, B. (2023). Light-Matter Interaction in the ZXW Calculus. In  Proceedings of the Twentieth International Conference on Quantum Physics and Logic,  Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
-
+.. [FPY+24] de Felice, G., Poór, B., Yeh, L., & Cashman, W. (2024). Fusion and flow: formal protocols to reliably build photonic graph states. arXiv preprint arXiv:2409.13541.
 """
 
 from __future__ import annotations
@@ -179,7 +179,7 @@ from optyx.utils import modify_io_dims_against_max_dim
 
 
 class Ty(frobenius.Ty):
-    """Optical and (qu)bit types."""
+    """Optical mode and (qu)bit types."""
 
 
 mode = Ty("mode")
@@ -209,7 +209,8 @@ class Diagram(frobenius.Diagram):
     grad = tensor.Diagram.grad
 
     def to_zw(self) -> Diagram:
-        """ To be used with optyx.LO diagrams """
+        """ To be used with :math:`LO` diagrams which can
+        be decomposed into the underlying :math:`ZW_{\infty}` generators."""
         return symmetric.Functor(
             ob=lambda x: Mode(len(x)),
             ar=lambda f: f.to_zw(),
@@ -217,7 +218,8 @@ class Diagram(frobenius.Diagram):
         )(self)
 
     def to_path(self, dtype: type = complex):
-        """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
+        """Returns the :class:`Matrix` normal form of a :class:`Diagram`.
+        In other words, it is the underlying matrix representation of a :math:`QPath` and :math:`LO` diagrams."""
         from optyx import path
 
         return symmetric.Functor(
@@ -228,7 +230,7 @@ class Diagram(frobenius.Diagram):
 
     def to_tensor(self, input_dims: list = None,
                   max_dim: int = None) -> tensor.Diagram:
-        """Returns a tensor.Diagram for evaluation"""
+        """Returns a :class:`tensor.Diagram` for evaluation"""
 
         def list_to_dim(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
@@ -537,7 +539,9 @@ class Box(frobenius.Box, Diagram):
     def to_path(self, dtype: type = complex):
         raise NotImplementedError
 
-    def truncation(self, input_dims, output_dims=None):
+    def truncation(self,
+                   input_dims: list = None,
+                   output_dims: list = None) -> tensor.Box:
         """ Create array in the semantics of a ZW diagram """
         raise NotImplementedError
 
@@ -554,7 +558,8 @@ class Box(frobenius.Box, Diagram):
     def array(self):
         return self._array
 
-    def determine_output_dimensions(self, input_dims):
+    def determine_output_dimensions(self,
+                                    input_dims: list[int] = None) -> list[int]:
         """ Determine the output dimensions based on the input dimensions.
         The generators of ZW affect the dimensions
         of the output tensor diagrams. """
@@ -652,7 +657,7 @@ class Swap(frobenius.Swap, Box):
 
     def truncation(self,
                    input_dims: list[int],
-                   output_dims: list[int] = None) -> np.ndarray:
+                   output_dims: list[int] = None) -> tensor.Box:
         return Permutation(self.dom, [1, 0]).truncation(input_dims,
                                                         output_dims)
 
@@ -680,7 +685,7 @@ class Permutation(Box):
     def truncation(
         self, input_dims: list[int],
         output_dims: list[int] = None
-    ) -> np.ndarray:
+    ) -> tensor.Box:
         """Create an array that permutes the occupation
         numbers based on the input dimensions."""
 
@@ -801,10 +806,16 @@ class Scalar(Box):
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
 
-    def truncation(self, _=None, __=None) -> np.ndarray[complex]:
+    def truncation(
+        self,
+        input_dims: list[int] = None,
+        output_dims: list[int] = None
+    ) -> tensor.Box:
         return tensor.Box(self.name, Dim(1), Dim(1), self.array)
 
-    def determine_output_dimensions(self, _=None) -> list[int]:
+    def determine_output_dimensions(self,
+                                    input_dims: list[int]=None) -> list[int]:
+        """Determine the output dimensions"""
         return [1]
 
 
@@ -817,13 +828,19 @@ class DualRail(Box):
         cod = Mode(2)
         super().__init__("2R", dom, cod)
 
-    def truncation(self, input_dims=None, output_dims=None):
+    def truncation(
+        self,
+        input_dims: list[int] = None,
+        output_dims: list[int] = None
+    ) -> tensor.Box:
+        """:class:`tensor.Box` for the dual rail encoding."""
         array = np.zeros((2, 2, 2), dtype=complex)
         array[0, 1, 0] = 1
         array[1, 0, 1] = 1
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions"""
         return [2, 2]
 
     def to_zw(self):

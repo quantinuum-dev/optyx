@@ -1,19 +1,39 @@
 """
-ZX diagrams and their mapping to :class:`path.Diagram`.
+Overview
+--------
+
+ZX diagrams and their mapping to :class:`path.Diagram`. They represent a qubit circuits encoded via the dual rail encoding which
+enables direct reasoning about photonic protocols like in [FPY+24]_.
 
 
-.. admonition:: Functions
+Generators
+-------------
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
 
-    .. autosummary::
-        :template: function.rst
-        :nosignatures:
-        :toctree:
+    Box
+    Spider
+    Z
+    X
 
-        zx_to_path
+Functions
+----------
+.. autosummary::
+    :template: function.rst
+    :nosignatures:
+    :toctree:
+
+    zx_to_path
+    decomp
+    zx2path
+    circuit2zx
 
 
-Example
--------
+Examples of usage
+------------------
+
 >>> diagram = Z(2, 1, 0.25) >> X(1, 1, 0.35)
 >>> print(decomp(diagram))
 Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
@@ -37,7 +57,7 @@ encoding is equivalent.
 >>> assert np.allclose(zx_to_path(amplitude).to_path().eval().array, \\
 ...                    amplitude.to_pyzx().to_tensor())
 
-Corner case where :py:`to_pyzx` and :py:`zx_to_path` agree only up to global
+Corner case where :code:`to_pyzx` and :code:`zx_to_path` agree only up to global
 phase.
 
 >>> diagram = X(0, 2) @ Z(0, 1, 0.25) @ Scalar(1/2)\\
@@ -92,10 +112,15 @@ class Box(optyx.Box):
             return self.data
         raise NotImplementedError(f"Array not implemented for {self}.")
 
-    def determine_output_dimensions(self, _=None):
+    def determine_output_dimensions(self,
+                                    input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions"""
         return [2 for _ in range(len(self.cod))]
 
-    def truncation(self, _=None, __=None):
+    def truncation(self,
+                   input_dims=None,
+                   output_dims=None) -> tensor.Box:
+        "Return a :class:`tensor.Box` with the underlying array"
         out_dims = Dim(*[2 for i in range(len(self.cod))])
         in_dims = Dim(*[2 for i in range(len(self.dom))])
 
@@ -110,6 +135,8 @@ class Box(optyx.Box):
 
 class Spider(Box):
     """Abstract spider box."""
+
+    __ambiguous_inheritance__ = (Box,)
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
         super().__init__("Spider", n_legs_in, n_legs_out, data=phase)

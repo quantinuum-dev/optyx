@@ -221,8 +221,10 @@ class W(Box):
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
 
     def truncation(
-        self, input_dims: list[int], output_dims: list[int] = None
-    ) -> np.ndarray[complex]:
+        self,
+        input_dims: list[int],
+        output_dims: list[int] = None
+    ) -> tensor.Box:
         """Create a truncated array like in 2306.02114."""
         if output_dims is None:
             output_dims = self.determine_output_dimensions(input_dims)
@@ -324,7 +326,7 @@ class Z(Box):
 
     def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
-    ) -> np.ndarray[complex]:
+    ) -> tensor.Box:
         """Create an array like in 2306.02114"""
         if output_dims is None:
             output_dims = self.determine_output_dimensions(input_dims)
@@ -440,8 +442,10 @@ class Create(Box):
         )
 
     def truncation(
-        self, _=None, output_dims: list[int] = None
-    ) -> np.ndarray[complex]:
+        self,
+        input_dims: list[int] = None,
+        output_dims: list[int] = None
+    ) -> tensor.Box:
         """Create an array like in 2306.02114"""
 
         if output_dims is None:
@@ -464,7 +468,8 @@ class Create(Box):
 
         return tensor.Box(self.name, in_dims, out_dims, result_matrix)
 
-    def determine_output_dimensions(self, _=None) -> list[int]:
+    def determine_output_dimensions(self,
+                                    input_dims: list[int]=None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         # for this class we don't need the input dimensions
         return [
@@ -504,8 +509,10 @@ class Select(Box):
         )
 
     def truncation(
-        self, input_dims: list, _=None
-    ) -> np.ndarray[complex]:
+        self,
+        input_dims: list[int],
+        output_dims: list[int]=None
+    ) -> tensor.Box:
         """Create an array like in 2306.02114"""
         result_matrix = np.zeros((1, np.prod(input_dims)), dtype=complex)
         index = 0
@@ -594,7 +601,7 @@ class Endo(Box):
 
     def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
-    ) -> np.ndarray[complex]:
+    ) -> tensor.Box:
         return Z(lambda x: self.scalar**x, 1, 1).truncation(
             input_dims, output_dims
         )
