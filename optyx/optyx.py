@@ -1,5 +1,25 @@
 """
-Optics diagrams combine ZW_infty, QPath and ZX calculi.
+
+
+Overview
+--------
+
+Optyx diagrams combine three diagrammatic calculi:
+
+- :math:`ZW_{\infty}` calculus: for infinite-dimensional systems (Mode type).
+- :math:`LO` calculus: for linear optics (Mode type).
+- ZX calculus: for qubit systems (Bit type).
+
+:math:`LO` calculus diagrams are a subset of :math:`ZW_{\infty}` diagrams and we can express them using :math:`ZW_{\infty}` generators.
+:math:`LO` diagrams are used to model linear optical circuits build from beam splitters, phase shifters, and other optical elements while :math:`ZW_{\infty}`
+are able to express more general maps on the bosonic Fock space. ZX diagrams are used to model qubit circuits and we can go from photonic modes to qubits using the
+dual-rail encoding (using the :code:`DualRail` box). This is crucial if we want to combine the reasoning about photonic circuits, dual rail encoded qubit circuits, and classical
+data (feed-forward) data. The formal definitions which underpin the ZX, :math:`ZW_{\infty}` and :math:`LO` enable us to capture all elements needed for universal photonic quantum computation and its sumulation.
+
+Most importantly, we can evaluate the diagrams using tensor network methods via quimb [Gray18]_ or more traditionally (for linear optics) using a permanent method via Perceval [FGL+23]_.
+
+Types
+-------------
 
 .. autosummary::
     :template: class.rst
@@ -8,19 +28,70 @@ Optics diagrams combine ZW_infty, QPath and ZX calculi.
 
     Mode
     Bit
+    Ty
+
+Generators and diagrams
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
     Diagram
     Box
     Swap
     Permutation
     Scalar
+    DualRail
 
-Example
--------
+Other classes
+-------------
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
 
-Optyx diagrams can combine the generators from ZW_infty (Mode type),
-QPath (Mode type) and ZX calculi (Bit type).
+    EmbeddingTensor
 
-Branching law from QPath and ZW_infty:
+Examples of usage
+------------------
+
+**Creating diagrams**
+
+We can create and draw Optyx diagrams using the syntax of the Discopy package [FTC21]_. Sequential composition of boxes is done using the :code:`<<` operator:
+
+>>> from optyx.zw import Create, W
+>>> split_photon = Create(1) >> W(2)
+>>> split_photon.draw(path="docs/_static/seq_comp_example.png")
+
+.. image:: /_static/seq_comp_example.png
+    :align: center
+
+We can also tensor (parallelally compose) boxes using the :code:`@` operator:
+
+>>> from optyx.LO import BS, Phase
+>>> beam_splitter_phase = BS @ Phase(0.5)
+>>> beam_splitter_phase.draw(path="docs/_static/parallel_comp_example.png")
+
+.. image:: /_static/parallel_comp_example.png
+    :align: center
+
+A beam-splitter from the :math:`LO` calculus can be expressed using the :math:`ZW_{\infty}` calculus:
+
+>>> from optyx.LO import BS
+>>> beam_splitter = BS.to_zw()
+>>> beam_splitter.draw(path="docs/_static/bs_zw.png")
+
+.. image:: /_static/bs_zw.png
+    :align: center
+
+Optyx diagrams can combine the generators from :math:`ZW_\infty` (Mode type),
+:math:`QPath` (Mode type) and ZX calculi (Bit type). We can check their equivalence as tensors.
+
+**Branching Law**
+
+Let's check that the branching law from QPath and :math:`ZW_{\infty}` from [FC23]_.
 
 >>> from optyx.zw import Create, W
 >>> from optyx.utils import compare_arrays_of_different_sizes
@@ -32,11 +103,9 @@ Branching law from QPath and ZW_infty:
 ...     branching_r.to_tensor().eval().array,\\
 ... )
 
-Specific methods of the optyx.Diagram class are applicable to
-specific types of diagrams.
+**Hong-Ou-Mandel Effect**
 
-The to_tensor method is applicable to all types of diagrams. For example,
-the Hong-Ou-Mandel effect can be implemented as follows:
+The :code:`to_tensor` method supports evaluation of diagrams like the Hong-Ou-Mandel effect:
 
 >>> from optyx.zw import Z, SWAP, W, Select, Id
 >>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
@@ -52,12 +121,16 @@ the Hong-Ou-Mandel effect can be implemented as follows:
 ...             Hong_Ou_Mandel.to_tensor().eval().array,\\
 ...             np.array([0]))
 
-The to_pyzx and from_pyzx methods are to applicable to ZX diagrams:
+**Converting ZX Diagrams**
+
+The :code:`to_pyzx` and :code:`from_pyzx` methods enable conversion between Optyx and PyZX [KW20]_:
 
 >>> from optyx.zx import Z, SWAP
 >>> assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
 
-The method from_bosonic_operator is applicable to QPath diagrams:
+**QPath Diagrams from Bosonic Operators**
+
+The :code:`from_bosonic_operator` method supports creating QPath diagrams:
 
 >>> from optyx.zw import Split, Select, Id, Mode, Scalar
 >>> d1 = Diagram.from_bosonic_operator(
@@ -74,12 +147,22 @@ The method from_bosonic_operator is applicable to QPath diagrams:
 
 >>> assert d1 == d2
 
-Finally, to_path method is applicable to QPath diagrams:
+**Evaluating QPath Diagrams with the permanent method**
+
+The :code:`to_path` method supports evaluation by calculating a permanent of an underlying matrix:
 
 >>> from optyx.zw import Create, W
 >>> counit_l = W(2) >> Select(0) @ Id(Mode(1))
 >>> counit_r = W(2) >> Id(Mode(1)) @ Select(0)
 >>> assert counit_l.to_path().eval(2) == counit_r.to_path().eval(2)
+
+References
+----------
+.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via String Diagrams. In Proceedings 19th International Conference on Quantum Physics and Logic, Wolfson College, Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
+.. [KW20] Kissinger, A., & Wetering, J. (2020). PyZX: Large Scale Automated Diagrammatic Reasoning. In  Proceedings 16th International Conference on Quantum Physics and Logic,  Chapman University, Orange, CA, USA., 10-14 June 2019 (pp. 229-241). Open Publishing Association.
+.. [Gray18] Gray, J. (2018). quimb: A python package for quantum information and many-body calculations. Journal of Open Source Software, 3(29), 819.
+.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
+.. [FTC21] Felice, G., Toumi, A., & Coecke, B. (2021). DisCoPy: Monoidal Categories in Python. In  Proceedings of the 3rd Annual International Applied Category Theory Conference 2020,  Cambridge, USA, 6-10th July 2020 (pp. 183-197). Open Publishing Association.
 """
 
 from __future__ import annotations
@@ -124,7 +207,7 @@ class Diagram(frobenius.Diagram):
     grad = tensor.Diagram.grad
 
     def to_zw(self) -> Diagram:
-        """ To be used with optyx.circuit diagrams """
+        """ To be used with optyx.LO diagrams """
         return symmetric.Functor(
             ob=lambda x: Mode(len(x)),
             ar=lambda f: f.to_zw(),
@@ -133,12 +216,12 @@ class Diagram(frobenius.Diagram):
 
     def to_path(self, dtype: type = complex):
         """Returns the :class:`Matrix` normal form of a :class:`Diagram`."""
-        from optyx import qpath
+        from optyx import path
 
         return symmetric.Functor(
             ob=len,
             ar=lambda f: f.to_path(dtype),
-            cod=symmetric.Category(int, qpath.Matrix[dtype]),
+            cod=symmetric.Category(int, path.Matrix[dtype]),
         )(self)
 
     def to_tensor(self, input_dims: list = None,
@@ -502,7 +585,7 @@ class Sum(symmetric.Sum, Box):
         # we need to implement the proper sums of qpath diagrams
         # this is only a temporary solution, so that the grad tests pass
         if permanent is None:
-            from optyx.qpath import npperm
+            from optyx.path import npperm
 
             permanent = npperm
         return sum(
@@ -552,7 +635,7 @@ class Swap(frobenius.Swap, Box):
     """Swap in optyx diagram"""
 
     def to_path(self, dtype: type = complex):
-        from optyx.qpath import Matrix
+        from optyx.path import Matrix
 
         return Matrix([0, 1, 1, 0], 2, 2)
 
@@ -645,7 +728,7 @@ class Permutation(Box):
         )
 
     def to_path(self, dtype: type = complex):
-        from optyx.qpath import Matrix
+        from optyx.path import Matrix
 
         array = np.zeros(
             (len(self.cod.inside), len(self.dom.inside)), dtype=complex
@@ -661,9 +744,9 @@ class Scalar(Box):
 
     Example
     -------
-    >>> from optyx.qpath import Matrix
+    >>> from optyx.path import Matrix
     >>> from optyx.zw import Create, Select
-    >>> from optyx.circuit import BS
+    >>> from optyx.LO import BS
     >>> assert Scalar(0.45).to_path() == Matrix(
     ...     [], dom=0, cod=0,
     ...     creations=(), selections=(), normalisation=1, scalar=0.45)
@@ -688,7 +771,7 @@ class Scalar(Box):
         return f"scalar({format_number(self.data)})"
 
     def to_path(self, dtype: type = complex):
-        from optyx.qpath import Matrix
+        from optyx.path import Matrix
 
         return Matrix[dtype]([], 0, 0, scalar=self.scalar)
 
@@ -724,6 +807,9 @@ class Scalar(Box):
 
 
 class DualRail(Box):
+    """
+    A map from :code:`Bit` to :code:`Mode` using the dual rail encoding.
+    """
     def __init__(self):
         dom = Bit(1)
         cod = Mode(2)
@@ -743,6 +829,9 @@ class DualRail(Box):
 
 
 class EmbeddingTensor(tensor.Box):
+    """
+    Embedding tensor for fixing the dimensions of the output tensor.
+    """
     def __init__(self, input_dim: int, output_dim: int):
 
         embedding_array = np.zeros(

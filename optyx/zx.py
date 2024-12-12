@@ -1,7 +1,9 @@
 """
-ZX diagrams and their mapping to :class:`qpath.Diagram`.
+ZX diagrams and their mapping to :class:`path.Diagram`.
+
 
 .. admonition:: Functions
+
     .. autosummary::
         :template: function.rst
         :nosignatures:
@@ -71,7 +73,7 @@ from discopy.frobenius import Dim
 from discopy import tensor
 from optyx import optyx
 from optyx import zw
-from optyx import circuit
+from optyx import LO
 from optyx.optyx import Diagram, Bit, Sum, Swap, bit, Mode, Scalar
 
 
@@ -260,7 +262,7 @@ create = zw.Create(1)
 annil = zw.Select(1)
 comonoid = zw.Split(2)
 monoid = zw.Merge(2)
-BS = circuit.BS
+BS = LO.BS
 
 
 def Id(n):
@@ -295,7 +297,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return Id(Mode(1)) @ circuit.Phase(phase)
+            return Id(Mode(1)) @ LO.Phase(phase)
         if (n, m, phase) == (2, 1, 0):
             return Id(Mode(1)) @ (monoid >> annil) @ Id(Mode(1))
         if (n, m, phase) == (1, 2, 0):

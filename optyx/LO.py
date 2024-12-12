@@ -53,7 +53,7 @@ from sympy import Expr, lambdify
 import sympy as sp
 
 from optyx.optyx import Mode, Box
-from optyx.qpath import Matrix
+from optyx.path import Matrix
 from optyx.zw import Z, W, Create, Select, Scalar
 from optyx.zw import Split, Merge, Id, SWAP
 

@@ -4,7 +4,7 @@ from optyx.zw import *
 from optyx.optyx import mode, Permutation, DualRail, EmbeddingTensor
 from optyx.utils import compare_arrays_of_different_sizes
 import optyx.zx as zx
-import optyx.circuit as circuit
+import optyx.LO as LO
 import itertools
 import pytest
 import numpy as np
@@ -462,6 +462,6 @@ def test_DR_beamsplitter():
 phases = phases = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 @pytest.mark.parametrize("phase", phases)
 def test_DR_phase_shift(phase):
-    left = DualRail().to_zw() >> circuit.Id(1) @ circuit.Phase(phase).to_zw()
+    left = DualRail().to_zw() >> LO.Id(1) @ LO.Phase(phase).to_zw()
     right = zx.Z(1, 1, phase=phase) >> DualRail()
     assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)

@@ -98,7 +98,7 @@ from optyx.utils import (
     occupation_numbers,
     multinomial
 )
-from optyx.qpath import Matrix
+from optyx.path import Matrix
 from optyx import optyx
 
 

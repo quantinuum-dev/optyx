@@ -1,7 +1,16 @@
 """
-The category :class:`Matrix` and the syntax :class:`Diagram`
-of matrices with creations and post-selections.
 
+Overview
+--------
+
+The category :class:`Matrix` and the syntax :class:`Diagram`
+of matrices with creations and post-selections. The module supports representing the :math:`LO` fragment
+of Optyx diagrams as matrices. It enables the computation of the amplitudes and probabilities of the diagrams by evaluting
+permanents of underlying matrices (either directly or via Perceval [FGL+23]_). The :code:`to_path` method
+of Optyx diagrams which belong to the :math:`LO` fragment returns a :class:`Matrix` object.
+
+Classes
+-------------
 
 .. autosummary::
     :template: class.rst
@@ -13,7 +22,8 @@ of matrices with creations and post-selections.
     Probabilities
 
 
-.. admonition:: Functions
+Functions
+-------------
 
     .. autosummary::
         :template: function.rst
@@ -22,13 +32,15 @@ of matrices with creations and post-selections.
 
         npperm
 
-Examples
---------
+Examples of usage
+------------------
 
-We can check the Hong-Ou-Mandel effect:
+**Hong-Ou-Mandel effect**
+
+We can check the Hong-Ou-Mandel effect by evaluating the permanent of the underlying matrix:
 
 >>> from optyx.zw import Create, Select, Split, Merge, Id
->>> from optyx.circuit import BS
+>>> from optyx.LO import BS
 >>> HOM = Create(1, 1) >> BS
 >>> HOM.to_path().eval()
 Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
@@ -37,6 +49,8 @@ Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.to_path().prob()
 Probabilities[complex]([0.5+0.j], dom=1, cod=1)
+
+**Bell state**
 
 We can construct a Bell state in dual rail encoding:
 
@@ -52,11 +66,17 @@ We can construct a Bell state in dual rail encoding:
 ...     (bell >> V @ H).to_path().eval().array,
 ...     (bell >> H @ V).to_path().eval().array)
 
+**Number operator**
+
 We can define the number operator and compute its expectation.
 
 >>> num_op = Split(2) >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge(2)
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
 >>> assert np.allclose(expectation(5).to_path().eval().array, np.array([5.]))
+
+References
+----------
+.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
 """
 
 from __future__ import annotations
@@ -455,7 +475,7 @@ class Amplitudes(underlying.Matrix):
     Example
     -------
     >>> from optyx.zw import Select, Id
-    >>> from optyx.circuit import BS
+    >>> from optyx.LO import BS
     >>> BS.to_path().eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
@@ -477,7 +497,7 @@ class Probabilities(underlying.Matrix):
     Example
     -------
     >>> from optyx.zw import Create
-    >>> from optyx.circuit import BS
+    >>> from optyx.LO import BS
     >>> BS.to_path().prob(1).round(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
     >>> (Create(1, 1) >> BS).to_path().prob().round(1)
