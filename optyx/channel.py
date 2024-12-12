@@ -1,10 +1,23 @@
 """
 Implements Quantum Channels
 
+The discarding map corresponds to the cap.
+
+>>> discard = Channel("Discard", qubit, Ty(), kraus=optyx.Id(optyx.bit), env=optyx.bit)
+>>> assert discard.double() == optyx.Spider(2, 0, optyx.bit)
+
+Encoding and measuring a qubit correspond to spiders .
+
 >>> encode = Channel("Encode", bit, qubit, kraus = optyx.Id(optyx.bit))
 >>> measure = Channel("Measure", qubit, bit, kraus = optyx.Id(optyx.bit))
 >>> result = optyx.Spider(2, 1, optyx.bit) >> optyx.Spider(1, 2, optyx.bit)
 >>> assert (measure >> encode).double() == result
+
+We can model photon loss with discarding.
+
+>>> import numpy as np
+>>> kraus = lambda nu: zw.W(2) >> zw.Endo(np.sqrt(nu)) @ zw.Endo(np.sqrt(1 - nu)) 
+>>> loss = lambda nu: Channel(str(nu), qmode, qmode, kraus(nu), env=optyx.mode)
 """
 
 from __future__ import annotations
@@ -14,40 +27,20 @@ from discopy.cat import factory, rsubs
 from optyx import optyx, zw, zx
 
 class Ob(symmetric.Ob):
-    """Type of a single wire in a circuit: bit, mode, qubit or qmode."""
+    """Basic object: bit, mode, qubit or qmode"""
 
 @factory
 class Ty(symmetric.Ty):
     """Classical and quantum types."""
     ob_factory = Ob
-    
-    def classical(self):
-        "Classical part of the type"
-        classical = Ty()
-        for ty in self:
-            if ty.name in ["qubit", "qmode"]:
-                pass
-            else:
-                classical @= Ty(ty.name)
-        return classical
-
-    def quantum(self):
-        "Quantum part of the type"
-        quantum = Ty()
-        for ty in self:
-            if ty.name in ["bit", "mode"]:
-                pass
-            else:
-                quantum @= Ty(ty.name)
-        return quantum
 
     def single(self):
-        """Returns the optyx.Ty obtained by mapping qubit to optyx.bit and qmode to optyx.mode"""
+        """Returns the optyx.Ty obtained by mapping qubit to bit and qmode to mode"""
         single = lambda x: "bit" if x == "qubit" else "mode" if x == "qmode" else x
         return optyx.Ty(*[single(x.name) for x in self])
 
     def double(self):
-        """Returns the optyx.Ty obtained by doubling the quantum part"""
+        """Returns the optyx.Ty obtained by mapping qubit to bit @ bit and qmode to mode @ mode"""
         double = optyx.Ty()
         for ty in self:
             if ty.name in ["bit", "mode"]:
@@ -101,7 +94,6 @@ class Channel(symmetric.Box, Circuit):
             return spiders
         
         get_perm = lambda n: sorted(sorted(list(range(n))), key=lambda i: i % 2)
-
         typ = self.cod.single()
         top_spiders = get_spiders(self.dom)
         top_perm = optyx.Diagram.permutation(get_perm(len(top_spiders.cod)), top_spiders.cod)
