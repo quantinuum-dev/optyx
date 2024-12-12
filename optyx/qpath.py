@@ -292,6 +292,7 @@ class Matrix(underlying.Matrix):
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
+        print(f"{cod_basis=}")
 
         result = Amplitudes[self.dtype].zero(
             len(dom_basis), len(cod_basis)
@@ -349,6 +350,7 @@ class Matrix(underlying.Matrix):
         probabilities = np.abs(amplitudes.array) ** 2
         if as_tensor:
             return Tensor(probabilities, amplitudes.dom, amplitudes.cod)
+        print(f"QPATH {probabilities=}")
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )
@@ -388,6 +390,7 @@ class Matrix(underlying.Matrix):
 
         circ = self._umatrix_to_perceval_circuit()
         post = self._to_perceval_post_select()
+        print(f"PERC {post=}")
 
         proc = pcvl.Processor(simulator)
         proc.set_circuit(circ)
@@ -395,14 +398,16 @@ class Matrix(underlying.Matrix):
 
         input_occ = occupation_numbers(n_photons, self.dom)
         output_occ = occupation_numbers(
-                sum(self.creations) + n_photons,
-                len(self.creations) + self.dom,
-            )
+            sum(self.creations) + n_photons,
+            len(self.creations) + self.dom,
+        )
 
         states = [
             pcvl.BasicState(o + self.creations)
             for o in input_occ
         ]
+        print(f"PERC {states=}")
+        pcvl.pdisplay(proc)
         analyzer = pcvl.algorithm.Analyzer(proc, states, "*")
 
         permutation = [
@@ -410,7 +415,13 @@ class Matrix(underlying.Matrix):
             for o in output_occ
             if post(pcvl.BasicState(o))
         ]
-        result = analyzer.distribution[:, permutation]
+        print(f"PERC {permutation=}")
+        og_dist = analyzer.distribution
+        pcvl.pdisplay(analyzer)
+        result = og_dist[:, permutation]
+        print(f"PERC {og_dist=}")
+        print(f"PERC {og_dist[:, permutation]=}")
+        print(f"PERC {result=}")
         if as_tensor:
             return amplitudes_2_tensor(result, input_occ, output_occ)
         return Probabilities[self.dtype](
