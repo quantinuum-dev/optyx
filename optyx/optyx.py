@@ -92,17 +92,16 @@ from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
 
+class Ob(frobenius.Ob):
+    """Basic object in an optyx Diagram: bit or mode"""
 
+@factory
 class Ty(frobenius.Ty):
     """Optical and (qu)bit types."""
-
-
-mode = Ty("mode")
-bit = Ty("bit")
-
+    ob_factory = Ob
 
 class Mode(Ty):
-    """Optical mode type with infinite dimensions."""
+    """Optical mode interpreted as the infinite space with countable basis"""
 
     def __init__(self, n=0):
         self.n = n
@@ -110,7 +109,7 @@ class Mode(Ty):
 
 
 class Bit(Ty):
-    """(Qu)bit type."""
+    """Qubit type interpreted as the two dimensional complext vector space"""
 
     def __init__(self, n=0):
         self.n = n
@@ -548,6 +547,10 @@ class Sum(symmetric.Sum, Box):
         return sum(term.grad(var, **params) for term in self.terms)
 
 
+class Spider(frobenius.Spider, Box):
+    """Spider in an optyx diagram"""
+
+
 class Swap(frobenius.Swap, Box):
     """Swap in optyx diagram"""
 
@@ -757,8 +760,10 @@ class EmbeddingTensor(tensor.Box):
             embedding_array.T
         )
 
+bit = Bit(1)
+mode = Mode(1)
 
-Diagram.swap_factory = Swap
-Diagram.swap = Swap
+Diagram.ty_factory = Ty
+Diagram.swap_factory, Diagram.spider_factory = Swap, Spider
 Diagram.sum_factory = Sum
 Id = Diagram.id
