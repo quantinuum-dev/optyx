@@ -6,7 +6,7 @@ The discarding map corresponds to the cap.
 >>> discard = Channel("Discard", qubit, Ty(), kraus=optyx.Id(optyx.bit), env=optyx.bit)
 >>> assert discard.double() == optyx.Spider(2, 0, optyx.bit)
 
-Encoding and measuring a qubit correspond to spiders .
+Encoding and measuring a qubit correspond to spiders.
 
 >>> encode = Channel("Encode", bit, qubit, kraus = optyx.Id(optyx.bit))
 >>> measure = Channel("Measure", qubit, bit, kraus = optyx.Id(optyx.bit))
@@ -18,6 +18,8 @@ We can model photon loss with discarding.
 >>> import numpy as np
 >>> kraus = lambda nu: zw.W(2) >> zw.Endo(np.sqrt(nu)) @ zw.Endo(np.sqrt(1 - nu)) 
 >>> loss = lambda nu: Channel(str(nu), qmode, qmode, kraus(nu), env=optyx.mode)
+
+
 """
 
 from __future__ import annotations
@@ -28,6 +30,25 @@ from optyx import optyx, zw, zx
 
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
+    _single_dict = {"bit": "bit", "mode":"mode", "qubit": "bit", "qmode": "mode"}
+
+    @property
+    def is_classical(self):
+        return False if self.name in ["qubit", "qmode"] else True
+
+    @property
+    def single(self): 
+        return optyx.Ty(self._single_dict[self.name])
+
+    @property
+    def double(self):
+        if self.is_classical:
+            return optyx.Ty(self.name)
+        else:
+            name = self._single_dict[self.name]
+            return optyx.Ty(name, name)
+        raise NotImplementedError()
+
 
 @factory
 class Ty(symmetric.Ty):
@@ -36,20 +57,11 @@ class Ty(symmetric.Ty):
 
     def single(self):
         """Returns the optyx.Ty obtained by mapping qubit to bit and qmode to mode"""
-        single = lambda x: "bit" if x == "qubit" else "mode" if x == "qmode" else x
-        return optyx.Ty(*[single(x.name) for x in self])
+        return optyx.Ty().tensor(*[ob.single for ob in self.inside])
 
     def double(self):
         """Returns the optyx.Ty obtained by mapping qubit to bit @ bit and qmode to mode @ mode"""
-        double = optyx.Ty()
-        for ty in self:
-            if ty.name in ["bit", "mode"]:
-                double @= optyx.Ty(ty.name)
-            if ty.name == "qubit":
-                double @= optyx.bit @ optyx.bit
-            if ty.name == "qmode":
-                double @= optyx.mode @ optyx.mode
-        return double
+        return optyx.Ty().tensor(*[ob.double for ob in self.inside])
 
 
 bit = Ty("bit")
@@ -65,11 +77,14 @@ class Circuit(symmetric.Diagram):
 
     def double(self):
         """ Returns the optyx.Diagram obtained by doubling every quantum dimension and building the CP map."""
-        ob, ar= lambda x: x.double(), lambda f: f.double()
+        ob= lambda x: x.double()
+        ar= lambda f: f.double()
         dom = symmetric.Category(Ty, Circuit)
         cod = symmetric.Category(optyx.Ty, optyx.Diagram)
-        F = symmetric.Functor(ob, ar, dom, cod)
-        return F(self)
+        return symmetric.Functor(ob, ar, dom, cod)(self)
+
+    def is_pure(self):
+        return min([box.is_pure for box in self])
 
 
 class Channel(symmetric.Box, Circuit):
@@ -82,24 +97,33 @@ class Channel(symmetric.Box, Circuit):
         self.env = env
         super().__init__(name, dom, cod)
 
+    @property
+    def is_pure(self):
+        if self.env != optyx.Ty():
+            return False
+        for ob in (self.dom @ self.cod).inside:
+            if ob.is_classical:
+                return False
+        return True
+
     def double(self):
         def get_spiders(dom):
             spiders = optyx.Id()
-            for x in dom:
-                if x.name in ["qubit", "qmode"]:
-                    box = optyx.Id(Ty(x.name).double()) 
+            for ob in dom.inside:
+                if ob.is_classical:
+                    box = optyx.Spider(1, 2, ob.single)
                 else:
-                    box = optyx.Spider(1, 2, optyx.Ty(x.name))
+                    box = optyx.Id(ob.double) 
                 spiders @= box
             return spiders
         
         get_perm = lambda n: sorted(sorted(list(range(n))), key=lambda i: i % 2)
-        typ = self.cod.single()
+        cod = self.cod.single()
         top_spiders = get_spiders(self.dom)
         top_perm = optyx.Diagram.permutation(get_perm(len(top_spiders.cod)), top_spiders.cod)
-        swap = optyx.Id(typ @ self.env) @ optyx.Diagram.swap(typ, self.env)
-        discards = optyx.Id(typ) @ optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(typ)
-        bot_perm = optyx.Diagram.permutation(get_perm(2 * len(typ)), typ @ typ).dagger()
+        swap = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(cod, self.env)
+        discards = optyx.Id(cod) @ optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(cod)
+        bot_perm = optyx.Diagram.permutation(get_perm(2 * len(cod)), cod @ cod).dagger()
         bot_spiders = get_spiders(self.cod).dagger()
         return top_spiders >> top_perm >> self.kraus @ self.kraus >> swap >> discards >> bot_perm >> bot_spiders
 
