@@ -292,7 +292,6 @@ class Matrix(underlying.Matrix):
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
-        print(f"{cod_basis=}")
 
         result = Amplitudes[self.dtype].zero(
             len(dom_basis), len(cod_basis)
@@ -350,7 +349,6 @@ class Matrix(underlying.Matrix):
         probabilities = np.abs(amplitudes.array) ** 2
         if as_tensor:
             return Tensor(probabilities, amplitudes.dom, amplitudes.cod)
-        print(f"QPATH {probabilities=}")
         return Probabilities[self.dtype](
             probabilities, amplitudes.dom, amplitudes.cod
         )

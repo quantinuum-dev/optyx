@@ -11,7 +11,7 @@ Utility functions which are used in the package.
 import numpy as np
 
 
-def occupation_numbers(n_photons, m_modes, reverse=False):
+def occupation_numbers(n_photons, m_modes):
     """
     Returns vectors of occupation numbers for n_photons in m_modes.
 
@@ -29,7 +29,7 @@ def occupation_numbers(n_photons, m_modes, reverse=False):
     if m_modes == 1:
         return [(n_photons,)]
     return [
-        tail[::-1] + (head,) if reverse else (head,) + tail
+        (head,) + tail
         for head in range(n_photons, -1, -1)
         for tail in occupation_numbers(n_photons - head, m_modes - 1)
     ]
