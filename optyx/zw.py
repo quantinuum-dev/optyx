@@ -334,36 +334,20 @@ class Z(Spider, Box):
         self, input_dims: list[int], output_dims: list[int] = None
     ) -> tensor.Box:
 
-        from optyx.optyx import EmbeddingTensor
-
-        if output_dims is None:
-            output_dims = self.determine_output_dimensions(input_dims)
-
-        if self.legs_in > 0:
-            spider_dim = min(input_dims)
-        else:
-            spider_dim = 2
-
         #if a scalar
         if self.legs_out == 0 and self.legs_in == 0:
-            if not isinstance(self.amplitudes, IndexableAmplitudes):
-                arr = np.array([self.amplitudes], dtype=complex)
-            arr = np.array([self.amplitudes[0]], dtype=complex)
-            return tensor.Box(self.name, Dim(1), Dim(1), arr)
+            amplitudes = (
+                np.array([self.amplitudes], dtype=complex)
+                if not isinstance(self.amplitudes, IndexableAmplitudes)
+                else np.array([self.amplitudes[0]], dtype=complex)
+            )
+            return tensor.Box(self.name, Dim(1), Dim(1), amplitudes)
 
-        #get the embedding layer and the leg on which to put the Z box
-        embedding_layer = tensor.Id(1)
-        idx_leg_Zbox = 0
-        for i, input_dim in enumerate(input_dims):
-            if input_dim > spider_dim:
-                embedding_layer @= EmbeddingTensor(input_dim,
-                                         spider_dim)
-            else:
-                embedding_layer @= tensor.Id(Dim(int(input_dim)))
+        from optyx.optyx import EmbeddingTensor
 
-            if input_dim == spider_dim:
-                idx_leg_Zbox = i
+        spider_dim = min(input_dims) if self.legs_in > 0 else 2
 
+        #create the array
         if (not isinstance(self.amplitudes, IndexableAmplitudes) and
             spider_dim > len(self.amplitudes)):
                 diag = list(self.amplitudes) + [0]*(spider_dim -
@@ -372,38 +356,36 @@ class Z(Spider, Box):
             diag = [self.amplitudes[i] for i in range(spider_dim)]
         result_matrix = np.diag(diag)
 
+        #get the embedding layer and the leg on which to put the Z box
+        embedding_layer = tensor.Id(1)
+        idx_leg_Zbox = 0
+        for i, input_dim in enumerate(input_dims):
+            embedding_layer @= (
+                EmbeddingTensor(input_dim, spider_dim)
+                if input_dim > spider_dim
+                else tensor.Id(Dim(int(input_dim)))
+            )
+            if input_dim == spider_dim:
+                idx_leg_Zbox = i
+
         #put the Zbox on the leg with min dimensions
-        layer_Zbox = tensor.Id(1)
+        n_legs = self.legs_in if self.legs_in > 0 else self.legs_out
 
-        if self.legs_in > 0:
-            n_legs = self.legs_in
-        else:
-            n_legs = self.legs_out
+        layer_Zbox = (
+            Dim(*[spider_dim]*idx_leg_Zbox) @
+            tensor.Box(self.name,
+                       Dim(int(spider_dim)),
+                       Dim(int(spider_dim)),
+                       result_matrix) @
+            Dim(*[spider_dim]*(n_legs - idx_leg_Zbox - 1))
+        )
 
-        for i in range(n_legs):
-            if i == idx_leg_Zbox:
-                layer_Zbox @= tensor.Box(self.name,
-                                         Dim(int(spider_dim)),
-                                         Dim(int(spider_dim)),
-                                         result_matrix)
-            else:
-                layer_Zbox @= tensor.Id(Dim(spider_dim))
-
-        if self.legs_in > 0:
-            full_subdiagram = (
-                embedding_layer >>
-                layer_Zbox >>
-                tensor.Spider(self.legs_in,
-                            self.legs_out,
-                            Dim(int(spider_dim)))
-            )
-        else:
-            full_subdiagram = (
-                tensor.Spider(self.legs_in,
-                            self.legs_out,
-                            Dim(int(spider_dim))) >>
-                layer_Zbox
-            )
+        spider_layer = tensor.Spider(self.legs_in, self.legs_out, Dim(int(spider_dim)))
+        full_subdiagram = (
+            embedding_layer >> layer_Zbox >> spider_layer
+            if self.legs_in > 0
+            else spider_layer >> layer_Zbox
+        )
 
         return full_subdiagram
 
