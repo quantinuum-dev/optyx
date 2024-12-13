@@ -438,7 +438,9 @@ class Matrix(underlying.Matrix):
         )
 
     def _to_perceval_post_select(self) -> pcvl.PostSelect:
-        post_str = [f"[{self.cod + i}] == {p}" for i, p in enumerate(self.selections)]
+        post_str = [
+            f"[{self.cod + i}] == {p}" for i, p in enumerate(self.selections)
+        ]
         return pcvl.PostSelect(" & ".join(post_str))
 
     def _umatrix_is_is_unitary(self) -> bool:
