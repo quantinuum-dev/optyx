@@ -183,6 +183,14 @@ class Z(Spider):
     tikzstyle_name = "Z"
     color = "green"
 
+    def truncation(self,
+                   input_dims=None,
+                   output_dims=None) -> tensor.Box:
+        import optyx.zw as zw
+        return zw.Z([1, np.exp(1j * self.phase * 2 * np.pi)],
+                    self.n_legs_in,
+                    self.n_legs_out).truncation([2]*self.n_legs_in)
+
     @property
     def array(self):
 
@@ -203,6 +211,23 @@ class X(Spider):
 
     tikzstyle_name = "X"
     color = "red"
+
+    def truncation(self,
+                   input_dims=None,
+                   output_dims=None) -> tensor.Box:
+        import optyx.zw as zw
+        in_hadamards = tensor.Id(1)
+        for i in range(self.n_legs_in):
+            in_hadamards @= H.truncation()
+
+        out_hadamards = tensor.Id(1)
+        for i in range(self.n_legs_out):
+            out_hadamards @= H.truncation()
+        return (
+            in_hadamards >>
+            Z(self.n_legs_in, self.n_legs_out, self.phase).truncation() >>
+            out_hadamards
+        )
 
     @property
     def array(self):
