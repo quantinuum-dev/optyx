@@ -133,10 +133,10 @@ class Box(optyx.Box):
                 np.all(self.data == other.data))
 
 
-class Spider(Box):
+class Spider(Box, optyx.Spider):
     """Abstract spider box."""
 
-    __ambiguous_inheritance__ = (Box,)
+    __ambiguous_inheritance__ = (Box, optyx.Spider)
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
         super().__init__("Spider", n_legs_in, n_legs_out, data=phase)

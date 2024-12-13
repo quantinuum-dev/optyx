@@ -141,7 +141,13 @@ from typing import Union
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
-from optyx.optyx import Diagram, Mode, Swap, Scalar
+from optyx.optyx import (
+    Diagram,
+    Mode,
+    Swap,
+    Scalar,
+    Spider
+)
 from optyx.utils import (
     occupation_numbers,
     multinomial
@@ -298,7 +304,7 @@ class W(Box):
         )
 
 
-class Z(Box):
+class Z(Spider, Box):
     """
     Z spider from the ZW calculus.
     """
@@ -327,56 +333,79 @@ class Z(Box):
     def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
     ) -> tensor.Box:
-        """Create an array like in 2306.02114"""
+
+        from optyx.optyx import EmbeddingTensor
+
         if output_dims is None:
             output_dims = self.determine_output_dimensions(input_dims)
 
-        result_matrix = np.zeros(
-            (
-                int(np.prod(np.array(output_dims))),
-                int(np.prod(np.array(input_dims))),
-            ),
-            dtype=complex,
-        )
-
-        if self.legs_in == 0:
-            max_dimension = 2
-
-            # a scalar
-            if self.legs_out == 0:
-                if not isinstance(self.amplitudes, IndexableAmplitudes):
-                    arr = np.array([self.amplitudes], dtype=complex)
-                arr = np.array([self.amplitudes[0]], dtype=complex)
-                return tensor.Box(self.name, Dim(1), Dim(1), arr)
+        if self.legs_in > 0:
+            spider_dim = min(input_dims)
         else:
-            max_dimension = min(input_dims)
+            spider_dim = 2
 
-        for i in range(max_dimension):
-            row_index = 0
-            col_index = 0
-
-            for j in range(self.legs_out):
-                row_index += i * (
-                    np.prod(np.array(output_dims[j + 1:]), dtype=int)
-                )
-            for j in range(self.legs_in):
-                col_index += i * (
-                    np.prod(np.array(input_dims[j + 1:]), dtype=int)
-                )
+        #if a scalar
+        if self.legs_out == 0 and self.legs_in == 0:
             if not isinstance(self.amplitudes, IndexableAmplitudes):
-                if i >= len(self.amplitudes):
-                    result_matrix[row_index, col_index] = 0
-                else:
-                    result_matrix[row_index, col_index] = self.amplitudes[
-                        i
-                    ]
+                arr = np.array([self.amplitudes], dtype=complex)
+            arr = np.array([self.amplitudes[0]], dtype=complex)
+            return tensor.Box(self.name, Dim(1), Dim(1), arr)
+
+        #get the embedding layer and the leg on which to put the Z box
+        embedding_layer = tensor.Id(1)
+        idx_leg_Zbox = 0
+        for i, input_dim in enumerate(input_dims):
+            if input_dim > spider_dim:
+                embedding_layer @= EmbeddingTensor(input_dim,
+                                         spider_dim)
             else:
-                result_matrix[row_index, col_index] = self.amplitudes[i]
+                embedding_layer @= tensor.Id(Dim(int(input_dim)))
 
-        out_dims = Dim(*[int(i) for i in output_dims])
-        in_dims = Dim(*[int(i) for i in input_dims])
+            if input_dim == spider_dim:
+                idx_leg_Zbox = i
 
-        return tensor.Box(self.name, in_dims, out_dims, result_matrix)
+        if (not isinstance(self.amplitudes, IndexableAmplitudes) and
+            spider_dim > len(self.amplitudes)):
+                diag = list(self.amplitudes) + [0]*(spider_dim -
+                                                    len(self.amplitudes))
+        else:
+            diag = [self.amplitudes[i] for i in range(spider_dim)]
+        result_matrix = np.diag(diag)
+
+        #put the Zbox on the leg with min dimensions
+        layer_Zbox = tensor.Id(1)
+
+        if self.legs_in > 0:
+            n_legs = self.legs_in
+        else:
+            n_legs = self.legs_out
+
+        for i in range(n_legs):
+            if i == idx_leg_Zbox:
+                layer_Zbox @= tensor.Box(self.name,
+                                         Dim(int(spider_dim)),
+                                         Dim(int(spider_dim)),
+                                         result_matrix)
+            else:
+                layer_Zbox @= tensor.Id(Dim(spider_dim))
+
+        if self.legs_in > 0:
+            full_subdiagram = (
+                embedding_layer >>
+                layer_Zbox >>
+                tensor.Spider(self.legs_in,
+                            self.legs_out,
+                            Dim(int(spider_dim)))
+            )
+        else:
+            full_subdiagram = (
+                tensor.Spider(self.legs_in,
+                            self.legs_out,
+                            Dim(int(spider_dim))) >>
+                layer_Zbox
+            )
+
+        return full_subdiagram
 
     def determine_output_dimensions(
         self, input_dims: list[int]

@@ -173,6 +173,7 @@ import numpy as np
 from sympy.core import Symbol, Mul
 from discopy import symmetric, frobenius, tensor
 from discopy.cat import factory, rsubs
+from discopy import cat
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
@@ -542,12 +543,12 @@ class Box(frobenius.Box, Diagram):
     def truncation(self,
                    input_dims: list = None,
                    output_dims: list = None) -> tensor.Box:
-        """ Create array in the semantics of a ZW diagram """
+        """ Create a tensor in the semantics of a ZW diagram """
         raise NotImplementedError
 
     @property
     def array(self):
-        """ Create array in the semantics of a ZX diagram """
+        """ Create an array in the semantics of a ZX diagram """
         raise NotImplementedError
 
     @array.setter
@@ -572,6 +573,12 @@ class Box(frobenius.Box, Diagram):
     def subs(self, *args) -> Diagram:
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
+
+
+class Spider(Box):
+    """Abstract spider (dagger-SCFA)"""
+
+    __ambiguous_inheritance__ = (Box,)
 
 
 class Sum(symmetric.Sum, Box):
@@ -856,12 +863,16 @@ class EmbeddingTensor(tensor.Box):
         embedding_array = np.zeros(
             (output_dim, input_dim), dtype=complex
         )
-        embedding_array[:input_dim, :input_dim] = np.eye(input_dim)
+
+        if input_dim < output_dim:
+            embedding_array[:input_dim, :input_dim] = np.eye(input_dim)
+        else:
+            embedding_array[:output_dim, :output_dim] = np.eye(output_dim)
 
         super().__init__(
             "Embedding",
-            Dim(input_dim),
-            Dim(output_dim),
+            Dim(int(input_dim)),
+            Dim(int(output_dim)),
             embedding_array.T
         )
 

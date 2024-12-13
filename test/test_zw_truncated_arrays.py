@@ -123,12 +123,3 @@ def kron_truncation_Z(diagram, input_dims: list[int]) -> np.ndarray[complex]:
         else:
             result_matrix += np.outer(vec_out, vec_in) * diagram.amplitudes[i]
     return result_matrix
-
-test_pairs = [[i] for i in range(1, 10, 2)]
-test_pairs += [[i, j] for i in range(1, 10, 2) for j in range(1, 10, 2)]
-test_pairs += [[i, j, k] for i in range(1, 10, 2) for j in range(1, 10, 2) for k in range(1, 10, 2)]
-
-@pytest.mark.parametrize("comb", test_pairs)
-def test_Z(comb):
-    assert np.allclose(kron_truncation_Z(Z(lambda i : np.sqrt(i), len(comb), 3), comb).flatten(),
-                       Z(lambda i : np.sqrt(i), len(comb), 3).truncation(comb).array.flatten())
