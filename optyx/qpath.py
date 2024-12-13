@@ -390,7 +390,6 @@ class Matrix(underlying.Matrix):
 
         circ = self._umatrix_to_perceval_circuit()
         post = self._to_perceval_post_select()
-        print(f"PERC {post=}")
 
         proc = pcvl.Processor(simulator)
         proc.set_circuit(circ)
@@ -406,8 +405,6 @@ class Matrix(underlying.Matrix):
             pcvl.BasicState(o + self.creations)
             for o in input_occ
         ]
-        print(f"PERC {states=}")
-        pcvl.pdisplay(proc)
         analyzer = pcvl.algorithm.Analyzer(proc, states, "*")
 
         permutation = [
@@ -415,13 +412,7 @@ class Matrix(underlying.Matrix):
             for o in output_occ
             if post(pcvl.BasicState(o))
         ]
-        print(f"PERC {permutation=}")
-        og_dist = analyzer.distribution
-        pcvl.pdisplay(analyzer)
-        result = og_dist[:, permutation]
-        print(f"PERC {og_dist=}")
-        print(f"PERC {og_dist[:, permutation]=}")
-        print(f"PERC {result=}")
+        result = analyzer.distribution[:, permutation]
         if as_tensor:
             return amplitudes_2_tensor(result, input_occ, output_occ)
         return Probabilities[self.dtype](
@@ -439,7 +430,7 @@ class Matrix(underlying.Matrix):
             // (0, pcvl.PS(phi=pcvl.Parameter("phi_2")))
         )
 
-        m = pcvl.MatrixN(self.array)
+        m = pcvl.MatrixN(self.array.T.conj())
         return pcvl.Circuit.decomposition(
             m,
             _mzi_triangle,
