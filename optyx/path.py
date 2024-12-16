@@ -48,10 +48,13 @@ evaluating the permanent of the underlying matrix:
 >>> from optyx.zw import Create, Select, Split, Merge, Id
 >>> from optyx.LO import BS
 >>> HOM = Create(1, 1) >> BS
->>> HOM.to_path().eval()
-Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
->>> HOM.to_path().prob()
-Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
+>>> assert np.allclose(HOM.to_path().eval().array,\\
+... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j],\\
+... dom=1, cod=3).array)
+
+>>> assert(HOM.to_path().prob().array, \\
+... Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], \\
+... dom=1, cod=3))
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.to_path().prob()
 Probabilities[complex]([0.5+0.j], dom=1, cod=1)
@@ -471,8 +474,9 @@ class Amplitudes(underlying.Matrix):
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
     >>> assert isinstance(BS.to_path().eval(2), Amplitudes)
-    >>> (BS >> Select(1) @ Id(1)).to_path().eval(2)
-    Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], dom=3, cod=1)
+    >>> assert np.allclose((BS >> Select(1) @ Id(1)).to_path().eval(2).array, \\
+    ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], \\
+    ... dom=3, cod=1).array)
     """
 
     dtype = complex
