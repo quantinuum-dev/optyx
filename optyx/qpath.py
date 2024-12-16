@@ -395,9 +395,9 @@ class Matrix(underlying.Matrix):
 
         input_occ = occupation_numbers(n_photons, self.dom)
         output_occ = occupation_numbers(
-                sum(self.creations) + n_photons,
-                len(self.creations) + self.dom,
-            )
+            sum(self.creations) + n_photons,
+            len(self.creations) + self.dom,
+        )
 
         states = [
             pcvl.BasicState(o + self.creations)
@@ -428,7 +428,7 @@ class Matrix(underlying.Matrix):
             // (0, pcvl.PS(phi=pcvl.Parameter("phi_2")))
         )
 
-        m = pcvl.MatrixN(self.array)
+        m = pcvl.MatrixN(self.array.T.conj())
         return pcvl.Circuit.decomposition(
             m,
             _mzi_triangle,
@@ -438,10 +438,10 @@ class Matrix(underlying.Matrix):
         )
 
     def _to_perceval_post_select(self) -> pcvl.PostSelect:
-        post = pcvl.PostSelect()
-        for i, p in enumerate(self.selections):
-            post.eq(self.cod + i, p)
-        return post
+        post_str = [
+            f"[{self.cod + i}] == {p}" for i, p in enumerate(self.selections)
+        ]
+        return pcvl.PostSelect(" & ".join(post_str))
 
     def _umatrix_is_is_unitary(self) -> bool:
         m = self.umatrix.array
