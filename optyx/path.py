@@ -474,7 +474,8 @@ class Amplitudes(underlying.Matrix):
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
     >>> assert isinstance(BS.to_path().eval(2), Amplitudes)
-    >>> assert np.allclose((BS >> Select(1) @ Id(1)).to_path().eval(2).array, \\
+    >>> assert np.allclose((BS >> Select(1) @ \\
+    ... Id(1)).to_path().eval(2).array,\\
     ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], \\
     ... dom=3, cod=1).array)
     """
