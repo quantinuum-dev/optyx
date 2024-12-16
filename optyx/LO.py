@@ -3,9 +3,13 @@
 Overview
 --------
 
-Linear optical circuits built from biased/tunable beam splitters, phase shifters, Mach-Zender interferometers. This module
-represents the heralded linear optical circuits, which are physically implementable. The gates can be perceived as
-having an underlying QPath diagram representation [FC23]_ (which are a subset of :math:`ZW_{\infty}` diagrams [FSP+23]_).
+Linear optical circuits built from biased/tunable
+beam splitters, phase shifters, Mach-Zender interferometers.
+This module represents the heralded linear optical
+circuits, which are physically implementable.
+The gates can be perceived as having an underlying QPath
+diagram representation [FC23]_ (which are a subset of
+:math:`ZW_{\\infty}` diagrams [FSP+23]_).
 
 Generators and diagrams
 ------------------------
@@ -51,11 +55,13 @@ The function :code:`ansatz` generates a universal interferometer:
 .. image:: /_static/ansatz6_4.png
     :align: center
 
-Each diagram of the module can be converted to a :math:`ZW_{\infty}` diagram:
+Each diagram of the module can be converted to a :math:`ZW_{\\infty}` diagram:
 
+>>> from discopy.drawing import Equation
 >>> BS = BBS(0)
->>> double_BS = BS @ BS.to_zw()
->>> double_BS.draw(path='docs/_static/double_BS.png')
+>>> double_BS = BS.to_zw()
+>>> Equation(BS, double_BS, symbol="$\\mapsto$").draw(\\
+... path="docs/_static/double_BS.png")
 
 .. image:: /_static/double_BS.png
     :align: center
@@ -88,8 +94,16 @@ We can differentiate the expectation values of optical circuits.
 
 References
 ----------
-.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via String Diagrams. In Proceedings 19th International Conference on Quantum Physics and Logic, Wolfson College, Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
-.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., & Coecke, B. (2023). Light-Matter Interaction in the ZXW Calculus. In  Proceedings of the Twentieth International Conference on Quantum Physics and Logic,  Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
+.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics \
+    via String Diagrams. In Proceedings 19th International \
+    Conference on Quantum Physics and Logic, Wolfson College, \
+    Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). \
+        Open Publishing Association.
+.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., \
+    & Coecke, B. (2023). Light-Matter Interaction in the \
+    ZXW Calculus. In  Proceedings of the Twentieth \
+    International Conference on Quantum Physics and Logic,  \
+    Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
 """
 
 import numpy as np
@@ -121,9 +135,7 @@ class Gate(Box):
     ...                 Id(2).to_path().eval(2).array)
     """
 
-    def __init__(
-        self, array, dom: int, cod: int, name: str, is_dagger=False
-    ):
+    def __init__(self, array, dom: int, cod: int, name: str, is_dagger=False):
         self.array = array
         super().__init__(
             f"{name}" + ".dagger()" if is_dagger else "",
@@ -256,8 +268,7 @@ class BBS(Box):
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
         zb_i = Z(
-            lambda i: (backend.sin((0.25 + self.bias) * backend.pi))
-            ** i,
+            lambda i: (backend.sin((0.25 + self.bias) * backend.pi)) ** i,
             1,
             1,
         )
@@ -342,12 +353,8 @@ class TBS(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        sin = Z(
-            lambda i: (backend.sin(self.theta * backend.pi)) ** i, 1, 1
-        )
-        cos = Z(
-            lambda i: (backend.cos(self.theta * backend.pi)) ** i, 1, 1
-        )
+        sin = Z(lambda i: (backend.sin(self.theta * backend.pi)) ** i, 1, 1)
+        cos = Z(lambda i: (backend.cos(self.theta * backend.pi)) ** i, 1, 1)
         minus_sin = Z(
             lambda i: (-backend.sin(self.theta * backend.pi)) ** i, 1, 1
         )

@@ -6,17 +6,33 @@ Overview
 
 Optyx diagrams combine three diagrammatic calculi:
 
-- :math:`ZW_{\infty}` calculus: for infinite-dimensional systems (Mode type).
+- :math:`ZW_{\\infty}` calculus: for infinite-dimensional \
+systems (Mode type).
 - :math:`LO` calculus: for linear optics (Mode type).
 - ZX calculus: for qubit systems (Bit type).
 
-:math:`LO` calculus diagrams [FC23]_ are a subset of :math:`ZW_{\infty}` diagrams [FSP+23]_ and we can express them using :math:`ZW_{\infty}` generators.
-:math:`LO` diagrams are used to model linear optical circuits build from beam splitters, phase shifters, and other optical elements while :math:`ZW_{\infty}`
-are able to express more general maps on the bosonic Fock space. ZX diagrams are used to model qubit circuits and we can go from photonic modes to qubits using the
-dual-rail encoding (using the :code:`DualRail` box). This is crucial if we want to combine the reasoning about photonic circuits, dual rail encoded qubit circuits, and classical
-data (feed-forward) data. The formal definitions which underpin the ZX, :math:`ZW_{\infty}` and :math:`LO` enable us to capture all elements needed for universal photonic quantum computation and its sumulation.
+:math:`LO` calculus diagrams [FC23]_ are a subset of
+:math:`ZW_{\\infty}` diagrams [FSP+23]_ and we can
+express them using :math:`ZW_{\\infty}` generators.
+:math:`LO` diagrams are used to model linear optical
+circuits build from beam splitters, phase shifters,
+and other optical elements while :math:`ZW_{\\infty}`
+are able to express more general maps on the bosonic
+Fock space. ZX diagrams are used to model qubit
+circuits and we can go from photonic modes to qubits using the
+dual-rail encoding (using the :code:`DualRail` box).
+This is crucial if we want to combine the reasoning
+about photonic circuits, dual rail encoded qubit circuits,
+and classical data (feed-forward) data. The
+formal definitions which underpin the ZX,
+:math:`ZW_{\\infty}` and :math:`LO` enable us
+to capture all elements needed for universal
+photonic quantum computation and its sumulation.
 
-Most importantly, we can evaluate the diagrams using tensor network methods via quimb [Gray18]_ or more traditionally (for linear optics) using a permanent method via Perceval [FGL+23]_.
+Most importantly, we can evaluate the diagrams using
+tensor network methods via quimb [Gray18]_ or more
+traditionally (for linear optics) using a permanent
+method via Perceval [FGL+23]_.
 
 Types
 -------------
@@ -59,7 +75,9 @@ Examples of usage
 
 **Creating diagrams**
 
-We can create and draw Optyx diagrams using the syntax of the Discopy package [FTC21]_. Sequential composition of boxes is done using the :code:`<<` operator:
+We can create and draw Optyx diagrams using the syntax of
+the Discopy package [FTC21]_. Sequential composition of
+boxes is done using the :code:`<<` operator:
 
 >>> from optyx.zw import Create, W
 >>> split_photon = Create(1) >> W(2)
@@ -68,7 +86,8 @@ We can create and draw Optyx diagrams using the syntax of the Discopy package [F
 .. image:: /_static/seq_comp_example.png
     :align: center
 
-We can also tensor (parallelally compose) boxes using the :code:`@` operator:
+We can also tensor (parallelally compose) boxes
+using the :code:`@` operator:
 
 >>> from optyx.LO import BS, Phase
 >>> beam_splitter_phase = BS @ Phase(0.5)
@@ -77,7 +96,8 @@ We can also tensor (parallelally compose) boxes using the :code:`@` operator:
 .. image:: /_static/parallel_comp_example.png
     :align: center
 
-A beam-splitter from the :math:`LO` calculus can be expressed using the :math:`ZW_{\infty}` calculus:
+A beam-splitter from the :math:`LO` calculus can be
+expressed using the :math:`ZW_{\\infty}` calculus:
 
 >>> from optyx.LO import BS
 >>> beam_splitter = BS.to_zw()
@@ -86,12 +106,15 @@ A beam-splitter from the :math:`LO` calculus can be expressed using the :math:`Z
 .. image:: /_static/bs_zw.png
     :align: center
 
-Optyx diagrams can combine the generators from :math:`ZW_\infty` (Mode type),
-:math:`QPath` (Mode type) and ZX calculi (Bit type). We can check their equivalence as tensors.
+Optyx diagrams can combine the generators from
+:math:`ZW_\\infty` (Mode type),
+:math:`QPath` (Mode type) and ZX calculi (Bit type).
+We can check their equivalence as tensors.
 
 **Branching Law**
 
-Let's check that the branching law from QPath and :math:`ZW_{\infty}` from [FC23]_.
+Let's check that the branching law from QPath
+and :math:`ZW_{\\infty}` from [FC23]_.
 
 >>> from optyx.zw import Create, W
 >>> from optyx.utils import compare_arrays_of_different_sizes
@@ -105,7 +128,8 @@ Let's check that the branching law from QPath and :math:`ZW_{\infty}` from [FC23
 
 **Hong-Ou-Mandel Effect**
 
-The :code:`to_tensor` method supports evaluation of diagrams like the Hong-Ou-Mandel effect:
+The :code:`to_tensor` method supports evaluation of
+diagrams like the Hong-Ou-Mandel effect:
 
 >>> from optyx.zw import Z, SWAP, W, Select, Id
 >>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
@@ -123,14 +147,16 @@ The :code:`to_tensor` method supports evaluation of diagrams like the Hong-Ou-Ma
 
 **Converting ZX Diagrams**
 
-The :code:`to_pyzx` and :code:`from_pyzx` methods enable conversion between Optyx and PyZX [KW20]_:
+The :code:`to_pyzx` and :code:`from_pyzx` methods
+enable conversion between Optyx and PyZX [KW20]_:
 
 >>> from optyx.zx import Z, SWAP
 >>> assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
 
 **QPath Diagrams from Bosonic Operators**
 
-The :code:`from_bosonic_operator` method supports creating QPath diagrams:
+The :code:`from_bosonic_operator` method
+supports creating QPath diagrams:
 
 >>> from optyx.zw import Split, Select, Id, Mode, Scalar
 >>> d1 = Diagram.from_bosonic_operator(
@@ -149,7 +175,8 @@ The :code:`from_bosonic_operator` method supports creating QPath diagrams:
 
 **Evaluating QPath Diagrams with the permanent method**
 
-The :code:`to_path` method supports evaluation by calculating a permanent of an underlying matrix:
+The :code:`to_path` method supports evaluation by
+calculating a permanent of an underlying matrix:
 
 >>> from optyx.zw import Create, W
 >>> counit_l = W(2) >> Select(0) @ Id(Mode(1))
@@ -158,13 +185,39 @@ The :code:`to_path` method supports evaluation by calculating a permanent of an 
 
 References
 -----------
-.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via String Diagrams. In Proceedings 19th International Conference on Quantum Physics and Logic, Wolfson College, Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
-.. [KW20] Kissinger, A., & Wetering, J. (2020). PyZX: Large Scale Automated Diagrammatic Reasoning. In  Proceedings 16th International Conference on Quantum Physics and Logic,  Chapman University, Orange, CA, USA., 10-14 June 2019 (pp. 229-241). Open Publishing Association.
-.. [Gray18] Gray, J. (2018). quimb: A python package for quantum information and many-body calculations. Journal of Open Source Software, 3(29), 819.
-.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
-.. [FTC21] Felice, G., Toumi, A., & Coecke, B. (2021). DisCoPy: Monoidal Categories in Python. In  Proceedings of the 3rd Annual International Applied Category Theory Conference 2020,  Cambridge, USA, 6-10th July 2020 (pp. 183-197). Open Publishing Association.
-.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., & Coecke, B. (2023). Light-Matter Interaction in the ZXW Calculus. In  Proceedings of the Twentieth International Conference on Quantum Physics and Logic,  Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
-.. [FPY+24] de Felice, G., Poór, B., Yeh, L., & Cashman, W. (2024). Fusion and flow: formal protocols to reliably build photonic graph states. arXiv preprint arXiv:2409.13541.
+.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via \
+String Diagrams. In Proceedings 19th International Conference on \
+Quantum Physics and Logic, Wolfson College, Oxford, UK, \
+27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
+.. [KW20] Kissinger, A., & Wetering, J. (2020). PyZX: Large Scale \
+Automated Diagrammatic Reasoning. In  Proceedings 16th \
+International Conference on Quantum Physics and Logic, \
+Chapman University, Orange, CA, USA., 10-14 June 2019 \
+(pp. 229-241). Open Publishing Association.
+.. [Gray18] Gray, J. (2018). quimb: A python package \
+for quantum information and many-body calculations. \
+Journal of Open Source Software, 3(29), 819.
+.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., \
+Le Bihan, R., Malherbe, S., Pailhas, M., Bertasi, E., \
+Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., \
+Belabas, N., Valiron, B., Senellart, P., Mansfield, S., \
+& Senellart, J. (2023). Perceval: A Software Platform \
+for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
+.. [FTC21] Felice, G., Toumi, A., & Coecke, B. (2021). \
+DisCoPy: Monoidal Categories in Python. In  Proceedings Z \
+of the 3rd Annual International Applied Category Theory \
+Conference 2020,  Cambridge, USA, 6-10th July 2020 (pp. \
+183-197). Open Publishing Association.
+.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., \
+Wang, Q., & Coecke, B. (2023). Light-Matter Interaction \
+in the ZXW Calculus. In  Proceedings of the Twentieth \
+International Conference on Quantum Physics and Logic, \
+Paris, France, 17-21st July 2023 (pp. 20-46). \
+Open Publishing Association.
+.. [FPY+24] de Felice, G., Poór, B., Yeh, L., & \
+Cashman, W. (2024). Fusion and flow: formal protocols to \
+reliably build photonic graph states. arXiv \
+preprint arXiv:2409.13541.
 """
 
 from __future__ import annotations
@@ -173,7 +226,6 @@ import numpy as np
 from sympy.core import Symbol, Mul
 from discopy import symmetric, frobenius, tensor
 from discopy.cat import factory, rsubs
-from discopy import cat
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
@@ -210,8 +262,9 @@ class Diagram(frobenius.Diagram):
     grad = tensor.Diagram.grad
 
     def to_zw(self) -> Diagram:
-        """ To be used with :math:`LO` diagrams which can
-        be decomposed into the underlying :math:`ZW_{\infty}` generators."""
+        """To be used with :math:`LO` diagrams which can
+        be decomposed into the underlying
+        :math:`ZW_{\\infty}` generators."""
         return symmetric.Functor(
             ob=lambda x: Mode(len(x)),
             ar=lambda f: f.to_zw(),
@@ -219,8 +272,10 @@ class Diagram(frobenius.Diagram):
         )(self)
 
     def to_path(self, dtype: type = complex):
-        """Returns the :class:`Matrix` normal form of a :class:`Diagram`.
-        In other words, it is the underlying matrix representation of a :math:`QPath` and :math:`LO` diagrams."""
+        """Returns the :class:`Matrix` normal form
+        of a :class:`Diagram`.
+        In other words, it is the underlying matrix
+        representation of a :math:`QPath` and :math:`LO` diagrams."""
         from optyx import path
 
         return symmetric.Functor(
@@ -229,8 +284,9 @@ class Diagram(frobenius.Diagram):
             cod=symmetric.Category(int, path.Matrix[dtype]),
         )(self)
 
-    def to_tensor(self, input_dims: list = None,
-                  max_dim: int = None) -> tensor.Diagram:
+    def to_tensor(
+        self, input_dims: list = None, max_dim: int = None
+    ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
 
         def list_to_dim(dims: np.ndarray | list) -> Dim:
@@ -252,7 +308,7 @@ class Diagram(frobenius.Diagram):
 
         right_dim = len(self.dom)
         for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
-            dims_in = layer_dims[off: off + len(box.dom)]
+            dims_in = layer_dims[off:off + len(box.dom)]
 
             dims_out = box.determine_output_dimensions(dims_in)
 
@@ -266,15 +322,11 @@ class Diagram(frobenius.Diagram):
                 left = list_to_dim(layer_dims[0:off])
             right = Dim()
             if off + len(box.dom) < right_dim:
-                right = list_to_dim(
-                    layer_dims[off + len(box.dom): right_dim]
-                )
+                right = list_to_dim(layer_dims[off + len(box.dom):right_dim])
 
             cod_right_dim = right_dim - len(box.dom) + len(box.cod)
             cod_layer_dims = (
-                layer_dims[0:off]
-                + dims_out
-                + layer_dims[off + len(box.dom):]
+                layer_dims[0:off] + dims_out + layer_dims[off + len(box.dom):]
             )
 
             diagram_ = left @ box.truncation(dims_in, dims_out) @ right
@@ -290,7 +342,7 @@ class Diagram(frobenius.Diagram):
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """ Create a QPath diagram from a bosonic operator."""
+        """Create a QPath diagram from a bosonic operator."""
         from optyx import zw
 
         d = cls.id(Mode(n_modes))
@@ -343,19 +395,13 @@ class Diagram(frobenius.Diagram):
         for row, (box, offset) in enumerate(zip(self.boxes, self.offsets)):
             if isinstance(box, zx.Spider):
                 node = graph.add_vertex(
-                    (
-                        VertexType.Z
-                        if isinstance(box, zx.Z)
-                        else VertexType.X
-                    ),
+                    (VertexType.Z if isinstance(box, zx.Z) else VertexType.X),
                     phase=box.phase * 2 if box.phase else None,
                 )
                 graph.set_position(node, offset, row + 1)
                 for i, _ in enumerate(box.dom):
                     source, hadamard = scan[offset + i]
-                    etype = (
-                        EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
-                    )
+                    etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
                     graph.add_edge((source, node), etype)
                 scan = (
                     scan[:offset]
@@ -439,7 +485,7 @@ class Diagram(frobenius.Diagram):
                 )
                 scan = (
                     scan[:source]
-                    + scan[source + 1: target]
+                    + scan[source + 1:target]
                     + (scan[source],)
                     + scan[target:]
                 )
@@ -464,9 +510,7 @@ class Diagram(frobenius.Diagram):
         )
         if missing_boundary:
             raise ValueError
-        duplicate_boundary = set(graph.inputs()).intersection(
-            graph.outputs()
-        )
+        duplicate_boundary = set(graph.inputs()).intersection(graph.outputs())
         if duplicate_boundary:
             raise ValueError
         diagram, scan = Id(Bit(len(graph.inputs()))), graph.inputs()
@@ -478,21 +522,15 @@ class Diagram(frobenius.Diagram):
             inputs = [
                 v
                 for v in graph.neighbors(node)
-                if v < node
-                and v not in graph.outputs()
-                or v in graph.inputs()
+                if v < node and v not in graph.outputs() or v in graph.inputs()
             ]
             inputs.sort(key=scan.index)
             outputs = [
                 v
                 for v in graph.neighbors(node)
-                if v > node
-                and v not in graph.inputs()
-                or v in graph.outputs()
+                if v > node and v not in graph.inputs() or v in graph.outputs()
             ]
-            scan, diagram, offset = make_wires_adjacent(
-                scan, diagram, inputs
-            )
+            scan, diagram, offset = make_wires_adjacent(scan, diagram, inputs)
             hadamards = Id(Bit(0)).tensor(
                 *[
                     (
@@ -500,7 +538,7 @@ class Diagram(frobenius.Diagram):
                         if graph.edge_type((i, node)) == EdgeType.HADAMARD
                         else Id(Bit(1))
                     )
-                    for i in scan[offset: offset + len(inputs)]
+                    for i in scan[offset:offset + len(inputs)]
                 ]
             )
             box = node2box(node, len(inputs), len(outputs))
@@ -520,9 +558,7 @@ class Diagram(frobenius.Diagram):
             diagram = (
                 diagram
                 >> swaps
-                >> Id(Bit(target))
-                @ hadamard
-                @ Id(Bit(len(scan) - target - 1))
+                >> Id(Bit(target)) @ hadamard @ Id(Bit(len(scan) - target - 1))
             )
         return diagram
 
@@ -540,15 +576,15 @@ class Box(frobenius.Box, Diagram):
     def to_path(self, dtype: type = complex):
         raise NotImplementedError
 
-    def truncation(self,
-                   input_dims: list = None,
-                   output_dims: list = None) -> tensor.Box:
-        """ Create a tensor in the semantics of a ZW diagram """
+    def truncation(
+        self, input_dims: list[int] = None, output_dims: list[int] = None
+    ) -> tensor.Box:
+        """Create a tensor in the semantics of a ZW diagram"""
         raise NotImplementedError
 
     @property
     def array(self):
-        """ Create an array in the semantics of a ZX diagram """
+        """Create an array in the semantics of a ZX diagram"""
         raise NotImplementedError
 
     @array.setter
@@ -559,11 +595,10 @@ class Box(frobenius.Box, Diagram):
     def array(self):
         return self._array
 
-    def determine_output_dimensions(self,
-                                    input_dims: list[int] = None) -> list[int]:
-        """ Determine the output dimensions based on the input dimensions.
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions based on the input dimensions.
         The generators of ZW affect the dimensions
-        of the output tensor diagrams. """
+        of the output tensor diagrams."""
         raise NotImplementedError
 
     def lambdify(self, *symbols, **kwargs):
@@ -578,6 +613,9 @@ class Box(frobenius.Box, Diagram):
 class Spider(Box):
     """Abstract spider (dagger-SCFA)"""
 
+    draw_as_spider = True
+    color = "green"
+
     __ambiguous_inheritance__ = (Box,)
 
 
@@ -589,13 +627,13 @@ class Sum(symmetric.Sum, Box):
     __ambiguous_inheritance__ = (symmetric.Sum,)
 
     def to_path(self, dtype: type = complex):
-        """ Convert the sum to a path diagram.
+        """Convert the sum to a path diagram.
         For this function to fully work,
         formal sums of Path matrices need to be implemented."""
         return sum(term.to_path(dtype) for term in self.terms)
 
     def eval(self, n_photons=0, permanent=None, dtype=complex):
-        """ Evaluate the sum of diagrams. """
+        """Evaluate the sum of diagrams."""
         # we need to implement the proper sums of qpath diagrams
         # this is only a temporary solution, so that the grad tests pass
         if permanent is None:
@@ -623,9 +661,8 @@ class Sum(symmetric.Sum, Box):
         for i, term in enumerate(terms):
             embedding_layer = tensor.Id(1)
             for wire, d in enumerate(term.cod):
-                embedding_layer = (
-                    embedding_layer
-                    @ EmbeddingTensor(d.inside[0], max_dims[wire])
+                embedding_layer = embedding_layer @ EmbeddingTensor(
+                    d.inside[0], max_dims[wire]
                 )
             terms[i] = terms[i] >> embedding_layer
             terms[i].cod = Dim(*max_dims)
@@ -656,17 +693,16 @@ class Swap(frobenius.Swap, Box):
     def to_zw(self):
         return self
 
-    def determine_output_dimensions(
-        self, input_dims: list[int]
-    ) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         return input_dims[::-1]
 
-    def truncation(self,
-                   input_dims: list[int],
-                   output_dims: list[int] = None) -> tensor.Box:
-        return Permutation(self.dom, [1, 0]).truncation(input_dims,
-                                                        output_dims)
+    def truncation(
+        self, input_dims: list[int] = None, output_dims: list[int] = None
+    ) -> tensor.Box:
+        return Permutation(self.dom, [1, 0]).truncation(
+            input_dims, output_dims
+        )
 
 
 class Permutation(Box):
@@ -690,11 +726,13 @@ class Permutation(Box):
         self.permutation = permutation
 
     def truncation(
-        self, input_dims: list[int],
-        output_dims: list[int] = None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """Create an array that permutes the occupation
         numbers based on the input dimensions."""
+
+        if input_dims is None:
+            raise ValueError("Input dimensions must be provided.")
 
         if output_dims is None:
             output_dims = self.determine_output_dimensions(input_dims)
@@ -710,9 +748,7 @@ class Permutation(Box):
                 input_index[self.permutation[i]]
                 for i in range(len(self.permutation))
             )
-            input_flat_index = np.ravel_multi_index(
-                input_index, input_dims
-            )
+            input_flat_index = np.ravel_multi_index(input_index, input_dims)
             permuted_flat_index = np.ravel_multi_index(
                 permuted_index, output_dims
             )
@@ -723,9 +759,7 @@ class Permutation(Box):
 
         return tensor.Box(self.name, in_dims, out_dims, perm_matrix.T)
 
-    def determine_output_dimensions(
-        self, input_dims: list[int]
-    ) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the permutation."""
         return [input_dims[i] for i in self.permutation]
 
@@ -794,6 +828,7 @@ class Scalar(Box):
 
     def to_zw(self):
         from optyx.zw import Z
+
         return Z(self.array, 0, 0)
 
     def subs(self, *args):
@@ -801,7 +836,7 @@ class Scalar(Box):
         return Scalar(data)
 
     def grad(self, var, **params):
-        """ Gradient with respect to :code:`var`."""
+        """Gradient with respect to :code:`var`."""
         if var not in self.free_symbols:
             return Sum((), self.dom, self.cod)
         return Scalar(self.scalar.diff(var))
@@ -814,14 +849,13 @@ class Scalar(Box):
         )
 
     def truncation(
-        self,
-        input_dims: list[int] = None,
-        output_dims: list[int] = None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         return tensor.Box(self.name, Dim(1), Dim(1), self.array)
 
-    def determine_output_dimensions(self,
-                                    input_dims: list[int]=None) -> list[int]:
+    def determine_output_dimensions(
+        self, input_dims: list[int] = None
+    ) -> list[int]:
         """Determine the output dimensions"""
         return [1]
 
@@ -830,15 +864,14 @@ class DualRail(Box):
     """
     A map from :code:`Bit` to :code:`Mode` using the dual rail encoding.
     """
+
     def __init__(self):
         dom = Bit(1)
         cod = Mode(2)
         super().__init__("2R", dom, cod)
 
     def truncation(
-        self,
-        input_dims: list[int] = None,
-        output_dims: list[int] = None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """:class:`tensor.Box` for the dual rail encoding."""
         array = np.zeros((2, 2, 2), dtype=complex)
@@ -858,11 +891,10 @@ class EmbeddingTensor(tensor.Box):
     """
     Embedding tensor for fixing the dimensions of the output tensor.
     """
+
     def __init__(self, input_dim: int, output_dim: int):
 
-        embedding_array = np.zeros(
-            (output_dim, input_dim), dtype=complex
-        )
+        embedding_array = np.zeros((output_dim, input_dim), dtype=complex)
 
         if input_dim < output_dim:
             embedding_array[:input_dim, :input_dim] = np.eye(input_dim)
@@ -873,7 +905,7 @@ class EmbeddingTensor(tensor.Box):
             "Embedding",
             Dim(int(input_dim)),
             Dim(int(output_dim)),
-            embedding_array.T
+            embedding_array.T,
         )
 
 

@@ -70,8 +70,10 @@ def basis_vector_from_kets(
     """
 
     if any(i >= j for i, j in zip(indices, max_index_sizes)):
-        raise ValueError("Each index must be smaller than "
-                         "the corresponding max index size")
+        raise ValueError(
+            "Each index must be smaller than "
+            "the corresponding max index size"
+        )
 
     j = 0
     for k, i_k in enumerate(indices):
@@ -88,20 +90,23 @@ def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
     return input_dims, output_dims
 
 
-def amplitudes_2_tensor(perceval_result,
-                        input_occ,
-                        output_occ):
+def amplitudes_2_tensor(perceval_result, input_occ, output_occ):
 
     from discopy.tensor import Tensor
     from discopy.frobenius import Dim
 
-    dom_dims = [int(max(np.array(input_occ)[:, i]) + 1)
-                for i in range(len(input_occ[0]))]
-    cod_dims = [int(max(np.array(output_occ)[:, i]) + 1)
-                for i in range(len(output_occ[0]))]
+    dom_dims = [
+        int(max(np.array(input_occ)[:, i]) + 1)
+        for i in range(len(input_occ[0]))
+    ]
+    cod_dims = [
+        int(max(np.array(output_occ)[:, i]) + 1)
+        for i in range(len(output_occ[0]))
+    ]
 
-    tensor_result_array = np.zeros((int(np.prod(dom_dims)),
-                                    int(np.prod(cod_dims))), dtype=complex)
+    tensor_result_array = np.zeros(
+        (int(np.prod(dom_dims)), int(np.prod(cod_dims))), dtype=complex
+    )
 
     for i, o in enumerate(input_occ):
         for j, o_out in enumerate(output_occ):
@@ -120,15 +125,16 @@ def tensor_2_amplitudes(
     import warnings
 
     output = tn_diagram.eval().array.flatten()
-    idxs = list(occupation_numbers(n_photons_out,
-                                   len(tn_diagram.cod)))
+    idxs = list(occupation_numbers(n_photons_out, len(tn_diagram.cod)))
     cod = list(tn_diagram.cod.inside)
 
     if sum(cod) < n_photons_out:
-        warnings.warn("It is likely that the Tensor diagram has been "
-                      "truncated with dimensions which are "
-                      "too low for the n_photons_out. "
-                      "The results might be incorrect.")
+        warnings.warn(
+            "It is likely that the Tensor diagram has been "
+            "truncated with dimensions which are "
+            "too low for the n_photons_out. "
+            "The results might be incorrect."
+        )
 
     res = []
     for i in idxs:
@@ -137,7 +143,9 @@ def tensor_2_amplitudes(
             res.append(output[basis])
         except ValueError:
             res.append(0.0)
-            warnings.warn(f"The basis vector {i} is out of bounds of "
-                          f"the codomain {cod}. Setting to 0.")
+            warnings.warn(
+                f"The basis vector {i} is out of bounds of "
+                f"the codomain {cod}. Setting to 0."
+            )
 
     return np.array(res)

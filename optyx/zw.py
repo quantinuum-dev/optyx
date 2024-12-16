@@ -2,11 +2,17 @@
 Overview
 --------
 
-:math:`ZW_{\infty}` diagrams [FSP+23]_ and their mapping to :class:`tensor.Diagram` from DisCoPy [FTC21]_. :math:`ZW_{\infty}` enables
-us to express a wider class of linear maps on the bosonic Fock space than by simply using the physically motivated diagarms of
-:math:`LO`. This however means that some of the maps might not be directly physically realisable.
+:math:`ZW_{\\infty}` diagrams [FSP+23]_ and their
+mapping to :class:`tensor.Diagram` from
+DisCoPy [FTC21]_. :math:`ZW_{\\infty}` enables
+us to express a wider class of linear maps
+on the bosonic Fock space than by simply using
+the physically motivated diagarms of
+:math:`LO`. This however means that some of the
+maps might not be directly physically realisable.
 
-The calculus is encompassing both the :math:`LO` and :math:`QPath` calculi.
+The calculus is encompassing both the :math:`LO`
+and :math:`QPath` calculi.
 
 Generators and diagrams
 ------------------------
@@ -27,7 +33,7 @@ Generators and diagrams
 Examples of usage
 ------------------
 
-We check the axioms of the :math:`ZW_{\infty}`.
+We check the axioms of the :math:`ZW_{\\infty}`.
 
 **W commutativity**
 
@@ -141,17 +147,8 @@ from typing import Union
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
-from optyx.optyx import (
-    Diagram,
-    Mode,
-    Swap,
-    Scalar,
-    Spider
-)
-from optyx.utils import (
-    occupation_numbers,
-    multinomial
-)
+from optyx.optyx import Diagram, Mode, Swap, Scalar, Spider
+from optyx.utils import occupation_numbers, multinomial
 from optyx.path import Matrix
 from optyx import optyx
 
@@ -227,11 +224,12 @@ class W(Box):
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
 
     def truncation(
-        self,
-        input_dims: list[int],
-        output_dims: list[int] = None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """Create a truncated array like in 2306.02114."""
+        if input_dims is None:
+            raise ValueError("Input dimensions must be provided.")
+
         if output_dims is None:
             output_dims = self.determine_output_dimensions(input_dims)
 
@@ -273,9 +271,7 @@ class W(Box):
             return tensor.Box(self.name, in_dims, out_dims, result_matrix)
         return tensor.Box(self.name, in_dims, out_dims, result_matrix.conj().T)
 
-    def determine_output_dimensions(
-        self, input_dims: list[int]
-    ) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         if self.is_dagger:
             dims_out = np.sum(np.array(input_dims) - 1) + 1
@@ -322,19 +318,18 @@ class Z(Spider, Box):
             self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
-        super().__init__(
-            f"Z{self.amplitudes}", Mode(legs_in), Mode(legs_out)
-        )
+        super().__init__("Z(amplitudes)", Mode(legs_in), Mode(legs_out))
         self.legs_in = legs_in
         self.legs_out = legs_out
-        self.shape = "rectangle"
-        self.color = "green"
 
     def truncation(
-        self, input_dims: list[int], output_dims: list[int] = None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
 
-        #if a scalar
+        if input_dims is None:
+            raise ValueError("Input dimensions must be provided.")
+
+        # if a scalar
         if self.legs_out == 0 and self.legs_in == 0:
             amplitudes = (
                 np.array([self.amplitudes], dtype=complex)
@@ -347,18 +342,20 @@ class Z(Spider, Box):
 
         spider_dim = min(input_dims) if self.legs_in > 0 else 2
 
-        #create the array
-        if (not isinstance(self.amplitudes, IndexableAmplitudes) and
-            spider_dim > len(self.amplitudes)):
-                diag = list(self.amplitudes) + [0]*(spider_dim -
-                                                    len(self.amplitudes))
+        # create the array
+        if not isinstance(
+            self.amplitudes, IndexableAmplitudes
+        ) and spider_dim > len(self.amplitudes):
+            diag = list(self.amplitudes) + [0] * (
+                spider_dim - len(self.amplitudes)
+            )
         else:
             diag = [self.amplitudes[i] for i in range(spider_dim)]
         result_matrix = np.diag(diag)
 
-        #get the embedding layer and the leg on which to put the Z box
+        # get the embedding layer and the leg on which to put the Z box
         embedding_layer = tensor.Id(1)
-        idx_leg_Zbox = 0
+        idx_leg_zbox = 0
         for i, input_dim in enumerate(input_dims):
             embedding_layer @= (
                 EmbeddingTensor(input_dim, spider_dim)
@@ -366,32 +363,34 @@ class Z(Spider, Box):
                 else tensor.Id(Dim(int(input_dim)))
             )
             if input_dim == spider_dim:
-                idx_leg_Zbox = i
+                idx_leg_zbox = i
 
-        #put the Zbox on the leg with min dimensions
+        # put the Zbox on the leg with min dimensions
         n_legs = self.legs_in if self.legs_in > 0 else self.legs_out
 
-        layer_Zbox = (
-            Dim(*[spider_dim]*idx_leg_Zbox) @
-            tensor.Box(self.name,
-                       Dim(int(spider_dim)),
-                       Dim(int(spider_dim)),
-                       result_matrix) @
-            Dim(*[spider_dim]*(n_legs - idx_leg_Zbox - 1))
+        layer_zbox = (
+            Dim(*[spider_dim] * idx_leg_zbox)
+            @ tensor.Box(
+                self.name,
+                Dim(int(spider_dim)),
+                Dim(int(spider_dim)),
+                result_matrix,
+            )
+            @ Dim(*[spider_dim] * (n_legs - idx_leg_zbox - 1))
         )
 
-        spider_layer = tensor.Spider(self.legs_in, self.legs_out, Dim(int(spider_dim)))
+        spider_layer = tensor.Spider(
+            self.legs_in, self.legs_out, Dim(int(spider_dim))
+        )
         full_subdiagram = (
-            embedding_layer >> layer_Zbox >> spider_layer
+            embedding_layer >> layer_zbox >> spider_layer
             if self.legs_in > 0
-            else spider_layer >> layer_Zbox
+            else spider_layer >> layer_zbox
         )
 
         return full_subdiagram
 
-    def determine_output_dimensions(
-        self, input_dims: list[int]
-    ) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         if self.legs_in == 0:
             return [2 for _ in range(len(self.cod))]
@@ -399,10 +398,7 @@ class Z(Spider, Box):
 
     def __repr__(self):
         if isinstance(self.amplitudes, IndexableAmplitudes):
-            s = (
-                ", ".join(str(self.amplitudes[i]) for i in range(2))
-                + ", ..."
-            )
+            s = ", ".join(str(self.amplitudes[i]) for i in range(2)) + ", ..."
         else:
             s = ", ".join(str(a) for a in self.amplitudes)
         return f"Z({s})"
@@ -443,7 +439,7 @@ class Create(Box):
 
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
-        name = "Create()" if self.photons == (1,) else f"Create({photons})"
+        name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
     def to_path(self, dtype=complex):
@@ -453,9 +449,7 @@ class Create(Box):
         )
 
     def truncation(
-        self,
-        input_dims: list[int] = None,
-        output_dims: list[int] = None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """Create an array like in 2306.02114"""
 
@@ -479,8 +473,9 @@ class Create(Box):
 
         return tensor.Box(self.name, in_dims, out_dims, result_matrix)
 
-    def determine_output_dimensions(self,
-                                    input_dims: list[int]=None) -> list[int]:
+    def determine_output_dimensions(
+        self, input_dims: list[int] = None
+    ) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         # for this class we don't need the input dimensions
         return [
@@ -510,7 +505,7 @@ class Select(Box):
 
     def __init__(self, *photons: int):
         self.photons = photons or (1,)
-        name = "Select(1)" if self.photons == (1,) else f"Select{photons}"
+        name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
 
     def to_path(self, dtype=complex) -> Matrix:
@@ -520,11 +515,13 @@ class Select(Box):
         )
 
     def truncation(
-        self,
-        input_dims: list[int],
-        output_dims: list[int]=None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """Create an array like in 2306.02114"""
+
+        if input_dims is None:
+            raise ValueError("Input dimensions must be provided.")
+
         result_matrix = np.zeros((1, np.prod(input_dims)), dtype=complex)
         index = 0
         factor = 1
@@ -595,7 +592,7 @@ class Endo(Box):
         return Endo(self.scalar.conjugate())
 
     def grad(self, var):
-        """ Compute the gradient of the scalar with respect to a variable. """
+        """Compute the gradient of the scalar with respect to a variable."""
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         s = self.scalar.diff(var) / self.scalar
@@ -617,9 +614,7 @@ class Endo(Box):
             input_dims, output_dims
         )
 
-    def determine_output_dimensions(
-        self, input_dims: list[int]
-    ) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         return input_dims
 
 
@@ -655,9 +650,7 @@ def filter_occupation_numbers(
         config
         for config in allowed_occupation_configurations
         if all(
-            list(
-                config[i] <= input_dims[i] for i in range(len(input_dims))
-            )
+            list(config[i] <= input_dims[i] for i in range(len(input_dims)))
         )
     ]
 

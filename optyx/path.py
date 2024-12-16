@@ -4,10 +4,15 @@ Overview
 --------
 
 The category :class:`Matrix` and the syntax :class:`Diagram`
-of matrices with creations and post-selections. The module supports representing the :math:`LO` fragment
-of Optyx diagrams as matrices. It enables the computation of the amplitudes and probabilities of the diagrams by evaluting
-permanents of underlying matrices (either directly or via Perceval [FGL+23]_). The :code:`to_path` method
-of Optyx diagrams which belong to the :math:`LO` fragment returns a :class:`Matrix` object.
+of matrices with creations and post-selections. The module
+supports representing the :math:`LO` fragment
+of Optyx diagrams as matrices. It enables the
+computation of the amplitudes and probabilities
+of the diagrams by evaluting
+permanents of underlying matrices (either directly
+or via Perceval [FGL+23]_). The :code:`to_path` method
+of Optyx diagrams which belong to the :math:`LO`
+fragment returns a :class:`Matrix` object.
 
 Classes
 -------------
@@ -37,7 +42,8 @@ Examples of usage
 
 **Hong-Ou-Mandel effect**
 
-We can check the Hong-Ou-Mandel effect by evaluating the permanent of the underlying matrix:
+We can check the Hong-Ou-Mandel effect by
+evaluating the permanent of the underlying matrix:
 
 >>> from optyx.zw import Create, Select, Split, Merge, Id
 >>> from optyx.LO import BS
@@ -76,7 +82,11 @@ We can define the number operator and compute its expectation.
 
 References
 ----------
-.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
+.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., \
+    Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, \
+    P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, \
+    P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software \
+    Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
 
 """
 
@@ -91,8 +101,7 @@ from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
 import discopy.matrix as underlying
 from discopy.tensor import Tensor
-from optyx.utils import (occupation_numbers,
-                         amplitudes_2_tensor)
+from optyx.utils import occupation_numbers, amplitudes_2_tensor
 
 
 def npperm(matrix):
@@ -183,9 +192,7 @@ class Matrix(underlying.Matrix):
         Underlying matrix with `len(creations) + dom` inputs and
         `len(selections) + cod` outputs.
         """
-        return underlying.Matrix[self.dtype](
-            self.array, self.udom, self.ucod
-        )
+        return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
 
     @unbiased
     def then(self, other: Matrix) -> Matrix:
@@ -301,25 +308,18 @@ class Matrix(underlying.Matrix):
             normalisation=s,
         )
 
-    def eval(self,
-             n_photons=0,
-             permanent=npperm,
-             as_tensor=False) -> Amplitudes:
+    def eval(
+        self, n_photons=0, permanent=npperm, as_tensor=False
+    ) -> Amplitudes:
         """Evaluates the :class:`Amplitudes` of a the QPath matrix"""
         dom_basis = occupation_numbers(n_photons, self.dom)
-        n_photons_out = (
-            n_photons - sum(self.selections) + sum(self.creations)
-        )
+        n_photons_out = n_photons - sum(self.selections) + sum(self.creations)
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
 
-        result = Amplitudes[self.dtype].zero(
-            len(dom_basis), len(cod_basis)
-        )
-        normalisation = self.normalisation ** (
-            n_photons + sum(self.creations)
-        )
+        result = Amplitudes[self.dtype].zero(len(dom_basis), len(cod_basis))
+        normalisation = self.normalisation ** (n_photons + sum(self.creations))
         for i, open_creations in enumerate(dom_basis):
             for j, open_selections in enumerate(cod_basis):
                 creations = open_creations + self.creations
@@ -343,17 +343,10 @@ class Matrix(underlying.Matrix):
                 divisor = np.sqrt(
                     np.prod([factorial(n) for n in creations + selections])
                 )
-                val = (
-                    self.scalar
-                    * normalisation
-                    * permanent(matrix)
-                    / divisor
-                )
+                val = self.scalar * normalisation * permanent(matrix) / divisor
                 result.array[i, j] = val
         if as_tensor:
-            return amplitudes_2_tensor(result.array,
-                                       dom_basis,
-                                       cod_basis)
+            return amplitudes_2_tensor(result.array, dom_basis, cod_basis)
         return result
 
     def prob(
@@ -361,7 +354,7 @@ class Matrix(underlying.Matrix):
         n_photons=0,
         permanent=npperm,
         with_perceval=False,
-        as_tensor=False
+        as_tensor=False,
     ) -> Probabilities:
         """Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:
@@ -416,14 +409,11 @@ class Matrix(underlying.Matrix):
 
         input_occ = occupation_numbers(n_photons, self.dom)
         output_occ = occupation_numbers(
-                sum(self.creations) + n_photons,
-                len(self.creations) + self.dom,
-            )
+            sum(self.creations) + n_photons,
+            len(self.creations) + self.dom,
+        )
 
-        states = [
-            pcvl.BasicState(o + self.creations)
-            for o in input_occ
-        ]
+        states = [pcvl.BasicState(o + self.creations) for o in input_occ]
         analyzer = pcvl.algorithm.Analyzer(proc, states, "*")
 
         permutation = [
