@@ -1,31 +1,34 @@
 """
 
-
 Overview
 --------
 
-Optyx diagrams combine three diagrammatic calculi:
+Optyx diagrams combine four diagrammatic calculi:
 
 - :class:`zw` calculus: for infinite-dimensional \
 systems (Mode type).
+- :class:`path` calculus: linear optics and photon \
+creation and annihilation operators (Mode type).
 - :class:`lo` calculus: for linear optics (Mode type).
 - :class:`zx` calculus: for qubit systems (Bit type).
 
-:class:`lo` calculus diagrams [FC23]_ are a subset of
-:class:`zw` diagrams [FSP+23]_ and we can
-express them using :class:`zw` generators.
-:class:`lo` diagrams are used to model linear optical
-circuits build from beam splitters, phase shifters,
-and other optical elements while :class:`zw`
-are able to express more general maps on the bosonic
-Fock space. :class:`zx` diagrams are used to model qubit
-circuits and we can go from photonic modes to qubits using the
-dual-rail encoding (using the :code:`DualRail` box).
+There is a hierarchy of diagrammatic calculi:
+:class:`zw` diagrams [FSP+23]_ are the most general and can express
+the largest set of maps (of all the calculi) on the bosonic Fock space.
+:class:`path` diagrams [FC23]_ are a subset of :class:`zw` diagrams
+encompassing linear optics with photon creation and annihilation operators.
+:class:`lo` diagrams [FC23]_ are a subset of :class:`path` diagrams
+representing the linear optical circuits built from: beam splitters,
+phase shifters, and other linear optical elements.
+:class:`zx` diagrams are used for qubit
+circuits via the dual-rail encoding
+(using the :code:`DualRail` box).
+
 This is crucial if we want to combine the reasoning
 about photonic circuits, dual rail encoded qubit circuits,
 and classical data (feed-forward) data. The
 formal definitions which underpin the :class:`zx`,
-:class:`zw` and :class:`lo` enable us
+:class:`zw`, :class:`path` and :class:`lo` enable us
 to capture all elements needed for universal
 photonic quantum computation and its sumulation.
 
@@ -70,6 +73,16 @@ Other classes
 
     EmbeddingTensor
 
+Functions
+----------
+.. autosummary::
+    :template: function.rst
+    :nosignatures:
+    :toctree:
+
+    dual_rail
+    embedding_tensor
+
 Examples of usage
 ------------------
 
@@ -108,12 +121,12 @@ expressed using the :class:`zw` calculus:
 
 Optyx diagrams can combine the generators from
 :class:`zw` (Mode type),
-:math:`QPath` (Mode type) and :class:`zx` calculi (Bit type).
+:class:`path` (Mode type) and :class:`zx` calculi (Bit type).
 We can check their equivalence as tensors.
 
 **Branching Law**
 
-Let's check that the branching law from QPath
+Let's check that the branching law from :class:`path`
 and :class:`zw` from [FC23]_.
 
 >>> from optyx.zw import Create, W
@@ -153,10 +166,10 @@ enable conversion between Optyx and PyZX [KW20]_:
 >>> from optyx.zx import Z, SWAP
 >>> assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
 
-**QPath Diagrams from Bosonic Operators**
+**:class:`path` diagrams from Bosonic Operators**
 
 The :code:`from_bosonic_operator` method
-supports creating QPath diagrams:
+supports creating :class:`path` diagrams:
 
 >>> from optyx.zw import Split, Select, Id, Mode, Scalar
 >>> d1 = Diagram.from_bosonic_operator(
@@ -173,7 +186,7 @@ supports creating QPath diagrams:
 
 >>> assert d1 == d2
 
-**Evaluating QPath Diagrams with the permanent method**
+**Evaluating :class:`path` diagrams with the permanent method**
 
 The :code:`to_path` method supports evaluation by
 calculating a permanent of an underlying matrix:
@@ -257,7 +270,9 @@ class Bit(Ty):
 
 @factory
 class Diagram(frobenius.Diagram):
-    """Optyx diagram combining ZX, ZW_infty and QPath calculi."""
+    """Optyx diagram combining :class:`zw`,
+    :class:`zx` and
+    :class:`path` calculi."""
 
     grad = tensor.Diagram.grad
 
@@ -275,7 +290,7 @@ class Diagram(frobenius.Diagram):
         """Returns the :class:`Matrix` normal form
         of a :class:`Diagram`.
         In other words, it is the underlying matrix
-        representation of a :math:`QPath` and :class:`lo` diagrams."""
+        representation of a :class:`path` and :class:`lo` diagrams."""
         from optyx import path
 
         return symmetric.Functor(
@@ -342,7 +357,7 @@ class Diagram(frobenius.Diagram):
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """Create a QPath diagram from a bosonic operator."""
+        """Create a :class:`path` diagram from a bosonic operator."""
         from optyx import zw
 
         d = cls.id(Mode(n_modes))
@@ -621,7 +636,7 @@ class Spider(Box):
     def __init__(self,
                  dom: Mode | Bit,
                  cod: Mode | Bit,
-                 data = None,
+                 data=None,
                  name: str = "Spider"):
         # check if dom and cod are of the same type
         if isinstance(dom, (Mode, Bit)) and isinstance(cod, (Mode, Bit)):
@@ -673,6 +688,7 @@ class Spider(Box):
         return embedding_layer >> tensor.Spider(
             len(self.dom), len(self.cod), Dim(int(spider_dim))
         )
+
 
 class Sum(symmetric.Sum, Box):
     """
@@ -962,6 +978,26 @@ class EmbeddingTensor(tensor.Box):
             Dim(int(output_dim)),
             embedding_array.T,
         )
+
+
+def dual_rail(n):
+    '''
+    Create a dual rail diagram on n wires.
+    '''
+    d = DualRail()
+    for i in range(n-1):
+        d @= DualRail()
+    return d
+
+
+def embedding_tensor(n, dim):
+    '''
+    Obtain 2->dim embedding tensors on n wires.
+    '''
+    d = EmbeddingTensor(2, dim)
+    for i in range(n-1):
+        d @= EmbeddingTensor(2, dim)
+    return d
 
 
 Diagram.swap_factory = Swap

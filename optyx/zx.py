@@ -5,7 +5,7 @@ Overview
 ZX diagrams, to and from conversions with :code:`pyzx`,
 evaluation with to_tensor via :code:`quimb`,
 mapping to post-selected linear
-optical circuits :code:`zx_to_path'.
+optical circuits :code:`zx_to_path`.
 
 
 Generators
@@ -35,6 +35,47 @@ Functions
 
 Examples of usage
 ------------------
+
+We can map ZX diagrams to :class:`path` diagrams using
+dual-rail encoding. For example, we can create a GHZ state:
+
+>>> from discopy.drawing import Equation
+>>> from optyx.optyx import dual_rail, embedding_tensor
+>>> ghz = Z(0, 3)
+>>> ghz_decom = decomp(ghz)
+>>> ghz_path = zx_to_path(ghz_decom)
+>>> Equation(ghz >> dual_rail(3), ghz_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 10), \\
+... path="docs/_static/ghz_dr.svg")
+
+.. image:: /_static/ghz_dr.svg
+    :align: center
+
+We can also create a graph state as follows
+(where we omit the labels):
+
+>>> graph = (Z(0, 2) >> Id(1) @ H >> Id(1) @ Z(1, 2) >> \\
+... Id(2) @ H >> Id(2) @ Z(1, 2))
+>>> graph_decom = decomp(graph)
+>>> graph_path = zx_to_path(graph_decom)
+>>> Equation(graph >> dual_rail(4), graph_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 14), \\
+... path="docs/_static/graph_dr.svg", draw_type_labels=False, \\
+... draw_box_labels=False)
+
+.. image:: /_static/graph_dr.svg
+    :align: center
+
+We can check that both diagrams produce the same tensors (we need to
+ensure the tensor dimensions match):
+
+>>> assert np.allclose(graph_path.to_zw().to_tensor().eval().array, \\
+... ((graph >> dual_rail(4)).to_tensor() >> \\
+... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 5))).eval().array)
+
+As shown in the example above, we need to decompose a ZX diagram
+into more elementary spiders before mapping it to a path diagram.
+More explicitely:
 
 >>> diagram = Z(2, 1, 0.25) >> X(1, 1, 0.35)
 >>> print(decomp(diagram))

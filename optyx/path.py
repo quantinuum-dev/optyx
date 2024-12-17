@@ -5,14 +5,15 @@ Overview
 
 The category :class:`Matrix` and the syntax :class:`Diagram`
 of matrices with creations and post-selections. The module
-supports representing the :math:`lo` fragment
+supports representing the :class:`lo` fragment
 of Optyx diagrams as matrices. It enables the
 computation of the amplitudes and probabilities
 of the diagrams by evaluting
 permanents of underlying matrices (either directly
 or via Perceval [FGL+23]_). The :code:`to_path` method
 of Optyx diagrams which belong to the W fragment of the
-ZW calculus (including LO circuits, n-photon states and effects)
+:class:`zw` calculus (including :class:`lo` circuits,
+n-photon states and effects)
 returns a :class:`Matrix` object.
 
 Classes
@@ -59,6 +60,42 @@ evaluating the permanent of the underlying matrix:
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.to_path().prob()
 Probabilities[complex]([0.5+0.j], dom=1, cod=1)
+
+We can also show the Hong-Ou-Mandel effect by
+using the rules of the :class:`path` calculus:
+
+>>> from optyx.zw import W, Endo, SWAP, Create, Select
+>>> left_hs = (Create(1, 1) >> \\
+... W(2) @ W(2) >> \\
+... Endo(1j) @ Id(1) @ Id(1) @ Endo(1j) >> \\
+... Id(1) @ SWAP @ Id(1) >> \\
+... W(2).dagger() @ W(2).dagger() >> \\
+... Select(1, 1))
+>>> left_hs.draw(path="docs/_static/left_hs.png")
+
+.. image:: /_static/left_hs.png
+    :align: center
+
+>>> left_hs.to_path().prob_with_perceval().array[0, 0]
+0j
+
+According to the rewrite rules of the :class:`path` calculus,
+this should be equal to:
+
+>>> right_hs = ((Create(1, 1) >> \\
+... Endo(1j) @ Endo(1j) >> \\
+... Select(1, 1)) +
+... (Create(1, 1) >> \\
+... SWAP >> \\
+... Select(1, 1)))
+>>> right_hs.draw(path="docs/_static/right_hs.png")
+
+.. image:: /_static/right_hs.png
+
+Let us now evaluate this using :code:`DisCoPy` tensor:
+
+>>> right_hs.to_tensor().eval().array
+array(0)
 
 **Bell state**
 

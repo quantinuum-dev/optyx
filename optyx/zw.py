@@ -2,17 +2,17 @@
 Overview
 --------
 
-:math:`ZW_{\\infty}` diagrams [FSP+23]_ and their
+:class:`zw` diagrams [FSP+23]_ and their
 mapping to :class:`tensor.Diagram` from
-DisCoPy [FTC21]_. :math:`ZW_{\\infty}` enables
+DisCoPy [FTC21]_. :class:`zw` enables
 us to express a wider class of linear maps
 on the bosonic Fock space than by simply using
 the physically motivated diagarms of
-:math:`LO`. This however means that some of the
+:class:`lo`. This however means that some of the
 maps might not be directly physically realisable.
 
-The calculus is encompassing both the :math:`LO`
-and :math:`QPath` calculi.
+The calculus is encompassing both the :class:`lo`
+and :class:`path` calculi.
 
 Generators and diagrams
 ------------------------
@@ -33,7 +33,10 @@ Generators and diagrams
 Examples of usage
 ------------------
 
-We check the axioms of the :math:`ZW_{\\infty}`.
+Let's check the axioms of :class:`zw`. The examples also
+showcase the option to map :class:`zw` diagrams to tensors
+which can be evaluated using :code:`DisCoPy` (with :code:`tensor.eval()`)
+or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 
 **W commutativity**
 
@@ -42,7 +45,7 @@ We check the axioms of the :math:`ZW_{\\infty}`.
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> SWAP
 >>> assert compare_arrays_of_different_sizes(\\
-...             bSym_l.to_tensor().eval().array,\\
+...             (bSym_l.to_tensor().to_quimb()^...).data,\\
 ...             bSym_r.to_tensor().eval().array)
 >>> Equation(bSym_l, bSym_r, symbol="$=$").draw(\\
 ... path="docs/_static/zw_commutativity.svg")

@@ -37,7 +37,7 @@ Functions
 Examples of usage
 ------------------
 
-Let us check if a beam splitter enables a valid Hang-Ou-Mandel effect:
+Let us check if a beam splitter showcases a valid Hang-Ou-Mandel effect:
 
 >>> BS = BBS(0)
 >>> diagram = Create(1, 1) >> BS
@@ -65,7 +65,65 @@ Each diagram of the module can be converted to a :class:`zw` diagram:
 .. image:: /_static/double_BS.png
     :align: center
 
-We can differentiate the expectation values of optical circuits.
+**Evaluating linear optical circuits**
+
+:class:`lo` generators correspond to physical linear
+optical devices. We can use them to build photonic "chips"
+to simulate quantum photonics experiments.
+
+As an example, let us consider a beam splitter and the
+Hong-Ou-Mandel effect.
+
+First, let's create a beam splitter:
+
+>>> BS = BBS(0)
+>>> BS.draw(path='docs/_static/BS_hom.png', figsize=(2, 2))
+
+.. image:: /_static/BS_hom.png
+    :align: center
+
+If we want to evaluate the effect of
+inputting two photons using :code:`quimb`,
+we need to feed the circuit with two photons.
+Finally, let's check the effect of having both
+photons on two output modes.
+
+>>> diagram_qpath = Create(1, 1) >> BS >> Select(1, 1)
+>>> diagram_qpath.draw(path='docs/_static/BS_hom_2.png', figsize=(3, 3))
+
+.. image:: /_static/BS_hom_2.png
+    :align: center
+
+>>> np.round(diagram_qpath.to_zw().to_tensor().to_quimb()^..., 1)
+-0.0
+
+We can also do the same using :code:`Perceval`:
+
+>>> diagram_qpath.to_path().prob_with_perceval().array[0, 0]
+0j
+
+We can also obtain the entire probability distribution (or amplitudes)
+for all possible outcomes of an experiment. Let us use the interferometer
+on three modes with three photons:
+
+>>> circuit = Create(1, 1, 1) >> ansatz(3, 3)
+>>> circuit.draw(path='docs/_static/ansatz3_3.png', figsize=(5, 5))
+
+.. image:: /_static/ansatz3_3.png
+    :align: center
+
+>>> from optyx.utils import tensor_2_amplitudes
+>>> symbs = list(circuit.free_symbols)
+>>> s = [(i, 0) for i in symbs]
+>>> circuit = circuit.subs(*s)
+>>> assert np.allclose( \\
+...  np.abs(np.round( \\
+...  (circuit.to_zw().to_tensor(max_dim=4).to_quimb()^...).data, 1))**2, \\
+...  circuit.to_path().prob_with_perceval(as_tensor=True).array)
+
+**Differentiation**
+
+We can also differentiate the expectation values of optical circuits.
 
 >>> from sympy.abc import psi
 >>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
