@@ -7,7 +7,7 @@ API
 
     optyx.optyx
     optyx.path
-    optyx.LO
+    optyx.lo
     optyx.zw
     optyx.zx
     optyx.compiler

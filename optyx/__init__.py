@@ -1,6 +1,6 @@
 from optyx import zw
 from optyx import zx
-from optyx import LO
+from optyx import lo
 from optyx import path
 
 from optyx._version import (

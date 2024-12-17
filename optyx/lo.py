@@ -3,13 +3,12 @@
 Overview
 --------
 
-Linear optical circuits built from biased/tunable
-beam splitters, phase shifters, Mach-Zender interferometers.
-This module represents the heralded linear optical
-circuits, which are physically implementable.
-The gates can be perceived as having an underlying QPath
-diagram representation [FC23]_ (which are a subset of
-:math:`ZW_{\\infty}` diagrams [FSP+23]_).
+This module can be used to build arbitrary
+linear optical unitary circuits using biased/tunable
+beam splitters, phase shifters, and Mach-Zender interferometers.
+The :class:`lo` generators have an underlying
+diagram representation in :class:`path` [FC23]_
+(which are a subset of :class:`zw` diagrams [FSP+23]_).
 
 Generators and diagrams
 ------------------------
@@ -55,7 +54,7 @@ The function :code:`ansatz` generates a universal interferometer:
 .. image:: /_static/ansatz6_4.png
     :align: center
 
-Each diagram of the module can be converted to a :math:`ZW_{\\infty}` diagram:
+Each diagram of the module can be converted to a :class:`zw` diagram:
 
 >>> from discopy.drawing import Equation
 >>> BS = BBS(0)
@@ -94,12 +93,12 @@ We can differentiate the expectation values of optical circuits.
 
 References
 ----------
-.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics \
+.. [FC23] de Felice, G., & Coecke, B. (2023). Quantum Linear Optics \
     via String Diagrams. In Proceedings 19th International \
     Conference on Quantum Physics and Logic, Wolfson College, \
     Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). \
         Open Publishing Association.
-.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., \
+.. [FSP+23] de Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., \
     & Coecke, B. (2023). Light-Matter Interaction in the \
     ZXW Calculus. In  Proceedings of the Twentieth \
     International Conference on Quantum Physics and Logic,  \

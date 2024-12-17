@@ -5,14 +5,15 @@ Overview
 
 The category :class:`Matrix` and the syntax :class:`Diagram`
 of matrices with creations and post-selections. The module
-supports representing the :math:`LO` fragment
+supports representing the :math:`lo` fragment
 of Optyx diagrams as matrices. It enables the
 computation of the amplitudes and probabilities
 of the diagrams by evaluting
 permanents of underlying matrices (either directly
 or via Perceval [FGL+23]_). The :code:`to_path` method
-of Optyx diagrams which belong to the :math:`LO`
-fragment returns a :class:`Matrix` object.
+of Optyx diagrams which belong to the W fragment of the
+ZW calculus (including LO circuits, n-photon states and effects)
+returns a :class:`Matrix` object.
 
 Classes
 -------------
@@ -46,7 +47,7 @@ We can check the Hong-Ou-Mandel effect by
 evaluating the permanent of the underlying matrix:
 
 >>> from optyx.zw import Create, Select, Split, Merge, Id
->>> from optyx.LO import BS
+>>> from optyx.lo import BS
 >>> HOM = Create(1, 1) >> BS
 >>> assert np.allclose(HOM.to_path().eval().array,\\
 ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j],\\
@@ -469,7 +470,7 @@ class Amplitudes(underlying.Matrix):
     Example
     -------
     >>> from optyx.zw import Select, Id
-    >>> from optyx.LO import BS
+    >>> from optyx.lo import BS
     >>> BS.to_path().eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
@@ -493,7 +494,7 @@ class Probabilities(underlying.Matrix):
     Example
     -------
     >>> from optyx.zw import Create
-    >>> from optyx.LO import BS
+    >>> from optyx.lo import BS
     >>> BS.to_path().prob(1).round(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
     >>> (Create(1, 1) >> BS).to_path().prob().round(1)

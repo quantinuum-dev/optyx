@@ -6,26 +6,26 @@ Overview
 
 Optyx diagrams combine three diagrammatic calculi:
 
-- :math:`ZW_{\\infty}` calculus: for infinite-dimensional \
+- :class:`zw` calculus: for infinite-dimensional \
 systems (Mode type).
-- :math:`LO` calculus: for linear optics (Mode type).
-- ZX calculus: for qubit systems (Bit type).
+- :class:`lo` calculus: for linear optics (Mode type).
+- :class:`zx` calculus: for qubit systems (Bit type).
 
-:math:`LO` calculus diagrams [FC23]_ are a subset of
-:math:`ZW_{\\infty}` diagrams [FSP+23]_ and we can
-express them using :math:`ZW_{\\infty}` generators.
-:math:`LO` diagrams are used to model linear optical
+:class:`lo` calculus diagrams [FC23]_ are a subset of
+:class:`zw` diagrams [FSP+23]_ and we can
+express them using :class:`zw` generators.
+:class:`lo` diagrams are used to model linear optical
 circuits build from beam splitters, phase shifters,
-and other optical elements while :math:`ZW_{\\infty}`
+and other optical elements while :class:`zw`
 are able to express more general maps on the bosonic
-Fock space. ZX diagrams are used to model qubit
+Fock space. :class:`zx` diagrams are used to model qubit
 circuits and we can go from photonic modes to qubits using the
 dual-rail encoding (using the :code:`DualRail` box).
 This is crucial if we want to combine the reasoning
 about photonic circuits, dual rail encoded qubit circuits,
 and classical data (feed-forward) data. The
-formal definitions which underpin the ZX,
-:math:`ZW_{\\infty}` and :math:`LO` enable us
+formal definitions which underpin the :class:`zx`,
+:class:`zw` and :class:`lo` enable us
 to capture all elements needed for universal
 photonic quantum computation and its sumulation.
 
@@ -89,17 +89,17 @@ boxes is done using the :code:`<<` operator:
 We can also tensor (parallelally compose) boxes
 using the :code:`@` operator:
 
->>> from optyx.LO import BS, Phase
+>>> from optyx.lo import BS, Phase
 >>> beam_splitter_phase = BS @ Phase(0.5)
 >>> beam_splitter_phase.draw(path="docs/_static/parallel_comp_example.png")
 
 .. image:: /_static/parallel_comp_example.png
     :align: center
 
-A beam-splitter from the :math:`LO` calculus can be
-expressed using the :math:`ZW_{\\infty}` calculus:
+A beam-splitter from the :class:`lo` calculus can be
+expressed using the :class:`zw` calculus:
 
->>> from optyx.LO import BS
+>>> from optyx.lo import BS
 >>> beam_splitter = BS.to_zw()
 >>> beam_splitter.draw(path="docs/_static/bs_zw.png")
 
@@ -107,14 +107,14 @@ expressed using the :math:`ZW_{\\infty}` calculus:
     :align: center
 
 Optyx diagrams can combine the generators from
-:math:`ZW_\\infty` (Mode type),
-:math:`QPath` (Mode type) and ZX calculi (Bit type).
+:class:`zw` (Mode type),
+:math:`QPath` (Mode type) and :class:`zx` calculi (Bit type).
 We can check their equivalence as tensors.
 
 **Branching Law**
 
 Let's check that the branching law from QPath
-and :math:`ZW_{\\infty}` from [FC23]_.
+and :class:`zw` from [FC23]_.
 
 >>> from optyx.zw import Create, W
 >>> from optyx.utils import compare_arrays_of_different_sizes
@@ -145,7 +145,7 @@ diagrams like the Hong-Ou-Mandel effect:
 ...             Hong_Ou_Mandel.to_tensor().eval().array,\\
 ...             np.array([0]))
 
-**Converting ZX Diagrams**
+**Converting :class:`zx` Diagrams**
 
 The :code:`to_pyzx` and :code:`from_pyzx` methods
 enable conversion between Optyx and PyZX [KW20]_:
@@ -262,9 +262,9 @@ class Diagram(frobenius.Diagram):
     grad = tensor.Diagram.grad
 
     def to_zw(self) -> Diagram:
-        """To be used with :math:`LO` diagrams which can
+        """To be used with :class:`lo` diagrams which can
         be decomposed into the underlying
-        :math:`ZW_{\\infty}` generators."""
+        :class:`zw` generators."""
         return symmetric.Functor(
             ob=lambda x: Mode(len(x)),
             ar=lambda f: f.to_zw(),
@@ -275,7 +275,7 @@ class Diagram(frobenius.Diagram):
         """Returns the :class:`Matrix` normal form
         of a :class:`Diagram`.
         In other words, it is the underlying matrix
-        representation of a :math:`QPath` and :math:`LO` diagrams."""
+        representation of a :math:`QPath` and :class:`lo` diagrams."""
         from optyx import path
 
         return symmetric.Functor(
@@ -618,6 +618,61 @@ class Spider(Box):
 
     __ambiguous_inheritance__ = (Box,)
 
+    def __init__(self,
+                 dom: Mode | Bit,
+                 cod: Mode | Bit,
+                 data = None,
+                 name: str = "Spider"):
+        # check if dom and cod are of the same type
+        if isinstance(dom, (Mode, Bit)) and isinstance(cod, (Mode, Bit)):
+            if not isinstance(dom, type(cod)):
+                raise ValueError(
+                    "Input and output types must be the same (Mode or Bit)."
+                )
+        else:
+            raise ValueError(
+                "Input and output types must be either Mode or Bit."
+            )
+        super().__init__(name, dom, cod)
+
+    def determine_output_dimensions(self,
+                                    input_dims: list[int]) -> list[int]:
+        if isinstance(self.cod, Bit):
+            return [2]*len(self.cod)
+        else:
+            if len(self.dom) == 0:
+                return [2 for _ in range(len(self.cod))]
+            return [min(input_dims) for _ in range(len(self.cod))]
+
+    def truncation(
+            self,
+            input_dims: list[int] = None,
+            output_dims: list[int] = None
+    ) -> tensor.Box:
+        """
+        Create a tensor in the semantics of a ZW/ZX diagram depending
+        on the domain and codomain type
+        """
+        if isinstance(self.cod, Bit) and isinstance(self.dom, Bit):
+            return tensor.Spider(len(self.dom), len(self.cod), Dim(2))
+
+        if input_dims is None:
+            raise ValueError("Input dimensions must be provided.")
+
+        spider_dim = min(input_dims) if len(self.dom) > 0 else 2
+
+        # get the embedding layer
+        embedding_layer = tensor.Id(1)
+        for input_dim in input_dims:
+            embedding_layer @= (
+                EmbeddingTensor(input_dim, spider_dim)
+                if input_dim > spider_dim
+                else tensor.Id(Dim(int(input_dim)))
+            )
+
+        return embedding_layer >> tensor.Spider(
+            len(self.dom), len(self.cod), Dim(int(spider_dim))
+        )
 
 class Sum(symmetric.Sum, Box):
     """
@@ -794,7 +849,7 @@ class Scalar(Box):
     -------
     >>> from optyx.path import Matrix
     >>> from optyx.zw import Create, Select
-    >>> from optyx.LO import BS
+    >>> from optyx.lo import BS
     >>> assert Scalar(0.45).to_path() == Matrix(
     ...     [], dom=0, cod=0,
     ...     creations=(), selections=(), normalisation=1, scalar=0.45)

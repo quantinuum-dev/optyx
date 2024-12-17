@@ -1,7 +1,7 @@
 import pytest
 
 from optyx.zw import *
-from optyx.LO import BS, Phase
+from optyx.lo import BS, Phase
 
 unitary_circuits = [
 	BS >> Phase(1 / 4) @ Id(Mode(1)) >> BS.dagger(),

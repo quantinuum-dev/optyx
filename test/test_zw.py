@@ -4,7 +4,7 @@ from optyx.zw import *
 from optyx.optyx import mode, Permutation, DualRail, EmbeddingTensor
 from optyx.utils import compare_arrays_of_different_sizes
 import optyx.zx as zx
-import optyx.LO as LO
+import optyx.lo as lo
 import itertools
 import pytest
 import numpy as np
@@ -231,6 +231,26 @@ def test_bZBA(max_dim):
         bZBA_r.to_tensor(max_dim=max_dim).eval().array,
     )
 
+@pytest.mark.parametrize("max_dim", [None, 2, 4, 6])
+def test_bZBA_optyx_Spider(max_dim):
+    from math import factorial
+
+    N = [float(np.sqrt(factorial(i))) for i in range(5)]
+    frac_N = [float(1 / np.sqrt(factorial(i))) for i in range(5)]
+
+    bZBA_l = (
+        Z(N, 1, 1) @ Z(N, 1, 1)
+        >> optyx.Spider(optyx.Mode(1), optyx.Mode(2)) @ optyx.Spider(optyx.Mode(1), optyx.Mode(2))
+        >> Id(1) @ Swap(mode, mode) @ Id(1)
+        >> W(2).dagger() @ W(2).dagger()
+        >> Id(1) @ Z(frac_N, 1, 1)
+    )
+    bZBA_r = W(2).dagger() >> optyx.Spider(optyx.Mode(1), optyx.Mode(2))
+
+    assert compare_arrays_of_different_sizes(
+        bZBA_l.to_tensor(max_dim=max_dim).eval().array,
+        bZBA_r.to_tensor(max_dim=max_dim).eval().array,
+    )
 
 def test_K0_infty():
     K0_infty_l = Create(4) >> Z(lambda i: 1, 1, 2)
@@ -462,6 +482,6 @@ def test_DR_beamsplitter():
 phases = phases = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 @pytest.mark.parametrize("phase", phases)
 def test_DR_phase_shift(phase):
-    left = DualRail().to_zw() >> LO.Id(1) @ LO.Phase(phase).to_zw()
+    left = DualRail().to_zw() >> lo.Id(1) @ lo.Phase(phase).to_zw()
     right = zx.Z(1, 1, phase=phase) >> DualRail()
     assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)

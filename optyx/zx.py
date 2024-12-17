@@ -2,9 +2,10 @@
 Overview
 --------
 
-ZX diagrams and their mapping to :class:`path.Diagram`.
-They represent a qubit circuits encoded via the dual rail encoding which
-enables direct reasoning about photonic protocols like in [FPY+24]_.
+ZX diagrams, to and from conversions with :code:`pyzx`,
+evaluation with to_tensor via :code:`quimb`,
+mapping to post-selected linear
+optical circuits :code:`zx_to_path'.
 
 
 Generators
@@ -95,7 +96,7 @@ from discopy.frobenius import Dim
 from discopy import tensor
 from optyx import optyx
 from optyx import zw
-from optyx import LO
+from optyx import lo
 from optyx.optyx import Diagram, Bit, Sum, Swap, bit, Mode, Scalar
 
 
@@ -141,7 +142,10 @@ class Spider(Box, optyx.Spider):
     __ambiguous_inheritance__ = (Box, optyx.Spider)
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        super().__init__("Spider", n_legs_in, n_legs_out, data=phase)
+        super(optyx.Spider, self).__init__(dom=Bit(n_legs_in),
+                                           cod=Bit(n_legs_out),
+                                           name="Spider",
+                                           data=phase)
         self.phase = phase
         self.n_legs_in = n_legs_in
         self.n_legs_out = n_legs_out
@@ -303,7 +307,7 @@ create = zw.Create(1)
 annil = zw.Select(1)
 comonoid = zw.Split(2)
 monoid = zw.Merge(2)
-BS = LO.BS
+BS = lo.BS
 
 
 def Id(n):
@@ -338,7 +342,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return Id(Mode(1)) @ LO.Phase(phase)
+            return Id(Mode(1)) @ lo.Phase(phase)
         if (n, m, phase) == (2, 1, 0):
             return Id(Mode(1)) @ (monoid >> annil) @ Id(Mode(1))
         if (n, m, phase) == (1, 2, 0):
