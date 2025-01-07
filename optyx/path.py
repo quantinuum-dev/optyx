@@ -480,7 +480,7 @@ class Matrix(underlying.Matrix):
             // (0, pcvl.PS(phi=pcvl.Parameter("phi_2")))
         )
 
-        m = pcvl.MatrixN(self.array)
+        m = pcvl.MatrixN(self.array.T.conj())
         return pcvl.Circuit.decomposition(
             m,
             _mzi_triangle,
