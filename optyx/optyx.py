@@ -982,6 +982,7 @@ def embedding_tensor(n, dim):
 bit = Bit(1)
 mode = Mode(1)
 
+Diagram.spider_factory = Spider
 Diagram.swap_factory = Swap
 Diagram.swap = Swap
 Diagram.sum_factory = Sum
