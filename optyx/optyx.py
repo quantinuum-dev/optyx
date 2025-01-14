@@ -216,12 +216,12 @@ Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., \
 Belabas, N., Valiron, B., Senellart, P., Mansfield, S., \
 & Senellart, J. (2023). Perceval: A Software Platform \
 for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
-.. [FTC21] Felice, G., Toumi, A., & Coecke, B. (2021). \
+.. [FTC21] de Felice, G., Toumi, A., & Coecke, B. (2021). \
 DisCoPy: Monoidal Categories in Python. In  Proceedings Z \
 of the 3rd Annual International Applied Category Theory \
 Conference 2020,  Cambridge, USA, 6-10th July 2020 (pp. \
 183-197). Open Publishing Association.
-.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., \
+.. [FSP+23] de Felice, G., Shaikh, R., Poór, B., Yeh, L., \
 Wang, Q., & Coecke, B. (2023). Light-Matter Interaction \
 in the ZXW Calculus. In  Proceedings of the Twentieth \
 International Conference on Quantum Physics and Logic, \
@@ -624,30 +624,11 @@ class Box(frobenius.Box, Diagram):
         return self.lambdify(*syms)(*exprs)
 
 
-class Spider(Box):
+class Spider(frobenius.Spider, Box):
     """Abstract spider (dagger-SCFA)"""
 
     draw_as_spider = True
     color = "green"
-
-    __ambiguous_inheritance__ = (Box,)
-
-    def __init__(self,
-                 dom: Mode | Bit,
-                 cod: Mode | Bit,
-                 data=None,
-                 name: str = "Spider"):
-        # check if dom and cod are of the same type
-        if isinstance(dom, (Mode, Bit)) and isinstance(cod, (Mode, Bit)):
-            if not isinstance(dom, type(cod)):
-                raise ValueError(
-                    "Input and output types must be the same (Mode or Bit)."
-                )
-        else:
-            raise ValueError(
-                "Input and output types must be either Mode or Bit."
-            )
-        super().__init__(name, dom, cod)
 
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:

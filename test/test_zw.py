@@ -240,12 +240,12 @@ def test_bZBA_optyx_Spider(max_dim):
 
     bZBA_l = (
         Z(N, 1, 1) @ Z(N, 1, 1)
-        >> optyx.Spider(optyx.Mode(1), optyx.Mode(2)) @ optyx.Spider(optyx.Mode(1), optyx.Mode(2))
+        >> optyx.Spider(1, 2, optyx.Mode(1)) @ optyx.Spider(1, 2, optyx.Mode(1))
         >> Id(1) @ Swap(mode, mode) @ Id(1)
         >> W(2).dagger() @ W(2).dagger()
         >> Id(1) @ Z(frac_N, 1, 1)
     )
-    bZBA_r = W(2).dagger() >> optyx.Spider(optyx.Mode(1), optyx.Mode(2))
+    bZBA_r = W(2).dagger() >> optyx.Spider(1, 2, optyx.Mode(1))
 
     assert compare_arrays_of_different_sizes(
         bZBA_l.to_tensor(max_dim=max_dim).eval().array,

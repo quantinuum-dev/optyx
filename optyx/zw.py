@@ -321,7 +321,7 @@ class Z(Spider, Box):
             self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
-        super().__init__(Mode(legs_in), Mode(legs_out), "Z(amplitudes)")
+        super().__init__(legs_in, legs_out, Mode(1))
         self.legs_in = legs_in
         self.legs_out = legs_out
 

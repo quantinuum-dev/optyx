@@ -177,22 +177,15 @@ class Box(optyx.Box):
         )
 
 
-class Spider(Box, optyx.Spider):
+class Spider(optyx.Spider, Box):
     """Abstract spider box."""
 
-    __ambiguous_inheritance__ = (Box, optyx.Spider)
-
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        super(optyx.Spider, self).__init__(dom=Bit(n_legs_in),
-                                           cod=Bit(n_legs_out),
-                                           name="Spider",
-                                           data=phase)
-        self.phase = phase
-        self.n_legs_in = n_legs_in
-        self.n_legs_out = n_legs_out
+        super().__init__(n_legs_in, n_legs_out, Bit(1), phase)
         factory_str = type(self).__name__
         phase_str = f", {self.phase}" if self.phase else ""
         self.name = f"{factory_str}({n_legs_in}, {n_legs_out}{phase_str})"
+        self.n_legs_in, self.n_legs_out = n_legs_in, n_legs_out
 
     def __repr__(self):
         return str(self).replace(type(self).__name__, factory_name(type(self)))
@@ -494,5 +487,3 @@ def swap_truncation(diagram, _, __):
 
 
 SWAP.truncation = swap_truncation
-
-Diagram.braid_factory, Diagram.sum_factory = Swap, Sum
