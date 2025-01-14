@@ -1,17 +1,82 @@
 """
-ZX diagrams and their mapping to :class:`qpath.Diagram`.
+Overview
+--------
 
-.. admonition:: Functions
-    .. autosummary::
-        :template: function.rst
-        :nosignatures:
-        :toctree:
-
-        zx_to_path
+ZX diagrams, to and from conversions with :code:`pyzx`,
+evaluation with to_tensor via :code:`quimb`,
+mapping to post-selected linear
+optical circuits :code:`zx_to_path`.
 
 
-Example
--------
+Generators
+-------------
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    Box
+    Spider
+    Z
+    X
+
+Functions
+----------
+.. autosummary::
+    :template: function.rst
+    :nosignatures:
+    :toctree:
+
+    zx_to_path
+    decomp
+    zx2path
+    circuit2zx
+
+
+Examples of usage
+------------------
+
+We can map ZX diagrams to :class:`path` diagrams using
+dual-rail encoding. For example, we can create a GHZ state:
+
+>>> from discopy.drawing import Equation
+>>> from optyx.optyx import dual_rail, embedding_tensor
+>>> ghz = Z(0, 3)
+>>> ghz_decom = decomp(ghz)
+>>> ghz_path = zx_to_path(ghz_decom)
+>>> Equation(ghz >> dual_rail(3), ghz_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 10), \\
+... path="docs/_static/ghz_dr.svg")
+
+.. image:: /_static/ghz_dr.svg
+    :align: center
+
+We can also create a graph state as follows
+(where we omit the labels):
+
+>>> graph = (Z(0, 2) >> Id(1) @ H >> Id(1) @ Z(1, 2) >> \\
+... Id(2) @ H >> Id(2) @ Z(1, 2))
+>>> graph_decom = decomp(graph)
+>>> graph_path = zx_to_path(graph_decom)
+>>> Equation(graph >> dual_rail(4), graph_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 14), \\
+... path="docs/_static/graph_dr.svg", draw_type_labels=False, \\
+... draw_box_labels=False)
+
+.. image:: /_static/graph_dr.svg
+    :align: center
+
+We can check that both diagrams produce the same tensors (we need to
+ensure the tensor dimensions match):
+
+>>> assert np.allclose(graph_path.to_zw().to_tensor().eval().array, \\
+... ((graph >> dual_rail(4)).to_tensor() >> \\
+... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 5))).eval().array)
+
+As shown in the example above, we need to decompose a ZX diagram
+into more elementary spiders before mapping it to a path diagram.
+More explicitely:
+
 >>> diagram = Z(2, 1, 0.25) >> X(1, 1, 0.35)
 >>> print(decomp(diagram))
 Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
@@ -35,7 +100,8 @@ encoding is equivalent.
 >>> assert np.allclose(zx_to_path(amplitude).to_path().eval().array, \\
 ...                    amplitude.to_pyzx().to_tensor())
 
-Corner case where :py:`to_pyzx` and :py:`zx_to_path` agree only up to global
+Corner case where :code:`to_pyzx` and
+:code:`zx_to_path` agree only up to global
 phase.
 
 >>> diagram = X(0, 2) @ Z(0, 1, 0.25) @ Scalar(1/2)\\
@@ -43,7 +109,7 @@ phase.
 >>> print(decomp(diagram)[:3])
 X(0, 1) >> H >> Z(1, 2)
 >>> print(zx_to_path(diagram)[:2])
-Create() >> mode @ Create((0,))
+Create(1) >> mode @ Create((0,))
 >>> pyzx_ampl = diagram.to_pyzx().to_tensor()
 >>> assert np.allclose(pyzx_ampl, zx_to_path(diagram).to_path().eval().array)
 
@@ -71,12 +137,13 @@ from discopy.frobenius import Dim
 from discopy import tensor
 from optyx import optyx
 from optyx import zw
-from optyx import circuit
+from optyx import lo
 from optyx.optyx import Diagram, Bit, Sum, Swap, bit, Mode, Scalar
 
 
 class Box(optyx.Box):
-    """ A box in a ZX diagram. """
+    """A box in a ZX diagram."""
+
     def __init__(self, name, dom, cod, **params):
         if isinstance(dom, int):
             dom = Bit(dom)
@@ -90,27 +157,36 @@ class Box(optyx.Box):
             return self.data
         raise NotImplementedError(f"Array not implemented for {self}.")
 
-    def determine_output_dimensions(self, _=None):
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+        """Determine the output dimensions"""
         return [2 for _ in range(len(self.cod))]
 
-    def truncation(self, _=None, __=None):
+    def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
+        "Return a :class:`tensor.Box` with the underlying array"
         out_dims = Dim(*[2 for i in range(len(self.cod))])
         in_dims = Dim(*[2 for i in range(len(self.dom))])
 
         return tensor.Box(self.name, in_dims, out_dims, self.array)
 
     def __eq__(self, other):
-        return (isinstance(other, type(self)) and
-                self.name == other.name and
-                self.dom == other.dom and
-                np.all(self.data == other.data))
+        return (
+            isinstance(other, type(self))
+            and self.name == other.name
+            and self.dom == other.dom
+            and np.all(self.data == other.data)
+        )
 
 
-class Spider(Box):
+class Spider(Box, optyx.Spider):
     """Abstract spider box."""
 
+    __ambiguous_inheritance__ = (Box, optyx.Spider)
+
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        super().__init__("Spider", n_legs_in, n_legs_out, data=phase)
+        super(optyx.Spider, self).__init__(dom=Bit(n_legs_in),
+                                           cod=Bit(n_legs_out),
+                                           name="Spider",
+                                           data=phase)
         self.phase = phase
         self.n_legs_in = n_legs_in
         self.n_legs_out = n_legs_out
@@ -119,23 +195,19 @@ class Spider(Box):
         self.name = f"{factory_str}({n_legs_in}, {n_legs_out}{phase_str})"
 
     def __repr__(self):
-        return str(self).replace(
-            type(self).__name__, factory_name(type(self))
-        )
+        return str(self).replace(type(self).__name__, factory_name(type(self)))
 
     def subs(self, *args):
         phase = cat.rsubs(self.phase, *args)
         return type(self)(len(self.dom), len(self.cod), phase=phase)
 
     def grad(self, var, **params):
-        """ Gradient with respect to a variable. """
+        """Gradient with respect to a variable."""
 
         if var not in self.free_symbols:
             return Sum((), self.dom, self.cod)
         gradient = self.phase.diff(var)
-        gradient = (
-            complex(gradient) if not gradient.free_symbols else gradient
-        )
+        gradient = complex(gradient) if not gradient.free_symbols else gradient
         return Scalar(pi * gradient) @ type(self)(
             len(self.dom), len(self.cod), self.phase + 0.5
         )
@@ -152,7 +224,13 @@ class Z(Spider):
     """Z spider."""
 
     tikzstyle_name = "Z"
-    color = "green"
+
+    def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
+        return zw.Z(
+            [1, np.exp(1j * self.phase * 2 * np.pi)],
+            self.n_legs_in,
+            self.n_legs_out,
+        ).truncation([2] * self.n_legs_in)
 
     @property
     def array(self):
@@ -162,9 +240,9 @@ class Z(Spider):
         )
 
         return_array[0, 0] = 1
-        return_array[2**self.n_legs_out - 1, 2**self.n_legs_in - 1] = (
-            np.exp(1j * self.phase * 2 * np.pi)
-        )
+        return_array[
+            2**self.n_legs_out - 1, 2**self.n_legs_in - 1
+        ] = np.exp(1j * self.phase * 2 * np.pi)
 
         return return_array
 
@@ -174,6 +252,20 @@ class X(Spider):
 
     tikzstyle_name = "X"
     color = "red"
+
+    def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
+        in_hadamards = tensor.Id(1)
+        for i in range(self.n_legs_in):
+            in_hadamards @= H.truncation()
+
+        out_hadamards = tensor.Id(1)
+        for _ in range(self.n_legs_out):
+            out_hadamards @= H.truncation()
+        return (
+            in_hadamards
+            >> Z(self.n_legs_in, self.n_legs_out, self.phase).truncation()
+            >> out_hadamards
+        )
 
     @property
     def array(self):
@@ -188,9 +280,7 @@ class X(Spider):
         signs_out = (-1) ** np.array(
             [bin(i).count("1") for i in range(dim_out)]
         )
-        signs_in = (-1) ** np.array(
-            [bin(i).count("1") for i in range(dim_in)]
-        )
+        signs_in = (-1) ** np.array([bin(i).count("1") for i in range(dim_in)])
 
         phase_term = (
             np.exp(1j * self.phase * 2 * np.pi)
@@ -232,9 +322,7 @@ def decomp_ar(box):
         if (n, m) in ((1, 0), (0, 1)):
             return box
         box = (
-            Id(0).tensor(*[H] * n)
-            >> Z(n, m, phase)
-            >> Id(0).tensor(*[H] * m)
+            Id(0).tensor(*[H] * n) >> Z(n, m, phase) >> Id(0).tensor(*[H] * m)
         )
         return decomp(box)
     if isinstance(box, Z):
@@ -260,7 +348,7 @@ create = zw.Create(1)
 annil = zw.Select(1)
 comonoid = zw.Split(2)
 monoid = zw.Merge(2)
-BS = circuit.BS
+BS = lo.BS
 
 
 def Id(n):
@@ -295,7 +383,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return Id(Mode(1)) @ circuit.Phase(phase)
+            return Id(Mode(1)) @ lo.Phase(phase)
         if (n, m, phase) == (2, 1, 0):
             return Id(Mode(1)) @ (monoid >> annil) @ Id(Mode(1))
         if (n, m, phase) == (1, 2, 0):
@@ -304,17 +392,17 @@ def ar_zx2path(box):
                 Id(Mode(1)) @ plus @ Id(Mode(1))
             )
             mid = Id(Mode(2)) @ BS.dagger() @ BS @ Id(Mode(2))
-            fusion = (
-                Id(Mode(1)) @ plus.dagger() @ Id(Mode(1)) >> plus.dagger()
-            )
+            fusion = Id(Mode(1)) @ plus.dagger() @ Id(Mode(1)) >> plus.dagger()
             return bot >> mid >> (Id(Mode(2)) @ fusion @ Id(Mode(2)))
     if box == H:
         hadamard_bs = (
-            comonoid @ comonoid >>
-            zw.Endo(np.sqrt(1/2)) @ zw.Endo(np.sqrt(1/2)) @
-            zw.Endo(np.sqrt(1/2)) @ zw.Endo(-np.sqrt(1/2)) >>
-            zw.Id(Mode(1)) @ zw.SWAP @ zw.Id(Mode(1)) >>
-            monoid @ monoid
+            comonoid @ comonoid
+            >> zw.Endo(np.sqrt(1 / 2))
+            @ zw.Endo(np.sqrt(1 / 2))
+            @ zw.Endo(np.sqrt(1 / 2))
+            @ zw.Endo(-np.sqrt(1 / 2))
+            >> zw.Id(Mode(1)) @ zw.SWAP @ zw.Id(Mode(1))
+            >> monoid @ monoid
         )
         return hadamard_bs
     raise NotImplementedError(f"No translation of {box} in QPath.")
@@ -374,9 +462,7 @@ def gate2zx(box):
         quantum.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ scalar(1j),
         quantum.S: Z(1, 1, 0.25),
         quantum.T: Z(1, 1, 0.125),
-        CZ: Z(1, 2) @ Id(1)
-        >> Id(1) @ H @ Id(1)
-        >> Id(1) @ Z(2, 1) @ root2,
+        CZ: Z(1, 2) @ Id(1) >> Id(1) @ H @ Id(1) >> Id(1) @ Z(2, 1) @ root2,
         CX: Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1) @ root2,
     }
     return standard_gates[box]
@@ -392,10 +478,7 @@ circuit2zx = quantum.circuit.Functor(
 H = Box("H", 1, 1)
 H.dagger = lambda: H
 H.draw_as_spider = True
-(
-    H.drawing_name,
-    H.tikzstyle_name,
-) = (
+(H.drawing_name, H.tikzstyle_name,) = (
     "",
     "H",
 )
@@ -403,9 +486,7 @@ H.data = np.array([[1, 1], [1, -1]]) / 2**0.5
 H.color, H.shape = "yellow", "rectangle"
 
 SWAP = Swap(bit, bit)
-SWAP.array = np.array(
-    [[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]
-)
+SWAP.array = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
 
 def swap_truncation(diagram, _, __):

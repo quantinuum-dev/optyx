@@ -1,7 +1,7 @@
 import pytest
 
 from optyx.zw import *
-from optyx.circuit import BS, BBS, Phase
+from optyx.lo import BS, BBS, Phase
 import numpy as np
 
 unitary_circuits = [
@@ -19,7 +19,6 @@ non_unitary_circuits = [
 	Create(1) @ Id(Mode(2)) >> BS @ Id(Mode(1)) >> Id(Mode(1)) @ BS ,
 	Id(1) @ Create(2, 2, 1) >> BBS(0.3) @ BBS(0.3) >> Id(1) @ BBS(0.3) @ Id(1)
 ]
-
 
 @pytest.mark.parametrize("circuit", unitary_circuits + non_unitary_circuits)
 @pytest.mark.parametrize("n_photons", range(1,2))
