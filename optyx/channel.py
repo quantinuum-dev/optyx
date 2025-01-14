@@ -1,25 +1,29 @@
 """
 Implements Quantum Channels
 
+A Channel is initialised by its Kraus map from `dom' to `cod @ env'.
+
+>>> from optyx.circuit import BS, Phase
+>>> circ = BS @ Phase(0.25) >> Phase(0.25) @ BS
+>>> channel = Channel('circ', circ)
+
 The discarding map corresponds to the cap.
 
->>> discard = Channel("Discard", qubit, Ty(), kraus=optyx.Id(optyx.bit), env=optyx.bit)
+>>> discard = Channel("Discard", kraus=optyx.Id(optyx.mode), dom=qmode, cod=Ty(), env=optyx.mode)
 >>> assert discard.double() == optyx.Spider(2, 0, optyx.bit)
 
-Encoding and measuring a qubit correspond to spiders.
+Encoding and measuring a mode or qubit correspond to spiders.
 
->>> encode = Channel("Encode", bit, qubit, kraus = optyx.Id(optyx.bit))
->>> measure = Channel("Measure", qubit, bit, kraus = optyx.Id(optyx.bit))
->>> result = optyx.Spider(2, 1, optyx.bit) >> optyx.Spider(1, 2, optyx.bit)
+>>> encode = Channel("Encode", kraus = optyx.Id(optyx.mode), dom=mode, cod=qmode)
+>>> measure = Channel("Measure", kraus = optyx.Id(optyx.mode), dom=qmode, cod=mode)
+>>> result = optyx.Spider(2, 1, optyx.mode) >> optyx.Spider(1, 2, optyx.mode)
 >>> assert (measure >> encode).double() == result
 
 We can model photon loss with discarding.
 
 >>> import numpy as np
 >>> kraus = lambda nu: zw.W(2) >> zw.Endo(np.sqrt(nu)) @ zw.Endo(np.sqrt(1 - nu)) 
->>> loss = lambda nu: Channel(str(nu), qmode, qmode, kraus(nu), env=optyx.mode)
-
-
+>>> loss = lambda nu: Channel('Loss(' + str(nu) + ')', kraus(nu), dom=qmode, cod=qmode, env=optyx.mode)
 """
 
 from __future__ import annotations
@@ -30,7 +34,8 @@ from optyx import optyx, zw, zx
 
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
-    _single_dict = {"bit": "bit", "mode":"mode", "qubit": "bit", "qmode": "mode"}
+    _classical = {"bit": "bit", "mode":"mode", "qubit": "bit", "qmode": "mode"}
+    _quantum = {"bit": "qubit", "mode":"qmode", "qubit": "qubit", "qmode": "qmode"}
 
     @property
     def is_classical(self):
@@ -38,17 +43,16 @@ class Ob(symmetric.Ob):
 
     @property
     def single(self): 
-        return optyx.Ty(self._single_dict[self.name])
+        return optyx.Ty(self._classical[self.name])
 
     @property
     def double(self):
         if self.is_classical:
             return optyx.Ty(self.name)
         else:
-            name = self._single_dict[self.name]
+            name = self._classical[self.name]
             return optyx.Ty(name, name)
         raise NotImplementedError()
-
 
 @factory
 class Ty(symmetric.Ty):
@@ -63,6 +67,10 @@ class Ty(symmetric.Ty):
         """Returns the optyx.Ty obtained by mapping qubit to bit @ bit and qmode to mode @ mode"""
         return optyx.Ty().tensor(*[ob.double for ob in self.inside])
 
+    @staticmethod
+    def from_optyx(ty):
+        assert isinstance(ty, optyx.Ty)
+        return Ty(*[Ob._quantum[ob.name] for ob in ty.inside])
 
 bit = Ty("bit")
 mode = Ty("mode")
@@ -76,7 +84,8 @@ class Circuit(symmetric.Diagram):
     ty_factory = Ty
 
     def double(self):
-        """ Returns the optyx.Diagram obtained by doubling every quantum dimension and building the CP map."""
+        """ Returns the optyx.Diagram obtained by doubling every quantum dimension
+        and building the completely positive map."""
         ob= lambda x: x.double()
         ar= lambda f: f.double()
         dom = symmetric.Category(Ty, Circuit)
@@ -88,9 +97,14 @@ class Circuit(symmetric.Diagram):
 
 
 class Channel(symmetric.Box, Circuit):
-    """Channel defined by its Kraus map."""
-    def __init__(self, name, dom, cod, kraus, env=optyx.Ty()):
+    """A Channel is defined by its Kraus map, from dom.single() to cod.single() @ env and interpreted as a completely positive map by doubling.
+    Every classical object in dom is encoded and decoded using optyx.Spider, see `Channel.double'."""
+    def __init__(self, name, kraus, dom=None, cod=None, env=optyx.Ty()):
         assert isinstance(kraus, optyx.Diagram)
+        if dom is None:
+            dom = Ty.from_optyx(kraus.dom)
+        if cod is None:
+            cod = Ty.from_optyx(kraus.cod)
         assert kraus.dom == dom.single()
         assert kraus.cod == cod.single() @ env
         self.kraus = kraus
@@ -121,15 +135,9 @@ class Channel(symmetric.Box, Circuit):
         cod = self.cod.single()
         top_spiders = get_spiders(self.dom)
         top_perm = optyx.Diagram.permutation(get_perm(len(top_spiders.cod)), top_spiders.cod)
-        swap = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(cod, self.env)
+        swap_env = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(cod, self.env)
         discards = optyx.Id(cod) @ optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(cod)
         bot_perm = optyx.Diagram.permutation(get_perm(2 * len(cod)), cod @ cod).dagger()
         bot_spiders = get_spiders(self.cod).dagger()
-        return top_spiders >> top_perm >> self.kraus @ self.kraus >> swap >> discards >> bot_perm >> bot_spiders
-
-
-
-
-        
-        
+        return top_spiders >> top_perm >> self.kraus @ self.kraus >> swap_env >> discards >> bot_perm >> bot_spiders
 
