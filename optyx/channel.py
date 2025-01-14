@@ -3,7 +3,7 @@ Implements Quantum Channels
 
 A Channel is initialised by its Kraus map from `dom' to `cod @ env'.
 
->>> from optyx.circuit import BS, Phase
+>>> from optyx.lo import BS, Phase
 >>> circ = BS @ Phase(0.25) >> Phase(0.25) @ BS
 >>> channel = Channel('circ', circ)
 

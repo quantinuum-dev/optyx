@@ -198,7 +198,7 @@ calculating a permanent of an underlying matrix:
 
 References
 -----------
-.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via \
+.. [FC23] de Felice, G., & Coecke, B. (2023). Quantum Linear Optics via \
 String Diagrams. In Proceedings 19th International Conference on \
 Quantum Physics and Logic, Wolfson College, Oxford, UK, \
 27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
@@ -750,10 +750,6 @@ class Sum(symmetric.Sum, Box):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         return sum(term.grad(var, **params) for term in self.terms)
-
-
-class Spider(frobenius.Spider, Box):
-    """Spider in an optyx diagram"""
 
 
 class Swap(frobenius.Swap, Box):
