@@ -1,7 +1,11 @@
 """
 Implements Quantum Channels
 
-A Channel is initialised by its Kraus map from `dom' to `cod @ env'.
+
+Examples
+--------
+
+A Channel is initialised by its Kraus map from `dom` to `cod @ env`. 
 
 >>> from optyx.lo import BS, Phase
 >>> circ = BS @ Phase(0.25) >> Phase(0.25) @ BS
@@ -10,7 +14,7 @@ A Channel is initialised by its Kraus map from `dom' to `cod @ env'.
 The discarding map corresponds to the cap.
 
 >>> discard = Channel("Discard", kraus=optyx.Id(optyx.mode), dom=qmode, cod=Ty(), env=optyx.mode)
->>> assert discard.double() == optyx.Spider(2, 0, optyx.bit)
+>>> assert discard.double() == optyx.Spider(2, 0, optyx.mode)
 
 Encoding and measuring a mode or qubit correspond to spiders.
 
