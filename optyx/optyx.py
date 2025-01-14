@@ -60,7 +60,6 @@ Generators and diagrams
     Diagram
     Box
     Swap
-    Permutation
     Scalar
     DualRail
 
@@ -751,90 +750,7 @@ class Swap(frobenius.Swap, Box):
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
-        return Permutation(self.dom, [1, 0]).truncation(
-            input_dims, output_dims
-        )
-
-
-class Permutation(Box):
-    """Permute wires in an optyx diagram"""
-
-    def __init__(
-        self, dom: Ty, permutation: list[int], is_dagger: bool = False
-    ):
-        """
-        Args:
-            dom: The input type
-            permutation: List of indices representing the permutation.
-                         Each entry indicates where the
-                         corresponding input goes in the output.
-        """
-        assert len(permutation) == len(dom)
-
-        cod = Ty.tensor(*[dom[i] for i in permutation])
-        super().__init__(str(permutation), dom, cod)
-        self.is_dagger = is_dagger
-        self.permutation = permutation
-
-    def truncation(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
-    ) -> tensor.Box:
-        """Create an array that permutes the occupation
-        numbers based on the input dimensions."""
-
-        if input_dims is None:
-            raise ValueError("Input dimensions must be provided.")
-
-        if output_dims is None:
-            output_dims = self.determine_output_dimensions(input_dims)
-
-        input_total_dim = int(np.prod(input_dims))
-        output_total_dim = int(np.prod(output_dims))
-        perm_matrix = np.zeros(
-            (output_total_dim, input_total_dim), dtype=complex
-        )
-
-        for input_index in np.ndindex(*input_dims):
-            permuted_index = tuple(
-                input_index[self.permutation[i]]
-                for i in range(len(self.permutation))
-            )
-            input_flat_index = np.ravel_multi_index(input_index, input_dims)
-            permuted_flat_index = np.ravel_multi_index(
-                permuted_index, output_dims
-            )
-            perm_matrix[permuted_flat_index, input_flat_index] = 1
-
-        out_dims = Dim(*[int(i) for i in output_dims])
-        in_dims = Dim(*[int(i) for i in input_dims])
-
-        return tensor.Box(self.name, in_dims, out_dims, perm_matrix.T)
-
-    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
-        """Determine the output dimensions based on the permutation."""
-        return [input_dims[i] for i in self.permutation]
-
-    def dagger(self) -> Diagram:
-        n = len(self.permutation)
-        inverse_permutation = [0] * n
-        for i, j in enumerate(self.permutation):
-            inverse_permutation[j] = i
-
-        return Permutation(
-            self.dom,
-            inverse_permutation,
-            not self.is_dagger,
-        )
-
-    def to_path(self, dtype: type = complex):
-        from optyx.path import Matrix
-
-        array = np.zeros(
-            (len(self.cod.inside), len(self.dom.inside)), dtype=complex
-        )
-        for i, p in enumerate(self.permutation):
-            array[p, i] = 1
-        return Matrix(array, len(self.dom), len(self.cod))
+        return tensor.Swap(Dim(int(input_dims[0])), Dim(int(input_dims[1])))
 
 
 class Scalar(Box):

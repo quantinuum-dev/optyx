@@ -1,7 +1,7 @@
 import math
 
 from optyx.zw import *
-from optyx.optyx import mode, Permutation, DualRail, EmbeddingTensor
+from optyx.optyx import mode, DualRail, EmbeddingTensor
 from optyx.utils import compare_arrays_of_different_sizes
 import optyx.zx as zx
 import optyx.lo as lo
@@ -144,7 +144,7 @@ def test_Id_eq(k: int):
 
 
 def test_permutation_dagger():
-    perm = Permutation(Mode(2), [1, 0])
+    perm = optyx.Diagram.permutation([1, 0], Mode(2))
 
     assert compare_arrays_of_different_sizes(
         perm.to_tensor().eval().array,
@@ -154,7 +154,7 @@ def test_permutation_dagger():
 
 
 def test_permutation_path_dagger():
-    perm = Permutation(Mode(2), [1, 0])
+    perm = optyx.Diagram.permutation([1, 0], Mode(2))
 
     assert compare_arrays_of_different_sizes(
         perm.to_path().array,
