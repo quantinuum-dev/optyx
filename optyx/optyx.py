@@ -3,39 +3,35 @@
 Overview
 --------
 
-Optyx diagrams combine four diagrammatic calculi:
+Optyx diagrams combine three diagrammatic calculi:
 
-- :class:`zw` calculus: for infinite-dimensional \
-systems (Mode type).
-- :class:`path` calculus: linear optics and photon \
-creation and annihilation operators (Mode type).
-- :class:`lo` calculus: for linear optics (Mode type).
-- :class:`zx` calculus: for qubit systems (Bit type).
+- :class:`zw` calculus: for infinite-dimensional systems (Mode type),\
+with generators :class:`zw.Z`, :class:`zw.W`, :class:`zw.Create` and :class:`zw.Select`.
+- :class:`lo` calculus: for linear optics (Mode type), with generators\
+:class:`lo.BS` and :class:`lo.Phase`.
+- :class:`zx` calculus: for qubit systems (Bit type), with generators\
+:class:`zx.Z` and :class:`zx.X`.
 
-There is a hierarchy of diagrammatic calculi:
-:class:`zw` diagrams [FSP+23]_ are the most general and can express
-the largest set of maps (of all the calculi) on the bosonic Fock space.
-:class:`path` diagrams [FC23]_ are a subset of :class:`zw` diagrams
-encompassing linear optics with photon creation and annihilation operators.
-:class:`lo` diagrams [FC23]_ are a subset of :class:`path` diagrams
-representing the linear optical circuits built from: beam splitters,
-phase shifters, and other linear optical elements.
-:class:`zx` diagrams are used for qubit
-circuits via the dual-rail encoding
-(using the :code:`DualRail` box).
+Mode and Bit types can moreover be combined using :class:`DualRail`
+or other instances of :class:`optyx.Box`.
+We can evaluate arbitrary compositions of the above generators via:
 
-This is crucial if we want to combine the reasoning
-about photonic circuits, dual rail encoded qubit circuits,
-and classical data (feed-forward) data. The
-formal definitions which underpin the :class:`zx`,
-:class:`zw`, :class:`path` and :class:`lo` enable us
-to capture all elements needed for universal
-photonic quantum computation and its sumulation.
+- exact tensor network contraction with quimb [Gray18]_ \
+using the method :method:`to_tensor`.
+- exact permanent evaluation with Perceval [FGL+23]_ \
+using the method :method:`to_path`. 
 
-Most importantly, we can evaluate the diagrams using
-tensor network methods via quimb [Gray18]_ or more
-traditionally (for linear optics) using a permanent
-method via Perceval [FGL+23]_.
+Note that the permanent method is only defined for a subclass of :class:`zw` diagrams, 
+including :class:`lo` circuits, and known as QPath diagrams [FC23]_ or matrices with 
+creations and annihilation. These are implemented in the :class:`path.Matrix` class,
+with an interface :method:`to_perceval` or the internal evaluation method :method:`eval`.
+
+The DisCoPy class :class:`tensor.Diagram` is used as an implementation of tensor networks, 
+with dimensions as types and tensors as boxes, with an interface :method:`to_quimb` 
+or the internal evaluation method :method:`eval`.
+Linear optical circuits, built from the generators of :class:`lo`, can be evaluated 
+as tensor networks by first applying the method :method:`to_zw`.
+
 
 Types
 -------------
