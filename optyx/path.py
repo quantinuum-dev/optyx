@@ -1,7 +1,23 @@
 """
-The category :class:`Matrix` and the syntax :class:`Diagram`
-of matrices with creations and post-selections.
 
+Overview
+--------
+
+The category :class:`Matrix` and the syntax :class:`Diagram`
+of matrices with creations and post-selections. The module
+supports representing the :class:`lo` fragment
+of Optyx diagrams as matrices. It enables the
+computation of the amplitudes and probabilities
+of the diagrams by evaluting
+permanents of underlying matrices (either directly
+or via Perceval [FGL+23]_). The :code:`to_path` method
+of Optyx diagrams which belong to the W fragment of the
+:class:`zw` calculus (including :class:`lo` circuits,
+n-photon states and effects)
+returns a :class:`Matrix` object.
+
+Classes
+-------------
 
 .. autosummary::
     :template: class.rst
@@ -13,7 +29,8 @@ of matrices with creations and post-selections.
     Probabilities
 
 
-.. admonition:: Functions
+Functions
+-------------
 
     .. autosummary::
         :template: function.rst
@@ -22,21 +39,65 @@ of matrices with creations and post-selections.
 
         npperm
 
-Examples
---------
+Examples of usage
+------------------
 
-We can check the Hong-Ou-Mandel effect:
+**Hong-Ou-Mandel effect**
+
+We can check the Hong-Ou-Mandel effect by
+evaluating the permanent of the underlying matrix:
 
 >>> from optyx.zw import Create, Select, Split, Merge, Id
->>> from optyx.circuit import BS
+>>> from optyx.lo import BS
 >>> HOM = Create(1, 1) >> BS
->>> HOM.to_path().eval()
-Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], dom=1, cod=3)
->>> HOM.to_path().prob()
-Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
+>>> assert np.allclose(HOM.to_path().eval().array,\\
+... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j],\\
+... dom=1, cod=3).array)
+
+>>> assert(HOM.to_path().prob().array, \\
+... Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], \\
+... dom=1, cod=3))
 >>> left = Create(1, 1) >> BS >> Select(2, 0)
 >>> left.to_path().prob()
 Probabilities[complex]([0.5+0.j], dom=1, cod=1)
+
+We can also show the Hong-Ou-Mandel effect by
+using the rules of the :class:`path` calculus:
+
+>>> from optyx.zw import W, Endo, SWAP, Create, Select
+>>> left_hs = (Create(1, 1) >> \\
+... W(2) @ W(2) >> \\
+... Endo(1j) @ Id(1) @ Id(1) @ Endo(1j) >> \\
+... Id(1) @ SWAP @ Id(1) >> \\
+... W(2).dagger() @ W(2).dagger() >> \\
+... Select(1, 1))
+>>> left_hs.draw(path="docs/_static/left_hs.png")
+
+.. image:: /_static/left_hs.png
+    :align: center
+
+>>> left_hs.to_path().prob_with_perceval().array[0, 0]
+0j
+
+According to the rewrite rules of the :class:`path` calculus,
+this should be equal to:
+
+>>> right_hs = ((Create(1, 1) >> \\
+... Endo(1j) @ Endo(1j) >> \\
+... Select(1, 1)) +
+... (Create(1, 1) >> \\
+... SWAP >> \\
+... Select(1, 1)))
+>>> right_hs.draw(path="docs/_static/right_hs.png")
+
+.. image:: /_static/right_hs.png
+
+Let us now evaluate this using :code:`DisCoPy` tensor:
+
+>>> right_hs.to_tensor().eval().array
+array(0)
+
+**Bell state**
 
 We can construct a Bell state in dual rail encoding:
 
@@ -52,11 +113,22 @@ We can construct a Bell state in dual rail encoding:
 ...     (bell >> V @ H).to_path().eval().array,
 ...     (bell >> H @ V).to_path().eval().array)
 
+**Number operator**
+
 We can define the number operator and compute its expectation.
 
 >>> num_op = Split(2) >> Id(1) @ Select(1) >> Id(1) @ Create(1) >> Merge(2)
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
 >>> assert np.allclose(expectation(5).to_path().eval().array, np.array([5.]))
+
+References
+----------
+.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., \
+    Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, \
+    P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, \
+    P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software \
+    Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
+
 """
 
 from __future__ import annotations
@@ -70,8 +142,7 @@ from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
 import discopy.matrix as underlying
 from discopy.tensor import Tensor
-from optyx.utils import (occupation_numbers,
-                         amplitudes_2_tensor)
+from optyx.utils import occupation_numbers, amplitudes_2_tensor
 
 
 def npperm(matrix):
@@ -162,9 +233,7 @@ class Matrix(underlying.Matrix):
         Underlying matrix with `len(creations) + dom` inputs and
         `len(selections) + cod` outputs.
         """
-        return underlying.Matrix[self.dtype](
-            self.array, self.udom, self.ucod
-        )
+        return underlying.Matrix[self.dtype](self.array, self.udom, self.ucod)
 
     @unbiased
     def then(self, other: Matrix) -> Matrix:
@@ -280,25 +349,18 @@ class Matrix(underlying.Matrix):
             normalisation=s,
         )
 
-    def eval(self,
-             n_photons=0,
-             permanent=npperm,
-             as_tensor=False) -> Amplitudes:
+    def eval(
+        self, n_photons=0, permanent=npperm, as_tensor=False
+    ) -> Amplitudes:
         """Evaluates the :class:`Amplitudes` of a the QPath matrix"""
         dom_basis = occupation_numbers(n_photons, self.dom)
-        n_photons_out = (
-            n_photons - sum(self.selections) + sum(self.creations)
-        )
+        n_photons_out = n_photons - sum(self.selections) + sum(self.creations)
         if n_photons_out < 0:
             raise ValueError("Expected a positive number of photons out.")
         cod_basis = occupation_numbers(n_photons_out, self.cod)
 
-        result = Amplitudes[self.dtype].zero(
-            len(dom_basis), len(cod_basis)
-        )
-        normalisation = self.normalisation ** (
-            n_photons + sum(self.creations)
-        )
+        result = Amplitudes[self.dtype].zero(len(dom_basis), len(cod_basis))
+        normalisation = self.normalisation ** (n_photons + sum(self.creations))
         for i, open_creations in enumerate(dom_basis):
             for j, open_selections in enumerate(cod_basis):
                 creations = open_creations + self.creations
@@ -322,17 +384,10 @@ class Matrix(underlying.Matrix):
                 divisor = np.sqrt(
                     np.prod([factorial(n) for n in creations + selections])
                 )
-                val = (
-                    self.scalar
-                    * normalisation
-                    * permanent(matrix)
-                    / divisor
-                )
+                val = self.scalar * normalisation * permanent(matrix) / divisor
                 result.array[i, j] = val
         if as_tensor:
-            return amplitudes_2_tensor(result.array,
-                                       dom_basis,
-                                       cod_basis)
+            return amplitudes_2_tensor(result.array, dom_basis, cod_basis)
         return result
 
     def prob(
@@ -340,7 +395,7 @@ class Matrix(underlying.Matrix):
         n_photons=0,
         permanent=npperm,
         with_perceval=False,
-        as_tensor=False
+        as_tensor=False,
     ) -> Probabilities:
         """Computes the Born rule of the amplitudes of the :class:`Matrix`"""
         if with_perceval:
@@ -399,10 +454,7 @@ class Matrix(underlying.Matrix):
             len(self.creations) + self.dom,
         )
 
-        states = [
-            pcvl.BasicState(o + self.creations)
-            for o in input_occ
-        ]
+        states = [pcvl.BasicState(o + self.creations) for o in input_occ]
         analyzer = pcvl.algorithm.Analyzer(proc, states, "*")
 
         permutation = [
@@ -455,13 +507,15 @@ class Amplitudes(underlying.Matrix):
     Example
     -------
     >>> from optyx.zw import Select, Id
-    >>> from optyx.circuit import BS
+    >>> from optyx.lo import BS
     >>> BS.to_path().eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
     >>> assert isinstance(BS.to_path().eval(2), Amplitudes)
-    >>> (BS >> Select(1) @ Id(1)).to_path().eval(2)
-    Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], dom=3, cod=1)
+    >>> assert np.allclose((BS >> Select(1) @ \\
+    ... Id(1)).to_path().eval(2).array,\\
+    ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], \\
+    ... dom=3, cod=1).array)
     """
 
     dtype = complex
@@ -477,7 +531,7 @@ class Probabilities(underlying.Matrix):
     Example
     -------
     >>> from optyx.zw import Create
-    >>> from optyx.circuit import BS
+    >>> from optyx.lo import BS
     >>> BS.to_path().prob(1).round(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
     >>> (Create(1, 1) >> BS).to_path().prob().round(1)

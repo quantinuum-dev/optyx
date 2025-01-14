@@ -5,7 +5,9 @@ API
     :template: module.rst
     :toctree: _api
 
-    optyx.qpath
-    optyx.circuit
+    optyx.optyx
+    optyx.path
+    optyx.lo
     optyx.zw
+    optyx.zx
     optyx.compiler

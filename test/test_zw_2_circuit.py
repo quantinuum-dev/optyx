@@ -1,7 +1,7 @@
 import optyx.zw as zw
-import optyx.circuit as circuit
+import optyx.lo as lo
 from optyx.utils import tensor_2_amplitudes
-import optyx.circuit as qpath
+import optyx.lo as qpath
 import itertools
 import pytest
 import numpy as np
@@ -90,11 +90,11 @@ def test_MZI(photons_1, photons_2, theta, phi):
 
 
 circs = [
-    zw.Create(1, 3) >> circuit.BBS(0.3),
-    zw.Create(2, 3) >> circuit.BBS(0.3) >> circuit.BBS(0.7),
-    zw.Create(1, 1) >> circuit.TBS(0.3),
-    zw.Create(1, 1) >> circuit.TBS(0.3) >> circuit.TBS(0.2),
-    zw.Create(1, 1) >> circuit.MZI(0.3, 0.5) >> circuit.MZI(0.3, 0.5)
+    zw.Create(1, 3) >> lo.BBS(0.3),
+    zw.Create(2, 3) >> lo.BBS(0.3) >> lo.BBS(0.7),
+    zw.Create(1, 1) >> lo.TBS(0.3),
+    zw.Create(1, 1) >> lo.TBS(0.3) >> lo.TBS(0.2),
+    zw.Create(1, 1) >> lo.MZI(0.3, 0.5) >> lo.MZI(0.3, 0.5)
 ]
 
 
@@ -105,12 +105,12 @@ def test_conversion_from_amplitudes_to_tensor(circ):
     assert np.allclose(ts, amps)
 
 circs = [
-    (circuit.BBS(0.3), 2),
-    (circuit.BBS(0.3) >> circuit.BBS(0.7), 3),
-    (circuit.TBS(0.3), 2),
-    (circuit.TBS(0.3) >> circuit.TBS(0.2), 4),
-    (zw.Create(1, 1) >> circuit.MZI(0.3, 0.5) >> circuit.MZI(0.3, 0.5), 0),
-    (zw.Create(1, 1) >> circuit.MZI(0.3, 0.5) >> circuit.BBS(0.5), 0)
+    (lo.BBS(0.3), 2),
+    (lo.BBS(0.3) >> lo.BBS(0.7), 3),
+    (lo.TBS(0.3), 2),
+    (lo.TBS(0.3) >> lo.TBS(0.2), 4),
+    (zw.Create(1, 1) >> lo.MZI(0.3, 0.5) >> lo.MZI(0.3, 0.5), 0),
+    (zw.Create(1, 1) >> lo.MZI(0.3, 0.5) >> lo.BBS(0.5), 0)
 ]
 
 @pytest.mark.parametrize("circ, n_extra_photons", circs)
