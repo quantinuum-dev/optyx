@@ -271,7 +271,7 @@ class Bit(Ty):
 class Diagram(frobenius.Diagram):
     """Optyx diagram combining :class:`zw`,
     :class:`zx` and
-    :class:`path` calculi."""
+    :class:`lo` calculi."""
 
     grad = tensor.Diagram.grad
 
@@ -356,7 +356,7 @@ class Diagram(frobenius.Diagram):
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """Create a :class:`path` diagram from a bosonic operator."""
+        """Create a :class:`zw` diagram from a bosonic operator."""
         from optyx import zw
 
         d = cls.id(Mode(n_modes))
@@ -982,8 +982,7 @@ def embedding_tensor(n, dim):
 bit = Bit(1)
 mode = Mode(1)
 
-Diagram.spider_factory = Spider
-Diagram.swap_factory = Swap
-Diagram.swap = Swap
+Diagram.braid_factory, Diagram.spider_factory = Swap, Spider
+Diagram.ty_factory = Ty
 Diagram.sum_factory = Sum
 Id = Diagram.id
