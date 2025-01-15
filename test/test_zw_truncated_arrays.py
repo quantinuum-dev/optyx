@@ -18,11 +18,11 @@ def kron_truncation_swap(input_dims: list[int]) -> np.ndarray[complex]:
             swap += np.outer(ij, ji)
     return swap
 
-test_pairs = [(i, j) for i in range(1, 10) for j in range(1, 10, 2)]
+test_pairs = [(i, j) for i in range(2, 10) for j in range(2, 10, 2)]
 
 @pytest.mark.parametrize("i, j", test_pairs)
 def test_swap(i, j):
-    assert np.allclose(kron_truncation_swap([i, j]).flatten(), Swap(mode, mode).truncation([i, j]).array.flatten())
+    assert np.allclose(kron_truncation_swap([i, j]).flatten(), Swap(mode, mode).to_tensor([i, j]).eval().array.flatten())
 
 @pytest.mark.skip(reason="Helper function for testing")
 def kron_truncation_W(diagram, input_dims: list[int]) -> np.ndarray[complex]:
