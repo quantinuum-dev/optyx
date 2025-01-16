@@ -345,14 +345,14 @@ class Diagram(frobenius.Diagram):
             )
 
             diagram_ = left @ box.truncation(dims_in, dims_out) @ right
-
             if i == 0:
                 diagram = diagram_
             else:
                 diagram = diagram >> diagram_
 
-            right_dim = cod_right_dim
-            layer_dims = cod_layer_dims
+            if not isinstance(box, Scalar):
+                right_dim = cod_right_dim
+                layer_dims = cod_layer_dims
         return diagram
 
     @classmethod
