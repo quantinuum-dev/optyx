@@ -201,6 +201,9 @@ class Gate(Box):
             is_dagger=is_dagger,
         )
 
+    def conjugate(self):
+        return Gate(self.array, self.dom, self.cod, self.name, self.is_dagger)
+
     def to_path(self, dtype=complex):
         result = Matrix[dtype](self.array, len(self.dom), len(self.cod))
         return result.dagger() if self.is_dagger else result
@@ -235,6 +238,9 @@ class Phase(Box):
     def __init__(self, angle: float):
         self.angle = angle
         super().__init__(f"Phase({angle})", Mode(1), Mode(1), data=angle)
+
+    def conjugate(self):
+        return Phase(- self.angle)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -308,9 +314,13 @@ class BBS(Box):
 
     """
 
-    def __init__(self, bias):
+    def __init__(self, bias, conj=False):
         self.bias = bias
+        self.conj = conj
         super().__init__(f"BBS({bias})", Mode(2), Mode(2), data=bias)
+
+    def conjugate(self):
+        return BBS(self.bias, not self.conj)
 
     def __repr__(self):
         return "BS" if self.bias == 0 else super().__repr__()
@@ -319,25 +329,25 @@ class BBS(Box):
         backend = sp if dtype is Expr else np
         sin = backend.sin((0.25 + self.bias) * backend.pi)
         cos = backend.cos((0.25 + self.bias) * backend.pi)
-        array = [1j * cos, sin, sin, 1j * cos]
+        if self.conj:
+            array = [-1j * cos, sin, sin, -1j * cos]
+        else:
+            array = [1j * cos, sin, sin, 1j * cos]
         return Matrix[dtype](array, len(self.dom), len(self.cod))
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        zb_i = Z(
-            lambda i: (backend.sin((0.25 + self.bias) * backend.pi)) ** i,
-            1,
-            1,
-        )
-        zb_1 = Z(
-            lambda i: (backend.cos((0.25 + self.bias) * backend.pi) * 1j) ** i,
-            1,
-            1,
-        )
+        sin = backend.sin((0.25 + self.bias) * backend.pi) 
+        cos = backend.cos((0.25 + self.bias) * backend.pi)
+        zb_sin = Z(lambda i: sin ** i, 1, 1)
+        if self.conj:
+            zb_cos = Z(lambda i: (-cos * 1j) ** i, 1, 1)
+        else:
+            zb_cos = Z(lambda i: (cos * 1j) ** i, 1, 1)
 
         beam_splitter = (
             W(2) @ W(2)
-            >> zb_1 @ zb_i @ zb_i @ zb_1
+            >> zb_cos @ zb_sin @ zb_sin @ zb_cos
             >> Id(1) @ SWAP @ Id(1)
             >> W(2).dagger() @ W(2).dagger()
         )
@@ -389,6 +399,9 @@ class TBS(Box):
         super().__init__(
             name, Mode(2), Mode(2), is_dagger=is_dagger, data=theta
         )
+
+    def conjugate(self):
+        return self
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -484,18 +497,22 @@ class MZI(Box):
 
     """
 
-    def __init__(self, theta, phi, is_dagger=False):
+    def __init__(self, theta, phi, is_dagger=False, conj=False):
         self.theta, self.phi = theta, phi
+        self.conj = conj
         data = {theta, phi}
         super().__init__(
             "MZI", Mode(2), Mode(2), is_dagger=is_dagger, data=data
         )
 
+    def conjugate(self):
+        return MZI(self.theta, self.phi, self.is_dagger, self.conj)
+
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
-            if self.is_dagger
+            if self.is_dagger or self.conj
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
@@ -503,7 +520,10 @@ class MZI(Box):
         backend = sp if dtype is Expr else np
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
-        exp = backend.exp(1j * 2 * backend.pi * self.phi)
+        if self.conj:
+            exp = backend.exp(- 1j * 2 * backend.pi * self.phi)
+        else:
+            exp = backend.exp(1j * 2 * backend.pi * self.phi)
         array = np.array([exp * sin, cos, exp * cos, -sin])
         array = array * self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))

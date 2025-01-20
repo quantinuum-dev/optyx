@@ -174,6 +174,9 @@ class Box(optyx.Box):
             return self.data
         raise NotImplementedError
 
+    def conjugate(self):
+        NotImplementedError
+
 
 class IndexableAmplitudes:
     """Since the amplitudes can be an infinite list,
@@ -186,10 +189,8 @@ class IndexableAmplitudes:
     >>> assert amplitudes[0] == 0
     """
 
-    def __init__(self, func):
-        self.func = func
-        self.conj = False
-        self.name = "Z(func)"
+    def __init__(self, func, conj=False, name="Z(func)"):
+        self.func, self.conj, self.name = func, conj, name
 
     def __getitem__(self, i):
         if not self.conj:
@@ -225,6 +226,9 @@ class W(Box):
         self.n_legs = n_legs
         self.is_dagger = is_dagger
         self.shape = "triangle_up" if not is_dagger else "triangle_down"
+
+    def conjugate(self):
+        return self
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
@@ -324,6 +328,9 @@ class Z(Spider, Box):
         super().__init__(legs_in, legs_out, Mode(1))
         self.legs_in = legs_in
         self.legs_out = legs_out
+
+    def conjugate(self):
+        return Z(amplitudes.conjugate(), self.lefs_in, self.legs_out)
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
@@ -445,6 +452,9 @@ class Create(Box):
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
+    def conjugate(self):
+        return self
+
     def to_path(self, dtype=complex):
         array = np.eye(len(self.photons))
         return Matrix[dtype](
@@ -510,6 +520,9 @@ class Select(Box):
         self.photons = photons or (1,)
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
+
+    def conjugate(self):
+        return self
 
     def to_path(self, dtype=complex) -> Matrix:
         array = np.eye(len(self.photons))
@@ -586,6 +599,9 @@ class Endo(Box):
             pass
         self.scalar = scalar
         super().__init__(f"Endo({scalar})", 1, 1, data=scalar)
+
+    def conjugate(self):
+        return Endo(self.scalar.conjugate())
 
     def to_path(self, dtype=complex) -> Matrix:
         """Returns an equivalent :class:`Matrix` object"""

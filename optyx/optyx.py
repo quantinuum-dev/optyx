@@ -94,8 +94,7 @@ boxes is done using the :code:`<<` operator:
 .. image:: /_static/seq_comp_example.png
     :align: center
 
-We can also tensor (parallelally compose) boxes
-using the :code:`@` operator:
+We can also compose boxes in parallel (tensor) using the :code:`@` operator :
 
 >>> from optyx.lo import BS, Phase
 >>> beam_splitter_phase = BS @ Phase(0.5)
@@ -116,13 +115,12 @@ expressed using the :class:`zw` calculus:
 
 Optyx diagrams can combine the generators from
 :class:`zw` (Mode type),
-:class:`path` (Mode type) and :class:`zx` calculi (Bit type).
+:class:`lo` (Mode type) and :class:`zx` calculi (Bit type).
 We can check their equivalence as tensors.
 
 **Branching Law**
 
-Let's check that the branching law from :class:`path`
-and :class:`zw` from [FC23]_.
+Let's check the branching law from [FC23]_.
 
 >>> from optyx.zw import Create, W
 >>> from optyx.utils import compare_arrays_of_different_sizes
@@ -161,7 +159,7 @@ enable conversion between Optyx and PyZX [KW20]_:
 >>> from optyx.zx import Z, SWAP
 >>> assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
 
-**:class:`path` diagrams from Bosonic Operators**
+**:class:`zw` diagrams from Bosonic Operators**
 
 The :code:`from_bosonic_operator` method
 supports creating :class:`path` diagrams:
@@ -181,7 +179,7 @@ supports creating :class:`path` diagrams:
 
 >>> assert d1 == d2
 
-**Evaluating :class:`path` diagrams with the permanent method**
+**Permanent evaluation for QPath diagrams**
 
 The :code:`to_path` method supports evaluation by
 calculating a permanent of an underlying matrix:
@@ -270,6 +268,15 @@ class Diagram(frobenius.Diagram):
 
     grad = tensor.Diagram.grad
 
+    def conjugate(self) -> Diagram:
+        """ Conjugates every box in the diagram"""
+        return symmetric.Functor(
+            ob=lambda x: x,
+            ar=lambda f: f.conjugate(),
+            cod=symmetric.Category(Ty, Diagram),
+            dom=symmetric.Category(Ty, Diagram),
+        )(self)
+
     def to_zw(self) -> Diagram:
         """To be used with :class:`lo` diagrams which can
         be decomposed into the underlying
@@ -277,7 +284,7 @@ class Diagram(frobenius.Diagram):
         return symmetric.Functor(
             ob=lambda x: Mode(len(x)),
             ar=lambda f: f.to_zw(),
-            cod=symmetric.Category(Mode, Diagram),
+            cod=symmetric.Category(Ty, Diagram),
         )(self)
 
     def to_path(self, dtype: type = complex):
@@ -579,6 +586,9 @@ class Box(frobenius.Box, Diagram):
 
     __ambiguous_inheritance__ = (frobenius.Box,)
 
+    def conjugate(self):
+        raise NotImplementedError
+
     def to_zw(self):
         raise NotImplementedError
 
@@ -624,6 +634,12 @@ class Spider(frobenius.Spider, Box):
 
     draw_as_spider = True
     color = "green"
+
+    def conjugate(self):
+        return self
+
+    def to_zw(self):
+        return self
 
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:
@@ -671,6 +687,9 @@ class Sum(symmetric.Sum, Box):
     """
 
     __ambiguous_inheritance__ = (symmetric.Sum,)
+
+    def conjugate(self):
+        return sum(term.conjugate() for term in self.terms)
 
     def to_path(self, dtype: type = complex):
         """Convert the sum to a path diagram.
@@ -731,6 +750,9 @@ class Sum(symmetric.Sum, Box):
 class Swap(frobenius.Swap, Box):
     """Swap in optyx diagram"""
 
+    def conjugate(self):
+        return self
+
     def to_path(self, dtype: type = complex):
         from optyx.path import Matrix
 
@@ -773,6 +795,9 @@ class Scalar(Box):
         super().__init__(
             name="scalar", dom=Mode(0), cod=Mode(0), data=self.scalar
         )
+
+    def conjugate(self):
+        return Scalar(self.scalar.conjugate())
 
     @property
     def array(self):
@@ -833,6 +858,9 @@ class DualRail(Box):
         cod = Mode(2)
         super().__init__("2R", dom, cod)
 
+    def conjugate(self):
+        return self
+
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
@@ -870,6 +898,9 @@ class EmbeddingTensor(tensor.Box):
             Dim(int(output_dim)),
             embedding_array.T,
         )
+
+    def conjugate(self):
+        return self
 
 
 def dual_rail(n):

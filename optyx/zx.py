@@ -157,6 +157,9 @@ class Box(optyx.Box):
             return self.data
         raise NotImplementedError(f"Array not implemented for {self}.")
 
+    def conjugate(self):
+        raise NotImplementedError
+    
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions"""
         return [2 for _ in range(len(self.cod))]
@@ -186,6 +189,9 @@ class Spider(optyx.Spider, Box):
         phase_str = f", {self.phase}" if self.phase else ""
         self.name = f"{factory_str}({n_legs_in}, {n_legs_out}{phase_str})"
         self.n_legs_in, self.n_legs_out = n_legs_in, n_legs_out
+
+    def conjugate(self):
+        return Spider(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def __repr__(self):
         return str(self).replace(type(self).__name__, factory_name(type(self)))
