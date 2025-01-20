@@ -8,26 +8,34 @@ Examples
 A Channel is initialised by its Kraus map from `dom` to `cod @ env`. 
 
 >>> from optyx.lo import BS, Phase
+>>> from optyx.zw import Create, Select
 >>> circ = BS @ Phase(0.25) >> Phase(0.25) @ BS
->>> channel = Channel('circ', circ)
+>>> channel = Channel('circuit', circ)
+>>> state = Channel('state', Create(1, 1, 1))
+>>> effect = Channel('effect', Select(2, 0, 1))
+>>> prob = (state >> channel >> effect).double().to_zw().to_tensor().eval().array
+>>> amp = (Create(1, 1, 1) >> circ >> Select(2, 0, 1)).to_zw().to_tensor().eval().array
+>>> import numpy as np
+>>> assert np.allclose(prob, np.absolute(amp) ** 2)
 
-The discarding map corresponds to the cap.
+Measuring, discarding and encoding classical information are modeled by spiders.
 
 >>> discard = Channel("Discard", kraus=optyx.Id(optyx.mode), dom=qmode, cod=Ty(), env=optyx.mode)
 >>> assert discard.double() == optyx.Spider(2, 0, optyx.mode)
-
-Encoding and measuring a mode or qubit correspond to spiders.
-
 >>> encode = Channel("Encode", kraus = optyx.Id(optyx.mode), dom=mode, cod=qmode)
 >>> measure = Channel("Measure", kraus = optyx.Id(optyx.mode), dom=qmode, cod=mode)
->>> result = optyx.Spider(2, 1, optyx.mode) >> optyx.Spider(1, 2, optyx.mode)
->>> assert (measure >> encode).double() == result
+>>> decoherence = optyx.Spider(2, 1, optyx.mode) >> optyx.Spider(1, 2, optyx.mode)
+>>> assert (measure >> encode).double() == decoherence
 
 We can model photon loss with discarding.
 
 >>> import numpy as np
 >>> kraus = lambda nu: zw.W(2) >> zw.Endo(np.sqrt(nu)) @ zw.Endo(np.sqrt(1 - nu)) 
 >>> loss = lambda nu: Channel('Loss(' + str(nu) + ')', kraus(nu), dom=qmode, cod=qmode, env=optyx.mode)
+>>> eff = 0.95
+>>> lossy_channel = channel >> loss(eff) @ loss(eff) @ loss(eff)
+>>> lossy_prob = (state >> lossy_channel >> effect).double().to_zw().to_tensor().eval().array
+>>> assert np.allclose(lossy_prob, prob * (eff ** 3))
 """
 
 from __future__ import annotations
@@ -143,5 +151,5 @@ class Channel(symmetric.Box, Circuit):
         discards = optyx.Id(cod) @ optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(cod)
         bot_perm = optyx.Diagram.permutation(get_perm(2 * len(cod)), cod @ cod).dagger()
         bot_spiders = get_spiders(self.cod).dagger()
-        return top_spiders >> top_perm >> self.kraus @ self.kraus >> swap_env >> discards >> bot_perm >> bot_spiders
+        return top_spiders >> top_perm >> self.kraus @ self.kraus.conjugate() >> swap_env >> discards >> bot_perm >> bot_spiders
 
