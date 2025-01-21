@@ -252,6 +252,9 @@ class X(Spider):
     tikzstyle_name = "X"
     color = "red"
 
+    def conjugate(self):
+        return X(self.n_legs_in, self.n_legs_out, -self.phase)
+
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
         in_hadamards = tensor.Id(1)
         for i in range(self.n_legs_in):
@@ -476,6 +479,7 @@ circuit2zx = quantum.circuit.Functor(
 
 H = Box("H", 1, 1)
 H.dagger = lambda: H
+H.conjugate = lambda: H
 H.draw_as_spider = True
 (H.drawing_name, H.tikzstyle_name,) = (
     "",

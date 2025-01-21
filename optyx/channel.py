@@ -8,9 +8,12 @@ Examples
 A Channel is initialised by its Kraus map from `dom` to `cod @ env`. 
 
 >>> from optyx.lo import BS, Phase
->>> from optyx.zw import Create, Select
 >>> circ = BS @ Phase(0.25) >> Phase(0.25) @ BS
->>> channel = Channel('circuit', circ)
+>>> channel = Channel(name='circuit', kraus=circ, dom=qmode ** 3, cod=qmode ** 3, env=optyx.Ty())
+
+We can calculate the probability of an input-output pair:
+
+>>> from optyx.zw import Create, Select
 >>> state = Channel('state', Create(1, 1, 1))
 >>> effect = Channel('effect', Select(2, 0, 1))
 >>> prob = (state >> channel >> effect).double().to_zw().to_tensor().eval().array
@@ -27,7 +30,7 @@ Measuring, discarding and encoding classical information are modeled by spiders.
 >>> decoherence = optyx.Spider(2, 1, optyx.mode) >> optyx.Spider(1, 2, optyx.mode)
 >>> assert (measure >> encode).double() == decoherence
 
-We can model photon loss with discarding.
+We can model a lossy optical channel and compute its probabilities:
 
 >>> import numpy as np
 >>> kraus = lambda nu: zw.W(2) >> zw.Endo(np.sqrt(nu)) @ zw.Endo(np.sqrt(1 - nu)) 

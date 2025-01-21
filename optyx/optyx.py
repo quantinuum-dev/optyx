@@ -282,9 +282,10 @@ class Diagram(frobenius.Diagram):
         be decomposed into the underlying
         :class:`zw` generators."""
         return symmetric.Functor(
-            ob=lambda x: Mode(len(x)),
+            ob=lambda x: x,
             ar=lambda f: f.to_zw(),
             cod=symmetric.Category(Ty, Diagram),
+            dom=symmetric.Category(Ty, Diagram),
         )(self)
 
     def to_path(self, dtype: type = complex):
@@ -905,7 +906,7 @@ class EmbeddingTensor(tensor.Box):
 
 def dual_rail(n):
     '''
-    Create a dual rail diagram on n wires.
+    Encode n qubits into 2n modes via the dual-rail encoding.
     '''
     d = DualRail()
     for i in range(n-1):
