@@ -49,32 +49,35 @@ from discopy import symmetric
 from discopy.cat import factory
 from optyx import optyx
 
+
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
-    _classical = {"bit": "bit", "mode":"mode",
-                "qubit": "bit", "qmode": "mode"}
-    _quantum = {"bit": "qubit", "mode":"qmode",
+
+    _classical = {"bit": "bit", "mode": "mode",
+                  "qubit": "bit", "qmode": "mode"}
+    _quantum = {"bit": "qubit", "mode": "qmode",
                 "qubit": "qubit", "qmode": "qmode"}
 
     @property
     def is_classical(self):
         """Classical objects are :code:`bit` and :code:`mode`."""
-        return not self.name in ["qubit", "qmode"]
+        return self.name not in ["qubit", "qmode"]
 
     @property
     def single(self):
-        """Maps :code:`qubit` to :code:`optyx.bit` 
+        """Maps :code:`qubit` to :code:`optyx.bit`
         and :code:`qmode` to :code:`optyx.mode`."""
         return optyx.Ty(self._classical[self.name])
 
     @property
     def double(self):
-        """Maps :code:`qubit` to :code:`optyx.bit @ optyx.bit` 
+        """Maps :code:`qubit` to :code:`optyx.bit @ optyx.bit`
         and :code:`qmode` to :code:`optyx.mode @ optyx.mode`."""
         if self.is_classical:
             return optyx.Ty(self.name)
         name = self._classical[self.name]
         return optyx.Ty(name, name)
+
 
 @factory
 class Ty(symmetric.Ty):
@@ -82,12 +85,12 @@ class Ty(symmetric.Ty):
     ob_factory = Ob
 
     def single(self):
-        """Returns the optyx.Ty obtained by mapping 
+        """Returns the optyx.Ty obtained by mapping
         qubit to bit and qmode to mode"""
         return optyx.Ty().tensor(*[ob.single for ob in self.inside])
 
     def double(self):
-        """Returns the optyx.Ty obtained by mapping 
+        """Returns the optyx.Ty obtained by mapping
         qubit to bit @ bit and qmode to mode @ mode"""
         return optyx.Ty().tensor(*[ob.double for ob in self.inside])
 
@@ -95,6 +98,7 @@ class Ty(symmetric.Ty):
     def from_optyx(ty):
         assert isinstance(ty, optyx.Ty)
         return Ty(*[Ob._quantum[ob.name] for ob in ty.inside])
+
 
 bit = Ty("bit")
 mode = Ty("mode")
@@ -108,11 +112,11 @@ class Circuit(symmetric.Diagram):
     ty_factory = Ty
 
     def double(self):
-        """ Returns the optyx.Diagram obtained by 
+        """ Returns the optyx.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
-        ob= lambda x: x.double()
-        ar= lambda f: f.double()
+        ob = lambda x: x.double()
+        ar = lambda f: f.double()
         dom = symmetric.Category(Ty, Circuit)
         cod = symmetric.Category(optyx.Ty, optyx.Diagram)
         return symmetric.Functor(ob, ar, dom, cod)(self)
@@ -124,9 +128,9 @@ class Circuit(symmetric.Diagram):
 
 class Channel(symmetric.Box, Circuit):
     """
-    A Channel is defined by its Kraus map, 
+    A Channel is defined by its Kraus map,
     from :code:`dom.single()` to :code:`cod.single() @ env`,
-    and interpreted as a completely positive (CP) map by doubling. 
+    and interpreted as a completely positive (CP) map by doubling.
     """
     def __init__(self, name, kraus, dom=None, cod=None, env=optyx.Ty()):
         assert isinstance(kraus, optyx.Diagram)
@@ -142,7 +146,7 @@ class Channel(symmetric.Box, Circuit):
 
     @property
     def is_pure(self):
-        """True if the the environment is empty 
+        """True if the the environment is empty
         and the channel has no classical interface."""
         if self.env != optyx.Ty():
             return False
@@ -150,7 +154,7 @@ class Channel(symmetric.Box, Circuit):
 
     def double(self):
         """
-        Returns the :class:`optyx.Diagram` representing 
+        Returns the :class:`optyx.Diagram` representing
         the action of the channel as a CP map on the doubled space.
         """
         def get_spiders(dom):
@@ -170,19 +174,21 @@ class Channel(symmetric.Box, Circuit):
         top_perm = optyx.Diagram.permutation(
             get_perm(len(top_spiders.cod)), top_spiders.cod)
         swap_env = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(cod, self.env)
-        discards = optyx.Id(cod) @ optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(cod)
+        discard = optyx.Id(cod) @ \
+            optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(cod)
         new_cod = optyx.Ty().tensor(*[ty @ ty for ty in cod])
         bot_perm = optyx.Diagram.permutation(
             get_perm(2 * len(cod)), new_cod).dagger()
         bot_spiders = get_spiders(self.cod).dagger()
         top = top_spiders >> top_perm
-        bot = swap_env >> discards >> bot_perm >> bot_spiders
+        bot = swap_env >> discard >> bot_perm >> bot_spiders
         return top >> self.kraus @ self.kraus.conjugate() >> bot
 
+
 class Measure(Channel):
-    """ Measuring a qubit or qmode corresponds to 
+    """ Measuring a qubit or qmode corresponds to
     applying a 2 -> 1 spider in the doubled picture.
-    
+
     >>> dom = qubit @ bit @ qmode @ mode
     >>> print(dom.single())
     bit @ bit @ mode @ mode
@@ -195,9 +201,9 @@ class Measure(Channel):
 
 
 class Encode(Channel):
-    """Encoding a bit or mode corresponds to 
+    """Encoding a bit or mode corresponds to
     applying a 1 -> 2 spider in the doubled picture.
-    
+
     >>> dom = qubit @ bit @ qmode @ mode
     >>> assert len(Encode(dom).double().cod) == 8
     """
@@ -206,13 +212,14 @@ class Encode(Channel):
         kraus = optyx.Id(dom.single())
         super().__init__(name='Encode', kraus=kraus, dom=dom, cod=cod)
 
+
 class Discard(Channel):
-    """Discarding a qubit or qmode corresponds to 
+    """Discarding a qubit or qmode corresponds to
     applying a 2 -> 0 spider in the doubled picture.
-    
+
     >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
     """
     def __init__(self, dom):
         env = dom.single()
         kraus = optyx.Id(dom.single())
-        super().__init__(name='Discard', kraus=kraus, dom=dom, cod=Ty(), env=env)
+        super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
