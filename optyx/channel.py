@@ -109,18 +109,7 @@ class Circuit(symmetric.Diagram):
 
 class Channel(symmetric.Box, Circuit):
     """A Channel is defined by its Kraus map, from dom.single() to cod.single() @ env 
-    and interpreted as a completely positive map by doubling.
-    
-    Measuring, discarding and encoding classical information are modeled by spiders.
-
-    >>> discard = Channel("Discard", kraus=optyx.Id(optyx.mode), dom=qmode, cod=Ty(), env=optyx.mode)
-    >>> assert discard.double() == optyx.Spider(2, 0, optyx.mode)
-    >>> encode = Channel("Encode", kraus = optyx.Id(optyx.mode), dom=mode, cod=qmode)
-    >>> measure = Channel("Measure", kraus = optyx.Id(optyx.mode), dom=qmode, cod=mode)
-    >>> decoherence = optyx.Spider(2, 1, optyx.mode) >> optyx.Spider(1, 2, optyx.mode)
-    >>> assert (measure >> encode).double() == decoherence
-    
-    """
+    and interpreted as a completely positive map by doubling. """
     def __init__(self, name, kraus, dom=None, cod=None, env=optyx.Ty()):
         assert isinstance(kraus, optyx.Diagram)
         if dom is None:
@@ -167,19 +156,32 @@ class Channel(symmetric.Box, Circuit):
         return top_spiders >> top_perm >> self.kraus @ self.kraus.conjugate() >> swap_env >> discards >> bot_perm >> bot_spiders
 
 class Measure(Channel):
-    """ Measuring a qubit or qmode corresponds to applying a 2 -> 1 spider in the doubled picture."""
+    """ Measuring a qubit or qmode corresponds to applying a 2 -> 1 spider in the doubled picture.
+    
+    >>> dom = qubit @ bit @ qmode @ mode
+    >>> print(dom.single())
+    bit @ bit @ mode @ mode
+    >>> assert Measure(dom).double().cod == dom.single()
+    """
     def __init__(self, dom):
         cod = Ty(*[Ob._classical[ob.name] for ob in dom.inside])
         super().__init__(name='Measure', kraus=optyx.Id(dom.single()), dom=dom, cod=cod)
 
 
 class Encode(Channel):
-    """Encoding a bit or mode corresponds to applying a 1 -> 2 spider in the doubled picture."""
+    """Encoding a bit or mode corresponds to applying a 1 -> 2 spider in the doubled picture.
+    
+    >>> dom = qubit @ bit @ qmode @ mode
+    >>> assert len(Encode(dom).double().cod) == 8
+    """
     def __init__(self, dom):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
         super().__init__(name='Encode', kraus=optyx.Id(dom.single()), dom=dom, cod=cod)
 
 class Discard(Channel):
-    """Discarding a qubit or qmode corresponds to applying a 2 -> 0 spider in the doubled picture."""
+    """Discarding a qubit or qmode corresponds to applying a 2 -> 0 spider in the doubled picture.
+    
+    >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
+    """
     def __init__(self, dom):
         super().__init__(name='Discard', kraus=optyx.Id(dom.single()), dom=dom, cod=Ty(), env=dom.single())
