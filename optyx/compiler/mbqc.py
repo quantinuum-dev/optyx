@@ -751,7 +751,16 @@ class OpenGraph:
 
         Returns None if it does not exist."""
 
-        meas_planes = {i: meas.plane for i, meas in self.measurements.items()}
+        def toplane(a):
+            from graphix.pauli import Plane
+            if a == "XY":
+                return Plane.XY
+            if a == "YZ":
+                return Plane.YZ
+            if a == "XZ":
+                return Plane.XZ
+
+        meas_planes = {i: toplane(meas.plane) for i, meas in self.measurements.items()}
         g, layers = graphix.gflow.find_gflow(
             self.inside, set(self.inputs), set(self.outputs), meas_planes
         )
@@ -778,6 +787,15 @@ class OpenGraph:
         >>> og.simulate()
         Statevec, data=[0.5+0.5j 0.5+0.5j], shape=(2,)
         """
+        def toplane(a):
+            from graphix.pauli import Plane
+            if a == "XY":
+                return Plane.XY
+            if a == "YZ":
+                return Plane.YZ
+            if a == "XZ":
+                return Plane.XZ
+
         measurements = self.measurements
         angles = {
             i: float(m.angle) if float(m.angle) < 1.0 else float(m.angle) - 2.0
@@ -785,7 +803,7 @@ class OpenGraph:
         }
         # Lets see if this works
         angles = {i: -angle for i, angle in angles.items()}
-        meas_planes = {i: m.plane for i, m in measurements.items()}
+        meas_planes = {i: toplane(m.plane) for i, m in measurements.items()}
         inputs = set(self.inputs)
         outputs = set(self.outputs)
 

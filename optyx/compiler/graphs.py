@@ -166,8 +166,9 @@ def delay_based_path_cover(
     -------
     >>> import networkx as nx
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement
+    >>> from graphix.pauli import Plane
     >>> g = nx.Graph([(0, 1), (1, 2), (0, 3)])
-    >>> measurements = {i: Measurement(0.5 * i, "XY") for i in range(2)}
+    >>> measurements = {i: Measurement(0.5 * i, Plane.XY) for i in range(2)}
     >>> inputs = [0, 1]
     >>> outputs = [2, 3]
     >>> og = OpenGraph(g, measurements, inputs, outputs)

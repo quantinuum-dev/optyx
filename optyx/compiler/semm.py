@@ -219,6 +219,7 @@ def decompile_from_semm(
     -------
     >>> from optyx.compiler.mbqc import OpenGraph, Measurement, ULFusionNetwork
     >>> from optyx.compiler.semm import decompile_from_semm
+    >>> from graphix.pauli import Plane
     >>> from optyx.compiler.protocols import (
     ...    FusionOp,
     ...    MeasureOp,
@@ -226,7 +227,7 @@ def decompile_from_semm(
     ...    UnmeasuredOp,
     ...    NextResourceStateOp,
     ... )
-    >>> meas = {i: Measurement(0.5*i, "XY") for i in range(2)}
+    >>> meas = {i: Measurement(0.5*i, Plane.XY) for i in range(2)}
     >>> ins = [
     ...     NextResourceStateOp(),
     ...     NextNodeOp(node_id=0),

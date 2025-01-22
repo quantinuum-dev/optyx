@@ -294,7 +294,8 @@ def decompile_to_fusion_network_multi(
     >>> from optyx.compiler.semm_decompiler import (
     ...     decompile_to_fusion_network_multi
     ... )
-    >>> m = {i: Measurement(0.5 * i, "XY") for i in range(2)}
+    >>> from graphix.pauli import Plane
+    >>> m = {i: Measurement(0.5 * i, Plane.XY) for i in range(2)}
     >>> fn = FusionNetwork([[0, 1], [2]], m, [Fusion(0, 2, "X")])
     >>>
     >>> # We impose any partial order on the nodes for demonstrative purposes
