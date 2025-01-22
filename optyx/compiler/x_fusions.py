@@ -1,7 +1,9 @@
 """Functionality for reducing graphs with X fusions
 """
 
+import math
 import networkx as nx
+from dataclasses import dataclass
 
 from optyx.compiler.mbqc import ProtoFusionNetwork
 from optyx.compiler.graphs import (
@@ -295,3 +297,59 @@ def bounded_min_trail_decomp(g: nx.Graph, length: int) -> list[list[int]]:
         bounded_trails.extend(segment_trail(trail, length))
 
     return bounded_trails
+
+def photon_bounded_min_trail_decomp_count(g: nx.Graph, photon_length: int) -> int:
+    """Compute the number of trails in a trail decomposition of graph where the number of
+    photons in each trail is at most some amount
+    """
+    trails = min_trail_decomp(g)
+
+    num_trails = 0
+    for i, trail in enumerate(trails):
+        num_photons = compute_photons(trails, i)
+        num_trails += math.ceil(float(num_photons - 2)/float(photon_length - 2))
+
+    return num_trails
+
+def compute_photons(trails: list[list[int]], trail_index: int) -> int:
+    """Computes the number of photons in a trail.
+    There is some ambiguity as to which trails the measurement photons in a
+    fusion should live and where the extra fusion photons should live as
+    well.
+
+    Here we have put the measurement photons in the first trail in the
+    decomposition that has the node, and spread the fusion photons evenly. So
+    in an N-way fusion, the first trail has one fusion photon, the next has
+    two, and the next next has two until the last which has one.
+    """
+    # Key is the node and value is the indices of the trails which this node
+    # appears in in ascending order
+    occurances: dict[int, list[int]] = {}
+    for i, t in enumerate(trails):
+        for node in t:
+            trail_order = occurances.get(node, [])
+            trail_order.append(i)
+            occurances[node] = trail_order
+
+    # Find index of trail in the decomposition
+
+    # Start with all the measurement photons
+    num_photons = 0
+    for node in trails[trail_index]:
+        trail_order = occurances[node]
+
+        if trail_order[0] == trail_index:
+            # Add the measurement photon
+            num_photons += 1
+
+        if len(trail_order) == 1:
+            # No fusions here
+            continue
+
+        # Spread the fusion photons evenly across the trails
+        if trail_order[0] == trail_index or trail_order[-1] == trail_index:
+            num_photons += 1
+        else:
+            num_photons += 2
+
+    return num_photons

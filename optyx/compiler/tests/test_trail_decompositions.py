@@ -10,6 +10,7 @@ from optyx.compiler.x_fusions import (
     min_number_trails,
     minimise_trail_decomp,
     is_trail_decomp,
+    photon_bounded_min_trail_decomp_count,
 )
 
 
@@ -23,6 +24,26 @@ def test_is_trail_decomp():
 
     trails = [[1, 2]]
     assert not is_trail_decomp(g.copy(), trails)
+
+
+def test_photon_restricted_decomp():
+    g = nx.Graph([(1, 2), (2, 3), (3, 4)])
+    max_num_photons = 3
+
+    num_trails = photon_bounded_min_trail_decomp_count(g, max_num_photons)
+    assert num_trails == 2
+
+    g = nx.Graph([(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7)])
+    max_num_photons = 3
+
+    num_trails = photon_bounded_min_trail_decomp_count(g, max_num_photons)
+    assert num_trails == 5
+
+    g = nx.Graph([(1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7)])
+    max_num_photons = 4
+
+    num_trails = photon_bounded_min_trail_decomp_count(g, max_num_photons)
+    assert num_trails == 3
 
 
 # Returns a list of all the different kinds of connected graphs
