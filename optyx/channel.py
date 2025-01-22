@@ -115,11 +115,10 @@ class Circuit(symmetric.Diagram):
         """ Returns the optyx.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
-        ob = lambda x: x.double()
-        ar = lambda f: f.double()
         dom = symmetric.Category(Ty, Circuit)
         cod = symmetric.Category(optyx.Ty, optyx.Diagram)
-        return symmetric.Functor(ob, ar, dom, cod)(self)
+        return symmetric.Functor(lambda x: x.double(),
+                                 lambda f: f.double(), dom, cod)(self)
 
     def is_pure(self):
         """Checks if every :class:`Channel` in the circuit is pure."""
@@ -167,8 +166,9 @@ class Channel(symmetric.Box, Circuit):
                 spiders @= box
             return spiders
 
-        get_perm = lambda n: sorted(sorted(list(range(n))),
-                                    key=lambda i: i % 2)
+        def get_perm(n):
+            return sorted(sorted(list(range(n))), key=lambda i: i % 2)
+
         cod = self.cod.single()
         top_spiders = get_spiders(self.dom)
         top_perm = optyx.Diagram.permutation(

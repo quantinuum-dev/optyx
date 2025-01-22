@@ -159,7 +159,7 @@ class Box(optyx.Box):
 
     def conjugate(self):
         raise NotImplementedError
-    
+
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions"""
         return [2 for _ in range(len(self.cod))]

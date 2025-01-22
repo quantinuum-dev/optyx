@@ -6,9 +6,9 @@ Overview
 Optyx diagrams combine three diagrammatic calculi:
 
 - :class:`zw` calculus: for infinite-dimensional systems (Mode type),\
-with generators :class:`zw.Z`, :class:`zw.W`, :class:`zw.Create` and :class:`zw.Select`.
+with generators :class:`zw.Z`, :class:`zw.W`, creations and selections.
 - :class:`lo` calculus: for linear optics (Mode type), with generators\
-:class:`lo.BS` and :class:`lo.Phase`.
+:class:`lo.BS` and :class:`lo.Phase`, or other .
 - :class:`zx` calculus: for qubit systems (Bit type), with generators\
 :class:`zx.Z` and :class:`zx.X`.
 
@@ -16,21 +16,27 @@ Mode and Bit types can moreover be combined using :class:`DualRail`
 or other instances of :class:`optyx.Box`.
 We can evaluate arbitrary compositions of the above generators via:
 
-- exact tensor network contraction with quimb [Gray18]_ \
+- exact tensor network contraction with quimb [Gray18]_\
 using the method :method:`to_tensor`.
-- exact permanent evaluation with Perceval [FGL+23]_ \
-using the method :method:`to_path`. 
+- exact permanent evaluation with Perceval [FGL+23]_\
+using the method :method:`to_path`.
 
-Note that the permanent method is only defined for a subclass of :class:`zw` diagrams, 
-including :class:`lo` circuits, and known as QPath diagrams [FC23]_ or matrices with 
-creations and annihilation. These are implemented in the :class:`path.Matrix` class,
-with an interface :method:`to_perceval` or the internal evaluation method :method:`eval`.
-
-The DisCoPy class :class:`tensor.Diagram` is used as an implementation of tensor networks, 
-with dimensions as types and tensors as boxes, with an interface :method:`to_quimb` 
+Note that the permanent method is only defined for a subclass
+of :class:`zw` diagrams, including :class:`lo` circuits.
+These are also known as QPath diagrams [FC23]_,
+or matrices with creations and annihilation.
+They are implemented in the :class:`path.Matrix` class,
+with an interface :method:`to_perceval`
 or the internal evaluation method :method:`eval`.
-Linear optical circuits, built from the generators of :class:`lo`, can be evaluated 
-as tensor networks by first applying the method :method:`to_zw`.
+
+The DisCoPy class :class:`tensor.Diagram` is used as an
+implementation of tensor networks,
+with dimensions as types and tensors as boxes,
+with an interface :method:`to_quimb`
+or the internal evaluation method :method:`eval`.
+Linear optical circuits, built from the generators of :class:`lo`,
+can be evaluated as tensor networks
+by first applying the method :method:`to_zw`.
 
 
 Types
@@ -236,13 +242,16 @@ from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
 
+
 class Ob(frobenius.Ob):
     """Basic object in an optyx Diagram: bit or mode"""
+
 
 @factory
 class Ty(frobenius.Ty):
     """Optical and (qu)bit types."""
     ob_factory = Ob
+
 
 class Mode(Ty):
     """Optical mode interpreted as the infinite space with countable basis"""
@@ -922,6 +931,7 @@ def embedding_tensor(n, dim):
     for i in range(n-1):
         d @= EmbeddingTensor(2, dim)
     return d
+
 
 bit = Bit(1)
 mode = Mode(1)

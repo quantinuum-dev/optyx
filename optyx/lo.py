@@ -337,7 +337,7 @@ class BBS(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        sin = backend.sin((0.25 + self.bias) * backend.pi) 
+        sin = backend.sin((0.25 + self.bias) * backend.pi)
         cos = backend.cos((0.25 + self.bias) * backend.pi)
         zb_sin = Z(lambda i: sin ** i, 1, 1)
         if self.conj:
