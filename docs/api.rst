@@ -6,8 +6,9 @@ API
     :toctree: _api
 
     optyx.optyx
-    optyx.path
-    optyx.lo
-    optyx.zw
+    optyx.channel
     optyx.zx
+    optyx.zw
+    optyx.lo
+    optyx.path
     optyx.compiler

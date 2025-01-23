@@ -5,38 +5,38 @@ Overview
 
 Optyx diagrams combine three diagrammatic calculi:
 
-- :class:`zw` calculus: for infinite-dimensional systems (Mode type),\
+- :class:`zw` calculus: for infinite-dimensional systems (Mode type), \
 with generators :class:`zw.Z`, :class:`zw.W`, creations and selections.
-- :class:`lo` calculus: for linear optics (Mode type), with generators\
+- :class:`lo` calculus: for linear optics (Mode type), with generators \
 :class:`lo.BS` and :class:`lo.Phase`, or other .
-- :class:`zx` calculus: for qubit systems (Bit type), with generators\
+- :class:`zx` calculus: for qubit systems (Bit type), with generators \
 :class:`zx.Z` and :class:`zx.X`.
 
 Mode and Bit types can moreover be combined using :class:`DualRail`
 or other instances of :class:`optyx.Box`.
 We can evaluate arbitrary compositions of the above generators via:
 
-- exact tensor network contraction with quimb [Gray18]_\
-using the method :method:`to_tensor`.
-- exact permanent evaluation with Perceval [FGL+23]_\
-using the method :method:`to_path`.
+- exact tensor network contraction with quimb [Gray18]_ \
+using the method :class:`to_tensor`.
+- exact permanent evaluation with Perceval [FGL+23]_ \
+using the method :class:`to_path`.
 
 Note that the permanent method is only defined for a subclass
 of :class:`zw` diagrams, including :class:`lo` circuits.
 These are also known as QPath diagrams [FC23]_,
 or matrices with creations and annihilation.
 They are implemented in the :class:`path.Matrix` class,
-with an interface :method:`to_perceval`
-or the internal evaluation method :method:`eval`.
+with an interface :class:`to_perceval`
+or the internal evaluation method :class:`eval`.
 
 The DisCoPy class :class:`tensor.Diagram` is used as an
 implementation of tensor networks,
 with dimensions as types and tensors as boxes,
-with an interface :method:`to_quimb`
-or the internal evaluation method :method:`eval`.
+with an interface :class:`to_quimb`
+or the internal evaluation method :class:`eval`.
 Linear optical circuits, built from the generators of :class:`lo`,
 can be evaluated as tensor networks
-by first applying the method :method:`to_zw`.
+by first applying the method :class:`to_zw`.
 
 
 Types

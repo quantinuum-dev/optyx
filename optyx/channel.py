@@ -1,5 +1,55 @@
 """
-Implements Quantum Channels
+
+Overview
+--------
+
+Implements classical-quantum channels.
+
+Quantum channels are completely positive maps acting on 
+the doubled space :code:`H @ H` for a Hilbert space :code:`H`.
+These can be initialised from the Kraus decomposition, 
+given as an :code:`optyx.Diagram` with domain :code:`H` and 
+codomain :code:`H @ E` for an auxiliary space :code:`E`, 
+called the environment, which is not observed.
+
+Channels can moreover have a classical interface, 
+in the form of input :code:`bit` or :code:`mode` types.
+The Kraus map is then given by an :class:`optyx.Diagram`
+with domain :code:`H @ C` and codomain :code:`H @ C @ E`, 
+where the classical type :code:`C` represents
+the classical inputs or outputs of the computation.
+In the doubled picture, encoding or measuring a classical type 
+is implemented through instances of :class:`optyx.Spider`.
+
+This module allows to build an arbitrary syntactic :class:`Circuit`
+from instances of :class:`Channel`. 
+The :code:`Circuit.double` method returns an :class:`optyx.Diagram`, 
+whose tensor evaluation gives all the relevant statistics of the circuit.
+
+Types
+-----
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    Ob
+    Ty
+
+Generators and diagrams
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    Circuit
+    Channel
+    Measure
+    Encode
+    Discard
 
 
 Examples
@@ -12,9 +62,16 @@ A Channel is initialised by its Kraus map from `dom` to `cod @ env`.
 >>> channel = Channel(name='circuit', kraus=circ,\\
 ...                   dom=qmode ** 4, cod=qmode ** 4, env=optyx.Ty())
 
-We can calculate the probability of an input-output pair:
+We can check that this channel is causal:
 
 >>> import numpy as np
+>>> discards = Discard(qmode ** 4)
+>>> rhs = (channel >> discards).double().to_zw().to_tensor().eval().array
+>>> lhs = (discards).double().to_zw().to_tensor().eval().array
+>>> assert np.allclose(lhs, rhs)
+
+We can calculate the probability of an input-output pair:
+
 >>> state = Channel('state', zw.Create(1, 0, 1, 0))
 >>> effect = Channel('effect', zw.Select(1, 0, 1, 0))
 >>> prob = (state >> channel >> effect).double(\\
@@ -23,7 +80,7 @@ We can calculate the probability of an input-output pair:
 ...     ).to_zw().to_tensor().eval().array
 >>> assert np.allclose(prob, np.absolute(amp) ** 2)
 
-We can check that probabilities sum to 1:
+We can check that the probabilities of a normalised state sum to 1:
 
 >>> bell_state = Channel('Bell', optyx.Scalar(1/np.sqrt(2)) @ zx.Z(0, 2))
 >>> dual_rail = Channel('2R', optyx.dual_rail(2))
@@ -31,7 +88,7 @@ We can check that probabilities sum to 1:
 >>> setup = bell_state >> dual_rail >> channel >> measure
 >>> assert np.isclose(sum(setup.double().to_zw().to_tensor().eval().array), 1)
 
-We can construct a lossy optical channel loss and compute its probabilities:
+We can construct a lossy optical channel and compute its probabilities:
 
 >>> eff = 0.95
 >>> kraus = zw.W(2) >> zw.Endo(np.sqrt(eff)) @ zw.Endo(np.sqrt(1 - eff))
@@ -86,12 +143,13 @@ class Ty(symmetric.Ty):
 
     def single(self):
         """Returns the optyx.Ty obtained by mapping
-        qubit to bit and qmode to mode"""
+        :code:`qubit` to :code:`bit` and :code:`qmode` to :code:`mode`"""
         return optyx.Ty().tensor(*[ob.single for ob in self.inside])
 
     def double(self):
-        """Returns the optyx.Ty obtained by mapping
-        qubit to bit @ bit and qmode to mode @ mode"""
+        """Returns the optyx.Ty obtained by mapping 
+        :code:`qubit` to :code:`bit @ bit` 
+        and :code:`qmode` to :code:`mode @ mode`"""
         return optyx.Ty().tensor(*[ob.double for ob in self.inside])
 
     @staticmethod
@@ -108,7 +166,7 @@ qmode = Ty("qmode")
 
 @factory
 class Circuit(symmetric.Diagram):
-    """Arbitrary classical-quantum circuits over qubits and optical modes"""
+    """Classical-quantum circuits over qubits and optical modes"""
     ty_factory = Ty
 
     def double(self):
@@ -120,16 +178,10 @@ class Circuit(symmetric.Diagram):
         return symmetric.Functor(lambda x: x.double(),
                                  lambda f: f.double(), dom, cod)(self)
 
-    def is_pure(self):
-        """Checks if every :class:`Channel` in the circuit is pure."""
-        return min(box.is_pure for box in self)
-
 
 class Channel(symmetric.Box, Circuit):
     """
-    A Channel is defined by its Kraus map,
-    from :code:`dom.single()` to :code:`cod.single() @ env`,
-    and interpreted as a completely positive (CP) map by doubling.
+    Channel initialised by its Kraus map.
     """
     def __init__(self, name, kraus, dom=None, cod=None, env=optyx.Ty()):
         assert isinstance(kraus, optyx.Diagram)
@@ -142,14 +194,6 @@ class Channel(symmetric.Box, Circuit):
         self.kraus = kraus
         self.env = env
         super().__init__(name, dom, cod)
-
-    @property
-    def is_pure(self):
-        """True if the the environment is empty
-        and the channel has no classical interface."""
-        if self.env != optyx.Ty():
-            return False
-        return min(not ob.is_classical for ob in (self.dom @ self.cod).inside)
 
     def double(self):
         """
