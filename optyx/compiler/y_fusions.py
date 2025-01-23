@@ -72,12 +72,8 @@ def find_path_cover(
         start = choose_random_vertex(h)
 
         total_path: list[int] = []
-        path = [0] * (
-            search_size + 1
-        )  # satisfy the loop condition to enter once
 
-        # We do +1 here since the path length is the number of edges, not nodes
-        while len(path) - 1 == search_size:
+        while True:
             real_search_size = min(max_len - len(total_path), search_size)
             path = find_longest_path(h, start, real_search_size)
 
@@ -86,6 +82,9 @@ def find_path_cover(
             h.remove_nodes_from(path[:-1])
             total_path.extend(path[:-1])
             start = path[-1]
+
+            if len(path) - 1 < search_size:
+                break
 
         h.remove_node(path[-1])
         total_path.append(path[-1])
