@@ -175,7 +175,7 @@ class Box(optyx.Box):
         raise NotImplementedError
 
     def conjugate(self):
-        NotImplementedError
+        raise NotImplementedError
 
 
 class IndexableAmplitudes:

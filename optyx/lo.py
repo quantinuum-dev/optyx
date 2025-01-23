@@ -7,8 +7,9 @@ This module can be used to build arbitrary
 linear optical unitary circuits using biased/tunable
 beam splitters, phase shifters, and Mach-Zender interferometers.
 The :class:`lo` generators have an underlying
-diagram representation in :class:`path` [FC23]_
-(which are a subset of :class:`zw` diagrams [FSP+23]_).
+matrix representation in :class:`path` [FC23]_, 
+which allows to evaluate the amplitudes of circuits 
+by computing permanents.
 
 Generators and diagrams
 ------------------------
@@ -242,7 +243,7 @@ class Phase(Box):
         super().__init__(f"Phase({angle})", Mode(1), Mode(1), data=angle)
 
     def conjugate(self):
-        return Phase(- self.angle)
+        return Phase(-self.angle)
 
     def to_path(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -319,6 +320,7 @@ class BBS(Box):
     def __init__(self, bias, conj=False):
         self.bias = bias
         self.conj = conj
+        name = f"BBS({bias})" if not conj else f"BBS({bias}).conjugate()"
         super().__init__(f"BBS({bias})", Mode(2), Mode(2), data=bias)
 
     def conjugate(self):

@@ -5,25 +5,25 @@ Overview
 
 Implements classical-quantum channels.
 
-Quantum channels are completely positive maps acting on 
+Quantum channels are completely positive maps acting on
 the doubled space :code:`H @ H` for a Hilbert space :code:`H`.
-These can be initialised from the Kraus decomposition, 
-given as an :code:`optyx.Diagram` with domain :code:`H` and 
-codomain :code:`H @ E` for an auxiliary space :code:`E`, 
+These can be initialised from the Kraus decomposition,
+given as an :code:`optyx.Diagram` with domain :code:`H` and
+codomain :code:`H @ E` for an auxiliary space :code:`E`,
 called the environment, which is not observed.
 
-Channels can moreover have a classical interface, 
+Channels can moreover have a classical interface,
 in the form of input :code:`bit` or :code:`mode` types.
 The Kraus map is then given by an :class:`optyx.Diagram`
-with domain :code:`H @ C` and codomain :code:`H @ C @ E`, 
+with domain :code:`H @ C` and codomain :code:`H @ C @ E`,
 where the classical type :code:`C` represents
 the classical inputs or outputs of the computation.
-In the doubled picture, encoding or measuring a classical type 
+In the doubled picture, encoding or measuring a classical type
 is implemented through instances of :class:`optyx.Spider`.
 
 This module allows to build an arbitrary syntactic :class:`Circuit`
-from instances of :class:`Channel`. 
-The :code:`Circuit.double` method returns an :class:`optyx.Diagram`, 
+from instances of :class:`Channel`.
+The :code:`Circuit.double` method returns an :class:`optyx.Diagram`,
 whose tensor evaluation gives all the relevant statistics of the circuit.
 
 Types
@@ -147,8 +147,8 @@ class Ty(symmetric.Ty):
         return optyx.Ty().tensor(*[ob.single for ob in self.inside])
 
     def double(self):
-        """Returns the optyx.Ty obtained by mapping 
-        :code:`qubit` to :code:`bit @ bit` 
+        """Returns the optyx.Ty obtained by mapping
+        :code:`qubit` to :code:`bit @ bit`
         and :code:`qmode` to :code:`mode @ mode`"""
         return optyx.Ty().tensor(*[ob.double for ob in self.inside])
 
