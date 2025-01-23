@@ -510,14 +510,27 @@ class MZI(Box):
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
 
-    def to_zw(self):
-        mzi = (
-            BBS(0).to_zw()
-            >> Phase(self.theta).to_zw() @ Id(1)
-            >> BBS(0).to_zw()
-            >> Phase(self.phi).to_zw() @ Id(1)
+    def to_zw(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        phase = self.global_phase(dtype=dtype)
+        cos = backend.cos(backend.pi * self.theta)
+        sin = backend.sin(backend.pi * self.theta)
+        exp = backend.exp(1j * 2 * backend.pi * self.phi)
+
+        exp_sin_ = Z(lambda i: (sin*exp*phase) ** i, 1, 1)
+        cos_ = Z(lambda i: (cos*phase) ** i, 1, 1)
+        exp_cos_ = Z(lambda i: (cos*exp*phase) ** i, 1, 1)
+        minus_sin = Z(
+            lambda i: (-sin*phase) ** i, 1, 1
         )
 
+        mzi = (
+            W(2) @ W(2)
+            >> exp_sin_ @ cos_ @ exp_cos_ @ minus_sin
+            >> Id(1) @ SWAP @ Id(1)
+            >> W(2).dagger() @ W(2).dagger()
+        )
+        
         return mzi
 
     def dagger(self):

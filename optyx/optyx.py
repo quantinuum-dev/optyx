@@ -351,8 +351,9 @@ class Diagram(frobenius.Diagram):
             else:
                 diagram = diagram >> diagram_
 
-            right_dim = cod_right_dim
-            layer_dims = cod_layer_dims
+            if not isinstance(box, Scalar):
+                right_dim = cod_right_dim
+                layer_dims = cod_layer_dims
         return diagram
 
     @classmethod
