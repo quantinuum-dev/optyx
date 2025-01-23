@@ -7,8 +7,8 @@ This module can be used to build arbitrary
 linear optical unitary circuits using biased/tunable
 beam splitters, phase shifters, and Mach-Zender interferometers.
 The :class:`lo` generators have an underlying
-matrix representation in :class:`path` [FC23]_, 
-which allows to evaluate the amplitudes of circuits 
+matrix representation in :class:`path` [FC23]_,
+which allows to evaluate the amplitudes of circuits
 by computing permanents.
 
 Generators and diagrams
@@ -321,7 +321,7 @@ class BBS(Box):
         self.bias = bias
         self.conj = conj
         name = f"BBS({bias})" if not conj else f"BBS({bias}).conjugate()"
-        super().__init__(f"BBS({bias})", Mode(2), Mode(2), data=bias)
+        super().__init__(name, Mode(2), Mode(2), data=bias)
 
     def conjugate(self):
         return BBS(self.bias, not self.conj)
@@ -351,8 +351,8 @@ class BBS(Box):
 
         beam_splitter = (
             W(2) @ W(2)
-            >> zb_cos @ zb_sin @ zb_sin @ zb_cos
             >> Id(1) @ SWAP @ Id(1)
+            >> zb_cos @ zb_sin @ zb_sin @ zb_cos
             >> W(2).dagger() @ W(2).dagger()
         )
 
@@ -435,8 +435,8 @@ class TBS(Box):
 
         beam_splitter = (
             W(2) @ W(2)
-            >> sin @ cos @ cos @ minus_sin
             >> Id(1) @ SWAP @ Id(1)
+            >> sin @ cos @ cos @ minus_sin
             >> W(2).dagger() @ W(2).dagger()
         )
 
@@ -537,8 +537,8 @@ class MZI(Box):
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
         mzi = (
             W(2) @ W(2)
-            >> Endo(exp * sin) @ Endo(cos) @ Endo(exp * cos) @ Endo(-sin)
             >> Id(1) @ SWAP @ Id(1)
+            >> Endo(exp * sin) @ Endo(cos) @ Endo(exp * cos) @ Endo(-sin)
             >> W(2).dagger() @ W(2).dagger()
         )
 
