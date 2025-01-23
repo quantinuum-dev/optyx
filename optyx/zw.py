@@ -330,7 +330,7 @@ class Z(Spider, Box):
         self.legs_out = legs_out
 
     def conjugate(self):
-        return Z(self.amplitudes.conjugate(), self.lefs_in, self.legs_out)
+        return Z(self.amplitudes.conjugate(), self.legs_in, self.legs_out)
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None

@@ -167,9 +167,9 @@ import numpy as np
 from sympy import Expr, lambdify
 import sympy as sp
 
-from optyx.optyx import Mode, Box
+from optyx.optyx import Mode, Box, Scalar
 from optyx.path import Matrix
-from optyx.zw import Z, W, Create, Select, Scalar
+from optyx.zw import Z, W, Create, Select, Endo
 from optyx.zw import Split, Merge, Id, SWAP
 
 
@@ -202,7 +202,9 @@ class Gate(Box):
         )
 
     def conjugate(self):
-        return Gate(self.array, self.dom, self.cod, self.name, self.is_dagger)
+        array = self.array.conjugate()
+        name = self.name + '.conjugate()'
+        return Gate(array, len(self.dom), len(self.cod), name, self.is_dagger)
 
     def to_path(self, dtype=complex):
         result = Matrix[dtype](self.array, len(self.dom), len(self.cod))
@@ -497,22 +499,21 @@ class MZI(Box):
 
     """
 
-    def __init__(self, theta, phi, is_dagger=False, conj=False):
+    def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
-        self.conj = conj
         data = {theta, phi}
         super().__init__(
             "MZI", Mode(2), Mode(2), is_dagger=is_dagger, data=data
         )
 
     def conjugate(self):
-        return MZI(self.theta, self.phi, self.is_dagger, self.conj)
+        return MZI(self.theta, -self.phi, self.is_dagger)
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
-            if self.is_dagger or self.conj
+            if self.is_dagger
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
@@ -520,22 +521,23 @@ class MZI(Box):
         backend = sp if dtype is Expr else np
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
-        if self.conj:
-            exp = backend.exp(- 1j * 2 * backend.pi * self.phi)
-        else:
-            exp = backend.exp(1j * 2 * backend.pi * self.phi)
+        exp = backend.exp(1j * 2 * backend.pi * self.phi)
         array = np.array([exp * sin, cos, exp * cos, -sin])
         array = array * self.global_phase(dtype=dtype)
         matrix = Matrix[dtype](array, len(self.dom), len(self.cod))
         matrix = matrix.dagger() if self.is_dagger else matrix
         return matrix
 
-    def to_zw(self):
+    def to_zw(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        cos = backend.cos(backend.pi * self.theta)
+        sin = backend.sin(backend.pi * self.theta)
+        exp = backend.exp(1j * 2 * backend.pi * self.phi)
         mzi = (
-            BBS(0).to_zw()
-            >> Phase(self.theta).to_zw() @ Id(1)
-            >> BBS(0).to_zw()
-            >> Phase(self.phi).to_zw() @ Id(1)
+            W(2) @ W(2)
+            >> Endo(exp * sin) @ Endo(cos) @ Endo(exp * cos) @ Endo(-sin)
+            >> Id(1) @ SWAP @ Id(1)
+            >> W(2).dagger() @ W(2).dagger()
         )
 
         return mzi
