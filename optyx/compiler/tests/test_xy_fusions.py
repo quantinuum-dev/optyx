@@ -4,6 +4,8 @@ from optyx.compiler.xy_fusions import (
     remove_hedge_paths,
     find_trail_cover,
     is_trail_cover,
+    photon_bounded_trail_cover_count,
+    compute_y_fusions,
 )
 
 from optyx.compiler.x_fusions import min_number_trails
@@ -40,6 +42,27 @@ def test_remove_hedge_paths():
     assert nx.utils.graphs_equal(g, g_clone)
 
 
+def test_compute_y_fusions():
+    #      5 6
+    #      | |
+    #    1-2-3-4
+    g = nx.Graph([(1, 2), (2, 3), (3, 4), (2, 5), (3, 6)])
+    trails = [[1, 2, 3, 4], [5], [6]]
+    y_fusions = compute_y_fusions(g, trails)
+
+    assert set(y_fusions) == set([(2, 5), (3, 6)])
+
+
+def test_find_trail_cover_restricted_photons():
+    #      5 6
+    #      | |
+    #    1-2-3-4
+    g = nx.Graph([(1, 2), (2, 3), (3, 4), (2, 5), (3, 6)])
+    resources = photon_bounded_trail_cover_count(g, 3)
+
+    assert resources == 4
+
+
 def test_find_trail_cover():
     g = nx.Graph([(1, 3), (2, 3), (3, 4), (4, 5), (4, 6)])
     trails = find_trail_cover(g, 10)
@@ -50,7 +73,7 @@ def test_find_trail_cover():
 # Returns a list of all the different kinds of connected graphs
 def get_test_graphs(num: int, nodes: int) -> list[nx.Graph]:
     graphs = []
-    for i in range(num):
+    for _ in range(num):
         g = nx.generators.erdos_renyi_graph(nodes, 0.5, seed=0)
         graphs.append(g)
 
