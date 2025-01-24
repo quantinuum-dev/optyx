@@ -99,10 +99,10 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 >>> from math import factorial
 >>> N = [float(np.sqrt(factorial(i))) for i in range(5)]
 >>> frac_N = [float(1/np.sqrt(factorial(i))) for i in range(5)]
->>> bZBA_l = ZBox(1,2,N) @ Z(N, 1, 2) >>\\
+>>> bZBA_l = ZBox(1,2,N) @ ZBox(1, 2, N) >>\\
 ...             Id(1) @ SWAP @ Id(1) >>\\
 ...             W(2).dagger() @ W(2).dagger() >>\\
-...             Id(1) @ Z(frac_N, 1, 1)
+...             Id(1) @ ZBox(1, 1, frac_N)
 >>> bZBA_r = W(2).dagger() >> ZBox(1,2,[1, 1, 1, 1, 1])
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bZBA_l.to_tensor().eval().array,\\
