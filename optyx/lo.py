@@ -429,7 +429,9 @@ class TBS(Box):
         backend = sp if dtype is Expr else np
         sin = ZBox(1, 1, lambda i: (backend.sin(self.theta * backend.pi)) ** i)
         cos = ZBox(1, 1, lambda i: (backend.cos(self.theta * backend.pi)) ** i)
-        minus_sin = ZBox(1, 1, lambda i: (-backend.sin(self.theta * backend.pi)) ** i)
+        minus_sin = ZBox(
+            1, 1, lambda i: (-backend.sin(self.theta * backend.pi)) ** i
+        )
 
         beam_splitter = (
             W(2) @ W(2)

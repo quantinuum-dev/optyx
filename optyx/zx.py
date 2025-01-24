@@ -228,7 +228,10 @@ class Z(Spider):
         return Z(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
-        return zw.ZBox(self.n_legs_in, self.n_legs_out, [1, np.exp(1j * self.phase * 2 * np.pi)]).truncation([2] * self.n_legs_in)
+        return zw.ZBox(
+            self.n_legs_in, self.n_legs_out,
+            [1, np.exp(1j * self.phase * 2 * np.pi)]
+        ).truncation([2] * self.n_legs_in)
 
     @property
     def array(self):
