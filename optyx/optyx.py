@@ -855,7 +855,7 @@ class Scalar(Box):
         self, input_dims: list[int] = None
     ) -> list[int]:
         """Determine the output dimensions"""
-        return []
+        return [1]
 
 
 class DualRail(Box):
