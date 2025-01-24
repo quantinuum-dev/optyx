@@ -99,11 +99,11 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 >>> from math import factorial
 >>> N = [float(np.sqrt(factorial(i))) for i in range(5)]
 >>> frac_N = [float(1/np.sqrt(factorial(i))) for i in range(5)]
->>> bZBA_l = Z(N, 1, 2) @ Z(N, 1, 2) >>\\
+>>> bZBA_l = ZBox(1,2,N) @ Z(N, 1, 2) >>\\
 ...             Id(1) @ SWAP @ Id(1) >>\\
 ...             W(2).dagger() @ W(2).dagger() >>\\
 ...             Id(1) @ Z(frac_N, 1, 1)
->>> bZBA_r = W(2).dagger() >> Z([1, 1, 1, 1, 1], 1, 2)
+>>> bZBA_r = W(2).dagger() >> ZBox(1,2,[1, 1, 1, 1, 1])
 >>> assert compare_arrays_of_different_sizes(\\
 ...             bZBA_l.to_tensor().eval().array,\\
 ...             bZBA_r.to_tensor().eval().array)
@@ -116,7 +116,7 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 
 **Z copies n-photon states**
 
->>> K0_infty_l = Create(4) >> Z([1, 1, 1, 1, 1], 1, 2)
+>>> K0_infty_l = Create(4) >> ZBox(1,2,[1, 1, 1, 1, 1])
 >>> K0_infty_r = Create(4) @ Create(4)
 >>> assert compare_arrays_of_different_sizes(\\
 ...             K0_infty_l.to_tensor().eval().array,\\
@@ -131,11 +131,11 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 **Check Lemma B7 from 2306.02114**
 
 >>> lemma_B7_l = Id(1) @ W(2).dagger() >> \\
-...             Z(lambda i: 1, 2, 0)
+...             ZBox(2,0,lambda i: 1)
 >>> lemma_B7_r = W(2) @ Id(2) >>\\
 ...             Id(1) @ Id(1) @ SWAP >>\\
 ...             Id(1) @ SWAP @ Id(1) >>\\
-...             Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
+...             ZBox(2,0,lambda i: 1) @ ZBox(2,0,lambda i: 1)
 >>> assert compare_arrays_of_different_sizes(\\
 ...             lemma_B7_l.to_tensor().eval().array,\\
 ...             lemma_B7_r.to_tensor().eval().array)
@@ -307,18 +307,18 @@ class W(Box):
         )
 
 
-class Z(Spider, Box):
+class ZBox(Spider, Box):
     """
     Z spider from the ZW calculus.
     """
 
     def __init__(
         self,
-        amplitudes: Union[
-            np.ndarray, list, callable, IndexableAmplitudes
-        ] = lambda i: i,
         legs_in: int = 1,
         legs_out: int = 1,
+        amplitudes: Union[
+            np.ndarray, list, callable, IndexableAmplitudes
+        ] = lambda i: i
     ):
         # if amplitudes are a function then make it indexable, "conjugable"
         if callable(amplitudes):
@@ -330,7 +330,7 @@ class Z(Spider, Box):
         self.legs_out = legs_out
 
     def conjugate(self):
-        return Z(self.amplitudes.conjugate(), self.legs_in, self.legs_out)
+        return ZBox(self.legs_in, self.legs_out, self.amplitudes.conjugate())
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
@@ -415,9 +415,9 @@ class Z(Spider, Box):
 
     __str__ = __repr__
 
-    def __eq__(self, other: "Z") -> bool:
+    def __eq__(self, other: "ZBox") -> bool:
         if (
-            not isinstance(other, Z)
+            not isinstance(other, ZBox)
             or self.legs_in != other.legs_in
             or self.legs_out != other.legs_out
         ):
@@ -427,7 +427,7 @@ class Z(Spider, Box):
         return np.allclose(self.amplitudes, other.amplitudes)
 
     def dagger(self) -> Diagram:
-        return Z(np.conj(self.amplitudes), self.legs_out, self.legs_in)
+        return ZBox(self.legs_out, self.legs_in, np.conj(self.amplitudes))
 
 
 class Create(Box):
@@ -629,7 +629,7 @@ class Endo(Box):
     def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
     ) -> tensor.Box:
-        return Z(lambda x: self.scalar**x, 1, 1).truncation(
+        return ZBox(1, 1, lambda x: self.scalar ** x).truncation(
             input_dims, output_dims
         )
 

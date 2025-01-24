@@ -170,7 +170,7 @@ import sympy as sp
 
 from optyx.optyx import Mode, Box, Scalar
 from optyx.path import Matrix
-from optyx.zw import Z, W, Create, Select, Endo
+from optyx.zw import ZBox, W, Create, Select, Endo
 from optyx.zw import Split, Merge, Id, SWAP
 
 
@@ -253,7 +253,7 @@ class Phase(Box):
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
         exp = backend.exp(2 * backend.pi * 1j * self.angle)
-        return Z(lambda i: exp**i, 1, 1)
+        return ZBox(1, 1, lambda i: exp ** i)
 
     def dagger(self):
         return Phase(-self.angle)
@@ -343,11 +343,11 @@ class BBS(Box):
         backend = sp if dtype is Expr else np
         sin = backend.sin((0.25 + self.bias) * backend.pi)
         cos = backend.cos((0.25 + self.bias) * backend.pi)
-        zb_sin = Z(lambda i: sin ** i, 1, 1)
+        zb_sin = ZBox(1, 1, lambda i: sin ** i)
         if self.conj:
-            zb_cos = Z(lambda i: (-cos * 1j) ** i, 1, 1)
+            zb_cos = ZBox(1, 1, lambda i: (-cos * 1j) ** i)
         else:
-            zb_cos = Z(lambda i: (cos * 1j) ** i, 1, 1)
+            zb_cos = ZBox(1, 1, lambda i: (cos * 1j) ** i)
 
         beam_splitter = (
             W(2) @ W(2)
@@ -427,11 +427,9 @@ class TBS(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        sin = Z(lambda i: (backend.sin(self.theta * backend.pi)) ** i, 1, 1)
-        cos = Z(lambda i: (backend.cos(self.theta * backend.pi)) ** i, 1, 1)
-        minus_sin = Z(
-            lambda i: (-backend.sin(self.theta * backend.pi)) ** i, 1, 1
-        )
+        sin = ZBox(1, 1, lambda i: (backend.sin(self.theta * backend.pi)) ** i)
+        cos = ZBox(1, 1, lambda i: (backend.cos(self.theta * backend.pi)) ** i)
+        minus_sin = ZBox(1, 1, lambda i: (-backend.sin(self.theta * backend.pi)) ** i)
 
         beam_splitter = (
             W(2) @ W(2)
