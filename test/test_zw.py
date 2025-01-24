@@ -1,7 +1,7 @@
 import math
 
 from optyx.zw import *
-from optyx.optyx import mode, Permutation, DualRail, EmbeddingTensor
+from optyx.optyx import mode, DualRail, EmbeddingTensor
 from optyx.utils import compare_arrays_of_different_sizes
 import optyx.zx as zx
 import optyx.lo as lo
@@ -144,7 +144,7 @@ def test_Id_eq(k: int):
 
 
 def test_permutation_dagger():
-    perm = Permutation(Mode(2), [1, 0])
+    perm = optyx.Diagram.permutation([1, 0], Mode(2))
 
     assert compare_arrays_of_different_sizes(
         perm.to_tensor().eval().array,
@@ -154,7 +154,7 @@ def test_permutation_dagger():
 
 
 def test_permutation_path_dagger():
-    perm = Permutation(Mode(2), [1, 0])
+    perm = optyx.Diagram.permutation([1, 0], Mode(2))
 
     assert compare_arrays_of_different_sizes(
         perm.to_path().array,
@@ -240,12 +240,12 @@ def test_bZBA_optyx_Spider(max_dim):
 
     bZBA_l = (
         Z(N, 1, 1) @ Z(N, 1, 1)
-        >> optyx.Spider(optyx.Mode(1), optyx.Mode(2)) @ optyx.Spider(optyx.Mode(1), optyx.Mode(2))
+        >> optyx.Spider(1, 2, optyx.Mode(1)) @ optyx.Spider(1, 2, optyx.Mode(1))
         >> Id(1) @ Swap(mode, mode) @ Id(1)
         >> W(2).dagger() @ W(2).dagger()
         >> Id(1) @ Z(frac_N, 1, 1)
     )
-    bZBA_r = W(2).dagger() >> optyx.Spider(optyx.Mode(1), optyx.Mode(2))
+    bZBA_r = W(2).dagger() >> optyx.Spider(1, 2, optyx.Mode(1))
 
     assert compare_arrays_of_different_sizes(
         bZBA_l.to_tensor(max_dim=max_dim).eval().array,

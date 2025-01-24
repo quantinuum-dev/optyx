@@ -157,6 +157,9 @@ class Box(optyx.Box):
             return self.data
         raise NotImplementedError(f"Array not implemented for {self}.")
 
+    def conjugate(self):
+        raise NotImplementedError
+
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions"""
         return [2 for _ in range(len(self.cod))]
@@ -177,22 +180,18 @@ class Box(optyx.Box):
         )
 
 
-class Spider(Box, optyx.Spider):
+class Spider(optyx.Spider, Box):
     """Abstract spider box."""
 
-    __ambiguous_inheritance__ = (Box, optyx.Spider)
-
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        super(optyx.Spider, self).__init__(dom=Bit(n_legs_in),
-                                           cod=Bit(n_legs_out),
-                                           name="Spider",
-                                           data=phase)
-        self.phase = phase
-        self.n_legs_in = n_legs_in
-        self.n_legs_out = n_legs_out
+        super().__init__(n_legs_in, n_legs_out, Bit(1), phase)
         factory_str = type(self).__name__
         phase_str = f", {self.phase}" if self.phase else ""
         self.name = f"{factory_str}({n_legs_in}, {n_legs_out}{phase_str})"
+        self.n_legs_in, self.n_legs_out = n_legs_in, n_legs_out
+
+    def conjugate(self):
+        return Spider(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def __repr__(self):
         return str(self).replace(type(self).__name__, factory_name(type(self)))
@@ -225,6 +224,9 @@ class Z(Spider):
 
     tikzstyle_name = "Z"
 
+    def conjugate(self):
+        return Z(self.n_legs_in, self.n_legs_out, -self.phase)
+
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
         return zw.Z(
             [1, np.exp(1j * self.phase * 2 * np.pi)],
@@ -252,6 +254,9 @@ class X(Spider):
 
     tikzstyle_name = "X"
     color = "red"
+
+    def conjugate(self):
+        return X(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
         in_hadamards = tensor.Id(1)
@@ -477,6 +482,7 @@ circuit2zx = quantum.circuit.Functor(
 
 H = Box("H", 1, 1)
 H.dagger = lambda: H
+H.conjugate = lambda: H
 H.draw_as_spider = True
 (H.drawing_name, H.tikzstyle_name,) = (
     "",
@@ -494,5 +500,3 @@ def swap_truncation(diagram, _, __):
 
 
 SWAP.truncation = swap_truncation
-
-Diagram.braid_factory, Diagram.sum_factory = Swap, Sum

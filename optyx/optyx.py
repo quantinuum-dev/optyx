@@ -3,39 +3,41 @@
 Overview
 --------
 
-Optyx diagrams combine four diagrammatic calculi:
+Optyx diagrams combine three diagrammatic calculi:
 
-- :class:`zw` calculus: for infinite-dimensional \
-systems (Mode type).
-- :class:`path` calculus: linear optics and photon \
-creation and annihilation operators (Mode type).
-- :class:`lo` calculus: for linear optics (Mode type).
-- :class:`zx` calculus: for qubit systems (Bit type).
+- :class:`zw` calculus: for infinite-dimensional systems (Mode type), \
+with generators :class:`zw.Z`, :class:`zw.W`, creations and selections.
+- :class:`lo` calculus: for linear optics (Mode type), with generators \
+:class:`lo.BS` and :class:`lo.Phase`, or other .
+- :class:`zx` calculus: for qubit systems (Bit type), with generators \
+:class:`zx.Z` and :class:`zx.X`.
 
-There is a hierarchy of diagrammatic calculi:
-:class:`zw` diagrams [FSP+23]_ are the most general and can express
-the largest set of maps (of all the calculi) on the bosonic Fock space.
-:class:`path` diagrams [FC23]_ are a subset of :class:`zw` diagrams
-encompassing linear optics with photon creation and annihilation operators.
-:class:`lo` diagrams [FC23]_ are a subset of :class:`path` diagrams
-representing the linear optical circuits built from: beam splitters,
-phase shifters, and other linear optical elements.
-:class:`zx` diagrams are used for qubit
-circuits via the dual-rail encoding
-(using the :code:`DualRail` box).
+Mode and Bit types can moreover be combined using :class:`DualRail`
+or other instances of :class:`optyx.Box`.
+We can evaluate arbitrary compositions of the above generators via:
 
-This is crucial if we want to combine the reasoning
-about photonic circuits, dual rail encoded qubit circuits,
-and classical data (feed-forward) data. The
-formal definitions which underpin the :class:`zx`,
-:class:`zw`, :class:`path` and :class:`lo` enable us
-to capture all elements needed for universal
-photonic quantum computation and its sumulation.
+- exact tensor network contraction with quimb [Gray18]_ \
+using the method :class:`to_tensor`.
+- exact permanent evaluation with Perceval [FGL+23]_ \
+using the method :class:`to_path`.
 
-Most importantly, we can evaluate the diagrams using
-tensor network methods via quimb [Gray18]_ or more
-traditionally (for linear optics) using a permanent
-method via Perceval [FGL+23]_.
+Note that the permanent method is only defined for a subclass
+of :class:`zw` diagrams, including :class:`lo` circuits.
+These are also known as QPath diagrams [FC23]_,
+or matrices with creations and annihilation.
+They are implemented in the :class:`path.Matrix` class,
+with an interface :class:`to_perceval`
+or the internal evaluation method :class:`eval`.
+
+The DisCoPy class :class:`tensor.Diagram` is used as an
+implementation of tensor networks,
+with dimensions as types and tensors as boxes,
+with an interface :class:`to_quimb`
+or the internal evaluation method :class:`eval`.
+Linear optical circuits, built from the generators of :class:`lo`,
+can be evaluated as tensor networks
+by first applying the method :class:`to_zw`.
+
 
 Types
 -------------
@@ -60,7 +62,6 @@ Generators and diagrams
     Diagram
     Box
     Swap
-    Permutation
     Scalar
     DualRail
 
@@ -99,8 +100,7 @@ boxes is done using the :code:`<<` operator:
 .. image:: /_static/seq_comp_example.png
     :align: center
 
-We can also tensor (parallelally compose) boxes
-using the :code:`@` operator:
+We can also compose boxes in parallel (tensor) using the :code:`@` operator :
 
 >>> from optyx.lo import BS, Phase
 >>> beam_splitter_phase = BS @ Phase(0.5)
@@ -121,13 +121,12 @@ expressed using the :class:`zw` calculus:
 
 Optyx diagrams can combine the generators from
 :class:`zw` (Mode type),
-:class:`path` (Mode type) and :class:`zx` calculi (Bit type).
+:class:`lo` (Mode type) and :class:`zx` calculi (Bit type).
 We can check their equivalence as tensors.
 
 **Branching Law**
 
-Let's check that the branching law from :class:`path`
-and :class:`zw` from [FC23]_.
+Let's check the branching law from [FC23]_.
 
 >>> from optyx.zw import Create, W
 >>> from optyx.utils import compare_arrays_of_different_sizes
@@ -166,7 +165,7 @@ enable conversion between Optyx and PyZX [KW20]_:
 >>> from optyx.zx import Z, SWAP
 >>> assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
 
-**:class:`path` diagrams from Bosonic Operators**
+**:class:`zw` diagrams from Bosonic Operators**
 
 The :code:`from_bosonic_operator` method
 supports creating :class:`path` diagrams:
@@ -186,7 +185,7 @@ supports creating :class:`path` diagrams:
 
 >>> assert d1 == d2
 
-**Evaluating :class:`path` diagrams with the permanent method**
+**Permanent evaluation for QPath diagrams**
 
 The :code:`to_path` method supports evaluation by
 calculating a permanent of an underlying matrix:
@@ -198,7 +197,7 @@ calculating a permanent of an underlying matrix:
 
 References
 -----------
-.. [FC23] Felice, G., & Coecke, B. (2023). Quantum Linear Optics via \
+.. [FC23] de Felice, G., & Coecke, B. (2023). Quantum Linear Optics via \
 String Diagrams. In Proceedings 19th International Conference on \
 Quantum Physics and Logic, Wolfson College, Oxford, UK, \
 27 June - 1 July 2022 (pp. 83-100). Open Publishing Association.
@@ -216,12 +215,12 @@ Bourdoncle, B., Emeriau, P.E., Mezher, R., Music, L., \
 Belabas, N., Valiron, B., Senellart, P., Mansfield, S., \
 & Senellart, J. (2023). Perceval: A Software Platform \
 for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
-.. [FTC21] Felice, G., Toumi, A., & Coecke, B. (2021). \
+.. [FTC21] de Felice, G., Toumi, A., & Coecke, B. (2021). \
 DisCoPy: Monoidal Categories in Python. In  Proceedings Z \
 of the 3rd Annual International Applied Category Theory \
 Conference 2020,  Cambridge, USA, 6-10th July 2020 (pp. \
 183-197). Open Publishing Association.
-.. [FSP+23] Felice, G., Shaikh, R., Poór, B., Yeh, L., \
+.. [FSP+23] de Felice, G., Shaikh, R., Poór, B., Yeh, L., \
 Wang, Q., & Coecke, B. (2023). Light-Matter Interaction \
 in the ZXW Calculus. In  Proceedings of the Twentieth \
 International Conference on Quantum Physics and Logic, \
@@ -244,16 +243,18 @@ from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
 
 
+class Ob(frobenius.Ob):
+    """Basic object in an optyx Diagram: bit or mode"""
+
+
+@factory
 class Ty(frobenius.Ty):
-    """Optical mode and (qu)bit types."""
-
-
-mode = Ty("mode")
-bit = Ty("bit")
+    """Optical and (qu)bit types."""
+    ob_factory = Ob
 
 
 class Mode(Ty):
-    """Optical mode type with infinite dimensions."""
+    """Optical mode interpreted as the infinite space with countable basis"""
 
     def __init__(self, n=0):
         self.n = n
@@ -261,7 +262,7 @@ class Mode(Ty):
 
 
 class Bit(Ty):
-    """(Qu)bit type."""
+    """Qubit type interpreted as the two dimensional complext vector space"""
 
     def __init__(self, n=0):
         self.n = n
@@ -272,18 +273,28 @@ class Bit(Ty):
 class Diagram(frobenius.Diagram):
     """Optyx diagram combining :class:`zw`,
     :class:`zx` and
-    :class:`path` calculi."""
+    :class:`lo` calculi."""
 
     grad = tensor.Diagram.grad
+
+    def conjugate(self) -> Diagram:
+        """ Conjugates every box in the diagram"""
+        return symmetric.Functor(
+            ob=lambda x: x,
+            ar=lambda f: f.conjugate(),
+            cod=symmetric.Category(Ty, Diagram),
+            dom=symmetric.Category(Ty, Diagram),
+        )(self)
 
     def to_zw(self) -> Diagram:
         """To be used with :class:`lo` diagrams which can
         be decomposed into the underlying
         :class:`zw` generators."""
         return symmetric.Functor(
-            ob=lambda x: Mode(len(x)),
+            ob=lambda x: x,
             ar=lambda f: f.to_zw(),
-            cod=symmetric.Category(Mode, Diagram),
+            cod=symmetric.Category(Ty, Diagram),
+            dom=symmetric.Category(Ty, Diagram),
         )(self)
 
     def to_path(self, dtype: type = complex):
@@ -357,7 +368,7 @@ class Diagram(frobenius.Diagram):
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """Create a :class:`path` diagram from a bosonic operator."""
+        """Create a :class:`zw` diagram from a bosonic operator."""
         from optyx import zw
 
         d = cls.id(Mode(n_modes))
@@ -585,6 +596,9 @@ class Box(frobenius.Box, Diagram):
 
     __ambiguous_inheritance__ = (frobenius.Box,)
 
+    def conjugate(self):
+        raise NotImplementedError
+
     def to_zw(self):
         raise NotImplementedError
 
@@ -625,30 +639,17 @@ class Box(frobenius.Box, Diagram):
         return self.lambdify(*syms)(*exprs)
 
 
-class Spider(Box):
+class Spider(frobenius.Spider, Box):
     """Abstract spider (dagger-SCFA)"""
 
     draw_as_spider = True
     color = "green"
 
-    __ambiguous_inheritance__ = (Box,)
+    def conjugate(self):
+        return self
 
-    def __init__(self,
-                 dom: Mode | Bit,
-                 cod: Mode | Bit,
-                 data=None,
-                 name: str = "Spider"):
-        # check if dom and cod are of the same type
-        if isinstance(dom, (Mode, Bit)) and isinstance(cod, (Mode, Bit)):
-            if not isinstance(dom, type(cod)):
-                raise ValueError(
-                    "Input and output types must be the same (Mode or Bit)."
-                )
-        else:
-            raise ValueError(
-                "Input and output types must be either Mode or Bit."
-            )
-        super().__init__(name, dom, cod)
+    def to_zw(self):
+        return self
 
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:
@@ -696,6 +697,9 @@ class Sum(symmetric.Sum, Box):
     """
 
     __ambiguous_inheritance__ = (symmetric.Sum,)
+
+    def conjugate(self):
+        return sum(term.conjugate() for term in self.terms)
 
     def to_path(self, dtype: type = complex):
         """Convert the sum to a path diagram.
@@ -756,6 +760,9 @@ class Sum(symmetric.Sum, Box):
 class Swap(frobenius.Swap, Box):
     """Swap in optyx diagram"""
 
+    def conjugate(self):
+        return self
+
     def to_path(self, dtype: type = complex):
         from optyx.path import Matrix
 
@@ -771,90 +778,7 @@ class Swap(frobenius.Swap, Box):
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
-        return Permutation(self.dom, [1, 0]).truncation(
-            input_dims, output_dims
-        )
-
-
-class Permutation(Box):
-    """Permute wires in an optyx diagram"""
-
-    def __init__(
-        self, dom: Ty, permutation: list[int], is_dagger: bool = False
-    ):
-        """
-        Args:
-            dom: The input type
-            permutation: List of indices representing the permutation.
-                         Each entry indicates where the
-                         corresponding input goes in the output.
-        """
-        assert len(permutation) == len(dom)
-
-        cod = Ty.tensor(*[dom[i] for i in permutation])
-        super().__init__(str(permutation), dom, cod)
-        self.is_dagger = is_dagger
-        self.permutation = permutation
-
-    def truncation(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
-    ) -> tensor.Box:
-        """Create an array that permutes the occupation
-        numbers based on the input dimensions."""
-
-        if input_dims is None:
-            raise ValueError("Input dimensions must be provided.")
-
-        if output_dims is None:
-            output_dims = self.determine_output_dimensions(input_dims)
-
-        input_total_dim = int(np.prod(input_dims))
-        output_total_dim = int(np.prod(output_dims))
-        perm_matrix = np.zeros(
-            (output_total_dim, input_total_dim), dtype=complex
-        )
-
-        for input_index in np.ndindex(*input_dims):
-            permuted_index = tuple(
-                input_index[self.permutation[i]]
-                for i in range(len(self.permutation))
-            )
-            input_flat_index = np.ravel_multi_index(input_index, input_dims)
-            permuted_flat_index = np.ravel_multi_index(
-                permuted_index, output_dims
-            )
-            perm_matrix[permuted_flat_index, input_flat_index] = 1
-
-        out_dims = Dim(*[int(i) for i in output_dims])
-        in_dims = Dim(*[int(i) for i in input_dims])
-
-        return tensor.Box(self.name, in_dims, out_dims, perm_matrix.T)
-
-    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
-        """Determine the output dimensions based on the permutation."""
-        return [input_dims[i] for i in self.permutation]
-
-    def dagger(self) -> Diagram:
-        n = len(self.permutation)
-        inverse_permutation = [0] * n
-        for i, j in enumerate(self.permutation):
-            inverse_permutation[j] = i
-
-        return Permutation(
-            self.dom,
-            inverse_permutation,
-            not self.is_dagger,
-        )
-
-    def to_path(self, dtype: type = complex):
-        from optyx.path import Matrix
-
-        array = np.zeros(
-            (len(self.cod.inside), len(self.dom.inside)), dtype=complex
-        )
-        for i, p in enumerate(self.permutation):
-            array[p, i] = 1
-        return Matrix(array, len(self.dom), len(self.cod))
+        return tensor.Swap(Dim(int(input_dims[0])), Dim(int(input_dims[1])))
 
 
 class Scalar(Box):
@@ -881,6 +805,9 @@ class Scalar(Box):
         super().__init__(
             name="scalar", dom=Mode(0), cod=Mode(0), data=self.scalar
         )
+
+    def conjugate(self):
+        return Scalar(self.scalar.conjugate())
 
     @property
     def array(self):
@@ -941,6 +868,9 @@ class DualRail(Box):
         cod = Mode(2)
         super().__init__("2R", dom, cod)
 
+    def conjugate(self):
+        return self
+
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
@@ -979,10 +909,13 @@ class EmbeddingTensor(tensor.Box):
             embedding_array.T,
         )
 
+    def conjugate(self):
+        return self
+
 
 def dual_rail(n):
     '''
-    Create a dual rail diagram on n wires.
+    Encode n qubits into 2n modes via the dual-rail encoding.
     '''
     d = DualRail()
     for i in range(n-1):
@@ -1000,7 +933,10 @@ def embedding_tensor(n, dim):
     return d
 
 
-Diagram.swap_factory = Swap
-Diagram.swap = Swap
+bit = Bit(1)
+mode = Mode(1)
+
+Diagram.braid_factory, Diagram.spider_factory = Swap, Spider
+Diagram.ty_factory = Ty
 Diagram.sum_factory = Sum
 Id = Diagram.id
