@@ -438,7 +438,7 @@ class Matrix(underlying.Matrix):
         ...               (n_photons=1).round(1)== Probabilities[complex](
         ...         [0.9+0.j, 0.1+0.j, 0.1+0.j, 0.9+0.j], dom=2, cod=2)
         """
-        if not self._umatrix_is_is_unitary():
+        if not self._umatrix_is_unitary():
             self = self.dilate()
 
         circ = self._umatrix_to_perceval_circuit()
@@ -495,7 +495,7 @@ class Matrix(underlying.Matrix):
         ]
         return pcvl.PostSelect(" & ".join(post_str))
 
-    def _umatrix_is_is_unitary(self) -> bool:
+    def _umatrix_is_unitary(self) -> bool:
         m = self.umatrix.array
         return np.allclose(np.eye(m.shape[0]), m.dot(m.conj().T))
 
