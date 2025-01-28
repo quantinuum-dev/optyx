@@ -219,6 +219,34 @@ class Spider(optyx.Spider, Box):
         return type(self)(len(self.cod), len(self.dom), self.phase)
 
 
+class ZBox(Spider):
+    """Z box."""
+
+    tikzstyle_name = "ZBox"
+
+    def conjugate(self):
+        return Z(self.n_legs_in, self.n_legs_out, np.conjugate(self.phase))
+
+    def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
+        return zw.ZBox(
+            self.n_legs_in, self.n_legs_out, [1, self.phase]
+        ).truncation([2] * self.n_legs_in)
+
+    @property
+    def array(self):
+
+        return_array = np.zeros(
+            (2**self.n_legs_out, 2**self.n_legs_in), dtype=complex
+        )
+
+        return_array[0, 0] = 1
+        return_array[
+            2**self.n_legs_out - 1, 2**self.n_legs_in - 1
+        ] = self.phase
+
+        return return_array
+
+
 class Z(Spider):
     """Z spider."""
 
@@ -228,10 +256,9 @@ class Z(Spider):
         return Z(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
-        return zw.Z(
-            [1, np.exp(1j * self.phase * 2 * np.pi)],
-            self.n_legs_in,
-            self.n_legs_out,
+        return zw.ZBox(
+            self.n_legs_in, self.n_legs_out,
+            [1, np.exp(1j * self.phase * 2 * np.pi)]
         ).truncation([2] * self.n_legs_in)
 
     @property
