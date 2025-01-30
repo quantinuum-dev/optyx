@@ -225,7 +225,7 @@ class ZBox(Spider):
     tikzstyle_name = "ZBox"
 
     def conjugate(self):
-        return Z(self.n_legs_in, self.n_legs_out, np.conjugate(self.phase))
+        return ZBox(self.n_legs_in, self.n_legs_out, np.conjugate(self.phase))
 
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
         return zw.ZBox(
