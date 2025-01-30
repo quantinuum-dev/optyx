@@ -143,9 +143,9 @@ Let's check the branching law from [FC23]_.
 The :code:`to_tensor` method supports evaluation of
 diagrams like the Hong-Ou-Mandel effect:
 
->>> from optyx.zw import Z, SWAP, W, Select, Id
->>> Zb_i = Z(np.array([1, 1j/(np.sqrt(2))]), 1, 1)
->>> Zb_1 = Z(np.array([1, 1/(np.sqrt(2))]), 1, 1)
+>>> from optyx.zw import ZBox, SWAP, W, Select, Id
+>>> Zb_i = ZBox(1,1,np.array([1, 1j/(np.sqrt(2))]))
+>>> Zb_1 = ZBox(1,1,np.array([1, 1/(np.sqrt(2))]))
 >>> beam_splitter = W(2) @ W(2) >> \\
 ...               Zb_i @ Zb_1 @ Zb_1 @ Zb_i >> \\
 ...               Id(1) @ SWAP @ Id(1) >> \\
@@ -825,9 +825,9 @@ class Scalar(Box):
         return Scalar(self.scalar.conjugate())
 
     def to_zw(self):
-        from optyx.zw import Z
+        from optyx.zw import ZBox
 
-        return Z(self.array, 0, 0)
+        return ZBox(0, 0, self.array)
 
     def subs(self, *args):
         data = rsubs(self.scalar, *args)

@@ -49,17 +49,15 @@ def test_spider_fusion(
     max_dim: int
 ):
 
-    S1_infty_l = Z(fs, legs_a_in, legs_a_out + legs_between) @ Id(legs_b_in)
+    S1_infty_l = ZBox(legs_a_in, legs_a_out + legs_between, fs) @ Id(legs_b_in)
 
     S1_infty_l = S1_infty_l >> Id(legs_a_out + legs_between + legs_b_in)
 
-    S1_infty_l = S1_infty_l >> Id(legs_a_out) @ Z(
-        fs, legs_b_in + legs_between, legs_b_out
-    )
+    S1_infty_l = S1_infty_l >> Id(legs_a_out) @ ZBox(legs_b_in + legs_between, legs_b_out, fs)
 
     fn_mult = lambda i: fs(i) * fs(i)
 
-    S1_infty_r = Z(fn_mult, legs_a_in + legs_b_in, legs_a_out + legs_b_out)
+    S1_infty_r = ZBox(legs_a_in + legs_b_in, legs_a_out + legs_b_out, fn_mult)
 
     assert compare_arrays_of_different_sizes(
         S1_infty_l.to_tensor(max_dim = max_dim).eval().array,
@@ -69,8 +67,8 @@ def test_spider_fusion(
 
 @pytest.mark.parametrize("legs", range(1, 5))
 def test_Z_conj(legs: int):
-    Z_conj_l = Z(lambda i: 1j, legs, legs).dagger()
-    Z_conj_r = Z(lambda i: -1j, legs, legs)
+    Z_conj_l = ZBox(legs, legs, lambda i: 1j).dagger()
+    Z_conj_r = ZBox(legs, legs, lambda i: -1j)
 
     assert compare_arrays_of_different_sizes(
         Z_conj_l.to_tensor().eval().array,
@@ -163,16 +161,16 @@ def test_permutation_path_dagger():
 
 @pytest.mark.parametrize("legs", range(1, 4))
 def test_Z_eq_IndexableAmplitudes(legs: int):
-    Z_l = Z(lambda i: 1, legs, legs)
-    Z_r = Z(lambda i: 1, legs, legs).dagger()
+    Z_l = ZBox(legs, legs, lambda i: 1)
+    Z_r = ZBox(legs, legs, lambda i: 1).dagger()
 
     assert Z_l == Z_r
 
 
 @pytest.mark.parametrize("legs", range(1, 4))
 def test_Z_eq(legs: int):
-    Z_l = Z([1, 1], legs, legs)
-    Z_r = Z([1, 1], legs, legs).dagger()
+    Z_l = ZBox(legs, legs, [1, 1])
+    Z_r = ZBox(legs, legs, [1, 1]).dagger()
 
     assert Z_l == Z_r
 
@@ -219,12 +217,12 @@ def test_bZBA(max_dim):
     frac_N = [float(1 / np.sqrt(factorial(i))) for i in range(5)]
 
     bZBA_l = (
-        Z(N, 1, 2) @ Z(N, 1, 2)
-        >> Id(1) @ Swap(mode, mode) @ Id(1)
-        >> W(2).dagger() @ W(2).dagger()
-        >> Id(1) @ Z(frac_N, 1, 1)
+            ZBox(1, 2, N) @ ZBox(1, 2, N)
+            >> Id(1) @ Swap(mode, mode) @ Id(1)
+            >> W(2).dagger() @ W(2).dagger()
+            >> Id(1) @ ZBox(1, 1, frac_N)
     )
-    bZBA_r = W(2).dagger() >> Z(lambda i: 1, 1, 2)
+    bZBA_r = W(2).dagger() >> ZBox(1, 2, lambda i: 1)
 
     assert compare_arrays_of_different_sizes(
         bZBA_l.to_tensor(max_dim=max_dim).eval().array,
@@ -239,11 +237,11 @@ def test_bZBA_optyx_Spider(max_dim):
     frac_N = [float(1 / np.sqrt(factorial(i))) for i in range(5)]
 
     bZBA_l = (
-        Z(N, 1, 1) @ Z(N, 1, 1)
-        >> optyx.Spider(1, 2, optyx.Mode(1)) @ optyx.Spider(1, 2, optyx.Mode(1))
-        >> Id(1) @ Swap(mode, mode) @ Id(1)
-        >> W(2).dagger() @ W(2).dagger()
-        >> Id(1) @ Z(frac_N, 1, 1)
+            ZBox(1, 1, N) @ ZBox(1, 1, N)
+            >> optyx.Spider(1, 2, optyx.Mode(1)) @ optyx.Spider(1, 2, optyx.Mode(1))
+            >> Id(1) @ Swap(mode, mode) @ Id(1)
+            >> W(2).dagger() @ W(2).dagger()
+            >> Id(1) @ ZBox(1, 1, frac_N)
     )
     bZBA_r = W(2).dagger() >> optyx.Spider(1, 2, optyx.Mode(1))
 
@@ -253,7 +251,7 @@ def test_bZBA_optyx_Spider(max_dim):
     )
 
 def test_K0_infty():
-    K0_infty_l = Create(4) >> Z(lambda i: 1, 1, 2)
+    K0_infty_l = Create(4) >> ZBox(1, 2, lambda i: 1)
     K0_infty_r = Create(4) @ Create(4)
 
     assert compare_arrays_of_different_sizes(
@@ -263,8 +261,8 @@ def test_K0_infty():
 
 
 def test_scalar():
-    scalar_l = Create(1) >> Z([1, 2], 1, 1) >> Select(1)
-    scalar_r = Z([2], 0, 0)
+    scalar_l = Create(1) >> ZBox(1, 1, [1, 2]) >> Select(1)
+    scalar_r = ZBox(0, 0, [2])
 
     assert compare_arrays_of_different_sizes(
         scalar_l.to_tensor().eval().array,
@@ -273,8 +271,8 @@ def test_scalar():
 
 
 def test_scalar_with_IndexableAmplitudes():
-    scalar_l = Create(1) >> Z(lambda i: i, 1, 1) >> Select(1)
-    scalar_r = Z(lambda i: i + 1, 0, 0)
+    scalar_l = Create(1) >> ZBox(1, 1, lambda i: i) >> Select(1)
+    scalar_r = ZBox(0, 0, lambda i: i + 1)
 
     assert compare_arrays_of_different_sizes(
         scalar_l.to_tensor().eval().array,
@@ -304,7 +302,7 @@ def test_branching():
 def test_normalisation(k: int):
     from math import factorial
 
-    normalisation_l = Create(k) @ Z([np.sqrt(factorial(k))], 0, 0)
+    normalisation_l = Create(k) @ ZBox(0, 0, [np.sqrt(factorial(k))])
 
     normalisation_r = Id(0)
     for _ in range(k):
@@ -324,8 +322,8 @@ def test_normalisation(k: int):
 @pytest.mark.parametrize("k", [1, 2, 3, 4, 10])
 def test_lemma_B6(k: int):
 
-    lemma_B6_l = Create(k) >> Z(lambda i: i + 1, 1, 1)
-    lemma_B6_r = Create(k) @ Z([k + 1], 0, 0)
+    lemma_B6_l = Create(k) >> ZBox(1, 1, lambda i: i + 1)
+    lemma_B6_r = Create(k) @ ZBox(0, 0, [k + 1])
 
     assert compare_arrays_of_different_sizes(
         lemma_B6_l.to_tensor().eval().array,
@@ -363,13 +361,13 @@ def test_calculate_num_creations_selections():
 @pytest.mark.parametrize("max_dim", [None, 2, 4, 6])
 def test_lemma_B8(max_dim):
     lemma_B8_l = (
-        Create(1)
-        >> Z([1, 1], 1, 2)
-        >> W(2) @ W(2)
-        >> Id(1) @ Z([1, 1], 2, 0) @ Id(1)
+            Create(1)
+            >> ZBox(1, 2, [1, 1])
+            >> W(2) @ W(2)
+            >> Id(1) @ ZBox(2, 0, [1, 1]) @ Id(1)
     )
 
-    lemma_B8_r = Create(1) >> W(2) >> Z([1, 1], 1, 2) @ Z([1, 1], 1, 0)
+    lemma_B8_r = Create(1) >> W(2) >> ZBox(1, 2, [1, 1]) @ ZBox(1, 0, [1, 1])
 
     assert compare_arrays_of_different_sizes(
         lemma_B8_l.to_tensor(max_dim=max_dim).eval().array,
@@ -379,13 +377,13 @@ def test_lemma_B8(max_dim):
 
 @pytest.mark.parametrize("max_dim", [None, 2, 4, 6])
 def test_lemma_B7(max_dim):
-    lemma_B7_l = Id(1) @ W(2).dagger() >> Z(lambda i: 1, 2, 0)
+    lemma_B7_l = Id(1) @ W(2).dagger() >> ZBox(2, 0, lambda i: 1)
 
     lemma_B7_r = (
-        W(2) @ Id(2)
-        >> Id(1) @ Id(1) @ Swap(mode, mode)
-        >> Id(1) @ Swap(mode, mode) @ Id(1)
-        >> Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0)
+            W(2) @ Id(2)
+            >> Id(1) @ Id(1) @ Swap(mode, mode)
+            >> Id(1) @ Swap(mode, mode) @ Id(1)
+            >> ZBox(2, 0, lambda i: 1) @ ZBox(2, 0, lambda i: 1)
     )
 
     assert compare_arrays_of_different_sizes(
@@ -397,20 +395,20 @@ def test_lemma_B7(max_dim):
 @pytest.mark.parametrize("max_dim", [None, 3, 4, 6])
 def test_prop_54(max_dim):
     prop_54_l = (
-        Create(1) @ Id(1)
-        >> Z(lambda i: 1, 1, 2) @ Id(1)
-        >> Id(1) @ W(2).dagger()
-        >> Id(1) @ W(2)
-        >> Z(lambda i: 1, 2, 0) @ Id(1)
+            Create(1) @ Id(1)
+            >> ZBox(1, 2, lambda i: 1) @ Id(1)
+            >> Id(1) @ W(2).dagger()
+            >> Id(1) @ W(2)
+            >> ZBox(2, 0, lambda i: 1) @ Id(1)
     )
 
     prop_54_r = (
-        Create(1) @ Id(1)
-        >> Z(lambda i: 1, 1, 2) @ Id(1)
-        >> Swap(mode, mode) @ Id(1)
-        >> W(2) @ W(2) @ W(2)
-        >> Id(1) @ Z(lambda i: 1, 2, 0) @ Z(lambda i: 1, 2, 0) @ Id(1)
-        >> W(2).dagger()
+            Create(1) @ Id(1)
+            >> ZBox(1, 2, lambda i: 1) @ Id(1)
+            >> Swap(mode, mode) @ Id(1)
+            >> W(2) @ W(2) @ W(2)
+            >> Id(1) @ ZBox(2, 0, lambda i: 1) @ ZBox(2, 0, lambda i: 1) @ Id(1)
+            >> W(2).dagger()
     )
 
     assert compare_arrays_of_different_sizes(
@@ -433,8 +431,8 @@ def test_hom(postselect_and_prob: list):
     select_2 = postselect_and_prob[1]
     prob = postselect_and_prob[2]
 
-    Zb_i = Z(lambda i: (np.sin(0.25 * np.pi) * 1j) ** i, 1, 1)
-    Zb_1 = Z(lambda i: (np.cos(0.25 * np.pi)) ** i, 1, 1)
+    Zb_i = ZBox(1, 1, lambda i: (np.sin(0.25 * np.pi) * 1j) ** i)
+    Zb_1 = ZBox(1, 1, lambda i: (np.cos(0.25 * np.pi)) ** i)
 
     beam_splitter = (
         W(2) @ W(2)
@@ -466,10 +464,11 @@ def test_DR_X_pi():
 
 def test_DR_beamsplitter():
     beam_splitter = (
-        W(2) @ W(2)
-        >> Z(lambda i: ((1/2)**(1/2))**i, 1, 1) @ Z(lambda i: ((1/2)**(1/2))**i, 1, 1) @ Z(lambda i: ((1/2)**(1/2))**i, 1, 1) @ Z(lambda i: (-(1/2)**(1/2))**i, 1, 1)
-        >> Id(1) @ SWAP @ Id(1)
-        >> W(2).dagger() @ W(2).dagger()
+            W(2) @ W(2)
+            >> ZBox(1, 1, lambda i: ((1 / 2) ** (1 / 2)) ** i) @ ZBox(1, 1, lambda i: ((1 / 2) ** (1 / 2)) ** i) @ ZBox(
+        1, 1, lambda i: ((1 / 2) ** (1 / 2)) ** i) @ ZBox(1, 1, lambda i: (-(1 / 2) ** (1 / 2)) ** i)
+            >> Id(1) @ SWAP @ Id(1)
+            >> W(2).dagger() @ W(2).dagger()
     )
 
 
