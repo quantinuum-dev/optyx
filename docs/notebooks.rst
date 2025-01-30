@@ -7,6 +7,7 @@ Here we give examples of using ``optyx``:
 
 .. toctree::
 
+    notebooks/readme.ipynb
     notebooks/optyx-compilation.ipynb
     notebooks/optyx-vqe-experiment.ipynb
     notebooks/bosonic-vqe.ipynb
