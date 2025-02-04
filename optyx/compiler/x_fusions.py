@@ -311,19 +311,17 @@ def photon_bounded_min_trail_decomp_count(g: nx.Graph, photon_length: int) -> in
 
     return num_trails
 
-def reduced_photon_bounded_min_trail_decomp(g: nx.Graph, photon_len: int) -> int:
-    """Returns the number of photons in a fusion network that implements the
-    graph with linear resource states that have a maximum number of photons.
+def reduced_x_fusions(g: nx.Graph) -> nx.Graph:
+    """Returns a graph which has been reduced into an equivalent graph which
+    hopefully can be implemented with an X fusion network with fewer fusions
 
     :param g: input graph
-    :param photon_len: maximum number of photons in each linear resource state
     """
 
-    g, lcs = local_comp_reduction(g, loss)
-    g, _ = complement_triangles(g, triangle_complement_condition)
-    count = photon_bounded_min_trail_decomp_count(g, photon_len)
+    h, lcs = local_comp_reduction(g.copy(), loss)
+    h, _ = complement_triangles(h, triangle_complement_condition)
 
-    return count
+    return h
 
 
 def compute_photons(trails: list[list[int]], trail_index: int) -> int:

@@ -259,20 +259,18 @@ def is_trail_cover(g: nx.Graph, trails: list[list[int]]) -> bool:
 
     return True
 
-def reduced_photon_bounded_trail_cover_count(g: nx.Graph, photon_len: int) -> int:
-    """Returns a the number of photons in a fusion network that implements the
-    graph and where each resource state has a maximum number of photons
+def reduce_xy_fusions(g: nx.Graph) -> nx.Graph:
+    """Returns a reduced graph which hopefully can be implemented in fewer XY
+    fusions
 
     :param g: input graph
-    :param photon_len: maximum number of photons each linear resource state
     """
 
     # Here we use the same reduction as in the X fusions case.
-    g, lcs = local_comp_reduction(g, loss)
-    g, _ = complement_triangles(g, triangle_complement_condition)
-    count = photon_bounded_trail_cover_count(g.copy(), photon_len)
+    h, lcs = local_comp_reduction(g.copy(), loss)
+    h, _ = complement_triangles(h, triangle_complement_condition)
 
-    return count
+    return h
 
 
 def photon_bounded_trail_cover_count(g: nx.Graph, photon_length: int) -> int:
