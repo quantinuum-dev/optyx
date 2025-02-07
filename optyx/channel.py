@@ -103,7 +103,7 @@ We can construct a lossy optical channel and compute its probabilities:
 from __future__ import annotations
 
 import numpy as np
-from discopy import symmetric, frobenius
+from discopy import symmetric
 from discopy.cat import factory
 from optyx import optyx, zx
 
@@ -282,14 +282,24 @@ class Encode(Channel):
 class BitFlipError(Channel):
 
     def __init__(self, prob):
-        x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob)) @ zx.Scalar(np.sqrt(prob * 2))
-        super().__init__(name=f'BitFlipError({prob})', kraus=x_error, dom=qubit, cod=qubit, env=optyx.bit)
+        x_error = (
+                zx.X(1, 2) >> zx.Id(1)
+                @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
+                @ zx.Scalar(np.sqrt(prob * 2))
+        )
+        super().__init__(name=f'BitFlipError({prob})',
+                         kraus=x_error, dom=qubit, cod=qubit, env=optyx.bit)
 
 
 class DephasingError(Channel):
     def __init__(self, prob):
-        z_error = zx.H >> zx.X(1, 2) >> zx.H @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob)) @ zx.Scalar(np.sqrt(prob * 2))
-        super().__init__(name=f'DephasingError({prob})', kraus=z_error, dom=qubit, cod=qubit, env=optyx.bit)
+        z_error = (
+                zx.H >> zx.X(1, 2)
+                >> zx.H @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
+                @ zx.Scalar(np.sqrt(prob * 2))
+        )
+        super().__init__(name=f'DephasingError({prob})',
+                         kraus=z_error, dom=qubit, cod=qubit, env=optyx.bit)
 
 
 class Discard(Channel):
@@ -302,5 +312,6 @@ class Discard(Channel):
         env = dom.single()
         kraus = optyx.Id(dom.single())
         super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
+
 
 Circuit.braid_factory = Swap
