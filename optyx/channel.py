@@ -103,7 +103,7 @@ We can construct a lossy optical channel and compute its probabilities:
 from __future__ import annotations
 
 import numpy as np
-from discopy import symmetric
+from discopy import symmetric, frobenius
 from discopy.cat import factory
 from optyx import optyx, zx
 
@@ -247,6 +247,9 @@ class DensityMatrix(symmetric.Box, Circuit):
         return self.density_matrix
 
 
+class Swap(symmetric.Swap, Channel):
+    pass
+
 
 class Measure(Channel):
     """ Measuring a qubit or qmode corresponds to
@@ -299,3 +302,5 @@ class Discard(Channel):
         env = dom.single()
         kraus = optyx.Id(dom.single())
         super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
+
+Circuit.braid_factory = Swap
