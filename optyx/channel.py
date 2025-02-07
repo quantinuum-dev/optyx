@@ -230,6 +230,24 @@ class Channel(symmetric.Box, Circuit):
         return top >> self.kraus @ self.kraus.conjugate() >> bot
 
 
+class DensityMatrix(symmetric.Box, Circuit):
+    """
+    Channel initialised by its Density matrix.
+    """
+
+    def __init__(self, name, density_matrix, dom, cod):
+        assert isinstance(density_matrix, optyx.Diagram)
+        assert density_matrix.dom == dom.double()
+        assert density_matrix.cod == cod.double()
+
+        self.density_matrix = density_matrix
+        super().__init__(name, dom, cod)
+
+    def double(self):
+        return self.density_matrix
+
+
+
 class Measure(Channel):
     """ Measuring a qubit or qmode corresponds to
     applying a 2 -> 1 spider in the doubled picture.
