@@ -864,7 +864,7 @@ class DualRail(Box):
     """
 
     def __init__(self, is_dagger=False):
-        dom = Mode(2) if is_dagger else Bit(1) 
+        dom = Mode(2) if is_dagger else Bit(1)
         cod = Bit(1) if is_dagger else Mode(2)
         self.is_dagger = is_dagger
         super().__init__("2R", dom, cod)
@@ -883,8 +883,8 @@ class DualRail(Box):
         array[0, 1, 0] = 1
         array[1, 0, 1] = 1
         if self.is_dagger:
-            return tensor.Box(self.name, Dim(2), 
-                              Dim(*[int(i) for i in input_dims]), 
+            return tensor.Box(self.name, Dim(2),
+                              Dim(*[int(i) for i in input_dims]),
                               array).dagger()
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 
