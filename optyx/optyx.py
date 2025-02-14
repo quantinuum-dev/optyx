@@ -894,7 +894,7 @@ class DualRail(Box):
 
     def to_zw(self):
         return self
-    
+
     def dagger(self) -> Diagram:
         return DualRail(not self.is_dagger)
 

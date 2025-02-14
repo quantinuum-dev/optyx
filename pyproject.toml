@@ -31,7 +31,7 @@ dependencies = [
   "sympy",
   "perceval-quandela >= 0.10.2",
   "networkx >= 3.2",
-  "graphix >= 0.2.11",
+  "graphix == 0.2.16",
 ]
 
 [project.optional-dependencies]
