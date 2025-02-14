@@ -863,9 +863,10 @@ class DualRail(Box):
     A map from :code:`Bit` to :code:`Mode` using the dual rail encoding.
     """
 
-    def __init__(self):
-        dom = Bit(1)
-        cod = Mode(2)
+    def __init__(self, is_dagger=False):
+        dom = Mode(2) if is_dagger else Bit(1) 
+        cod = Bit(1) if is_dagger else Mode(2)
+        self.is_dagger = is_dagger
         super().__init__("2R", dom, cod)
 
     def conjugate(self):
@@ -875,17 +876,27 @@ class DualRail(Box):
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """:class:`tensor.Box` for the dual rail encoding."""
-        array = np.zeros((2, 2, 2), dtype=complex)
+        if self.is_dagger:
+            array = np.zeros((2, input_dims[0], input_dims[1]), dtype=complex)
+        else:
+            array = np.zeros((2, 2, 2), dtype=complex)
         array[0, 1, 0] = 1
         array[1, 0, 1] = 1
+        if self.is_dagger:
+            return tensor.Box(self.name, Dim(2), Dim(*[int(i) for i in input_dims]), array).dagger()
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions"""
+        if self.is_dagger:
+            return [2]
         return [2, 2]
 
     def to_zw(self):
         return self
+    
+    def dagger(self) -> Diagram:
+        return DualRail(not self.is_dagger)
 
 
 class EmbeddingTensor(tensor.Box):
