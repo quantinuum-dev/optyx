@@ -883,7 +883,9 @@ class DualRail(Box):
         array[0, 1, 0] = 1
         array[1, 0, 1] = 1
         if self.is_dagger:
-            return tensor.Box(self.name, Dim(2), Dim(*[int(i) for i in input_dims]), array).dagger()
+            return tensor.Box(self.name, Dim(2), 
+                              Dim(*[int(i) for i in input_dims]), 
+                              array).dagger()
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
