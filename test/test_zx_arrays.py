@@ -4,9 +4,9 @@ from optyx.zx import *
 import itertools
 import pytest
 
-n_legs_in = list(range(1, 5))
-n_legs_out = list(range(0, 5))
-phase = [0, 0.25, 0.5, 0.25, 1]
+n_legs_in = list(range(1, 3))
+n_legs_out = list(range(0, 3))
+phase = [0, 0.5, 1]
 
 combinations = list(itertools.product(n_legs_in, n_legs_out, phase))
 

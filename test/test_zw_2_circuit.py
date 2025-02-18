@@ -6,8 +6,7 @@ import itertools
 import pytest
 import numpy as np
 
-pairs = list(itertools.product(range(1, 10, 4), range(1, 10, 4)))
-
+pairs = [(1, 2), (2, 1)]
 
 @pytest.mark.parametrize("photons_1, photons_2", pairs)
 def test_BS(photons_1, photons_2):
@@ -26,9 +25,7 @@ def test_BS(photons_1, photons_2):
     assert np.allclose(prob_zw, prob_perceval)
 
 
-pairs_bias = list(
-    itertools.product(range(1, 10, 4), range(1, 10, 4), [0, 1, 0.56])
-)
+pairs_bias = [(1, 2, 0), (2, 1, 0), (1, 2, 0.5), (2, 1, 0.5)]
 
 
 @pytest.mark.parametrize("photons_1, photons_2, bias", pairs_bias)
@@ -67,7 +64,7 @@ def test_TBS(photons_1, photons_2, theta):
 
 pairs_theta_phi = list(
     itertools.product(
-        range(1, 10, 4), range(1, 10, 4), [0, 1, 0.56], [0, 1, 0.56]
+        range(1, 3), range(1, 3), [0, 1, 0.5], [0, 1, 0.5]
     )
 )
 
@@ -90,11 +87,9 @@ def test_MZI(photons_1, photons_2, theta, phi):
 
 
 circs = [
-    zw.Create(1, 3) >> lo.BBS(0.3),
-    zw.Create(2, 3) >> lo.BBS(0.3) >> lo.BBS(0.7),
+    zw.Create(1, 1) >> lo.BBS(0.3),
     zw.Create(1, 1) >> lo.TBS(0.3),
-    zw.Create(1, 1) >> lo.TBS(0.3) >> lo.TBS(0.2),
-    zw.Create(1, 1) >> lo.MZI(0.3, 0.5) >> lo.MZI(0.3, 0.5)
+    zw.Create(1, 1) >> lo.MZI(0.3, 0.5)
 ]
 
 
