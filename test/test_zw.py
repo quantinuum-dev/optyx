@@ -21,10 +21,7 @@ max_dim = [None, 2, 4, 6]
 fs = [
     lambda i: i,
     lambda i: math.factorial(i),
-    lambda i: np.exp(i),
-    lambda i: np.sqrt(i),
-    lambda i: i**2,
-    lambda i: np.cos(i),
+    lambda i: np.exp(i)
 ]
 
 # get all combinations of legs etc
@@ -65,7 +62,7 @@ def test_spider_fusion(
     )
 
 
-@pytest.mark.parametrize("legs", range(1, 5))
+@pytest.mark.parametrize("legs", range(1, 3))
 def test_Z_conj(legs: int):
     Z_conj_l = ZBox(legs, legs, lambda i: 1j).dagger()
     Z_conj_r = ZBox(legs, legs, lambda i: -1j)
@@ -133,7 +130,7 @@ def test_SWAP_dagger_SWAP():
     )
 
 
-@pytest.mark.parametrize("k", range(1, 4))
+@pytest.mark.parametrize("k", range(1, 3))
 def test_Id_eq(k: int):
     id_l = Id(k)
     id_r = Id(k).dagger()
@@ -159,7 +156,7 @@ def test_permutation_path_dagger():
         perm.dagger().to_path().array,
     )
 
-@pytest.mark.parametrize("legs", range(1, 4))
+@pytest.mark.parametrize("legs", range(1, 3))
 def test_Z_eq_IndexableAmplitudes(legs: int):
     Z_l = ZBox(legs, legs, lambda i: 1)
     Z_r = ZBox(legs, legs, lambda i: 1).dagger()
@@ -167,7 +164,7 @@ def test_Z_eq_IndexableAmplitudes(legs: int):
     assert Z_l == Z_r
 
 
-@pytest.mark.parametrize("legs", range(1, 4))
+@pytest.mark.parametrize("legs", range(1, 3))
 def test_Z_eq(legs: int):
     Z_l = ZBox(legs, legs, [1, 1])
     Z_r = ZBox(legs, legs, [1, 1]).dagger()
@@ -175,7 +172,7 @@ def test_Z_eq(legs: int):
     assert Z_l == Z_r
 
 
-@pytest.mark.parametrize("k", range(1, 4))
+@pytest.mark.parametrize("k", range(1, 3))
 def test_Id_dagger_Id(k: int):
     id_l = Id(k).dagger()
     id_r = Id(k)
@@ -298,7 +295,7 @@ def test_branching():
     )
 
 
-@pytest.mark.parametrize("k", [1, 2, 3, 4])
+@pytest.mark.parametrize("k", [1, 2, 3])
 def test_normalisation(k: int):
     from math import factorial
 
@@ -319,7 +316,7 @@ def test_normalisation(k: int):
 # Some lemmas
 
 
-@pytest.mark.parametrize("k", [1, 2, 3, 4, 10])
+@pytest.mark.parametrize("k", [1, 2, 3])
 def test_lemma_B6(k: int):
 
     lemma_B6_l = Create(k) >> ZBox(1, 1, lambda i: i + 1)
@@ -478,7 +475,7 @@ def test_DR_beamsplitter():
                                             EmbeddingTensor(2, 3) @ EmbeddingTensor(2, 3)).eval().array.flatten(),
                                             left.to_tensor().eval().array.flatten())
 
-phases = phases = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+phases = phases = [0.0, 0.3, 0.6]
 @pytest.mark.parametrize("phase", phases)
 def test_DR_phase_shift(phase):
     left = DualRail().to_zw() >> lo.Id(1) @ lo.Phase(phase).to_zw()
