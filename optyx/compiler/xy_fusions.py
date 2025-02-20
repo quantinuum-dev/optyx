@@ -3,7 +3,10 @@
 import math
 import networkx as nx
 
-from optyx.compiler.x_fusions import loss, min_trail_decomp
+from optyx.compiler.x_fusions import (
+        loss, min_trail_decomp,
+compute_photons_with_x_fusions
+)
 from optyx.compiler.mbqc import ProtoFusionNetwork
 from optyx.compiler.graphs import (
     connected_components,
@@ -201,6 +204,16 @@ def num_odd_verts(g: nx.Graph) -> int:
     """Returns the number of odd vertices in a graph"""
     return sum(g.degree(v) % 2 for v in g.nodes())
 
+def find_unbounded_trail_cover(g: nx.Graph) -> list[list[int]]:
+    """Returns a trail cover of the graph.
+
+    Uses a heuristic to attempt to identify opportunities to reduce the number
+    of trails"""
+    _ = remove_hedge_paths(g)
+
+    trails = min_trail_decomp(g)
+
+    return trails
 
 def find_trail_cover(g: nx.Graph, max_len: int, maximal_y_fusions=False) -> list[list[int]]:
     """Returns a trail cover of the graph.
@@ -272,12 +285,20 @@ def reduce_xy_fusions(g: nx.Graph) -> nx.Graph:
 
     return h
 
+def lc_xy(g: nx.Graph) -> nx.Graph:
+    h, lcs = local_comp_reduction(g.copy(), loss)
+    return h
+
+def compliment_triangles_xy(g: nx.Graph) -> nx.Graph:
+    h, _ = complement_triangles(g.copy(), triangle_complement_condition)
+    return h
 
 def photon_bounded_trail_cover_count(g: nx.Graph, photon_length: int) -> int:
     """Compute the number of trails in a trail cover of graph where the number of
     photons in each trail is at most some amount
     """
-    trails = find_trail_cover(g.copy(), photon_length, maximal_y_fusions=False)
+
+    trails = find_unbounded_trail_cover(g.copy())
 
     y_fusions = compute_y_fusions(g, trails)
 
@@ -287,60 +308,27 @@ def photon_bounded_trail_cover_count(g: nx.Graph, photon_length: int) -> int:
         fusion_dict[fusion[0]] = fusion_dict.get(fusion[0], 0) + 1
         fusion_dict[fusion[1]] = fusion_dict.get(fusion[1], 0) + 1
 
+    seen = set()
     num_trails = 0
     for i, trail in enumerate(trails):
         num_photons = compute_photons_with_x_fusions(trails, i)
 
         # Add all the Y fusion photons
         for node in trail:
-            num_photons += fusion_dict.get(node, 0)
+            # If you see a node twice, it means theres an X fusion, so we need
+            # just add the Y fusion photons once. It may be better to load
+            # balance or do something more intelligent, but for now we are just
+            # putting all of them on the first time we encounter a node
+            if node not in seen:
+                num_photons += fusion_dict.get(node, 0)
+                seen.add(node)
 
-        num_trails += math.ceil(float(num_photons - 2)/float(photon_length - 2))
+        if num_photons == 2:
+            num_trails += 1
+        else:
+            num_trails += math.ceil(float(num_photons - 2)/float(photon_length - 2))
 
     return num_trails
-
-def compute_photons_with_x_fusions(trails: list[list[int]], trail_index: int) -> int:
-    """Computes the number of photons in a trail.
-    There is some ambiguity as to which trails the measurement photons in a
-    fusion should live and where the extra fusion photons should live as
-    well.
-
-    Here we have put the measurement photons in the first trail in the
-    decomposition that has the node, and spread the fusion photons evenly. So
-    in an N-way fusion, the first trail has one fusion photon, the next has
-    two, and the next next has two until the last which has one.
-    """
-    # Key is the node and value is the indices of the trails which this node
-    # appears in in ascending order
-    occurances: dict[int, list[int]] = {}
-    for i, t in enumerate(trails):
-        for node in t:
-            trail_order = occurances.get(node, [])
-            trail_order.append(i)
-            occurances[node] = trail_order
-
-    # Find index of trail in the decomposition
-
-    # Start with all the measurement photons
-    num_photons = 0
-    for node in trails[trail_index]:
-        trail_order = occurances[node]
-
-        if trail_order[0] == trail_index:
-            # Add the measurement photon
-            num_photons += 1
-
-        if len(trail_order) == 1:
-            # No fusions here
-            continue
-
-        # Spread the fusion photons evenly across the trails
-        if trail_order[0] == trail_index or trail_order[-1] == trail_index:
-            num_photons += 1
-        else:
-            num_photons += 2
-
-    return num_photons
 
 def compute_y_fusions(g: nx.Graph, tc: list[list[int]]) -> list[tuple[int, int]]:
     edges = list(g.edges())

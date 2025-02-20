@@ -1,5 +1,6 @@
 """Module for reducing Y fusions in MBQC patterns"""
 
+import math
 import networkx as nx
 
 from optyx.compiler.mbqc import ProtoFusionNetwork
@@ -30,6 +31,56 @@ def generate_y_fusion_network(
 
     return ProtoFusionNetwork(g, paths, lcs)
 
+def sort_edges(edge_list: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    return [(a, b) if a < b else (b, a) for a, b in edge_list]
+
+def compute_y_fusions(g: nx.Graph, tc: list[list[int]]) -> list[tuple[int, int]]:
+    edges = list(g.edges())
+
+    edges = sort_edges(edges)
+
+    tc_edges: list[tuple[int, int]] = []
+    for trail in tc:
+        tc_edges.extend(vertices_to_edges(trail))
+    tc_edges = sort_edges(tc_edges)
+
+    edge_set = set(edges)
+    tc_edge_set = set(tc_edges)
+
+    return list(edge_set - tc_edge_set)
+
+def count_paths_in_photon_restricted_network(g: nx.Graph, paths: list[list[int]], photon_length: int) -> int:
+    y_fusions = compute_y_fusions(g, paths)
+
+    # Contains the number of Y fusions a node in involved in
+    fusion_dict: dict[int, int] = {}
+    for fusion in y_fusions:
+        fusion_dict[fusion[0]] = fusion_dict.get(fusion[0], 0) + 1
+        fusion_dict[fusion[1]] = fusion_dict.get(fusion[1], 0) + 1
+
+    num_paths = 0
+    for i, path in enumerate(paths):
+        num_photons = len(path)
+
+        # Add all the Y fusion photons
+        for node in path:
+            num_photons += fusion_dict.get(node, 0)
+
+        if num_photons == 2:
+            num_paths += 1
+        else:
+            num_paths += math.ceil(float(num_photons - 2)/float(photon_length - 2))
+
+    return num_paths
+
+
+def lc_y(g: nx.Graph) -> nx.Graph:
+    g, lcs = local_comp_reduction(g, loss)
+    return g
+
+def complement_triangles_y(g: nx.Graph) -> nx.Graph:
+    g, _ = complement_triangles(g, triangle_complement_condition)
+    return g
 
 def triangle_complement_condition(g: nx.Graph, tri: Triangle) -> bool:
     """Only complement when all vertices has degree greater than three"""
