@@ -864,10 +864,11 @@ class DualRail(Box):
     """
 
     def __init__(self, is_dagger=False):
+        name = "2R dagger" if is_dagger else "2R"
         dom = Mode(2) if is_dagger else Bit(1)
         cod = Bit(1) if is_dagger else Mode(2)
+        super().__init__(name, dom, cod)
         self.is_dagger = is_dagger
-        super().__init__("2R", dom, cod)
 
     def conjugate(self):
         return self
