@@ -102,6 +102,8 @@ We can construct a lossy optical channel and compute its probabilities:
 
 from __future__ import annotations
 
+from typing import Literal
+
 import numpy as np
 from discopy import symmetric
 from discopy.cat import factory
@@ -229,6 +231,11 @@ class Channel(symmetric.Box, Circuit):
         bot = swap_env >> discard >> bot_perm >> bot_spiders
         return top >> self.kraus @ self.kraus.conjugate() >> bot
 
+    def __pow__(self, n):
+        if n == 1:
+            return self
+        return self @ self ** (n - 1)
+
 
 class DensityMatrix(symmetric.Box, Circuit):
     """
@@ -313,5 +320,24 @@ class Discard(Channel):
         kraus = optyx.Id(dom.single())
         super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
 
+
+class Ket(Channel):
+    """Computational basis state for qubits"""
+
+    def __init__(self, value: Literal[0, 1, "+", "-"], cod: Ty = None) -> None:
+        spider = zx.X if value in (0, 1) else zx.Z
+        phase = 0 if value in (0, "+") else 0.5
+        kraus = spider(0, 1, phase) @ optyx.Scalar(1 / np.sqrt(2))
+        super().__init__(f"|{value}>", kraus, cod=cod)
+
+
+class Bra(Channel):
+    """Post-selected measurement for qubits"""
+
+    def __init__(self, value: Literal[0, 1, "+", "-"], dom: Ty = None) -> None:
+        spider = zx.X if value in (0, 1) else zx.Z
+        phase = 0 if value in (0, "+") else 0.5
+        kraus = spider(1, 0, phase) @ optyx.Scalar(1 / np.sqrt(2))
+        super().__init__(f"<{value}|", kraus, dom=dom)
 
 Circuit.braid_factory = Swap

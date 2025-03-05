@@ -592,9 +592,11 @@ class Diagram(frobenius.Diagram):
 class Box(frobenius.Box, Diagram):
     """A box in an optyx diagram"""
 
-    _array = None
-
     __ambiguous_inheritance__ = (frobenius.Box,)
+
+    def __init__(self, name, dom, cod, truncation = None, **params):
+        self._array = truncation
+        super().__init__(name, dom, cod, **params)
 
     def conjugate(self):
         raise NotImplementedError
@@ -609,6 +611,13 @@ class Box(frobenius.Box, Diagram):
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """Create a tensor in the semantics of a ZW diagram"""
+        if self._array is not None:
+            return tensor.Box(
+                self.name,
+                dom=tensor.Dim(2) ** len(self.dom),
+                cod=tensor.Dim(2) ** len(self.cod),
+                data=self._array
+            )
         raise NotImplementedError
 
     @property
@@ -628,6 +637,8 @@ class Box(frobenius.Box, Diagram):
         """Determine the output dimensions based on the input dimensions.
         The generators of ZW affect the dimensions
         of the output tensor diagrams."""
+        if self._array is not None:
+            return input_dims
         raise NotImplementedError
 
     def lambdify(self, *symbols, **kwargs):
@@ -637,6 +648,11 @@ class Box(frobenius.Box, Diagram):
     def subs(self, *args) -> Diagram:
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
+
+    def __pow__(self, n):
+        if n == 1:
+            return self
+        return self @ self ** (n - 1)
 
 
 class Spider(frobenius.Spider, Box):
