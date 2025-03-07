@@ -223,8 +223,8 @@ class Channel(symmetric.Box, Circuit):
         top_perm = optyx.Diagram.permutation(
             get_perm(len(top_spiders.cod)), top_spiders.cod)
         swap_env = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(cod, self.env)
-        discard = optyx.Id(cod) @ \
-                  optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(cod)
+        discard = (optyx.Id(cod) @ optyx.Diagram.spiders(2, 0, self.env)
+                                 @ optyx.Id(cod))
         new_cod = optyx.Ty().tensor(*[ty @ ty for ty in cod])
         bot_perm = optyx.Diagram.permutation(
             get_perm(2 * len(cod)), new_cod).dagger()

@@ -594,8 +594,8 @@ class Box(frobenius.Box, Diagram):
 
     __ambiguous_inheritance__ = (frobenius.Box,)
 
-    def __init__(self, name, dom, cod, truncation = None, **params):
-        self._array = truncation
+    def __init__(self, name, dom, cod, array=None, **params):
+        self._array = array
         super().__init__(name, dom, cod, **params)
 
     def conjugate(self):
