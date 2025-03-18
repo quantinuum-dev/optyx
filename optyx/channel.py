@@ -199,7 +199,7 @@ class Channel(symmetric.Box, Circuit):
         self.env = env
         super().__init__(name, dom, cod)
 
-    def double(self, ):
+    def double(self):
         """
         Returns the :class:`optyx.Diagram` representing
         the action of the channel as a CP map on the doubled space.
@@ -245,7 +245,7 @@ class Channel(symmetric.Box, Circuit):
         )
 
 
-class DensityMatrix(symmetric.Box, Circuit):
+class CQMap(symmetric.Box, Circuit):
     """
     Channel initialised by its Density matrix.
     """
