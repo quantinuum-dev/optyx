@@ -202,8 +202,9 @@ class IndexableAmplitudes:
 
     def conjugate(self):
         """Conjugate the amplitudes"""
-        self.conj = not self.conj
-        return self
+        return IndexableAmplitudes(
+            self.func, conj=not self.conj, name=self.name
+        )
 
     def __eq__(self, other: "IndexableAmplitudes") -> bool:
         if not isinstance(other, IndexableAmplitudes):

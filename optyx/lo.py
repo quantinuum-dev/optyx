@@ -194,11 +194,11 @@ class Gate(Box):
     """
 
     def __init__(self, array, dom: int, cod: int, name: str, is_dagger=False):
-        self.array = array
         super().__init__(
             f"{name}" + ".dagger()" if is_dagger else "",
             Mode(dom),
             Mode(cod),
+            array,
             is_dagger=is_dagger,
         )
 

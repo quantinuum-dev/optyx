@@ -102,9 +102,13 @@ We can construct a lossy optical channel and compute its probabilities:
 
 from __future__ import annotations
 
+from typing import Literal
+
+import numpy as np
 from discopy import symmetric
 from discopy.cat import factory
-from optyx import optyx
+
+from optyx import optyx, zx
 
 
 class Ob(symmetric.Ob):
@@ -200,6 +204,7 @@ class Channel(symmetric.Box, Circuit):
         Returns the :class:`optyx.Diagram` representing
         the action of the channel as a CP map on the doubled space.
         """
+
         def get_spiders(dom):
             spiders = optyx.Id()
             for ob in dom.inside:
@@ -218,8 +223,8 @@ class Channel(symmetric.Box, Circuit):
         top_perm = optyx.Diagram.permutation(
             get_perm(len(top_spiders.cod)), top_spiders.cod)
         swap_env = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(cod, self.env)
-        discard = optyx.Id(cod) @ \
-            optyx.Diagram.spiders(2, 0, self.env) @ optyx.Id(cod)
+        discard = (optyx.Id(cod) @ optyx.Diagram.spiders(2, 0, self.env)
+                                 @ optyx.Id(cod))
         new_cod = optyx.Ty().tensor(*[ty @ ty for ty in cod])
         bot_perm = optyx.Diagram.permutation(
             get_perm(2 * len(cod)), new_cod).dagger()
@@ -227,6 +232,39 @@ class Channel(symmetric.Box, Circuit):
         top = top_spiders >> top_perm
         bot = swap_env >> discard >> bot_perm >> bot_spiders
         return top >> self.kraus @ self.kraus.conjugate() >> bot
+
+    def __pow__(self, n):
+        if n == 1:
+            return self
+        return self @ self ** (n - 1)
+
+    def dagger(self):
+        return Channel(
+            name=self.name + ".dagger()", kraus=self.kraus.dagger(),
+            dom=self.cod, cod=self.dom
+        )
+
+
+class CQMap(symmetric.Box, Circuit):
+    """
+    Channel initialised by its Density matrix.
+    """
+
+    def __init__(self, name, density_matrix, dom, cod):
+        assert isinstance(density_matrix, optyx.Diagram)
+        assert density_matrix.dom == dom.double()
+        assert density_matrix.cod == cod.double()
+
+        self.density_matrix = density_matrix
+        super().__init__(name, dom, cod)
+
+    def double(self):
+        return self.density_matrix
+
+
+class Swap(symmetric.Swap, Channel):
+    def dagger(self):
+        return self
 
 
 class Measure(Channel):
@@ -238,6 +276,7 @@ class Measure(Channel):
     bit @ bit @ mode @ mode
     >>> assert Measure(dom).double().cod == dom.single()
     """
+
     def __init__(self, dom):
         cod = Ty(*[Ob._classical[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
@@ -251,10 +290,40 @@ class Encode(Channel):
     >>> dom = qubit @ bit @ qmode @ mode
     >>> assert len(Encode(dom).double().cod) == 8
     """
+
     def __init__(self, dom):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
         super().__init__(name='Encode', kraus=kraus, dom=dom, cod=cod)
+
+
+class BitFlipError(Channel):
+
+    def __init__(self, prob):
+        x_error = (
+                zx.X(1, 2) >> zx.Id(1)
+                @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
+                @ zx.Scalar(np.sqrt(prob * 2))
+        )
+        super().__init__(name=f'BitFlipError({prob})',
+                         kraus=x_error, dom=qubit, cod=qubit, env=optyx.bit)
+
+    def dagger(self):
+        return self
+
+
+class DephasingError(Channel):
+    def __init__(self, prob):
+        z_error = (
+                zx.H >> zx.X(1, 2)
+                >> zx.H @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
+                @ zx.Scalar(np.sqrt(prob * 2))
+        )
+        super().__init__(name=f'DephasingError({prob})',
+                         kraus=z_error, dom=qubit, cod=qubit, env=optyx.bit)
+
+    def dagger(self):
+        return self
 
 
 class Discard(Channel):
@@ -263,7 +332,31 @@ class Discard(Channel):
 
     >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
     """
+
     def __init__(self, dom):
         env = dom.single()
         kraus = optyx.Id(dom.single())
         super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
+
+
+class Ket(Channel):
+    """Computational basis state for qubits"""
+
+    def __init__(self, value: Literal[0, 1, "+", "-"], cod: Ty = None) -> None:
+        spider = zx.X if value in (0, 1) else zx.Z
+        phase = 0 if value in (0, "+") else 0.5
+        kraus = spider(0, 1, phase) @ optyx.Scalar(1 / np.sqrt(2))
+        super().__init__(f"|{value}>", kraus, cod=cod)
+
+
+class Bra(Channel):
+    """Post-selected measurement for qubits"""
+
+    def __init__(self, value: Literal[0, 1, "+", "-"], dom: Ty = None) -> None:
+        spider = zx.X if value in (0, 1) else zx.Z
+        phase = 0 if value in (0, "+") else 0.5
+        kraus = spider(1, 0, phase) @ optyx.Scalar(1 / np.sqrt(2))
+        super().__init__(f"<{value}|", kraus, dom=dom)
+
+
+Circuit.braid_factory = Swap
