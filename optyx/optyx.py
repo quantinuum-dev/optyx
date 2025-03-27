@@ -917,6 +917,44 @@ class DualRail(Box):
         return DualRail(not self.is_dagger)
 
 
+class PhotonThresholdDetector(Box):
+    """
+    Non-photon resolving detector from mode to bit.
+    Detects whether one or more photons are present.
+    """
+
+    def __init__(self, is_dagger=False):
+        if is_dagger:
+            super().__init__("PTD dagger", Bit(1), Mode(1))
+        else:
+            super().__init__("PTD", Mode(1), Bit(1))
+        self.is_dagger = is_dagger
+
+    def to_zw(self):
+        return self
+
+    def truncation(self, input_dims = None, output_dims = None):
+        if self.is_dagger:
+            array = np.zeros((2, 2), dtype=complex)
+        else:
+            array = np.zeros((input_dims[0], 2), dtype=complex)
+        array[0, 0] = 1
+        array[1:input_dims[0], 1] = 1
+        if self.is_dagger:
+            return tensor.Box(self.name, Dim(2), Dim(2), array).dagger()
+
+        return tensor.Box(self.name, Dim(int(input_dims[0])), Dim(2), array)
+
+    def determine_output_dimensions(self, input_dims):
+        return [2]*len(input_dims)
+
+    def conjugate(self):
+        return self
+
+    def dagger(self):
+        return PhotonThresholdDetector(not self.is_dagger)
+
+
 class EmbeddingTensor(tensor.Box):
     """
     Embedding tensor for fixing the dimensions of the output tensor.
