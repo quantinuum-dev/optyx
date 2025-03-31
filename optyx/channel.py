@@ -261,6 +261,12 @@ class CQMap(symmetric.Box, Circuit):
     def double(self):
         return self.density_matrix
 
+    def dagger(self):
+        return CQMap(
+            name=self.name + ".dagger()", density_matrix=self.density_matrix.dagger(),
+            dom=self.cod, cod=self.dom
+        )
+
 
 class Swap(symmetric.Swap, Channel):
     def dagger(self):

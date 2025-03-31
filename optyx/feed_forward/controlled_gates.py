@@ -1,48 +1,12 @@
-# channels
-# detectors
-    # photon threshold detectors (qmode -> bit)
-    # photon number resolving detectors (qmode -> mode)
-    # dual rail postselections
-    # fusion measurements (made of the above)
-# classically controlled gates
-#  three classes taking any (suitable) gates as inputs and returning a new controlled gate:
-    # classically controlled gates are gates that are controlled by classical bits
-    # classically controlled gates with continuous parameters
-    # classically controlled gates with discrete parameters
-# classical functions on the outputs of detectors
-#  input are the functions between natural numbers, bits and real numbers
-    # to be used as an input to classically controlled gates
-from optyx.Channel import Channel, Measure, bit
-from optyx.optyx import PhotonThresholdDetector, Box, Id, bit, EmbeddingTensor
-from discopy import tensor, Dim
+from optyx.optyx import (
+    Box,
+    Id,
+    Bit,
+    EmbeddingTensor
+)
+from discopy import tensor
+from discopy.frobenius import Dim
 import numpy as np
-
-class PhotonThresholdMeasurement(Channel):
-    """
-    Ideal non-photon resolving detector from qmode to bit.
-    Detects whether one or more photons are present.
-    """
-
-    def __init__(self):
-        super().__init__("PhotonThresholdMeasurement",
-                         PhotonThresholdDetector(), cod=bit)
-
-
-#Ideal photon number resolving detector from qmode to mode.
-NumberResolvingMeasurement = Measure
-
-
-def truncation_tensor(input_dims, output_dims):
-
-    assert len(input_dims) == len(output_dims), \
-        "input_dims and output_dims must have the same length"
-
-    tensor = EmbeddingTensor(input_dims[0], output_dims[0])
-
-    for i in zip(input_dims[1:], output_dims[1:]):
-
-        tensor = tensor @ EmbeddingTensor(i[0], i[1])
-    return tensor
 
 class BinaryControlledBox(Box):
     """
@@ -61,7 +25,7 @@ class BinaryControlledBox(Box):
         assert (len(action_box.dom) == len(action_box.cod)), \
             "action_box must have the same number of inputs and outputs"
 
-        dom = bit @ action_box.dom
+        dom = Bit(1) @ action_box.dom
         cod = action_box.cod
 
         if hasattr(action_box, "name"):
@@ -121,3 +85,16 @@ class BinaryControlledBox(Box):
         return BinaryControlledBox(self.action_box.dagger(),
                                    self.default_box.dagger(),
                                    not self.is_dagger)
+
+
+def truncation_tensor(input_dims, output_dims):
+
+    assert len(input_dims) == len(output_dims), \
+        "input_dims and output_dims must have the same length"
+
+    tensor = EmbeddingTensor(input_dims[0], output_dims[0])
+
+    for i in zip(input_dims[1:], output_dims[1:]):
+
+        tensor = tensor @ EmbeddingTensor(i[0], i[1])
+    return tensor
