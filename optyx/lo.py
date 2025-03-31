@@ -172,7 +172,7 @@ from optyx.optyx import Mode, Box, Scalar
 from optyx.path import Matrix
 from optyx.zw import ZBox, W, Create, Select, Endo
 from optyx.zw import Split, Merge, Id, SWAP
-
+from optyx.utils import matrix_to_zw
 
 class Gate(Box):
     """
@@ -532,13 +532,22 @@ class MZI(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
+        phase = self.global_phase(dtype=dtype)
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
+
+        exp_sin_ = ZBox(1, 1, lambda i: (sin*exp*phase) ** i)
+        cos_ = ZBox(1, 1, lambda i: (cos*phase) ** i)
+        exp_cos_ = ZBox(1, 1, lambda i: (cos*exp*phase) ** i)
+        minus_sin = ZBox(1, 1,
+            lambda i: (-sin*phase) ** i
+        )
+
         mzi = (
             W(2) @ W(2)
+            >> exp_sin_ @ cos_ @ exp_cos_ @ minus_sin
             >> Id(1) @ SWAP @ Id(1)
-            >> Endo(exp * sin) @ Endo(cos) @ Endo(exp * cos) @ Endo(-sin)
             >> W(2).dagger() @ W(2).dagger()
         )
 
@@ -606,3 +615,10 @@ def ansatz(width, depth):
 
 
 BS = BBS(0)
+
+#an alternative definition of a beam splitter
+BS_matrix_hadamard = np.sqrt(1/2) * np.array([[1, 1], [1, -1]])
+#BS_matrix_hadamard = np.array([[1, 1], [1, -1]])
+BS_hadamard = Box("BS_hadamard", Mode(2), Mode(2))
+BS_hadamard.to_zw = lambda: matrix_to_zw(BS_matrix_hadamard)
+BS_hadamard.conjugate = lambda: BS_hadamard

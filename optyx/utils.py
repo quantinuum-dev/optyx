@@ -10,6 +10,60 @@ Utility functions which are used in the package.
 
 import numpy as np
 
+def _build_w_layer(n_nonzero_counts, dagger=False):
+    from optyx import zw
+    layer = zw.Id(0)
+    for count in n_nonzero_counts:
+        if count > 1:
+            w_gate = zw.W(count)
+            layer @= w_gate.dagger() if dagger else w_gate
+        elif count == 1:
+            layer @= zw.Id(1)
+    return layer
+
+def matrix_to_zw(U):
+    from optyx import zw
+    n = U.shape[0]
+    diagram = zw.Id(0)
+
+    # initial W layer
+    n_cols_nonzero = np.abs(np.sign(U)).sum(axis=1).astype(int)
+    diagram @= _build_w_layer(n_cols_nonzero, dagger=False)
+
+    # endomorphism layer
+    endo_layer = zw.Id(0)
+    rows, cols = np.nonzero(U)
+    for r, c in zip(rows, cols):
+        endo_layer @= zw.Endo(U[r, c])
+
+    diagram >>= endo_layer
+
+    # permutation
+    nonzero_indices = np.nonzero(U)
+    row_indices = nonzero_indices[0]
+    col_indices = nonzero_indices[1]
+    sorted_indices = np.lexsort((row_indices, col_indices))
+    sorted_rows = row_indices[sorted_indices]
+    sorted_cols = col_indices[sorted_indices]
+
+    swap_list = []
+    for r, c in zip(sorted_rows, sorted_cols):
+        swap_list.append(n * r + c)
+
+    n_s_output_flat = np.abs(np.sign(U)).flatten()
+    adjusted_swap_list = []
+    for idx in swap_list:
+        sum_missing = np.abs(np.array(n_s_output_flat)[:idx] - 1).sum()
+        adjusted_swap_list.append(int(idx - sum_missing))
+
+    if adjusted_swap_list:
+        diagram = diagram.permute(*adjusted_swap_list)
+
+    # W-dagger layer
+    n_rows_nonzero = np.abs(np.sign(U)).sum(axis=0).astype(int)
+    diagram >>= _build_w_layer(n_rows_nonzero, dagger=True)
+
+    return diagram
 
 def occupation_numbers(n_photons, m_modes):
     """
