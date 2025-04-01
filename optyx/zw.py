@@ -319,7 +319,7 @@ class ZBox(Spider, Box):
         legs_out: int = 1,
         amplitudes: Union[
             np.ndarray, list, callable, IndexableAmplitudes
-        ] = lambda i: i
+        ] = lambda i: 1
     ):
         # if amplitudes are a function then make it indexable, "conjugable"
         if callable(amplitudes):

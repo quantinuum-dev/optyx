@@ -1,31 +1,33 @@
-from optyx.channel import Channel, CQMap,  Ob, Ty
+from optyx.channel import Channel, CQMap, Ob, Ty
 from optyx.optyx import (
     Box,
     Bit,
     Diagram,
     Swap,
     Mode,
-    Scalar
+    Scalar,
+    Id
 )
 from optyx.zw import W,ZBox
 from optyx.zx import Z, X
+from optyx.feed_forward.controlled_gates import truncation_tensor
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-
+from typing import List, Callable
 
 class ClassicalFunctionBox(Box):
     def __init__(self,
-                 function,
-                 dom,
-                 cod,
-                 is_dagger=False):
+                 function : Callable[[List[int]], List[int]],
+                 dom : Mode | Bit,
+                 cod : Mode | Bit,
+                 is_dagger : bool = False):
 
-        assert cod == Bit(len(cod)), "cod must binary Bit(n)"
-        assert all([d == dom[0] for d in dom]), "dom must be either all Mode(n) or all Bit(n)"
+        #assert cod == Bit(len(cod)), "cod must binary Bit(n)"
+        #assert all([d == dom[0] for d in dom]), "dom must be either all Mode(n) or all Bit(n)"
 
-        dom = cod if is_dagger else dom
-        cod = dom if is_dagger else cod
+        #dom = cod if is_dagger else dom
+        #cod = dom if is_dagger else cod
 
         super().__init__("F", dom, cod)
 
@@ -38,8 +40,12 @@ class ClassicalFunctionBox(Box):
         return self
 
     def truncation(self,
-                   input_dims,
-                   output_dims):
+                   input_dims : List[int],
+                   output_dims : List[int]) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
         array = np.zeros((*input_dims, *output_dims), dtype=complex)
         input_ranges = [range(i) for i in input_dims]
         input_combinations = np.array(
@@ -52,8 +58,8 @@ class ClassicalFunctionBox(Box):
 
         if self.is_dagger:
             return tensor.Box(self.name,
-                              Dim(*output_dims),
                               Dim(*input_dims),
+                              Dim(*output_dims),
                               array).dagger()
 
         return tensor.Box(self.name,
@@ -62,14 +68,14 @@ class ClassicalFunctionBox(Box):
                           array)
 
     def determine_output_dimensions(self,
-                                    input_dims):
+                                    input_dims : List[int]) -> List[int]:
         return [2]*self.output_size
 
     def dagger(self):
         return ClassicalFunctionBox(self.function,
-                                 self.input_size,
-                                 self.output_size,
-                                 not self.is_dagger)
+                                    self.cod,
+                                    self.dom,
+                                    not self.is_dagger)
 
     def conjugate(self):
         return self
@@ -80,13 +86,17 @@ class LogicalMatrixBox(Box):
     Matrix multiplication in GF(2)
     '''
     def __init__(self,
-                 matrix,
-                 is_dagger=False):
+                 matrix : np.ndarray,
+                 is_dagger : bool = False):
+
         if len(matrix.shape) == 1:
             matrix = matrix.reshape(1, -1)
+
         cod = Bit(len(matrix[0])) if is_dagger else Bit(len(matrix))
         dom = Bit(len(matrix)) if is_dagger else Bit(len(matrix[0]))
+
         super().__init__("LogicalMatrix", dom, cod)
+
         self.matrix = matrix
         self.is_dagger = is_dagger
 
@@ -94,8 +104,12 @@ class LogicalMatrixBox(Box):
         return self
 
     def truncation(self,
-                   input_dims,
-                   output_dims):
+                   input_dims : List[int],
+                   output_dims : List[int]) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
         def f(x):
             if len(x.shape) == 1:
                 x = x.reshape(-1, 1)
@@ -103,10 +117,15 @@ class LogicalMatrixBox(Box):
             x = np.array(x, dtype=np.uint8)
 
             return list(((A @ x) % 2).reshape(1, -1)[0])
+
         classical_function = ClassicalFunctionBox(f, self.dom, self.cod)
+
+        if self.is_dagger:
+            return classical_function.truncation(input_dims, output_dims).dagger()
         return classical_function.truncation(input_dims, output_dims)
 
-    def determine_output_dimensions(self, input_dims):
+    def determine_output_dimensions(self,
+                                    input_dims : List[int]) -> List[int]:
         return [2]*len(self.cod)
 
     def dagger(self):
@@ -118,13 +137,74 @@ class LogicalMatrixBox(Box):
 
 class ClassicalCircuitBox(Diagram):
     def __new__(self,
-                diagram):
+                diagram : Diagram) -> Diagram:
         return diagram
 
 
+class PhaseShiftParamControl(Box):
+    def __init__(self,
+                 function : Callable[[int], List[float]],
+                 dom : Mode,
+                 cod : Mode,
+                 is_dagger : bool = False):
+
+        #assert dom == Mode(1), "dom must be Mode(1)"
+        #assert cod == Mode(len(cod)), "cod must be Mode(n)"
+
+        super().__init__("PhaseShiftParamControl", dom, cod)
+
+        self.function = function
+        self.is_dagger = is_dagger
+
+    def to_zw(self):
+        return self
+
+    def truncation(self,
+                     input_dims : List[int],
+                     output_dims : List[int]) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        #assert len(input_dims) == 1, "input_dims must be of length 1"
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        for i in range(input_dims[0]):
+            fx = self.function(i)
+            zbox = Id(Mode(0))
+            for y in fx:
+                exp = np.exp(2 * np.pi * 1j * y)
+                zbox @= ZBox(0, 1, lambda i: exp ** i)
+
+            zbox = zbox.to_tensor(input_dims)
+            array[i, :] = (zbox >>
+                           truncation_tensor(zbox.cod.inside,
+                                             output_dims)).eval().array.reshape(array[i, :].shape)
+
+        if self.is_dagger:
+            return tensor.Box(self.name,
+                              Dim(*input_dims),
+                              Dim(*output_dims),
+                              array).dagger()
+
+        return tensor.Box(self.name,
+                            Dim(*input_dims),
+                            Dim(*output_dims),
+                            array)
+
+    def determine_output_dimensions(self,
+                                    input_dims : List[int]) -> List[int]:
+        return [max(input_dims)]*len(self.cod)
+
+    def dagger(self):
+        return PhaseShiftParamControl(self.function,
+                                       self.cod,
+                                       self.dom,
+                                       not self.is_dagger)
+
 class ControlChannel(Channel):
     def __new__(self,
-                control_box):
+                control_box : Diagram | ClassicalFunctionBox | LogicalMatrixBox) -> CQMap:
         assert isinstance(
                 control_box,
                 (
