@@ -31,8 +31,8 @@ class BinaryControlledBox(Box):
         assert (len(action_box.dom) == len(action_box.cod)), \
             "action_box must have the same number of inputs and outputs"
 
-        dom = Bit(1) @ action_box.dom
-        cod = action_box.cod
+        dom = action_box.cod if is_dagger else Bit(1) @ action_box.dom
+        cod = Bit(1) @ action_box.cod if is_dagger else action_box.cod
 
         if hasattr(action_box, "name"):
             box_name = action_box.name + "_controlled"
@@ -46,8 +46,11 @@ class BinaryControlledBox(Box):
                          dom,
                          cod)
 
-        self.action_box = action_box.dagger() if is_dagger else action_box
-        self.default_box = default_box.dagger() if is_dagger else default_box
+        # self.action_box = action_box.dagger() if is_dagger else action_box
+        # self.default_box = default_box.dagger() if is_dagger else default_box
+
+        self.action_box = action_box
+        self.default_box = default_box
         self.is_dagger = is_dagger
 
     def determine_output_dimensions(self,
@@ -60,20 +63,28 @@ class BinaryControlledBox(Box):
 
         dims = [max(a, b) for a, b in zip(action_box_dims, default_box_dims)]
 
-        return [2, *dims] if self.is_dagger else dims
+        if self.is_dagger:
+            return [2, *dims]
+        return dims
 
     def truncation(self,
                    input_dims,
                    output_dims):
 
         if self.is_dagger:
-            input_dims, output_dims = output_dims, input
+            input_dims, output_dims = output_dims, input_dims
 
-        action_in_dim = input_dims if self.is_dagger else input_dims[1:]
+        # action_in_dim = input_dims if self.is_dagger else input_dims[1:]
 
-        array = np.zeros((2,*output_dims[1:],
-                            *input_dims), dtype=complex) if self.is_dagger else \
-                    np.zeros((input_dims[0],
+        # array = np.zeros((2,*output_dims[1:],
+        #                     *input_dims), dtype=complex) if self.is_dagger else \
+        #             np.zeros((input_dims[0],
+        #                     *input_dims[1:],
+        #                     *output_dims), dtype=complex)
+
+        action_in_dim = input_dims[1:]
+
+        array = np.zeros((input_dims[0],
                             *input_dims[1:],
                             *output_dims), dtype=complex)
 
@@ -95,8 +106,8 @@ class BinaryControlledBox(Box):
         return self
 
     def dagger(self):
-        return BinaryControlledBox(self.action_box.dagger(),
-                                   self.default_box.dagger(),
+        return BinaryControlledBox(self.action_box,
+                                   self.default_box,
                                    not self.is_dagger)
 
 

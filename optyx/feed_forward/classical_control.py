@@ -6,7 +6,8 @@ from optyx.optyx import (
     Swap,
     Mode,
     Scalar,
-    Id
+    Id,
+    MAX_DIM
 )
 from optyx.zw import W,ZBox
 from optyx.zx import Z, X
@@ -69,7 +70,14 @@ class ClassicalFunctionBox(Box):
 
     def determine_output_dimensions(self,
                                     input_dims : List[int]) -> List[int]:
-        return [2]*self.output_size
+        if (self.dom == Bit(self.input_size) and
+            self.cod == Mode(self.output_size)):
+            return [MAX_DIM]*self.output_size
+        elif (self.dom == Mode(self.input_size) and
+              self.cod == Bit(self.output_size)):
+            return [2]*self.output_size
+        else:
+            return [max(input_dims)]*self.output_size
 
     def dagger(self):
         return ClassicalFunctionBox(self.function,
@@ -126,7 +134,11 @@ class LogicalMatrixBox(Box):
 
     def determine_output_dimensions(self,
                                     input_dims : List[int]) -> List[int]:
-        return [2]*len(self.cod)
+        return ClassicalFunctionBox(
+            None,
+            self.dom,
+            self.cod
+        ).determine_output_dimensions(input_dims)
 
     def dagger(self):
         return LogicalMatrixBox(self.matrix, not self.is_dagger)
@@ -194,6 +206,8 @@ class PhaseShiftParamControl(Box):
 
     def determine_output_dimensions(self,
                                     input_dims : List[int]) -> List[int]:
+        if self.is_dagger:
+            return [MAX_DIM]*len(self.cod)
         return [max(input_dims)]*len(self.cod)
 
     def dagger(self):

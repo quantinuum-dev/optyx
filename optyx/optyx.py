@@ -242,6 +242,7 @@ from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
 
+MAX_DIM = 10
 
 class Ob(frobenius.Ob):
     """Basic object in an optyx Diagram: bit or mode"""
@@ -946,6 +947,8 @@ class PhotonThresholdDetector(Box):
         return tensor.Box(self.name, Dim(int(input_dims[0])), Dim(2), array)
 
     def determine_output_dimensions(self, input_dims):
+        if self.is_dagger:
+            return [MAX_DIM]*len(input_dims)
         return [2]*len(input_dims)
 
     def conjugate(self):
