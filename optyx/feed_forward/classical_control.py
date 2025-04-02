@@ -3,14 +3,11 @@ from optyx.optyx import (
     Box,
     Bit,
     Diagram,
-    Swap,
     Mode,
-    Scalar,
     Id,
     MAX_DIM
 )
-from optyx.zw import W,ZBox
-from optyx.zx import Z, X
+from optyx.zw import ZBox
 from optyx.feed_forward.controlled_gates import truncation_tensor
 from discopy import tensor
 from discopy.frobenius import Dim
@@ -233,34 +230,3 @@ class ControlChannel(Channel):
             Ty(*[Ob._classical[ob.name] for ob in control_box.dom.inside]),
             Ty(*[Ob._classical[ob.name] for ob in control_box.cod.inside])
         )
-
-#boxes:
-# - and
-# - or
-# - not
-# - xor
-# - copy
-# - swap
-# - add
-# - subtract
-# - multiply
-# - divide
-# - mod 2
-# - copy_mode
-
-postselect_1 = X(1, 0, 0.5) @ Scalar(1/np.sqrt(2))
-postselect_0 = X(1, 0) @ Scalar(1/np.sqrt(2))
-xor = X(2, 1) @ Scalar(np.sqrt(2))
-copy =  Z(1, 2)
-swap = Swap(Bit(1), Bit(1))
-
-add = W(2).dagger()
-subtract = (
-    W(2) @ Mode(1) >>
-    Mode(1) @ ZBox(2, 0)
-)
-multiply = lambda x: (
-    ZBox(1, x) >> W(x).dagger()
-)
-divide = lambda x: multiply(x).dagger()
-copy_mode = ZBox(1, 2)
