@@ -185,8 +185,7 @@ class PhaseShiftParamControl(Box):
             fx = self.function(i)
             zbox = Id(Mode(0))
             for y in fx:
-                exp = np.exp(2 * np.pi * 1j * y)
-                zbox @= ZBox(0, 1, lambda i: exp ** i)
+                zbox @= ZBox(0, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
 
             zbox = zbox.to_tensor(input_dims)
             array[i, :] = (zbox >>
