@@ -43,8 +43,8 @@ We can construct a controlled gate acting on a quantum mode:
 A binary-controlled gate can be composed as:
 
 >>> from optyx.feed_forward.controlled_gates import BinaryControlledBox
->>> from optyx.zw import W, Id
->>> control = BinaryControlledBox(W(2), default_box=Id(Mode(2)))
+>>> from optyx.zw import ZBox
+>>> control = BinaryControlledBox(ZBox(1, 1, lambda x: x))
 >>> control.to_zw().draw(path='docs/_static/binary_control.svg')
 """
 
@@ -80,9 +80,11 @@ class BinaryControlledBox(Box):
     >>> default = ZBox(1, 1)
     >>> action_result = action.to_zw().to_tensor().eval().array
     >>> default_result = default.to_zw().to_tensor().eval().array
-    >>> action_test = ((Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
+    >>> action_test = ((Create(1) >> PhotonThresholdDetector()) @
+    ...         Mode(len(action.cod)) >>
     ...         BinaryControlledBox(action)).to_zw().to_tensor().eval().array
-    >>> default_test = ((Create(0) >> PhotonThresholdDetector()) @ Mode(len(default.cod)) >>
+    >>> default_test = ((Create(0) >> PhotonThresholdDetector()) @
+    ...         Mode(len(default.cod)) >>
     ...         BinaryControlledBox(default)).to_zw().to_tensor().eval().array
     >>> assert np.allclose(action_result, action_test)
     >>> assert np.allclose(default_result, default_test)
@@ -123,13 +125,23 @@ class BinaryControlledBox(Box):
 
     def determine_output_dimensions(self,
                                     input_dims : List[int]) -> List[int]:
-        action_box_dims = self.action_box.to_tensor(input_dims).cod.inside if self.is_dagger else \
-                            self.action_box.to_tensor(input_dims[1:]).cod.inside
 
-        default_box_dims = self.default_box.to_tensor(input_dims).cod.inside if self.is_dagger else \
-                            self.default_box.to_tensor(input_dims[1:]).cod.inside
+        action_box_dims = self.action_box.to_tensor(
+            input_dims
+        ).cod.inside if self.is_dagger \
+        else self.action_box.to_tensor(
+            input_dims[1:]
+        ).cod.inside
 
-        dims = [max(a, b) for a, b in zip(action_box_dims, default_box_dims)]
+        default_box_dims = self.default_box.to_tensor(
+            input_dims
+        ).cod.inside if self.is_dagger \
+        else self.default_box.to_tensor(
+            input_dims[1:]
+        ).cod.inside
+
+        dims = [max(a, b) for a, b in zip(action_box_dims,
+                                          default_box_dims)]
 
         if self.is_dagger:
             return [2, *dims]
@@ -151,16 +163,35 @@ class BinaryControlledBox(Box):
         default_box_tensor = self.default_box.to_tensor(action_in_dim)
         action_box_tensor = self.action_box.to_tensor(action_in_dim)
 
-        array[0, :, :] = (default_box_tensor >>
-                          truncation_tensor(default_box_tensor.cod.inside,
-                                            output_dims)).eval().array.reshape(array[0, :, :].shape)
-        array[1, :, :] = (action_box_tensor >>
-                          truncation_tensor(action_box_tensor.cod.inside,
-                                            output_dims)).eval().array.reshape(array[1, :, :].shape)
+        array[0, :, :] = (
+            default_box_tensor >>
+            truncation_tensor(
+                default_box_tensor.cod.inside,
+                output_dims
+            )
+        ).eval().array.reshape(array[0, :, :].shape)
+
+        array[1, :, :] = (
+            action_box_tensor >>
+            truncation_tensor(
+                action_box_tensor.cod.inside,
+                output_dims
+            )
+        ).eval().array.reshape(array[1, :, :].shape)
 
         if self.is_dagger:
-            return tensor.Box(self.name, Dim(*input_dims), Dim(*output_dims), array).dagger()
-        return tensor.Box(self.name, Dim(*input_dims), Dim(*output_dims), array)
+            return tensor.Box(
+                self.name,
+                Dim(*input_dims),
+                Dim(*output_dims),
+                array
+            ).dagger()
+        return tensor.Box(
+            self.name,
+            Dim(*input_dims),
+            Dim(*output_dims),
+            array
+        )
 
     def to_zw(self):
         return self
@@ -173,11 +204,12 @@ class BinaryControlledBox(Box):
 
 class ControlledPhaseShift(Box):
     """
-    A controlled phase shift on modes, where the control is a classical integer and
+    A controlled phase shift on modes, where the control
+    is a classical integer and
     the phase applied is determined by a user-defined function.
 
-    The function maps each control value to a list of real values (interpreted as
-    2π multiples of phase shifts).
+    The function maps each control value to a list
+    of real values (interpreted as 2π multiples of phase shifts).
 
     Example
     -------
@@ -185,10 +217,12 @@ class ControlledPhaseShift(Box):
     >>> from optyx.zw import Create
     >>> f = lambda x: [x*0.1, x*0.2, x*0.3]
     >>> n = len(f(0))
-    >>> controlled_phase = Create(2) @ Mode(n) >> ControlledPhaseShift(f, n_modes=n)
+    >>> controlled_phase = (Create(2) @ Mode(n) >>
+    ...                     ControlledPhaseShift(f, n_modes=n))
     >>> zbox = Id(Mode(0))
     >>> for y in f(2):
-    ...     zbox @= ZBox(1, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
+    ...     zbox @= ZBox(1, 1,
+    ...         lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
     >>> assert np.allclose(controlled_phase.to_tensor().eval().array,
     ...                    zbox.to_tensor().eval().array)
     """
@@ -218,16 +252,32 @@ class ControlledPhaseShift(Box):
             fx = self.function(i)
             zbox = Id(Mode(0))
             for y in fx:
-                zbox @= ZBox(1, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
+                zbox @= ZBox(1, 1,
+                             lambda i, y=y: np.exp(
+                                 2 * np.pi * 1j * y
+                             ) ** i)
 
             zbox = zbox.to_tensor(input_dims[1:])
-            array[i, :] = (zbox >>
-                           truncation_tensor(zbox.cod.inside,
-                                             output_dims)).eval().array.reshape(array[i, :].shape)
+            array[i, :] = (
+                zbox >>
+                truncation_tensor(
+                    zbox.cod.inside,
+                    output_dims
+                )
+            ).eval().array.reshape(array[i, :].shape)
 
         if self.is_dagger:
-            return tensor.Box(self.name, Dim(*input_dims), Dim(*output_dims), array).dagger()
-        return tensor.Box(self.name, Dim(*input_dims), Dim(*output_dims), array)
+            return tensor.Box(
+                self.name,
+                Dim(*input_dims),
+                Dim(*output_dims),
+                array
+            ).dagger()
+        return tensor.Box(self.name,
+                          Dim(*input_dims),
+                          Dim(*output_dims),
+                          array
+        )
 
     def determine_output_dimensions(self,
                                     input_dims : List[int]) -> List[int]:

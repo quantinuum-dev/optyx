@@ -1,0 +1,381 @@
+import pytest
+
+from optyx.feed_forward.classical_control import *
+from optyx.feed_forward.measurement import *
+from optyx.feed_forward.controlled_gates import *
+from optyx.feed_forward.classical_arithmetic import *
+from optyx.zw import Create, W
+from optyx.optyx import PhotonThresholdDetector, Mode
+from optyx.lo import Phase, BS, MZI
+import itertools
+import copy as cp
+
+circuits_to_test = [
+    (Phase(0.1), None),
+    (Phase(0.456), Phase(0.8765)),
+    (BS, None),
+    (BS, MZI(0.324, 0.9875)),
+    (W(2).dagger() >> W(2), MZI(0.324, 0.9875)),
+]
+
+@pytest.mark.parametrize("action, default", circuits_to_test)
+def test_binary_controlled_box(action, default):
+    action_result = action.to_zw().to_tensor().eval().array
+    default_result = default.to_zw().to_tensor().eval().array if default is not None else None
+
+    if default is None:
+        action_test = ((Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
+                    BinaryControlledBox(action)).to_zw().to_tensor().eval().array
+        default_test = ((Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
+                    BinaryControlledBox(action)).to_zw().to_tensor().eval().array
+    else:
+        action_test = ((Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
+                    BinaryControlledBox(action, default.to_zw())).to_zw().to_tensor().eval().array
+        default_test = ((Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
+                    BinaryControlledBox(action, default.to_zw())).to_zw().to_tensor().eval().array
+
+    assert np.allclose(action_result, action_test)
+    if default is not None:
+        assert np.allclose(default_result, default_test)
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_1(x):
+    return [x[0] ^ x[1]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_2(x):
+    return [x[0], x[0]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_3(x):
+    return [x[0] ^ x[1], x[0]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_4(x):
+    return [x[0] ^ x[1], x[0] ^ x[1]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_5(x):
+    bitstring = cp.deepcopy(x)
+    bitstring[2] = x[3]
+    bitstring[3] = x[2]
+
+    xor_1 = bitstring[0] ^ bitstring[1]
+    xor_2 = bitstring[1] ^ bitstring[2]
+    xor_3 = bitstring[2] ^ bitstring[3]
+
+    if xor_1 == 0:
+        return 0
+    if xor_3 == 0:
+        return 0
+    else:
+        return [xor_2]
+
+classical_functions_to_test = (
+    (f_1, xor),
+    (f_2, copy),
+    (f_3, copy @ Bit(1) >> Bit(1) @ swap >> xor @ Bit(1)),
+    (f_4, copy @ copy >> Bit(1) @ swap @ Bit(1) >> xor @ xor),
+    (f_5, (
+            Bit(2) @ swap >>
+            Bit(1) @ copy @ copy @ Bit(1) >>
+            xor @ xor @ xor >>
+            postselect_1 @ Bit(1) @ postselect_1
+          )
+    )
+)
+
+@pytest.mark.parametrize("f, circ", classical_functions_to_test)
+def test_classical_function_box(f, circ):
+    f_res = ClassicalFunctionBox(f, circ.dom, circ.cod).to_zw().to_tensor().eval().array
+    circ_res = circ.to_zw().to_tensor().eval().array
+
+    assert np.allclose(f_res, circ_res)
+
+classical_functions_to_test = (
+    (f_1, [1, 1]),
+    (f_2, [[1],
+           [1]]),
+    (f_3, [[1, 1],
+           [1, 0]]),
+    (f_4, [[1, 1],
+           [1, 1]]),
+)
+
+@pytest.mark.parametrize("function, m", classical_functions_to_test)
+def test_logical_matrix_box(function, m):
+    m = np.array(m)
+    if len(m.shape) == 1:
+        m = m.reshape(1, -1)
+    cod = Bit(len(m))
+    dom = Bit(len(m[0]))
+    f_arr = ClassicalFunctionBox(function, dom, cod).to_tensor().eval().array
+    circ_arr = LogicalMatrixBox(m).to_tensor().eval().array
+    assert np.allclose(f_arr, circ_arr)
+
+l = [[0, 2], [1, 1], [2, 0], [0, 1], [1, 0], [0, 0]]
+
+@pytest.mark.parametrize("l", l)
+def test_classical_circuit(l):
+    fusion_i_box = (
+        copy_mode @ copy_mode >>
+        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
+        mod2 @ mod2 @ Mode(2) >>
+        PhotonThresholdDetector() @ PhotonThresholdDetector() @ Mode(2) >>
+        Bit(1) @ copy @ Mode(2) >>
+        xor @ Bit(1) @ Mode(2) >>
+        copy @ Bit(1) @ Mode(2) >>
+        copy @ Bit(2) @ Mode(2) >>
+        Bit(2) @ not_ @ Bit(1) @ Mode(2) >>
+        Bit(2) @ swap @ PhotonThresholdDetector() @ PhotonThresholdDetector()  >>
+        Bit(1) @ and_ @ Bit(1) @ copy @ copy >>
+        Bit(4) @ swap @ Bit(1) >>
+        Bit(3) @ and_ @ xor >>
+        Bit(4) @ not_ >>
+        Bit(3) @ xor >>
+        Bit(2) @ and_ >>
+        Bit(1) @ xor
+    )
+
+    def fusion_i_function(x):
+        a = x[0]
+        b = x[1]
+        s = (a % 2) ^ (b % 2)
+        k = int(s*(b % 2) + (1-s)*(1 - (a + b)/2))
+        return [s, k]
+
+    d = Create(*l) >> ClassicalFunctionBox(fusion_i_function, fusion_i_box.dom, fusion_i_box.cod)
+    arr1 = [o[0] for o in np.nonzero(np.round(d.to_zw().to_tensor(input_dims=[4, 4]).eval().array))]
+    arr2 = [o[0] for o in np.nonzero(np.round(d.to_zw().to_tensor().eval().array))]
+
+    assert np.allclose(arr1, arr2)
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_1(x):
+    return [x, x]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_2(x):
+    return [0.23*x]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_3(x):
+    return [0.8362, 0.193, 0.654]
+
+diagrams_to_test = [
+    lambda f: ControlledPhaseShift(f, len(f(0))),
+    lambda f: Create(4) @ Mode(len(f(0))) >> ControlledPhaseShift(f, len(f(0)))
+]
+
+#get cartesian product of diagrams_to_test and classical_functions_to_test
+combine_diagrams_with_fs = [
+    (diagram, f) for diagram, f in itertools.product(diagrams_to_test, [f_1, f_2, f_3])
+]
+
+@pytest.mark.parametrize("diagram, f", combine_diagrams_with_fs)
+def test_dagger_controlled_phase_shift(diagram, f):
+    res_1 = diagram(f).to_zw().to_tensor().dagger().eval().array
+    res_2 = diagram(f).dagger().to_zw().to_tensor().eval().array
+
+    if res_1.shape != res_2.shape:
+        min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
+        slices = tuple(slice(0, s) for s in min_shape)
+        assert np.allclose(res_1[slices], res_2[slices])
+    else:
+        assert np.allclose(res_1, res_2)
+
+diagrams_to_test = [
+    ControlledPhaseShift(lambda x: [x], 1),
+    ControlledPhaseShift(lambda x: [0.23*x, 0.456*x, 0.876*x, 0.654*x], 4),
+    ControlledPhaseShift(lambda x: [0.23*x], 1),
+    ControlledPhaseShift(lambda x: [0.23*x, 0.456*x, 0.876*x], 3),
+]
+
+@pytest.mark.parametrize("diagram", diagrams_to_test)
+def test_dagger_controlled_phase_shift_2(diagram):
+    res_1 = diagram.to_zw().to_tensor().dagger().eval().array
+    res_2 = diagram.dagger().to_zw().to_tensor().eval().array
+
+    if res_1.shape != res_2.shape:
+        min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
+        slices = tuple(slice(0, s) for s in min_shape)
+        assert np.allclose(res_1[slices], res_2[slices])
+    else:
+        assert np.allclose(res_1, res_2)
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_1(x):
+    return [x[0] ^ x[1]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_2(x):
+    return [x[0], x[0]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_3(x):
+    return [x[0] ^ x[1], x[0]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_4(x):
+    return [x[0] ^ x[1], x[0] ^ x[1]]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_5(x):
+    bitstring = cp.deepcopy(x)
+    bitstring[2] = x[3]
+    bitstring[3] = x[2]
+
+    xor_1 = bitstring[0] ^ bitstring[1]
+    xor_2 = bitstring[1] ^ bitstring[2]
+    xor_3 = bitstring[2] ^ bitstring[3]
+
+    if xor_1 == 0:
+        return 0
+    if xor_3 == 0:
+        return 0
+    else:
+        return [xor_2]
+
+
+classical_functions_to_test = (
+    (f_1, xor),
+    (f_2, copy),
+    (f_3, copy @ Bit(1) >> Bit(1) @ swap >> xor @ Bit(1)),
+    (f_4, copy @ copy >> Bit(1) @ swap @ Bit(1) >> xor @ xor),
+    (f_5, (
+            Bit(2) @ swap >>
+            Bit(1) @ copy @ copy @ Bit(1) >>
+            xor @ xor @ xor >>
+            postselect_1 @ Bit(1) @ postselect_1
+          )
+    )
+)
+
+@pytest.mark.parametrize("f, circ", classical_functions_to_test)
+def test_classical_function_box_dagger(f, circ):
+    res_1 = ClassicalFunctionBox(f, circ.dom, circ.cod).to_zw().to_tensor().dagger().eval().array
+    res_2 = ClassicalFunctionBox(f, circ.dom, circ.cod).dagger().to_zw().to_tensor().eval().array
+
+    if res_1.shape != res_2.shape:
+        min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
+        slices = tuple(slice(0, s) for s in min_shape)
+        assert np.allclose(res_1[slices], res_2[slices])
+    else:
+        assert np.allclose(res_1, res_2)
+
+@pytest.mark.parametrize("f, circ", classical_functions_to_test)
+def test_classical_circuit_dagger(f, circ):
+    res_1 = ClassicalCircuitBox(circ).to_zw().to_tensor().dagger().eval().array
+    res_2 = ClassicalCircuitBox(circ).dagger().to_zw().to_tensor().eval().array
+
+    if res_1.shape != res_2.shape:
+        min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
+        slices = tuple(slice(0, s) for s in min_shape)
+        assert np.allclose(res_1[slices], res_2[slices])
+    else:
+        assert np.allclose(res_1, res_2)
+
+classical_functions_to_test = (
+    (f_1, [1, 1]),
+    (f_2, [[1],
+           [1]]),
+    (f_3, [[1, 1],
+           [1, 0]]),
+    (f_4, [[1, 1],
+           [1, 1]]),
+)
+
+@pytest.mark.parametrize("function, m", classical_functions_to_test)
+def test_logical_matrix_box_dagger(function, m):
+    m = np.array(m)
+    if len(m.shape) == 1:
+        m = m.reshape(1, -1)
+    cod = Bit(len(m))
+    dom = Bit(len(m[0]))
+
+    res_1 = LogicalMatrixBox(m).to_tensor().dagger().eval().array
+    res_2 = LogicalMatrixBox(m).dagger().to_tensor().eval().array
+
+    if res_1.shape != res_2.shape:
+        min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
+        slices = tuple(slice(0, s) for s in min_shape)
+        assert np.allclose(res_1[slices], res_2[slices])
+    else:
+        assert np.allclose(res_1, res_2)
+
+circuits_to_test = [
+    (Phase(0.1), None),
+    (Phase(0.456), Phase(0.8765)),
+    (BS, None),
+    (BS, MZI(0.324, 0.9875)),
+    (W(2).dagger() >> W(2), MZI(0.324, 0.9875)),
+]
+
+@pytest.mark.parametrize("action, default", circuits_to_test)
+def test_binary_controlled_box_dagger(action, default):
+    res_1 = BinaryControlledBox(action, default).to_zw().to_tensor().dagger().eval().array
+    res_2 = BinaryControlledBox(action, default).dagger().to_zw().to_tensor().eval().array
+
+    if res_1.shape != res_2.shape:
+        min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
+        slices = tuple(slice(0, s) for s in min_shape)
+        assert np.allclose(res_1[slices], res_2[slices])
+    else:
+        assert np.allclose(res_1, res_2)
+
+
+circuits_to_test = [
+    PhotonThresholdDetector()
+]
+
+@pytest.mark.parametrize("circ", circuits_to_test)
+def test_photon_threshold_detector_dagger(circ):
+    res_1 = circ.to_zw().to_tensor().dagger().eval().array
+    res_2 = circ.dagger().to_zw().to_tensor().eval().array
+
+    if res_1.shape != res_2.shape:
+        min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
+        slices = tuple(slice(0, s) for s in min_shape)
+        assert np.allclose(res_1[slices], res_2[slices])
+    else:
+        assert np.allclose(res_1, res_2)
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_1(x):
+    return [x*0.234, x*0.912, x*0.184]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_2(x):
+    return [0.23*x]
+
+@pytest.mark.skip(reason="Helper function for testing")
+def f_3(x):
+    return [0.8362, 0.193, 0.654]
+
+fs = [f_1, f_2, f_3]
+
+xs = range(5)
+
+@pytest.mark.parametrize("f, x", itertools.product(fs, xs))
+def test_controlled_phase_shift(f, x):
+        n = len(f(0))
+        diag = Create(x) @ Mode(n) >> ControlledPhaseShift(f, n)
+
+        zbox = Id(Mode(0))
+        for y in f(x):
+            zbox @= ZBox(1, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
+
+        assert np.allclose(
+            zbox.to_tensor().eval().array,
+            diag.to_tensor().eval().array
+        )
+
+        assert np.allclose(
+            zbox.dagger().to_tensor().eval().array,
+            diag.dagger().to_tensor().eval().array
+        )
+
+        assert np.allclose(
+            zbox.to_tensor().dagger().eval().array,
+            zbox.dagger().to_tensor().eval().array
+        )

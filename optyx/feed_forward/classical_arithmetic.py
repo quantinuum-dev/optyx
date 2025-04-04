@@ -66,7 +66,8 @@ class And(Box):
         - (1, 1) ↦ 1
         - Otherwise ↦ 0
 
-    All outputs are reversible — i.e., the transformation is injective over classical states.
+    All outputs are reversible — i.e., the transformation is
+    injective over classical states.
 
     Example
     -------
@@ -132,7 +133,8 @@ class Add(Box):
     """
     Adds multiple classical values using a W-dagger operation.
 
-    Takes `n` mode inputs and returns a single summed mode output (or vice versa if daggered).
+    Takes `n` mode inputs and returns a single summed mode output
+    (or vice versa if daggered).
 
     Example
     -------
@@ -363,7 +365,8 @@ class Mod2(Box):
     >>> m2 = Mod2()
     >>> array = m2.to_zw().to_tensor(input_dims=[5]).eval().array
     >>> import numpy as np
-    >>> assert np.allclose([np.argmax(array[i]) for i in range(5)], [i % 2 for i in range(5)])
+    >>> assert np.allclose([np.argmax(array[i]) for i in range(5)],
+    ...    [i % 2 for i in range(5)])
     """
 
     def __init__(self,

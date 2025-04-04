@@ -78,10 +78,10 @@ class ClassicalFunctionBox(Box):
                  is_dagger : bool = False):
 
         if is_dagger:
-            assert isinstance(dom, Bit), "dom must be Bit(n)"
+            assert dom == Bit(len(dom)), "dom must be Bit(n)"
             assert all([d == cod[0] for d in cod]), "cod must be either all Mode(n) or all Bit(n)"
         else:
-            assert isinstance(cod, Bit), "cod must be Bit(n)"
+            assert cod == Bit(len(cod)), "cod must be Bit(n)"
             assert all([d == dom[0] for d in dom]), "dom must be either all Mode(n) or all Bit(n)"
 
         super().__init__("F", dom, cod)

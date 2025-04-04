@@ -23,7 +23,7 @@ Generators and diagrams
     :toctree:
 
     W
-    Z
+    ZBox
     Create
     Select
     Endo
