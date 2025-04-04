@@ -4,28 +4,41 @@ from optyx.optyx import (
     Bit,
     Diagram,
     Mode,
-    Id,
     MAX_DIM
 )
-from optyx.zw import ZBox
-from optyx.feed_forward.controlled_gates import truncation_tensor
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
 from typing import List, Callable
 
+
 class ClassicalFunctionBox(Box):
+    """
+    A classical function box mode -> bit or bit -> bit, mapping an input list of integers
+    to an output bit via a user-defined function.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import xor
+    >>> f_res = ClassicalFunctionBox(lambda x: [x[0] ^ x[1]],
+    ...         Bit(2),
+    ...         Bit(1)).to_zw().to_tensor().eval().array
+    >>> xor_res = xor.to_zw().to_tensor().eval().array
+    >>> assert np.allclose(f_res, xor_res)
+
+    """
     def __init__(self,
                  function : Callable[[List[int]], List[int]],
                  dom : Mode | Bit,
                  cod : Mode | Bit,
                  is_dagger : bool = False):
 
-        #assert cod == Bit(len(cod)), "cod must binary Bit(n)"
-        #assert all([d == dom[0] for d in dom]), "dom must be either all Mode(n) or all Bit(n)"
-
-        #dom = cod if is_dagger else dom
-        #cod = dom if is_dagger else cod
+        if is_dagger:
+            assert isinstance(dom, Bit), "dom must be Bit(n)"
+            assert all([d == cod[0] for d in cod]), "cod must be either all Mode(n) or all Bit(n)"
+        else:
+            assert isinstance(cod, Bit), "cod must be Bit(n)"
+            assert all([d == dom[0] for d in dom]), "dom must be either all Mode(n) or all Bit(n)"
 
         super().__init__("F", dom, cod)
 
@@ -88,12 +101,22 @@ class ClassicalFunctionBox(Box):
 
 class LogicalMatrixBox(Box):
     '''
-    Matrix multiplication in GF(2)
+    Represents a linear transformation over GF(2) using matrix multiplication.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import xor
+    >>> matrix = [[1, 1]]
+    >>> m_res = LogicalMatrixBox(matrix).to_tensor().eval().array
+    >>> xor_res = xor.to_zw().to_tensor().eval().array
+    >>> assert np.allclose(m_res, xor_res)
+
     '''
     def __init__(self,
                  matrix : np.ndarray,
                  is_dagger : bool = False):
 
+        matrix = np.array(matrix)
         if len(matrix.shape) == 1:
             matrix = matrix.reshape(1, -1)
 
@@ -145,74 +168,23 @@ class LogicalMatrixBox(Box):
 
 
 class ClassicalCircuitBox(Diagram):
+    """
+    Identity wrapper for classical diagrams. Provides a unified interface for
+    definiting control boxes from optyx diagrams.
+    """
     def __new__(self,
                 diagram : Diagram) -> Diagram:
         return diagram
 
 
-class PhaseShiftParamControl(Box):
-    def __init__(self,
-                 function : Callable[[int], List[float]],
-                 dom : Mode,
-                 cod : Mode,
-                 is_dagger : bool = False):
-
-        #assert dom == Mode(1), "dom must be Mode(1)"
-        #assert cod == Mode(len(cod)), "cod must be Mode(n)"
-
-        super().__init__("PhaseShiftParamControl", dom, cod)
-
-        self.function = function
-        self.is_dagger = is_dagger
-
-    def to_zw(self):
-        return self
-
-    def truncation(self,
-                     input_dims : List[int],
-                     output_dims : List[int]) -> tensor.Box:
-
-        if self.is_dagger:
-            input_dims, output_dims = output_dims, input_dims
-
-        #assert len(input_dims) == 1, "input_dims must be of length 1"
-        array = np.zeros((*input_dims, *output_dims), dtype=complex)
-
-        for i in range(input_dims[0]):
-            fx = self.function(i)
-            zbox = Id(Mode(0))
-            for y in fx:
-                zbox @= ZBox(0, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
-
-            zbox = zbox.to_tensor(input_dims)
-            array[i, :] = (zbox >>
-                           truncation_tensor(zbox.cod.inside,
-                                             output_dims)).eval().array.reshape(array[i, :].shape)
-
-        if self.is_dagger:
-            return tensor.Box(self.name,
-                              Dim(*input_dims),
-                              Dim(*output_dims),
-                              array).dagger()
-
-        return tensor.Box(self.name,
-                            Dim(*input_dims),
-                            Dim(*output_dims),
-                            array)
-
-    def determine_output_dimensions(self,
-                                    input_dims : List[int]) -> List[int]:
-        if self.is_dagger:
-            return [MAX_DIM]*len(self.cod)
-        return [max(input_dims)]*len(self.cod)
-
-    def dagger(self):
-        return PhaseShiftParamControl(self.function,
-                                       self.cod,
-                                       self.dom,
-                                       not self.is_dagger)
-
 class ControlChannel(Channel):
+    """
+    Syntactic sugar.
+    Converts a classical circuit (Diagram or Box) into a CQMap channel, allowing
+    it to be used as a control channel in hybrid quantum-classical systems.
+
+    Accepts ClassicalFunctionBox, LogicalMatrixBox, or raw optyx Diagrams.
+    """
     def __new__(self,
                 control_box : Diagram | ClassicalFunctionBox | LogicalMatrixBox) -> CQMap:
         assert isinstance(

@@ -11,16 +11,38 @@ from optyx.feed_forward.controlled_gates import truncation_tensor
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-
+from typing import List
 
 class And(Box):
-    def __init__(self, is_dagger=False):
+    """
+    Reversible classical AND gate on two bits.
+
+    This gate acts as a Toffoli-style classical operation that maps:
+        - (1, 1) ↦ 1
+        - Otherwise ↦ 0
+
+    All outputs are reversible — i.e., the transformation is injective over classical states.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import And
+    >>> and_box = And().to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> assert np.isclose(and_box[1, 1, 1], 1.0)
+    >>> for a in [0, 1]:
+    ...     for b in [0, 1]:
+    ...         expected = int(a & b)
+    ...         assert np.isclose(and_box[a, b, expected], 1.0)
+    """
+
+    def __init__(self,
+                 is_dagger : bool = False):
         super().__init__("And", Bit(2), Bit(1))
         self.is_dagger = is_dagger
 
     def truncation(self,
-                   input_dims,
-                   output_dims):
+                   input_dims : List[int],
+                   output_dims : List[int]) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -62,7 +84,24 @@ class And(Box):
 
 
 class Add(Box):
-    def __init__(self, n, is_dagger=False):
+    """
+    Adds multiple classical values using a W-dagger operation.
+
+    Takes `n` mode inputs and returns a single summed mode output (or vice versa if daggered).
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Add
+    >>> add_box = Add(2)
+    >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> # Expect 4 one-hot outputs for all input combinations
+    >>> assert np.allclose(tensor.sum(), 4)
+    """
+
+    def __init__(self,
+                 n : int,
+                 is_dagger : bool = False):
         dom = Mode(1) if is_dagger else Mode(n)
         cod = Mode(n) if is_dagger else Mode(1)
 
@@ -71,8 +110,8 @@ class Add(Box):
         self.is_dagger = is_dagger
 
     def truncation(self,
-                   input_dims,
-                   output_dims):
+                   input_dims : List[int],
+                   output_dims : List[int]) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -101,7 +140,7 @@ class Add(Box):
         )
 
     def determine_output_dimensions(self,
-                                    input_dims):
+                                    input_dims : List[int]) -> List[int]:
         if self.is_dagger:
             return [input_dims[0]]*self.n
         return [sum(input_dims)]
@@ -117,7 +156,24 @@ class Add(Box):
 
 
 class Multiply(Box):
-    def __init__(self, is_dagger=False):
+    """
+    Performs repeated addition as multiplication.
+
+    Multiplies two classical integers by repeated addition using Z/W diagrams.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Multiply
+    >>> mbox = Multiply()
+    >>> result = mbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
+    >>> import numpy as np
+    >>> assert result.shape == (3, 3, 9)
+    >>> nonzero = np.nonzero(result)
+    >>> assert len(nonzero[0]) > 0
+    """
+
+    def __init__(self,
+                 is_dagger : bool = False):
         dom = Mode(1) if is_dagger else Mode(2)
         cod = Mode(2) if is_dagger else Mode(1)
 
@@ -126,8 +182,8 @@ class Multiply(Box):
         self.is_dagger = is_dagger
 
     def truncation(self,
-                   input_dims,
-                   output_dims):
+                   input_dims : List[int],
+                   output_dims : List[int]) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -162,7 +218,7 @@ class Multiply(Box):
         )
 
     def determine_output_dimensions(self,
-                                    input_dims):
+                                    input_dims : List[int]) -> List[int]:
         if self.is_dagger:
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
@@ -178,7 +234,23 @@ class Multiply(Box):
 
 
 class Divide(Box):
-    def __init__(self, is_dagger=False):
+    """
+    Inverse of multiplication: decomposes a product into factors if possible.
+
+    This operation is approximate and non-injective in general.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Divide
+    >>> dbox = Divide()
+    >>> result = dbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
+    >>> import numpy as np
+    >>> assert result.shape == (3, 3, 9)
+    >>> assert np.all(result >= 0)
+    """
+
+    def __init__(self,
+                 is_dagger : bool = False):
         dom = Mode(1) if is_dagger else Mode(2)
         cod = Mode(2) if is_dagger else Mode(1)
 
@@ -187,8 +259,8 @@ class Divide(Box):
         self.is_dagger = is_dagger
 
     def truncation(self,
-                   input_dims,
-                   output_dims):
+                   input_dims : List[int],
+                   output_dims : List[int]) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -221,7 +293,7 @@ class Divide(Box):
         )
 
     def determine_output_dimensions(self,
-                                    input_dims):
+                                    input_dims : List[int]) -> List[int]:
         if self.is_dagger:
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
@@ -237,13 +309,26 @@ class Divide(Box):
 
 
 class Mod2(Box):
-    def __init__(self, is_dagger=False):
+    """
+    Reduces a classical mode to its parity (even/odd), i.e., modulo 2.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Mod2
+    >>> m2 = Mod2()
+    >>> array = m2.to_zw().to_tensor(input_dims=[5]).eval().array
+    >>> import numpy as np
+    >>> assert np.allclose([np.argmax(array[i]) for i in range(5)], [i % 2 for i in range(5)])
+    """
+
+    def __init__(self,
+                 is_dagger : bool = False):
         super().__init__("Mod2", Mode(1), Mode(1))
         self.is_dagger = is_dagger
 
     def truncation(self,
-                   input_dims,
-                   output_dims):
+                   input_dims : List[int],
+                   output_dims : List[int]) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -268,7 +353,7 @@ class Mod2(Box):
         )
 
     def determine_output_dimensions(self,
-                                    input_dims):
+                                    input_dims : List[int]) -> List[int]:
         if self.is_dagger:
             return [input_dims[0]]
         return [2]
@@ -281,6 +366,7 @@ class Mod2(Box):
 
     def conjugate(self):
         return self
+
 
 divide = Divide()
 multiply = Multiply()
