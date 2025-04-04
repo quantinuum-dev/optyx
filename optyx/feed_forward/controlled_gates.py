@@ -1,3 +1,54 @@
+"""
+Overview
+--------
+
+Controlled gates with classical inputs for feed-forward control.
+
+This module implements classical control over quantum gates by defining boxes
+that apply actions conditionally based on classical values. This includes
+generic controlled boxes, controlled phase shifts, and utility functions
+for truncating tensors.
+
+Classes
+-------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    BinaryControlledBox
+    ControlledPhaseShift
+
+Functions
+---------
+
+.. autosummary::
+    :template: function.rst
+    :nosignatures:
+    :toctree:
+
+    truncation_tensor
+
+Examples
+--------
+
+We can construct a controlled gate acting on a quantum mode:
+
+>>> from optyx.feed_forward.controlled_gates import ControlledPhaseShift
+>>> f = lambda x: [x * 0.1, x * 0.2]
+>>> box = ControlledPhaseShift(f, n_modes=2)
+>>> box.to_zw().draw(path='docs/_static/controlled_phase.svg')
+
+A binary-controlled gate can be composed as:
+
+>>> from optyx.feed_forward.controlled_gates import BinaryControlledBox
+>>> from optyx.zw import W, Id
+>>> control = BinaryControlledBox(W(2), default_box=Id(Mode(2)))
+>>> control.to_zw().draw(path='docs/_static/binary_control.svg')
+"""
+
+
 from typing import Callable, List
 from optyx.optyx import (
     Box,

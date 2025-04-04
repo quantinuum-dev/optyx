@@ -1,3 +1,47 @@
+"""
+Overview
+--------
+
+This module defines classical control primitives used in hybrid quantum-classical
+circuits.
+
+Classical control is defined using callable boxes that act on classical types
+(:class:`Bit` or :class:`Mode`) via user-defined logic or matrix transformations.
+These control boxes can be embedded into quantum-classical circuits using the
+:class:`ControlChannel` to convert them into :class:`CQMap` channels.
+
+Classes
+-------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    ClassicalFunctionBox
+    LogicalMatrixBox
+    ClassicalCircuitBox
+    ControlChannel
+
+Examples
+--------
+
+A classical function can be embedded into a circuit:
+
+>>> from optyx.feed_forward.classical_control import ClassicalFunctionBox
+>>> box = ClassicalFunctionBox(lambda bits: [sum(bits) % 2], Bit(2), Bit(1))
+>>> box.to_zw().draw(path='docs/_static/classical_func.svg')
+
+A classical matrix transformation (e.g. stabilizer logic) can be applied:
+
+>>> import numpy as np
+>>> from optyx.feed_forward.classical_control import LogicalMatrixBox
+>>> matrix = np.array([[1, 1], [0, 1]], dtype=np.uint8)
+>>> logical = LogicalMatrixBox(matrix)
+>>> logical.to_zw().draw(path='docs/_static/logical_matrix.svg')
+"""
+
+
 from optyx.channel import Channel, CQMap, Ob, Ty
 from optyx.optyx import (
     Box,

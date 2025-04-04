@@ -1,3 +1,48 @@
+"""
+Overview
+--------
+
+Classical arithmetic and logical operations on `Mode` wires.
+
+This module implements reversible classical gates such as AND, ADD,
+MOD2, and multiplicative operations, following a categorical approach
+compatible with :class:`ZW` diagrams.
+
+Each gate supports truncation to tensor semantics and dagger (adjoint)
+operations to allow reversible classical computing.
+
+Classes
+-------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    And
+    Add
+    Multiply
+    Divide
+    Mod2
+
+Examples
+--------
+
+We can simulate classical modular arithmetic:
+
+>>> from optyx.feed_forward.classical_arithmetic import Mod2
+>>> mod2_gate = Mod2().to_zw().to_tensor(input_dims=[5]).eval().array
+>>> assert list(map(int, map(np.argmax, mod2_gate))) == [0, 1, 0, 1, 0]
+
+Or implement addition:
+
+>>> from optyx.feed_forward.classical_arithmetic import Add
+>>> add_box = Add(2)
+>>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
+>>> assert np.allclose(tensor.sum(), 4)
+"""
+
+
 from optyx.optyx import (
     Box,
     Bit,

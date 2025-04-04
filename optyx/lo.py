@@ -501,15 +501,16 @@ class MZI(Box):
 
     """
 
-    def __init__(self, theta, phi, is_dagger=False):
+    def __init__(self, theta, phi, is_dagger=False, is_conj=False):
         self.theta, self.phi = theta, phi
+        self.is_conj = is_conj
         data = {theta, phi}
         super().__init__(
             "MZI", Mode(2), Mode(2), is_dagger=is_dagger, data=data
         )
 
     def conjugate(self):
-        return MZI(self.theta, -self.phi, self.is_dagger)
+        return MZI(self.theta, -self.phi, self.is_dagger, not self.is_conj)
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -532,22 +533,20 @@ class MZI(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        phase = self.global_phase(dtype=dtype)
+        factor = (
+            -backend.exp(-1j * 2 * backend.pi * self.theta)
+        ) if self.is_conj else 1
+        phase = self.global_phase(dtype=dtype) * factor
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
-
-        exp_sin_ = ZBox(1, 1, lambda i: (sin*exp*phase) ** i)
-        cos_ = ZBox(1, 1, lambda i: (cos*phase) ** i)
-        exp_cos_ = ZBox(1, 1, lambda i: (cos*exp*phase) ** i)
-        minus_sin = ZBox(1, 1,
-            lambda i: (-sin*phase) ** i
-        )
-
         mzi = (
             W(2) @ W(2)
-            >> exp_sin_ @ cos_ @ exp_cos_ @ minus_sin
             >> Id(1) @ SWAP @ Id(1)
+            >> Endo(exp * sin * phase) @
+               Endo(cos * phase) @
+               Endo(exp * cos * phase) @
+               Endo(-sin * phase)
             >> W(2).dagger() @ W(2).dagger()
         )
 
