@@ -283,7 +283,7 @@ class Divide(Box):
 
         for i in range(input_dims[1]):
             if i > 0:
-                def divide_diagram(n): (ZBox(1, n) >> add(n)).dagger()
+                def divide_diagram(n): return (ZBox(1, n) >> add(n)).dagger()
 
                 d = divide_diagram(i).to_tensor([input_dims[0]])
                 d = d >> truncation_tensor(d.cod.inside, output_dims)
