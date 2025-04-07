@@ -48,8 +48,10 @@ A binary-controlled gate can be composed as:
 >>> control.to_zw().draw(path='docs/_static/binary_control.svg')
 """
 
-
 from typing import Callable, List
+from discopy import tensor
+from discopy.frobenius import Dim
+import numpy as np
 from optyx.optyx import (
     Box,
     Id,
@@ -59,10 +61,6 @@ from optyx.optyx import (
     MAX_DIM,
 )
 from optyx.zw import ZBox
-from discopy import tensor
-from discopy.frobenius import Dim
-
-import numpy as np
 
 
 class BinaryControlledBox(Box):
@@ -90,19 +88,23 @@ class BinaryControlledBox(Box):
     >>> assert np.allclose(default_result, default_test)
     """
 
-    def __init__(self,
-                 action_box : Box,
-                 default_box : Box = None,
-                 is_dagger : bool = False):
+    def __init__(
+        self,
+        action_box: Box,
+        default_box: Box = None,
+        is_dagger: bool = False,
+    ):
 
         if default_box is None:
             default_box = Id(action_box.dom)
 
-        assert (action_box.dom == default_box.dom and
-                action_box.cod == default_box.cod), \
-            "action_box and default_box must have the same domain and codomain"
-        assert (len(action_box.dom) == len(action_box.cod)), \
-            "action_box must have the same number of inputs and outputs"
+        assert (
+            action_box.dom == default_box.dom
+            and action_box.cod == default_box.cod
+        ), "action_box and default_box must have the same domain and codomain"
+        assert len(action_box.dom) == len(
+            action_box.cod
+        ), "action_box must have the same number of inputs and outputs"
 
         dom = action_box.cod if is_dagger else Bit(1) @ action_box.dom
         cod = Bit(1) @ action_box.cod if is_dagger else action_box.cod
@@ -115,91 +117,85 @@ class BinaryControlledBox(Box):
         action_box = action_box.to_zw()
         default_box = default_box.to_zw()
 
-        super().__init__(box_name,
-                         dom,
-                         cod)
+        super().__init__(box_name, dom, cod)
 
         self.action_box = action_box
         self.default_box = default_box
         self.is_dagger = is_dagger
 
-    def determine_output_dimensions(self,
-                                    input_dims : List[int]) -> List[int]:
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
 
-        action_box_dims = self.action_box.to_tensor(
-            input_dims
-        ).cod.inside if self.is_dagger \
-        else self.action_box.to_tensor(
-            input_dims[1:]
-        ).cod.inside
+        action_box_dims = (
+            self.action_box.to_tensor(input_dims).cod.inside
+            if self.is_dagger
+            else self.action_box.to_tensor(input_dims[1:]).cod.inside
+        )
 
-        default_box_dims = self.default_box.to_tensor(
-            input_dims
-        ).cod.inside if self.is_dagger \
-        else self.default_box.to_tensor(
-            input_dims[1:]
-        ).cod.inside
+        default_box_dims = (
+            self.default_box.to_tensor(input_dims).cod.inside
+            if self.is_dagger
+            else self.default_box.to_tensor(input_dims[1:]).cod.inside
+        )
 
-        dims = [max(a, b) for a, b in zip(action_box_dims,
-                                          default_box_dims)]
+        dims = [max(a, b) for a, b in zip(action_box_dims, default_box_dims)]
 
         if self.is_dagger:
             return [2, *dims]
         return dims
 
-    def truncation(self,
-                   input_dims : List[int],
-                   output_dims : List[int]) -> tensor.Box:
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
 
         action_in_dim = input_dims[1:]
 
-        array = np.zeros((input_dims[0],
-                            *input_dims[1:],
-                            *output_dims), dtype=complex)
+        array = np.zeros(
+            (input_dims[0], *input_dims[1:], *output_dims), dtype=complex
+        )
 
         default_box_tensor = self.default_box.to_tensor(action_in_dim)
         action_box_tensor = self.action_box.to_tensor(action_in_dim)
 
         array[0, :, :] = (
-            default_box_tensor >>
-            truncation_tensor(
-                default_box_tensor.cod.inside,
-                output_dims
+            (
+                default_box_tensor
+                >> truncation_tensor(
+                    default_box_tensor.cod.inside, output_dims
+                )
             )
-        ).eval().array.reshape(array[0, :, :].shape)
+            .eval()
+            .array.reshape(array[0, :, :].shape)
+        )
 
         array[1, :, :] = (
-            action_box_tensor >>
-            truncation_tensor(
-                action_box_tensor.cod.inside,
-                output_dims
+            (
+                action_box_tensor
+                >> truncation_tensor(
+                    action_box_tensor.cod.inside, output_dims
+                )
             )
-        ).eval().array.reshape(array[1, :, :].shape)
+            .eval()
+            .array.reshape(array[1, :, :].shape)
+        )
 
         if self.is_dagger:
             return tensor.Box(
-                self.name,
-                Dim(*input_dims),
-                Dim(*output_dims),
-                array
+                self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
         return tensor.Box(
-            self.name,
-            Dim(*input_dims),
-            Dim(*output_dims),
-            array
+            self.name, Dim(*input_dims), Dim(*output_dims), array
         )
 
     def to_zw(self):
         return self
 
     def dagger(self):
-        return BinaryControlledBox(self.action_box,
-                                   self.default_box,
-                                   not self.is_dagger)
+        return BinaryControlledBox(
+            self.action_box, self.default_box, not self.is_dagger
+        )
 
 
 class ControlledPhaseShift(Box):
@@ -226,10 +222,13 @@ class ControlledPhaseShift(Box):
     >>> assert np.allclose(controlled_phase.to_tensor().eval().array,
     ...                    zbox.to_tensor().eval().array)
     """
-    def __init__(self,
-                 function : Callable[[List[int]], List[int]],
-                 n_modes : int = 1,
-                 is_dagger : bool = False):
+
+    def __init__(
+        self,
+        function: Callable[[List[int]], List[int]],
+        n_modes: int = 1,
+        is_dagger: bool = False,
+    ):
 
         dom = Mode(n_modes) if is_dagger else Mode(n_modes + 1)
         cod = Mode(n_modes + 1) if is_dagger else Mode(n_modes)
@@ -239,9 +238,9 @@ class ControlledPhaseShift(Box):
         self.function = function
         self.is_dagger = is_dagger
 
-    def truncation(self,
-                   input_dims : List[int],
-                   output_dims : List[int]) -> tensor.Box:
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -252,35 +251,26 @@ class ControlledPhaseShift(Box):
             fx = self.function(i)
             zbox = Id(Mode(0))
             for y in fx:
-                zbox @= ZBox(1, 1,
-                             lambda i, y=y: np.exp(
-                                 2 * np.pi * 1j * y
-                             ) ** i)
+                zbox @= ZBox(
+                    1, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i
+                )
 
             zbox = zbox.to_tensor(input_dims[1:])
             array[i, :] = (
-                zbox >>
-                truncation_tensor(
-                    zbox.cod.inside,
-                    output_dims
-                )
-            ).eval().array.reshape(array[i, :].shape)
+                (zbox >> truncation_tensor(zbox.cod.inside, output_dims))
+                .eval()
+                .array.reshape(array[i, :].shape)
+            )
 
         if self.is_dagger:
             return tensor.Box(
-                self.name,
-                Dim(*input_dims),
-                Dim(*output_dims),
-                array
+                self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
-        return tensor.Box(self.name,
-                          Dim(*input_dims),
-                          Dim(*output_dims),
-                          array
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
         )
 
-    def determine_output_dimensions(self,
-                                    input_dims : List[int]) -> List[int]:
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
             return [MAX_DIM] + input_dims
         return input_dims[1:]
@@ -289,24 +279,25 @@ class ControlledPhaseShift(Box):
         return self
 
     def dagger(self):
-        return ControlledPhaseShift(self.function,
-                                    self.n_modes,
-                                    not self.is_dagger)
+        return ControlledPhaseShift(
+            self.function, self.n_modes, not self.is_dagger
+        )
 
     def conjugate(self):
-        return ControlledPhaseShift(self.function,
-                                    self.n_modes,
-                                    self.is_dagger)
+        return ControlledPhaseShift(
+            self.function, self.n_modes, self.is_dagger
+        )
 
 
-def truncation_tensor(input_dims : List[int],
-                      output_dims : List[int]) -> tensor.Box:
+def truncation_tensor(
+    input_dims: List[int], output_dims: List[int]
+) -> tensor.Box:
 
-    assert len(input_dims) == len(output_dims), \
-        "input_dims and output_dims must have the same length"
+    assert len(input_dims) == len(
+        output_dims
+    ), "input_dims and output_dims must have the same length"
 
-    tensor = EmbeddingTensor(input_dims[0],
-                             output_dims[0])
+    tensor = EmbeddingTensor(input_dims[0], output_dims[0])
 
     for i in zip(input_dims[1:], output_dims[1:]):
 

@@ -216,9 +216,9 @@ class Multiply(Box):
 
         for i in range(input_dims[0]):
             if i > 0:
-                def multiply_diagram(n): ZBox(1, n) >> add(n)
+                def multiply_diagram(n): return ZBox(1, n) >> add(n)
             else:
-                def multiply_diagram(n): ZBox(1, 0) >> Create(0)
+                def multiply_diagram(n): return ZBox(1, 0) >> Create(0)
 
             d = multiply_diagram(i).to_tensor([input_dims[1]])
             d = d >> truncation_tensor(d.cod.inside, output_dims)
@@ -369,7 +369,7 @@ class Mod2(Box):
 divide = Divide()
 multiply = Multiply()
 copy_mode = ZBox(1, 2)
-def add(n): Add(n)
+def add(n): return Add(n)
 
 
 subtract = add(2).dagger() @ Mode(1) >> Mode(1) @ ZBox(2, 0)
