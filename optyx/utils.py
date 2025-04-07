@@ -10,8 +10,10 @@ Utility functions which are used in the package.
 
 import numpy as np
 
+
 def _build_w_layer(n_nonzero_counts, dagger=False):
     from optyx import zw
+
     layer = zw.Id(0)
     for count in n_nonzero_counts:
         if count > 1:
@@ -21,8 +23,10 @@ def _build_w_layer(n_nonzero_counts, dagger=False):
             layer @= zw.Id(1)
     return layer
 
+
 def matrix_to_zw(U):
     from optyx import zw
+
     n = U.shape[0]
     diagram = zw.Id(0)
 
@@ -64,6 +68,7 @@ def matrix_to_zw(U):
     diagram >>= _build_w_layer(n_rows_nonzero, dagger=True)
 
     return diagram
+
 
 def occupation_numbers(n_photons, m_modes):
     """

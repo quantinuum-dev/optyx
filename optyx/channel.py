@@ -114,10 +114,18 @@ from optyx import optyx, zx
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
 
-    _classical = {"bit": "bit", "mode": "mode",
-                  "qubit": "bit", "qmode": "mode"}
-    _quantum = {"bit": "qubit", "mode": "qmode",
-                "qubit": "qubit", "qmode": "qmode"}
+    _classical = {
+        "bit": "bit",
+        "mode": "mode",
+        "qubit": "bit",
+        "qmode": "mode",
+    }
+    _quantum = {
+        "bit": "qubit",
+        "mode": "qmode",
+        "qubit": "qubit",
+        "qmode": "qmode",
+    }
 
     @property
     def is_classical(self):
@@ -143,6 +151,7 @@ class Ob(symmetric.Ob):
 @factory
 class Ty(symmetric.Ty):
     """Classical and quantum types."""
+
     ob_factory = Ob
 
     def single(self):
@@ -171,22 +180,25 @@ qmode = Ty("qmode")
 @factory
 class Circuit(symmetric.Diagram):
     """Classical-quantum circuits over qubits and optical modes"""
+
     ty_factory = Ty
 
     def double(self):
-        """ Returns the optyx.Diagram obtained by
+        """Returns the optyx.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
         dom = symmetric.Category(Ty, Circuit)
         cod = symmetric.Category(optyx.Ty, optyx.Diagram)
-        return symmetric.Functor(lambda x: x.double(),
-                                 lambda f: f.double(), dom, cod)(self)
+        return symmetric.Functor(
+            lambda x: x.double(), lambda f: f.double(), dom, cod
+        )(self)
 
 
 class Channel(symmetric.Box, Circuit):
     """
     Channel initialised by its Kraus map.
     """
+
     def __init__(self, name, kraus, dom=None, cod=None, env=optyx.Ty()):
         assert isinstance(kraus, optyx.Diagram)
         if dom is None:
@@ -221,13 +233,20 @@ class Channel(symmetric.Box, Circuit):
         cod = self.cod.single()
         top_spiders = get_spiders(self.dom)
         top_perm = optyx.Diagram.permutation(
-            get_perm(len(top_spiders.cod)), top_spiders.cod)
-        swap_env = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(cod, self.env)
-        discard = (optyx.Id(cod) @ optyx.Diagram.spiders(2, 0, self.env)
-                                 @ optyx.Id(cod))
+            get_perm(len(top_spiders.cod)), top_spiders.cod
+        )
+        swap_env = optyx.Id(cod @ self.env) @ optyx.Diagram.swap(
+            cod, self.env
+        )
+        discard = (
+            optyx.Id(cod)
+            @ optyx.Diagram.spiders(2, 0, self.env)
+            @ optyx.Id(cod)
+        )
         new_cod = optyx.Ty().tensor(*[ty @ ty for ty in cod])
         bot_perm = optyx.Diagram.permutation(
-            get_perm(2 * len(cod)), new_cod).dagger()
+            get_perm(2 * len(cod)), new_cod
+        ).dagger()
         bot_spiders = get_spiders(self.cod).dagger()
         top = top_spiders >> top_perm
         bot = swap_env >> discard >> bot_perm >> bot_spiders
@@ -240,8 +259,10 @@ class Channel(symmetric.Box, Circuit):
 
     def dagger(self):
         return Channel(
-            name=self.name + ".dagger()", kraus=self.kraus.dagger(),
-            dom=self.cod, cod=self.dom
+            name=self.name + ".dagger()",
+            kraus=self.kraus.dagger(),
+            dom=self.cod,
+            cod=self.dom,
         )
 
 
@@ -263,8 +284,10 @@ class CQMap(symmetric.Box, Circuit):
 
     def dagger(self):
         return CQMap(
-            name=self.name + ".dagger()", density_matrix=self.density_matrix.dagger(),
-            dom=self.cod, cod=self.dom
+            name=self.name + ".dagger()",
+            density_matrix=self.density_matrix.dagger(),
+            dom=self.cod,
+            cod=self.dom,
         )
 
 
@@ -274,7 +297,7 @@ class Swap(symmetric.Swap, Channel):
 
 
 class Measure(Channel):
-    """ Measuring a qubit or qmode corresponds to
+    """Measuring a qubit or qmode corresponds to
     applying a 2 -> 1 spider in the doubled picture.
 
     >>> dom = qubit @ bit @ qmode @ mode
@@ -286,7 +309,7 @@ class Measure(Channel):
     def __init__(self, dom):
         cod = Ty(*[Ob._classical[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
-        super().__init__(name='Measure', kraus=kraus, dom=dom, cod=cod)
+        super().__init__(name="Measure", kraus=kraus, dom=dom, cod=cod)
 
 
 class Encode(Channel):
@@ -300,19 +323,22 @@ class Encode(Channel):
     def __init__(self, dom):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
-        super().__init__(name='Encode', kraus=kraus, dom=dom, cod=cod)
+        super().__init__(name="Encode", kraus=kraus, dom=dom, cod=cod)
 
 
 class BitFlipError(Channel):
 
     def __init__(self, prob):
-        x_error = (
-                zx.X(1, 2) >> zx.Id(1)
-                @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
-                @ zx.Scalar(np.sqrt(prob * 2))
+        x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
+            1, 1, np.sqrt((1 - prob) / prob)
+        ) @ zx.Scalar(np.sqrt(prob * 2))
+        super().__init__(
+            name=f"BitFlipError({prob})",
+            kraus=x_error,
+            dom=qubit,
+            cod=qubit,
+            env=optyx.bit,
         )
-        super().__init__(name=f'BitFlipError({prob})',
-                         kraus=x_error, dom=qubit, cod=qubit, env=optyx.bit)
 
     def dagger(self):
         return self
@@ -321,12 +347,19 @@ class BitFlipError(Channel):
 class DephasingError(Channel):
     def __init__(self, prob):
         z_error = (
-                zx.H >> zx.X(1, 2)
-                >> zx.H @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
-                @ zx.Scalar(np.sqrt(prob * 2))
+            zx.H
+            >> zx.X(1, 2)
+            >> zx.H
+            @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
+            @ zx.Scalar(np.sqrt(prob * 2))
         )
-        super().__init__(name=f'DephasingError({prob})',
-                         kraus=z_error, dom=qubit, cod=qubit, env=optyx.bit)
+        super().__init__(
+            name=f"DephasingError({prob})",
+            kraus=z_error,
+            dom=qubit,
+            cod=qubit,
+            env=optyx.bit,
+        )
 
     def dagger(self):
         return self
@@ -342,13 +375,15 @@ class Discard(Channel):
     def __init__(self, dom):
         env = dom.single()
         kraus = optyx.Id(dom.single())
-        super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
+        super().__init__("Discard", kraus, dom=dom, cod=Ty(), env=env)
 
 
 class Ket(Channel):
     """Computational basis state for qubits"""
 
-    def __init__(self, value: Literal[0, 1, "+", "-"], cod: Ty = None) -> None:
+    def __init__(
+        self, value: Literal[0, 1, "+", "-"], cod: Ty = None
+    ) -> None:
         spider = zx.X if value in (0, 1) else zx.Z
         phase = 0 if value in (0, "+") else 0.5
         kraus = spider(0, 1, phase) @ optyx.Scalar(1 / np.sqrt(2))
@@ -358,7 +393,9 @@ class Ket(Channel):
 class Bra(Channel):
     """Post-selected measurement for qubits"""
 
-    def __init__(self, value: Literal[0, 1, "+", "-"], dom: Ty = None) -> None:
+    def __init__(
+        self, value: Literal[0, 1, "+", "-"], dom: Ty = None
+    ) -> None:
         spider = zx.X if value in (0, 1) else zx.Z
         phase = 0 if value in (0, "+") else 0.5
         kraus = spider(1, 0, phase) @ optyx.Scalar(1 / np.sqrt(2))

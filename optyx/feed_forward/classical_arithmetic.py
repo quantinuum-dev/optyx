@@ -42,7 +42,6 @@ Or implement addition:
 >>> assert np.allclose(tensor.sum(), 4)
 """
 
-
 from optyx.optyx import (
     Box,
     Bit,
@@ -57,6 +56,7 @@ from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
 from typing import List
+
 
 class And(Box):
     """
@@ -81,14 +81,13 @@ class And(Box):
     ...         assert np.isclose(and_box[a, b, expected], 1.0)
     """
 
-    def __init__(self,
-                 is_dagger : bool = False):
+    def __init__(self, is_dagger: bool = False):
         super().__init__("And", Bit(2), Bit(1))
         self.is_dagger = is_dagger
 
-    def truncation(self,
-                   input_dims : List[int],
-                   output_dims : List[int]) -> tensor.Box:
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -101,20 +100,13 @@ class And(Box):
 
         if self.is_dagger:
             return tensor.Box(
-                self.name,
-                Dim(*input_dims),
-                Dim(*output_dims),
-                array
+                self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
         return tensor.Box(
-            self.name,
-            Dim(*input_dims),
-            Dim(*output_dims),
-            array
+            self.name, Dim(*input_dims), Dim(*output_dims), array
         )
 
-    def determine_output_dimensions(self,
-                                    input_dims):
+    def determine_output_dimensions(self, input_dims):
         if self.is_dagger:
             return [2, 2]
         return [2]
@@ -146,9 +138,7 @@ class Add(Box):
     >>> assert np.allclose(tensor.sum(), 4)
     """
 
-    def __init__(self,
-                 n : int,
-                 is_dagger : bool = False):
+    def __init__(self, n: int, is_dagger: bool = False):
         dom = Mode(1) if is_dagger else Mode(n)
         cod = Mode(n) if is_dagger else Mode(1)
 
@@ -156,40 +146,28 @@ class Add(Box):
         self.n = n
         self.is_dagger = is_dagger
 
-    def truncation(self,
-                   input_dims : List[int],
-                   output_dims : List[int]) -> tensor.Box:
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
 
         diag = W(self.n).dagger().to_tensor(input_dims)
         array = np.sign(
-            (
-                diag >> truncation_tensor(
-                    diag.cod.inside,
-                    output_dims
-                    )
-            ).eval().array
+            (diag >> truncation_tensor(diag.cod.inside, output_dims))
+            .eval()
+            .array
         )
         if self.is_dagger:
             return tensor.Box(
-                "Add",
-                Dim(*input_dims),
-                Dim(*output_dims),
-                array
+                "Add", Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
-        return tensor.Box(
-            "Add",
-            Dim(*input_dims),
-            Dim(*output_dims),
-            array
-        )
+        return tensor.Box("Add", Dim(*input_dims), Dim(*output_dims), array)
 
-    def determine_output_dimensions(self,
-                                    input_dims : List[int]) -> List[int]:
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
-            return [input_dims[0]]*self.n
+            return [input_dims[0]] * self.n
         return [sum(input_dims)]
 
     def to_zw(self):
@@ -219,8 +197,7 @@ class Multiply(Box):
     >>> assert len(nonzero[0]) > 0
     """
 
-    def __init__(self,
-                 is_dagger : bool = False):
+    def __init__(self, is_dagger: bool = False):
         dom = Mode(1) if is_dagger else Mode(2)
         cod = Mode(2) if is_dagger else Mode(1)
 
@@ -228,9 +205,9 @@ class Multiply(Box):
 
         self.is_dagger = is_dagger
 
-    def truncation(self,
-                   input_dims : List[int],
-                   output_dims : List[int]) -> tensor.Box:
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -239,11 +216,9 @@ class Multiply(Box):
 
         for i in range(input_dims[0]):
             if i > 0:
-                multiply_diagram = lambda n: (
-                    ZBox(1, n) >> add(n)
-                )
+                def multiply_diagram(n): ZBox(1, n) >> add(n)
             else:
-                multiply_diagram = lambda n : ZBox(1, 0) >> Create(0)
+                def multiply_diagram(n): ZBox(1, 0) >> Create(0)
 
             d = multiply_diagram(i).to_tensor([input_dims[1]])
             d = d >> truncation_tensor(d.cod.inside, output_dims)
@@ -252,20 +227,13 @@ class Multiply(Box):
 
         if self.is_dagger:
             return tensor.Box(
-                self.name,
-                Dim(*input_dims),
-                Dim(*output_dims),
-                array
+                self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
         return tensor.Box(
-            self.name,
-            Dim(*input_dims),
-            Dim(*output_dims),
-            array
+            self.name, Dim(*input_dims), Dim(*output_dims), array
         )
 
-    def determine_output_dimensions(self,
-                                    input_dims : List[int]) -> List[int]:
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
@@ -296,8 +264,7 @@ class Divide(Box):
     >>> assert np.all(result >= 0)
     """
 
-    def __init__(self,
-                 is_dagger : bool = False):
+    def __init__(self, is_dagger: bool = False):
         dom = Mode(1) if is_dagger else Mode(2)
         cod = Mode(2) if is_dagger else Mode(1)
 
@@ -305,9 +272,9 @@ class Divide(Box):
 
         self.is_dagger = is_dagger
 
-    def truncation(self,
-                   input_dims : List[int],
-                   output_dims : List[int]) -> tensor.Box:
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -316,9 +283,7 @@ class Divide(Box):
 
         for i in range(input_dims[1]):
             if i > 0:
-                divide_diagram = lambda n: (
-                    ZBox(1, n) >> add(n)
-                ).dagger()
+                def divide_diagram(n): (ZBox(1, n) >> add(n)).dagger()
 
                 d = divide_diagram(i).to_tensor([input_dims[0]])
                 d = d >> truncation_tensor(d.cod.inside, output_dims)
@@ -327,20 +292,13 @@ class Divide(Box):
 
         if self.is_dagger:
             return tensor.Box(
-                self.name,
-                Dim(*input_dims),
-                Dim(*output_dims),
-                array
+                self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
         return tensor.Box(
-            self.name,
-            Dim(*input_dims),
-            Dim(*output_dims),
-            array
+            self.name, Dim(*input_dims), Dim(*output_dims), array
         )
 
-    def determine_output_dimensions(self,
-                                    input_dims : List[int]) -> List[int]:
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
@@ -369,14 +327,13 @@ class Mod2(Box):
     ...    [i % 2 for i in range(5)])
     """
 
-    def __init__(self,
-                 is_dagger : bool = False):
+    def __init__(self, is_dagger: bool = False):
         super().__init__("Mod2", Mode(1), Mode(1))
         self.is_dagger = is_dagger
 
-    def truncation(self,
-                   input_dims : List[int],
-                   output_dims : List[int]) -> tensor.Box:
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
 
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
@@ -388,20 +345,13 @@ class Mod2(Box):
 
         if self.is_dagger:
             return tensor.Box(
-                self.name,
-                Dim(*input_dims),
-                Dim(*output_dims),
-                array
+                self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
         return tensor.Box(
-            self.name,
-            Dim(*input_dims),
-            Dim(*output_dims),
-            array
+            self.name, Dim(*input_dims), Dim(*output_dims), array
         )
 
-    def determine_output_dimensions(self,
-                                    input_dims : List[int]) -> List[int]:
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
             return [input_dims[0]]
         return [2]
@@ -419,17 +369,16 @@ class Mod2(Box):
 divide = Divide()
 multiply = Multiply()
 copy_mode = ZBox(1, 2)
-add = lambda n: Add(n)
-subtract = (
-    add(2).dagger() @ Mode(1) >>
-    Mode(1) @ ZBox(2, 0)
-)
+def add(n): Add(n)
+
+
+subtract = add(2).dagger() @ Mode(1) >> Mode(1) @ ZBox(2, 0)
 mod2 = Mod2()
 
-postselect_1 = X(1, 0, 0.5) @ Scalar(1/np.sqrt(2))
-postselect_0 = X(1, 0) @ Scalar(1/np.sqrt(2))
+postselect_1 = X(1, 0, 0.5) @ Scalar(1 / np.sqrt(2))
+postselect_0 = X(1, 0) @ Scalar(1 / np.sqrt(2))
 xor = X(2, 1) @ Scalar(np.sqrt(2))
 not_ = X(1, 1, 0.5)
-copy =  Z(1, 2)
+copy = Z(1, 2)
 swap = Swap(Bit(1), Bit(1))
 and_ = And()

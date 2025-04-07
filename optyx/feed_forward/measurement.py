@@ -31,9 +31,9 @@ Number-resolving measurement:
 >>> assert NumberResolvingMeasurement.double().cod == Mode(1)
 """
 
-
 from optyx.optyx import PhotonThresholdDetector
 from optyx.channel import Channel, Measure, bit, qmode
+
 
 class PhotonThresholdMeasurement(Channel):
     """
@@ -42,9 +42,10 @@ class PhotonThresholdMeasurement(Channel):
     """
 
     def __init__(self):
-        super().__init__("PhotonThresholdMeasurement",
-                         PhotonThresholdDetector(), cod=bit)
+        super().__init__(
+            "PhotonThresholdMeasurement", PhotonThresholdDetector(), cod=bit
+        )
 
 
-#Ideal photon number resolving detector from qmode to mode.
+# Ideal photon number resolving detector from qmode to mode.
 NumberResolvingMeasurement = Measure(qmode)
