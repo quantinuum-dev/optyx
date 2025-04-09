@@ -212,12 +212,12 @@ class ControlledPhaseShift(Box):
     -------
     >>> from optyx.optyx import Id
     >>> from optyx.zw import Create
-    >>> f = lambda x: [x*0.1, x*0.2, x*0.3]
-    >>> n = len(f(0))
+    >>> f = lambda x: [x[0]*0.1, x[0]*0.2, x[0]*0.3]
+    >>> n = len(f([0]))
     >>> controlled_phase = (Create(2) @ Mode(n) >>
     ...                     ControlledPhaseShift(f, n_modes=n))
     >>> zbox = Id(Mode(0))
-    >>> for y in f(2):
+    >>> for y in f([2]):
     ...     zbox @= ZBox(1, 1,
     ...         lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
     >>> assert np.allclose(controlled_phase.to_tensor().eval().array,
@@ -253,8 +253,7 @@ class ControlledPhaseShift(Box):
         input_combinations = np.array(
             np.meshgrid(*[range(i) for i in input_dims[:self.n_control_bits]]),
         ).T.reshape(-1, len(input_dims[:self.n_control_bits]))
-        print(input_dims)
-        print(output_dims)
+
         for i in input_combinations:
             fx = self.function(i)
             zbox = Id(Mode(0))
@@ -271,13 +270,9 @@ class ControlledPhaseShift(Box):
             )
 
         if self.is_dagger:
-            print(array)
-
-
             return tensor.Box(
                 self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
-        print(array)
         return tensor.Box(
             self.name, Dim(*input_dims), Dim(*output_dims), array
         )
@@ -292,7 +287,8 @@ class ControlledPhaseShift(Box):
 
     def dagger(self):
         return ControlledPhaseShift(
-            self.function, self.n_modes, self.n_control_bits, not self.is_dagger
+            self.function, self.n_modes,
+            self.n_control_bits, not self.is_dagger
         )
 
     def conjugate(self):
