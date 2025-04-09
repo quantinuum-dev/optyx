@@ -146,9 +146,6 @@ class ClassicalFunctionBox(Box):
             self.function, self.cod, self.dom, not self.is_dagger
         )
 
-    def conjugate(self):
-        return self
-
 
 class LogicalMatrixBox(Box):
     """
@@ -212,9 +209,6 @@ class LogicalMatrixBox(Box):
 
     def dagger(self):
         return LogicalMatrixBox(self.matrix, not self.is_dagger)
-
-    def conjugate(self):
-        return self
 
 
 class ClassicalCircuitBox(Diagram):

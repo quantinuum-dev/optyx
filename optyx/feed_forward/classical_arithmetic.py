@@ -117,9 +117,6 @@ class And(Box):
     def dagger(self):
         return And(not self.is_dagger)
 
-    def conjugate(self):
-        return self
-
 
 class Add(Box):
     """
@@ -175,9 +172,6 @@ class Add(Box):
 
     def dagger(self):
         return Add(self.n, not self.is_dagger)
-
-    def conjugate(self):
-        return self
 
 
 class Multiply(Box):
@@ -244,9 +238,6 @@ class Multiply(Box):
     def dagger(self):
         return Multiply(not self.is_dagger)
 
-    def conjugate(self):
-        return self
-
 
 class Divide(Box):
     """
@@ -309,9 +300,6 @@ class Divide(Box):
     def dagger(self):
         return Divide(not self.is_dagger)
 
-    def conjugate(self):
-        return self
-
 
 class Mod2(Box):
     """
@@ -361,9 +349,6 @@ class Mod2(Box):
 
     def dagger(self):
         return Mod2(not self.is_dagger)
-
-    def conjugate(self):
-        return self
 
 
 divide = Divide()

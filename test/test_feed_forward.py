@@ -115,40 +115,44 @@ def test_logical_matrix_box(function, m):
 
 l = [[0, 2], [1, 1], [2, 0], [0, 1], [1, 0], [0, 0]]
 
+fusion_i_box = (
+    copy_mode @ copy_mode >>
+    Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
+    mod2 @ mod2 @ Mode(2) >>
+    PhotonThresholdDetector() @ PhotonThresholdDetector() @ Mode(2) >>
+    Bit(1) @ copy @ Mode(2) >>
+    xor @ Bit(1) @ Mode(2) >>
+    copy @ Bit(1) @ Mode(2) >>
+    copy @ Bit(2) @ Mode(2) >>
+    Bit(2) @ not_ @ Bit(1) @ Mode(2) >>
+    Bit(2) @ swap @ PhotonThresholdDetector() @ PhotonThresholdDetector()  >>
+    Bit(1) @ and_ @ Bit(1) @ copy @ copy >>
+    Bit(4) @ swap @ Bit(1) >>
+    Bit(3) @ and_ @ xor >>
+    Bit(4) @ not_ >>
+    Bit(3) @ xor >>
+    Bit(2) @ and_ >>
+    Bit(1) @ xor
+)
+
+@pytest.mark.skip(reason="Helper function for testing")
+def fusion_i_function(x):
+    a = x[0]
+    b = x[1]
+    s = (a % 2) ^ (b % 2)
+    k = int(s*(b % 2) + (1-s)*(1 - (a + b)/2))
+    return [s, k]
+
+
 @pytest.mark.parametrize("l", l)
 def test_classical_circuit(l):
-    fusion_i_box = (
-        copy_mode @ copy_mode >>
-        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
-        mod2 @ mod2 @ Mode(2) >>
-        PhotonThresholdDetector() @ PhotonThresholdDetector() @ Mode(2) >>
-        Bit(1) @ copy @ Mode(2) >>
-        xor @ Bit(1) @ Mode(2) >>
-        copy @ Bit(1) @ Mode(2) >>
-        copy @ Bit(2) @ Mode(2) >>
-        Bit(2) @ not_ @ Bit(1) @ Mode(2) >>
-        Bit(2) @ swap @ PhotonThresholdDetector() @ PhotonThresholdDetector()  >>
-        Bit(1) @ and_ @ Bit(1) @ copy @ copy >>
-        Bit(4) @ swap @ Bit(1) >>
-        Bit(3) @ and_ @ xor >>
-        Bit(4) @ not_ >>
-        Bit(3) @ xor >>
-        Bit(2) @ and_ >>
-        Bit(1) @ xor
-    )
-
-    def fusion_i_function(x):
-        a = x[0]
-        b = x[1]
-        s = (a % 2) ^ (b % 2)
-        k = int(s*(b % 2) + (1-s)*(1 - (a + b)/2))
-        return [s, k]
-
-    d = Create(*l) >> ClassicalFunctionBox(fusion_i_function, fusion_i_box.dom, fusion_i_box.cod)
-    arr1 = [o[0] for o in np.nonzero(np.round(d.to_zw().to_tensor(input_dims=[4, 4]).eval().array))]
-    arr2 = [o[0] for o in np.nonzero(np.round(d.to_zw().to_tensor().eval().array))]
+    d1 = Create(*l) >> ClassicalFunctionBox(fusion_i_function, fusion_i_box.dom, fusion_i_box.cod)
+    arr1 = [o[0] for o in np.nonzero(np.round(d1.to_zw().to_tensor().eval().array))]
+    d2 = Create(*l) >> fusion_i_box
+    arr2 = [o[0] for o in np.nonzero(np.round(d2.to_zw().to_tensor().eval().array))]
 
     assert np.allclose(arr1, arr2)
+
 
 @pytest.mark.skip(reason="Helper function for testing")
 def f_1(x):
@@ -379,3 +383,18 @@ def test_controlled_phase_shift(f, x):
             zbox.to_tensor().dagger().eval().array,
             zbox.dagger().to_tensor().eval().array
         )
+
+
+def test_matrix_to_zw():
+    from optyx.utils import matrix_to_zw
+    U = np.array([[1, 1], [1, 1]])
+
+    diagram1 = matrix_to_zw(U)
+
+    diagram2 = (
+        W(2) @ W(2) >>
+        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
+        W(2).dagger() @ W(2).dagger()
+    )
+
+    assert np.allclose(diagram1.to_tensor().eval().array, diagram2.to_tensor().eval().array)
