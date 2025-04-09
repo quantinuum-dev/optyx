@@ -17,7 +17,7 @@ Classes
     :nosignatures:
     :toctree:
 
-    BinaryControlledBox
+    BitControlledBox
     ControlledPhaseShift
 
 Functions
@@ -40,11 +40,11 @@ We can construct a controlled gate acting on a quantum mode:
 >>> box = ControlledPhaseShift(f, n_modes=2)
 >>> box.to_zw().draw(path='docs/_static/controlled_phase.svg')
 
-A binary-controlled gate can be composed as:
+A bit-controlled gate can be composed as:
 
->>> from optyx.feed_forward.controlled_gates import BinaryControlledBox
+>>> from optyx.feed_forward.controlled_gates import BitControlledBox
 >>> from optyx.zw import ZBox
->>> control = BinaryControlledBox(ZBox(1, 1, lambda x: x))
+>>> control = BitControlledBox(ZBox(1, 1, lambda x: x))
 >>> control.to_zw().draw(path='docs/_static/binary_control.svg')
 """
 
@@ -63,11 +63,12 @@ from optyx.optyx import (
 from optyx.zw import ZBox
 
 
-class BinaryControlledBox(Box):
+class BitControlledBox(Box):
     """
-    A box controlled by a bit that chooses between two boxes:
+    A box controlled by a bit that switches between two boxes:
     - action_box: the box that is applied when the control bit is 1
-    - default_box: the box that is applied when the control bit is 0
+    - default_box: the box that is applied when
+    the control bit is 0 (default is Id)
 
     Example
     -------
@@ -80,10 +81,10 @@ class BinaryControlledBox(Box):
     >>> default_result = default.to_zw().to_tensor().eval().array
     >>> action_test = ((Create(1) >> PhotonThresholdDetector()) @
     ...         Mode(len(action.cod)) >>
-    ...         BinaryControlledBox(action)).to_zw().to_tensor().eval().array
+    ...         BitControlledBox(action)).to_zw().to_tensor().eval().array
     >>> default_test = ((Create(0) >> PhotonThresholdDetector()) @
     ...         Mode(len(default.cod)) >>
-    ...         BinaryControlledBox(default)).to_zw().to_tensor().eval().array
+    ...         BitControlledBox(default)).to_zw().to_tensor().eval().array
     >>> assert np.allclose(action_result, action_test)
     >>> assert np.allclose(default_result, default_test)
     """
@@ -193,7 +194,7 @@ class BinaryControlledBox(Box):
         return self
 
     def dagger(self):
-        return BinaryControlledBox(
+        return BitControlledBox(
             self.action_box, self.default_box, not self.is_dagger
         )
 
@@ -201,7 +202,7 @@ class BinaryControlledBox(Box):
 class ControlledPhaseShift(Box):
     """
     A controlled phase shift on modes, where the control
-    is a classical integer and
+    is a natural number and
     the phase applied is determined by a user-defined function.
 
     The function maps each control value to a list
@@ -227,16 +228,18 @@ class ControlledPhaseShift(Box):
         self,
         function: Callable[[List[int]], List[int]],
         n_modes: int = 1,
+        n_control_bits: int = 1,
         is_dagger: bool = False,
     ):
 
-        dom = Mode(n_modes) if is_dagger else Mode(n_modes + 1)
-        cod = Mode(n_modes + 1) if is_dagger else Mode(n_modes)
+        dom = Mode(n_modes) if is_dagger else Mode(n_modes + n_control_bits)
+        cod = Mode(n_modes + n_control_bits) if is_dagger else Mode(n_modes)
 
         super().__init__("ControlledPhase", dom, cod)
         self.n_modes = n_modes
         self.function = function
         self.is_dagger = is_dagger
+        self.n_control_bits = n_control_bits
 
     def truncation(
         self, input_dims: List[int], output_dims: List[int]
@@ -247,15 +250,20 @@ class ControlledPhaseShift(Box):
 
         array = np.zeros((*input_dims, *output_dims), dtype=complex)
 
-        for i in range(input_dims[0]):
+        input_combinations = np.array(
+            np.meshgrid(*[range(i) for i in input_dims[:self.n_control_bits]]),
+        ).T.reshape(-1, len(input_dims[:self.n_control_bits]))
+        print(input_dims)
+        print(output_dims)
+        for i in input_combinations:
             fx = self.function(i)
             zbox = Id(Mode(0))
             for y in fx:
                 zbox @= ZBox(
-                    1, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i
+                    1, 1, lambda x, y=y: np.exp(2 * np.pi * 1j * y) ** x
                 )
 
-            zbox = zbox.to_tensor(input_dims[1:])
+            zbox = zbox.to_tensor(input_dims[self.n_control_bits:])
             array[i, :] = (
                 (zbox >> truncation_tensor(zbox.cod.inside, output_dims))
                 .eval()
@@ -263,29 +271,33 @@ class ControlledPhaseShift(Box):
             )
 
         if self.is_dagger:
+            print(array)
+
+
             return tensor.Box(
                 self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
+        print(array)
         return tensor.Box(
             self.name, Dim(*input_dims), Dim(*output_dims), array
         )
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
-            return [MAX_DIM] + input_dims
-        return input_dims[1:]
+            return [MAX_DIM]*self.n_control_bits + input_dims
+        return input_dims[self.n_control_bits:]
 
     def to_zw(self):
         return self
 
     def dagger(self):
         return ControlledPhaseShift(
-            self.function, self.n_modes, not self.is_dagger
+            self.function, self.n_modes, self.n_control_bits, not self.is_dagger
         )
 
     def conjugate(self):
         return ControlledPhaseShift(
-            self.function, self.n_modes, self.is_dagger
+            self.function, self.n_modes, self.n_control_bits, self.is_dagger
         )
 
 

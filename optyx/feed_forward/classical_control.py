@@ -21,7 +21,7 @@ Classes
     :toctree:
 
     ClassicalFunctionBox
-    LogicalMatrixBox
+    BinaryMatrixBox
     ClassicalCircuitBox
     ControlChannel
 
@@ -37,9 +37,9 @@ A classical function can be embedded into a circuit:
 A classical matrix transformation (e.g. stabilizer logic) can be applied:
 
 >>> import numpy as np
->>> from optyx.feed_forward.classical_control import LogicalMatrixBox
+>>> from optyx.feed_forward.classical_control import BinaryMatrixBox
 >>> matrix = np.array([[1, 1], [0, 1]], dtype=np.uint8)
->>> logical = LogicalMatrixBox(matrix)
+>>> logical = BinaryMatrixBox(matrix)
 >>> logical.to_zw().draw(path='docs/_static/logical_matrix.svg')
 """
 
@@ -147,7 +147,7 @@ class ClassicalFunctionBox(Box):
         )
 
 
-class LogicalMatrixBox(Box):
+class BinaryMatrixBox(Box):
     """
     Represents a linear transformation over
     GF(2) using matrix multiplication.
@@ -156,7 +156,7 @@ class LogicalMatrixBox(Box):
     -------
     >>> from optyx.feed_forward.classical_arithmetic import xor
     >>> matrix = [[1, 1]]
-    >>> m_res = LogicalMatrixBox(matrix).to_tensor().eval().array
+    >>> m_res = BinaryMatrixBox(matrix).to_tensor().eval().array
     >>> xor_res = xor.to_zw().to_tensor().eval().array
     >>> assert np.allclose(m_res, xor_res)
 
@@ -208,7 +208,7 @@ class LogicalMatrixBox(Box):
         ).determine_output_dimensions(input_dims)
 
     def dagger(self):
-        return LogicalMatrixBox(self.matrix, not self.is_dagger)
+        return BinaryMatrixBox(self.matrix, not self.is_dagger)
 
 
 class ClassicalCircuitBox(Diagram):
@@ -228,16 +228,16 @@ class ControlChannel(Channel):
     into a CQMap channel, allowing
     it to be used as a control channel in hybrid quantum-classical systems.
 
-    Accepts ClassicalFunctionBox, LogicalMatrixBox, or raw optyx Diagrams.
+    Accepts ClassicalFunctionBox, BinaryMatrixBox, or raw optyx Diagrams.
     """
 
     def __new__(
-        self, control_box: Diagram | ClassicalFunctionBox | LogicalMatrixBox
+        self, control_box: Diagram | ClassicalFunctionBox | BinaryMatrixBox
     ) -> CQMap:
         assert isinstance(
-            control_box, (Diagram, ClassicalFunctionBox, LogicalMatrixBox)
+            control_box, (Diagram, ClassicalFunctionBox, BinaryMatrixBox)
         ), "control_box needs to be an instance of optyx.Diagram, "
-        "ClassicalFunctionBox, LogicalMatrixBox"
+        "ClassicalFunctionBox, BinaryMatrixBox"
 
         return CQMap(
             "Classical Control",

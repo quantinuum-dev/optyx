@@ -25,14 +25,14 @@ def test_binary_controlled_box(action, default):
 
     if default is None:
         action_test = ((Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
-                    BinaryControlledBox(action)).to_zw().to_tensor().eval().array
+                    BitControlledBox(action)).to_zw().to_tensor().eval().array
         default_test = ((Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
-                    BinaryControlledBox(action)).to_zw().to_tensor().eval().array
+                    BitControlledBox(action)).to_zw().to_tensor().eval().array
     else:
         action_test = ((Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
-                    BinaryControlledBox(action, default.to_zw())).to_zw().to_tensor().eval().array
+                    BitControlledBox(action, default.to_zw())).to_zw().to_tensor().eval().array
         default_test = ((Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod)) >>
-                    BinaryControlledBox(action, default.to_zw())).to_zw().to_tensor().eval().array
+                    BitControlledBox(action, default.to_zw())).to_zw().to_tensor().eval().array
 
     assert np.allclose(action_result, action_test)
     if default is not None:
@@ -110,7 +110,7 @@ def test_logical_matrix_box(function, m):
     cod = Bit(len(m))
     dom = Bit(len(m[0]))
     f_arr = ClassicalFunctionBox(function, dom, cod).to_tensor().eval().array
-    circ_arr = LogicalMatrixBox(m).to_tensor().eval().array
+    circ_arr = BinaryMatrixBox(m).to_tensor().eval().array
     assert np.allclose(f_arr, circ_arr)
 
 l = [[0, 2], [1, 1], [2, 0], [0, 1], [1, 0], [0, 0]]
@@ -156,19 +156,22 @@ def test_classical_circuit(l):
 
 @pytest.mark.skip(reason="Helper function for testing")
 def f_1(x):
+    x = x[0]
     return [x, x]
 
 @pytest.mark.skip(reason="Helper function for testing")
 def f_2(x):
+    x = x[0]
     return [0.23*x]
 
 @pytest.mark.skip(reason="Helper function for testing")
 def f_3(x):
+    x = x[0]
     return [0.8362, 0.193, 0.654]
 
 diagrams_to_test = [
-    lambda f: ControlledPhaseShift(f, len(f(0))),
-    lambda f: Create(4) @ Mode(len(f(0))) >> ControlledPhaseShift(f, len(f(0)))
+    lambda f: ControlledPhaseShift(f, len(f([0]))),
+    lambda f: Create(4) @ Mode(len(f([0]))) >> ControlledPhaseShift(f, len(f([0])))
 ]
 
 #get cartesian product of diagrams_to_test and classical_functions_to_test
@@ -189,10 +192,10 @@ def test_dagger_controlled_phase_shift(diagram, f):
         assert np.allclose(res_1, res_2)
 
 diagrams_to_test = [
-    ControlledPhaseShift(lambda x: [x], 1),
-    ControlledPhaseShift(lambda x: [0.23*x, 0.456*x, 0.876*x, 0.654*x], 4),
-    ControlledPhaseShift(lambda x: [0.23*x], 1),
-    ControlledPhaseShift(lambda x: [0.23*x, 0.456*x, 0.876*x], 3),
+    ControlledPhaseShift(lambda x: [x[0]], 1),
+    ControlledPhaseShift(lambda x: [0.23*x[0], 0.456*x[0], 0.876*x[0], 0.654*x[0]], 4),
+    ControlledPhaseShift(lambda x: [0.23*x[0]], 1),
+    ControlledPhaseShift(lambda x: [0.23*x[0], 0.456*x[0], 0.876*x[0]], 3),
 ]
 
 @pytest.mark.parametrize("diagram", diagrams_to_test)
@@ -297,8 +300,8 @@ def test_logical_matrix_box_dagger(function, m):
     cod = Bit(len(m))
     dom = Bit(len(m[0]))
 
-    res_1 = LogicalMatrixBox(m).to_tensor().dagger().eval().array
-    res_2 = LogicalMatrixBox(m).dagger().to_tensor().eval().array
+    res_1 = BinaryMatrixBox(m).to_tensor().dagger().eval().array
+    res_2 = BinaryMatrixBox(m).dagger().to_tensor().eval().array
 
     if res_1.shape != res_2.shape:
         min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
@@ -317,8 +320,8 @@ circuits_to_test = [
 
 @pytest.mark.parametrize("action, default", circuits_to_test)
 def test_binary_controlled_box_dagger(action, default):
-    res_1 = BinaryControlledBox(action, default).to_zw().to_tensor().dagger().eval().array
-    res_2 = BinaryControlledBox(action, default).dagger().to_zw().to_tensor().eval().array
+    res_1 = BitControlledBox(action, default).to_zw().to_tensor().dagger().eval().array
+    res_2 = BitControlledBox(action, default).dagger().to_zw().to_tensor().eval().array
 
     if res_1.shape != res_2.shape:
         min_shape = [min(res_1.shape[i], res_2.shape[i]) for i in range(len(res_1.shape))]
@@ -346,14 +349,17 @@ def test_photon_threshold_detector_dagger(circ):
 
 @pytest.mark.skip(reason="Helper function for testing")
 def f_1(x):
+    x = x[0]
     return [x*0.234, x*0.912, x*0.184]
 
 @pytest.mark.skip(reason="Helper function for testing")
 def f_2(x):
+    x = x[0]
     return [0.23*x]
 
 @pytest.mark.skip(reason="Helper function for testing")
 def f_3(x):
+    x = x[0]
     return [0.8362, 0.193, 0.654]
 
 fs = [f_1, f_2, f_3]
@@ -362,11 +368,11 @@ xs = range(5)
 
 @pytest.mark.parametrize("f, x", itertools.product(fs, xs))
 def test_controlled_phase_shift(f, x):
-        n = len(f(0))
+        n = len(f([0]))
         diag = Create(x) @ Mode(n) >> ControlledPhaseShift(f, n)
 
         zbox = Id(Mode(0))
-        for y in f(x):
+        for y in f([x]):
             zbox @= ZBox(1, 1, lambda i, y=y: np.exp(2 * np.pi * 1j * y) ** i)
 
         assert np.allclose(
