@@ -215,9 +215,11 @@ class Multiply(Box):
 
         for i in range(input_dims[0]):
             if i > 0:
-                def multiply_diagram(n): return Spider(1, n, Mode(1)) >> add(n)
+                def multiply_diagram(n): return (Spider(1, n, Mode(1)) >>
+                                                 add(n))
             else:
-                def multiply_diagram(n): return Spider(1, 0, Mode(1)) >> Create(0)
+                def multiply_diagram(n): return (Spider(1, 0, Mode(1)) >>
+                                                 Create(0))
 
             d = multiply_diagram(i).to_tensor([input_dims[1]])
             d = d >> truncation_tensor(d.cod.inside, output_dims)
@@ -279,7 +281,8 @@ class Divide(Box):
 
         for i in range(input_dims[1]):
             if i > 0:
-                def divide_diagram(n): return (Spider(1, n, Mode(1)) >> add(n)).dagger()
+                def divide_diagram(n): return (Spider(1, n, Mode(1)) >>
+                                               add(n)).dagger()
 
                 d = divide_diagram(i).to_tensor([input_dims[0]])
                 d = d >> truncation_tensor(d.cod.inside, output_dims)
