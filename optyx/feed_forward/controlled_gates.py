@@ -198,6 +198,12 @@ class BitControlledBox(Box):
             self.action_box, self.default_box, not self.is_dagger
         )
 
+    def conjugate(self):
+        return BitControlledBox(
+            self.action_box.conjugate(),
+            self.default_box.conjugate(),
+            self.is_dagger,
+        )
 
 class ControlledPhaseShift(Box):
     """

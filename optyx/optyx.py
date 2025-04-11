@@ -347,12 +347,10 @@ class Diagram(frobenius.Diagram):
             )
 
             diagram_ = left @ box.truncation(dims_in, dims_out) @ right
-
             if i == 0:
                 diagram = diagram_
             else:
                 diagram = diagram >> diagram_
-
             right_dim = cod_right_dim
             layer_dims = cod_layer_dims
         return diagram
@@ -872,8 +870,8 @@ class DualRail(Box):
     def __init__(self, is_dagger=False):
         dom = Mode(2) if is_dagger else Bit(1)
         cod = Bit(1) if is_dagger else Mode(2)
-        self.is_dagger = is_dagger
         super().__init__("2R", dom, cod)
+        self.is_dagger = is_dagger
 
     def conjugate(self):
         return self
@@ -889,7 +887,7 @@ class DualRail(Box):
         array[1, 0, 1] = 1
         if self.is_dagger:
             return tensor.Box(
-                self.name, Dim(2), Dim(*[int(i) for i in input_dims]), array
+                self.name + ".dagger()", Dim(2), Dim(*[int(i) for i in input_dims]), array
             ).dagger()
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 

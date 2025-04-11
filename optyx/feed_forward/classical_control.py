@@ -139,7 +139,7 @@ class ClassicalFunctionBox(Box):
         ):
             return [2] * self.output_size
         else:
-            return [max(input_dims)] * self.output_size
+            return [int(max(input_dims))] * self.output_size
 
     def dagger(self):
         return ClassicalFunctionBox(
