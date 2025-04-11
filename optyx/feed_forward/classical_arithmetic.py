@@ -49,7 +49,8 @@ from optyx.optyx import (
     Mode,
     Scalar,
 )
-from optyx.zw import W, ZBox, Create
+from optyx.zw import W, Create
+from optyx.optyx import Spider
 from optyx.zx import Z, X
 from optyx.feed_forward.controlled_gates import truncation_tensor
 from discopy import tensor
@@ -147,6 +148,9 @@ class Add(Box):
         self, input_dims: List[int], output_dims: List[int]
     ) -> tensor.Box:
 
+        input_dims = [int(i) for i in input_dims]
+        output_dims = [int(i) for i in output_dims]
+
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
 
@@ -160,12 +164,13 @@ class Add(Box):
             return tensor.Box(
                 "Add", Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
+
         return tensor.Box("Add", Dim(*input_dims), Dim(*output_dims), array)
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
-            return [input_dims[0]] * self.n
-        return [sum(input_dims)]
+            return [int(input_dims[0])] * self.n
+        return [int(sum(input_dims))]
 
     def to_zw(self):
         return self
@@ -210,9 +215,9 @@ class Multiply(Box):
 
         for i in range(input_dims[0]):
             if i > 0:
-                def multiply_diagram(n): return ZBox(1, n) >> add(n)
+                def multiply_diagram(n): return Spider(1, n, Mode(1)) >> add(n)
             else:
-                def multiply_diagram(n): return ZBox(1, 0) >> Create(0)
+                def multiply_diagram(n): return Spider(1, 0, Mode(1)) >> Create(0)
 
             d = multiply_diagram(i).to_tensor([input_dims[1]])
             d = d >> truncation_tensor(d.cod.inside, output_dims)
@@ -274,7 +279,7 @@ class Divide(Box):
 
         for i in range(input_dims[1]):
             if i > 0:
-                def divide_diagram(n): return (ZBox(1, n) >> add(n)).dagger()
+                def divide_diagram(n): return (Spider(1, n, Mode(1)) >> add(n)).dagger()
 
                 d = divide_diagram(i).to_tensor([input_dims[0]])
                 d = d >> truncation_tensor(d.cod.inside, output_dims)
@@ -353,11 +358,11 @@ class Mod2(Box):
 
 divide = Divide()
 multiply = Multiply()
-copy_mode = ZBox(1, 2)
+copy_mode = Spider(1, 2, Mode(1))
 def add(n): return Add(n)
 
 
-subtract = add(2).dagger() @ Mode(1) >> Mode(1) @ ZBox(2, 0)
+subtract = add(2).dagger() @ Mode(1) >> Mode(1) @ Spider(2, 0, Mode(1))
 mod2 = Mod2()
 
 postselect_1 = X(1, 0, 0.5) @ Scalar(1 / np.sqrt(2))
