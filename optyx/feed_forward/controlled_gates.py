@@ -205,6 +205,7 @@ class BitControlledBox(Box):
             self.is_dagger,
         )
 
+
 class ControlledPhaseShift(Box):
     """
     A controlled phase shift on modes, where the control

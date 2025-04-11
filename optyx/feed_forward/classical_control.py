@@ -115,10 +115,18 @@ class ClassicalFunctionBox(Box):
             for i in input_combinations
             if self.function(i) != 0
         ]
+
+        assert all(
+            max(output) <= 1 for _, output in outputs
+        ), "function must return bits"
+
         full_indices = np.array(
             [tuple(input_) + tuple(output) for input_, output in outputs]
         )
         array[tuple(full_indices.T)] = 1
+
+        input_dims = [int(d) for d in input_dims]
+        output_dims = [int(d) for d in output_dims]
 
         if self.is_dagger:
             return tensor.Box(
