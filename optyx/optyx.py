@@ -887,7 +887,8 @@ class DualRail(Box):
         array[1, 0, 1] = 1
         if self.is_dagger:
             return tensor.Box(
-                self.name + ".dagger()", Dim(2), Dim(*[int(i) for i in input_dims]), array
+                self.name + ".dagger()", Dim(2),
+                Dim(*[int(i) for i in input_dims]), array
             ).dagger()
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 

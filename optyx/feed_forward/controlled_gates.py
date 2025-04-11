@@ -76,7 +76,7 @@ class BitControlledBox(Box):
     >>> from optyx.optyx import PhotonThresholdDetector, Mode
     >>> from optyx.zw import Create
     >>> action = Phase(0.1)
-    >>> default = ZBox(1, 1)
+    >>> default = ZBox(1, 1, lambda x: 1)
     >>> action_result = action.to_zw().to_tensor().eval().array
     >>> default_result = default.to_zw().to_tensor().eval().array
     >>> action_test = ((Create(1) >> PhotonThresholdDetector()) @
