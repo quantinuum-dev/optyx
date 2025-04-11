@@ -448,8 +448,20 @@ class Create(Box):
     draw_as_spider = True
     color = "blue"
 
-    def __init__(self, *photons: int):
+    def __init__(self,
+                 *photons: int,
+                 internal_states : tuple[list[int]] = None):
         self.photons = photons or (1,)
+
+        if internal_states is not None:
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
+            assert (photons == (1,) * len(photons),
+                    "Only one photon per mode allowed for internal states")
+            assert len(internal_states) == len(photons)
+            assert len(set(len(i) for i in internal_states)) == 1
+        self.internal_states = internal_states
+
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
@@ -461,6 +473,25 @@ class Create(Box):
         return Matrix[dtype](
             array, 0, len(self.photons), creations=self.photons
         )
+
+    def inflate(self, d):
+        assert (all(len(state) == d for state in self.internal_states),
+                "All internal states must be of length d")
+
+        diagram = Id(Mode(0))
+
+        for i, internal_state in enumerate(self.internal_states):
+            endo_layer = Id(Mode(0))
+            for i in internal_state:
+                endo_layer @= Endo(i)
+
+            diagram @= (
+                Create(1) >>
+                W(d) >>
+                endo_layer
+            )
+
+        return diagram
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
@@ -517,13 +548,42 @@ class Select(Box):
     draw_as_spider = True
     color = "blue"
 
-    def __init__(self, *photons: int):
+    def __init__(self,
+                 *photons: int,
+                 internal_states : tuple[list[int]] = None):
+        if internal_states is not None:
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
+            assert (photons == (1,) * len(photons),
+                    "Only one photon per mode allowed for internal states")
+            assert len(internal_states) == len(photons)
+            assert len(set(len(i) for i in internal_states)) == 1
+        self.internal_states = internal_states
         self.photons = photons or (1,)
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
 
     def conjugate(self):
         return self
+
+    def inflate(self, d):
+        assert (all(len(state) == d for state in self.internal_states),
+                "All internal states must be of length d")
+
+        diagram = Id(Mode(0))
+
+        for i, internal_state in enumerate(self.internal_states):
+            endo_layer = Id(Mode(0))
+            for i in internal_state:
+                endo_layer @= Endo(i)
+
+            diagram @= (
+                Select(1) >>
+                W(d) >>
+                endo_layer
+            ).dagger()
+
+        return diagram
 
     def to_path(self, dtype=complex) -> Matrix:
         array = np.eye(len(self.photons))

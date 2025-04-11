@@ -173,6 +173,19 @@ class Circuit(symmetric.Diagram):
     """Classical-quantum circuits over qubits and optical modes"""
     ty_factory = Ty
 
+    def inflate(self, d):
+        """Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
+
+        dom = symmetric.Category(Ty, Circuit)
+        cod = symmetric.Category(Ty, Circuit)
+
+        return symmetric.Functor(lambda x: x**d,
+                                 lambda f: f.inflate(d), dom, cod)(self)
+
     def double(self):
         """ Returns the optyx.Diagram obtained by
         doubling every quantum dimension
@@ -244,6 +257,22 @@ class Channel(symmetric.Box, Circuit):
             dom=self.cod, cod=self.dom
         )
 
+    def inflate(self, d):
+        """
+        Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
+        """
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
+
+        kraus = self.kraus.inflate(d)
+        dom = self.dom**d
+        cod = self.cod**d
+
+        return Channel(
+            name=self.name + f"^{d}", kraus=kraus, dom=dom, cod=cod,
+        )
 
 class CQMap(symmetric.Box, Circuit):
     """
@@ -267,6 +296,19 @@ class Swap(symmetric.Swap, Channel):
         return self
 
 
+class Discard(Channel):
+    """Discarding a qubit or qmode corresponds to
+    applying a 2 -> 0 spider in the doubled picture.
+
+    >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
+    """
+
+    def __init__(self, dom):
+        env = dom.single()
+        kraus = optyx.Id(dom.single())
+        super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
+
+
 class Measure(Channel):
     """ Measuring a qubit or qmode corresponds to
     applying a 2 -> 1 spider in the doubled picture.
@@ -282,6 +324,45 @@ class Measure(Channel):
         kraus = optyx.Id(dom.single())
         super().__init__(name='Measure', kraus=kraus, dom=dom, cod=cod)
 
+    def inflate(self, d):
+        """Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
+
+        from optyx import zw, optyx
+
+        n_inflated_wires = len(self.dom)
+
+        dom = self.dom**d
+
+        kraus = optyx.Id(optyx.Mode(0))
+        for i in range(n_inflated_wires):
+            kraus @= (
+                optyx.Spider(1, 2, optyx.Mode(1))**d >>
+                optyx.Diagram.permutation(
+                    optyx.Box.get_perm(d*2, 2), optyx.Mode(d*2)
+                ).dagger() >>
+                optyx.Mode(d) @ optyx.Add(d)
+            )
+            if i == 0:
+                measure_discard = (
+                    Discard(dom[i*d:(i+1)*d]) @
+                    Measure(self.dom[i])
+                )
+            else:
+                measure_discard @= (
+                    Discard(dom[i*d:(i+1)*d]) @
+                    Measure(self.dom[i])
+                )
+
+        channel = (
+            Channel('Measure', kraus) >>
+            measure_discard
+        )
+
+        return channel
 
 class Encode(Channel):
     """Encoding a bit or mode corresponds to
@@ -324,19 +405,6 @@ class DephasingError(Channel):
 
     def dagger(self):
         return self
-
-
-class Discard(Channel):
-    """Discarding a qubit or qmode corresponds to
-    applying a 2 -> 0 spider in the doubled picture.
-
-    >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
-    """
-
-    def __init__(self, dom):
-        env = dom.single()
-        kraus = optyx.Id(dom.single())
-        super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
 
 
 class Ket(Channel):
