@@ -241,16 +241,23 @@ class ControlChannel(Channel):
     """
 
     def __new__(
-        self, control_box: Diagram | ClassicalFunctionBox | BinaryMatrixBox):
+        self,
+        control_box: Diagram | ClassicalFunctionBox | BinaryMatrixBox
+        ):
         if control_box is None:
-            raise ValueError("control_box cannot be None. Please provide a valid instance.")
+            raise ValueError(
+                "control_box cannot be None. " \
+                "Please provide a valid instance."
+            )
 
-        if not isinstance(control_box, (Diagram, ClassicalFunctionBox, BinaryMatrixBox)):
+        if not isinstance(control_box,
+                          (Diagram, ClassicalFunctionBox, BinaryMatrixBox)
+                         ):
             raise TypeError(
                 f"Invalid type for control_box: {type(control_box).__name__}. "
-                "Expected an instance of optyx.Diagram, ClassicalFunctionBox, or BinaryMatrixBox."
+                "Expected an instance of optyx.Diagram, " \
+                "ClassicalFunctionBox, or BinaryMatrixBox."
             )
-        "ClassicalFunctionBox, BinaryMatrixBox"
 
         return CQMap(
             "Classical Control",
