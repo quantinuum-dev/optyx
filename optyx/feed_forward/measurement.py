@@ -2,7 +2,7 @@
 Overview
 --------
 
-Measurement primitives for photonic (mode-based) quantum computing.
+Measurement primitives for photonic quantum computing.
 
 This module defines standard quantum measurements in the Fock basis.
 Supported types include threshold measurements and number-resolving

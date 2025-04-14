@@ -4,12 +4,12 @@ Overview
 
 Classical arithmetic and logical operations on `Mode` wires.
 
-This module implements reversible classical gates such as AND, ADD,
+This module implements classical gates such as AND, ADD,
 MOD2, and multiplicative operations, following a categorical approach
 compatible with :class:`ZW` diagrams.
 
 Each gate supports truncation to tensor semantics and dagger (adjoint)
-operations to allow reversible classical computing.
+operations to allow classical computing.
 
 Classes
 -------
@@ -63,12 +63,9 @@ class And(Box):
     """
     Reversible classical AND gate on two bits.
 
-    This gate acts as a Toffoli-style classical operation that maps:
+    This gate acts as a classical operation that maps:
         - (1, 1) ↦ 1
         - Otherwise ↦ 0
-
-    All outputs are reversible — i.e., the transformation is
-    injective over classical states.
 
     Example
     -------
@@ -181,9 +178,7 @@ class Add(Box):
 
 class Multiply(Box):
     """
-    Performs repeated addition as multiplication.
-
-    Multiplies two classical integers by repeated addition using Z/W diagrams.
+    Multiplies two classical integers.
 
     Example
     -------
@@ -249,8 +244,6 @@ class Multiply(Box):
 class Divide(Box):
     """
     Inverse of multiplication: decomposes a product into factors if possible.
-
-    This operation is approximate and non-injective in general.
 
     Example
     -------

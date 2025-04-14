@@ -34,7 +34,7 @@ A classical function can be embedded into a circuit:
 >>> box = ClassicalFunctionBox(lambda bits: [sum(bits) % 2], Bit(2), Bit(1))
 >>> box.to_zw().draw(path='docs/_static/classical_func.svg')
 
-A classical matrix transformation (e.g. stabilizer logic) can be applied:
+A classical matrix transformation can be applied:
 
 >>> import numpy as np
 >>> from optyx.feed_forward.classical_control import BinaryMatrixBox
@@ -54,7 +54,7 @@ from optyx.optyx import Box, Bit, Diagram, Mode, MAX_DIM
 class ClassicalFunctionBox(Box):
     """
     A classical function box mode -> bit or bit -> bit,
-    mapping an input list of integers
+    mapping an input list of natural numbers
     to an output bit via a user-defined function.
 
     Example
@@ -195,10 +195,11 @@ class BinaryMatrixBox(Box):
             input_dims, output_dims = output_dims, input_dims
 
         def f(x):
+            if not isinstance(x, np.ndarray):
+                x = np.array(x, dtype=np.uint8)
             if len(x.shape) == 1:
                 x = x.reshape(-1, 1)
             A = np.array(self.matrix, dtype=np.uint8)
-            x = np.array(x, dtype=np.uint8)
 
             return list(((A @ x) % 2).reshape(1, -1)[0])
 
@@ -240,11 +241,15 @@ class ControlChannel(Channel):
     """
 
     def __new__(
-        self, control_box: Diagram | ClassicalFunctionBox | BinaryMatrixBox
-    ) -> CQMap:
-        assert isinstance(
-            control_box, (Diagram, ClassicalFunctionBox, BinaryMatrixBox)
-        ), "control_box needs to be an instance of optyx.Diagram, "
+        self, control_box: Diagram | ClassicalFunctionBox | BinaryMatrixBox):
+        if control_box is None:
+            raise ValueError("control_box cannot be None. Please provide a valid instance.")
+
+        if not isinstance(control_box, (Diagram, ClassicalFunctionBox, BinaryMatrixBox)):
+            raise TypeError(
+                f"Invalid type for control_box: {type(control_box).__name__}. "
+                "Expected an instance of optyx.Diagram, ClassicalFunctionBox, or BinaryMatrixBox."
+            )
         "ClassicalFunctionBox, BinaryMatrixBox"
 
         return CQMap(

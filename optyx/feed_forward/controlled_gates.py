@@ -6,8 +6,7 @@ Controlled gates with classical inputs for feed-forward control.
 
 This module implements classical control over quantum gates by defining boxes
 that apply actions conditionally based on classical values. This includes
-generic controlled boxes, controlled phase shifts, and utility functions
-for truncating tensors.
+generic controlled boxes, controlled phase shifts.
 
 Classes
 -------
