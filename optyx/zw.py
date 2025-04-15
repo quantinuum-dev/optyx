@@ -475,8 +475,10 @@ class Create(Box):
         )
 
     def inflate(self, d):
-        assert (all(len(state) == d for state in self.internal_states),
-                "All internal states must be of length d")
+        assert self.internal_states is not None, \
+                "Internal states in Create must be provided"
+        assert all(len(state) == d for state in self.internal_states), \
+                "All internal states must be of length d"
 
         diagram = Id(Mode(0))
 
@@ -567,6 +569,8 @@ class Select(Box):
         return self
 
     def inflate(self, d):
+        assert self.internal_states is not None, \
+                "Internal states in Create must be provided"
         assert (all(len(state) == d for state in self.internal_states),
                 "All internal states must be of length d")
 

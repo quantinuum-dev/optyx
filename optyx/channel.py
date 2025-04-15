@@ -331,31 +331,31 @@ class Measure(Channel):
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
-        from optyx import zw, optyx
+        from optyx import optyx
 
         n_inflated_wires = len(self.dom)
 
         dom = self.dom**d
 
         kraus = optyx.Id(optyx.Mode(0))
-        for i in range(n_inflated_wires):
-            kraus @= (
+        kraus = optyx.Diagram.tensor(
+            *[
                 optyx.Spider(1, 2, optyx.Mode(1))**d >>
                 optyx.Diagram.permutation(
                     optyx.Box.get_perm(d*2, 2), optyx.Mode(d*2)
                 ).dagger() >>
                 optyx.Mode(d) @ optyx.Add(d)
-            )
-            if i == 0:
-                measure_discard = (
-                    Discard(dom[i*d:(i+1)*d]) @
-                    Measure(self.dom[i])
-                )
-            else:
-                measure_discard @= (
-                    Discard(dom[i*d:(i+1)*d]) @
-                    Measure(self.dom[i])
-                )
+                for _ in range(n_inflated_wires)
+            ]
+        )
+
+        measure_discard = optyx.Diagram.tensor(
+            *[
+                Discard(dom[i*d:(i+1)*d]) @
+                Measure(self.dom[i])
+                for i in range(n_inflated_wires)
+            ]
+        )
 
         channel = (
             Channel('Measure', kraus) >>
