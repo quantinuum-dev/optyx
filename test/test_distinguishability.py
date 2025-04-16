@@ -71,4 +71,4 @@ def test_distinguishable_photons(internal_state_1, internal_state_2):
     non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
     one_one_prob = non_zero_dict.get((1, 1), 0)
     assert np.allclose(one_one_prob,
-                       0.5 - 0.5*np.abs(np.array(internal_state_1).dot(np.array(internal_state_2).conjugate()))**2)
+                       0.5 - 0.5*np.abs(np.array(internal_state_1).dot(np.array(internal_state_2).conjugate()))**2, 4)

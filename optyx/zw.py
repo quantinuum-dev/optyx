@@ -452,14 +452,14 @@ class Create(Box):
 
     def __init__(self,
                  *photons: int,
-                 internal_states : tuple[list[int]] = None):
+                 internal_states: tuple[list[int]] = None):
         self.photons = photons or (1,)
 
         if internal_states is not None:
             if not isinstance(internal_states, tuple):
                 internal_states = (internal_states,)
-            assert (photons == (1,) * len(photons),
-                    "Only one photon per mode allowed for internal states")
+            assert photons == (1,) * len(photons), \
+                "Only one photon per mode allowed for internal states"
             assert len(internal_states) == len(photons)
             assert len(set(len(i) for i in internal_states)) == 1
         self.internal_states = internal_states
@@ -478,9 +478,9 @@ class Create(Box):
 
     def inflate(self, d):
         assert self.internal_states is not None, \
-                "Internal states in Create must be provided"
+            "Internal states in Create must be provided"
         assert all(len(state) == d for state in self.internal_states), \
-                "All internal states must be of length d"
+            "All internal states must be of length d"
 
         diagram = Id(Mode(0))
 
@@ -554,12 +554,12 @@ class Select(Box):
 
     def __init__(self,
                  *photons: int,
-                 internal_states : tuple[list[int]] = None):
+                 internal_states: tuple[list[int]] = None):
         if internal_states is not None:
             if not isinstance(internal_states, tuple):
                 internal_states = (internal_states,)
-            assert (photons == (1,) * len(photons),
-                    "Only one photon per mode allowed for internal states")
+            assert photons == (1,) * len(photons), \
+                "Only one photon per mode allowed for internal states"
             assert len(internal_states) == len(photons)
             assert len(set(len(i) for i in internal_states)) == 1
         self.internal_states = internal_states
@@ -572,9 +572,9 @@ class Select(Box):
 
     def inflate(self, d):
         assert self.internal_states is not None, \
-                "Internal states in Create must be provided"
-        assert (all(len(state) == d for state in self.internal_states),
-                "All internal states must be of length d")
+            "Internal states in Create must be provided"
+        assert all(len(state) == d for state in self.internal_states), \
+            "All internal states must be of length d"
 
         diagram = Id(Mode(0))
 

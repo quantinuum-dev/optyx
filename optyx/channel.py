@@ -184,7 +184,7 @@ class Circuit(symmetric.Diagram):
     ty_factory = Ty
 
     def inflate(self, d):
-        """Translates from an indistinguishable setting
+        r"""Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
         assert isinstance(d, int), "Dimension must be an integer"
@@ -279,7 +279,7 @@ class Channel(symmetric.Box, Circuit):
         )
 
     def inflate(self, d):
-        """
+        r"""
         Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
@@ -294,6 +294,7 @@ class Channel(symmetric.Box, Circuit):
         return Channel(
             name=self.name + f"^{d}", kraus=kraus, dom=dom, cod=cod,
         )
+
 
 class CQMap(symmetric.Box, Circuit):
     """
@@ -354,13 +355,13 @@ class Measure(Channel):
         super().__init__(name="Measure", kraus=kraus, dom=dom, cod=cod)
 
     def inflate(self, d):
-        """Translates from an indistinguishable setting
+        r"""Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
-        from optyx import optyx
+        from optyx.feed_forward.classical_arithmetic import Add
 
         n_inflated_wires = len(self.dom)
 
@@ -373,7 +374,7 @@ class Measure(Channel):
                 optyx.Diagram.permutation(
                     optyx.Box.get_perm(d*2, d), optyx.Mode(d*2)
                 ).dagger() >>
-                optyx.Mode(d) @ optyx.Add(d)
+                optyx.Mode(d) @ Add(d)
                 for _ in range(n_inflated_wires)
             ]
         )
@@ -392,6 +393,7 @@ class Measure(Channel):
         )
 
         return channel
+
 
 class Encode(Channel):
     """Encoding a bit or mode corresponds to
@@ -444,19 +446,6 @@ class DephasingError(Channel):
 
     def dagger(self):
         return self
-
-
-class Discard(Channel):
-    """Discarding a qubit or qmode corresponds to
-    applying a 2 -> 0 spider in the doubled picture.
-
-    >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
-    """
-
-    def __init__(self, dom):
-        env = dom.single()
-        kraus = optyx.Id(dom.single())
-        super().__init__("Discard", kraus, dom=dom, cod=Ty(), env=env)
 
 
 class Ket(Channel):
