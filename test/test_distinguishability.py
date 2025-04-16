@@ -12,7 +12,6 @@ internal_state_random = internal_state_random / np.linalg.norm(internal_state_ra
 internal_states = [
     [0.5**0.5, 0.5**0.5],
     [1],
-    [0.5**0.5, 0, 0.5**0.5],
     internal_state_random
 ]
 
