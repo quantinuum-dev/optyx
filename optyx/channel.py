@@ -342,7 +342,7 @@ class Measure(Channel):
             *[
                 optyx.Spider(1, 2, optyx.Mode(1))**d >>
                 optyx.Diagram.permutation(
-                    optyx.Box.get_perm(d*2, 2), optyx.Mode(d*2)
+                    optyx.Box.get_perm(d*2, d), optyx.Mode(d*2)
                 ).dagger() >>
                 optyx.Mode(d) @ optyx.Add(d)
                 for _ in range(n_inflated_wires)
