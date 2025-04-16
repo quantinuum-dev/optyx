@@ -175,6 +175,9 @@ class Add(Box):
     def dagger(self):
         return Add(self.n, not self.is_dagger)
 
+    def conjugate(self):
+        return self
+
 
 class Multiply(Box):
     """
