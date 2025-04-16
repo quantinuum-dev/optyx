@@ -172,6 +172,7 @@ from optyx.optyx import Mode, Box, Scalar
 from optyx.path import Matrix
 from optyx.zw import ZBox, W, Create, Select, Endo
 from optyx.zw import Split, Merge, Id, SWAP
+from optyx.utils import matrix_to_zw
 
 
 class Gate(Box):
@@ -204,7 +205,7 @@ class Gate(Box):
 
     def conjugate(self):
         array = self.array.conjugate()
-        name = self.name + '.conjugate()'
+        name = self.name + ".conjugate()"
         return Gate(array, len(self.dom), len(self.cod), name, self.is_dagger)
 
     def to_path(self, dtype=complex):
@@ -253,7 +254,7 @@ class Phase(Box):
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
         exp = backend.exp(2 * backend.pi * 1j * self.angle)
-        return ZBox(1, 1, lambda i: exp ** i)
+        return ZBox(1, 1, lambda i: exp**i)
 
     def dagger(self):
         return Phase(-self.angle)
@@ -343,7 +344,7 @@ class BBS(Box):
         backend = sp if dtype is Expr else np
         sin = backend.sin((0.25 + self.bias) * backend.pi)
         cos = backend.cos((0.25 + self.bias) * backend.pi)
-        zb_sin = ZBox(1, 1, lambda i: sin ** i)
+        zb_sin = ZBox(1, 1, lambda i: sin**i)
         if self.conj:
             zb_cos = ZBox(1, 1, lambda i: (-cos * 1j) ** i)
         else:
@@ -427,8 +428,12 @@ class TBS(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        sin = ZBox(1, 1, lambda i: (backend.sin(self.theta * backend.pi)) ** i)
-        cos = ZBox(1, 1, lambda i: (backend.cos(self.theta * backend.pi)) ** i)
+        sin = ZBox(
+            1, 1, lambda i: (backend.sin(self.theta * backend.pi)) ** i
+        )
+        cos = ZBox(
+            1, 1, lambda i: (backend.cos(self.theta * backend.pi)) ** i
+        )
         minus_sin = ZBox(
             1, 1, lambda i: (-backend.sin(self.theta * backend.pi)) ** i
         )
@@ -501,15 +506,16 @@ class MZI(Box):
 
     """
 
-    def __init__(self, theta, phi, is_dagger=False):
+    def __init__(self, theta, phi, is_dagger=False, is_conj=False):
         self.theta, self.phi = theta, phi
+        self.is_conj = is_conj
         data = {theta, phi}
         super().__init__(
             "MZI", Mode(2), Mode(2), is_dagger=is_dagger, data=data
         )
 
     def conjugate(self):
-        return MZI(self.theta, -self.phi, self.is_dagger)
+        return MZI(self.theta, -self.phi, self.is_dagger, not self.is_conj)
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -532,13 +538,22 @@ class MZI(Box):
 
     def to_zw(self, dtype=complex):
         backend = sp if dtype is Expr else np
+        factor = (
+            (-backend.exp(-1j * 2 * backend.pi * self.theta))
+            if self.is_conj
+            else 1
+        )
+        phase = self.global_phase(dtype=dtype) * factor
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
         mzi = (
             W(2) @ W(2)
             >> Id(1) @ SWAP @ Id(1)
-            >> Endo(exp * sin) @ Endo(cos) @ Endo(exp * cos) @ Endo(-sin)
+            >> Endo(exp * sin * phase)
+            @ Endo(cos * phase)
+            @ Endo(exp * cos * phase)
+            @ Endo(-sin * phase)
             >> W(2).dagger() @ W(2).dagger()
         )
 
@@ -606,3 +621,10 @@ def ansatz(width, depth):
 
 
 BS = BBS(0)
+
+# an alternative definition of a beam splitter
+BS_matrix_hadamard = np.sqrt(1 / 2) * np.array([[1, 1], [1, -1]])
+# BS_matrix_hadamard = np.array([[1, 1], [1, -1]])
+BS_hadamard = Box("BS_hadamard", Mode(2), Mode(2))
+BS_hadamard.to_zw = lambda: matrix_to_zw(BS_matrix_hadamard)
+BS_hadamard.conjugate = lambda: BS_hadamard

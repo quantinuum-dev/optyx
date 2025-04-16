@@ -12,3 +12,4 @@ API
     optyx.lo
     optyx.path
     optyx.compiler
+    optyx.feed_forward
