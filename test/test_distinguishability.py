@@ -1,6 +1,9 @@
 from optyx.channel import Channel
 from optyx.lo import BS
 from optyx.zw import W, Create, Endo
+from optyx.optyx import DualRail, Scalar
+from optyx.zx import Z, X
+from optyx.feed_forward.classical_arithmetic import Add
 from optyx.channel import qmode, Measure
 import numpy as np
 import pytest
@@ -71,3 +74,33 @@ def test_distinguishable_photons(internal_state_1, internal_state_2):
     one_one_prob = non_zero_dict.get((1, 1), 0)
     assert np.allclose(one_one_prob,
                        0.5 - 0.5*np.abs(np.array(internal_state_1).dot(np.array(internal_state_2).conjugate()))**2, 4)
+
+qubit_states = [
+    Z(0, 1) @ Scalar(0.5**0.5),
+    Z(0, 1, 0.3) @ Scalar(0.5**0.5),
+    X(0, 1) @ Scalar(0.5**0.5),
+    X(0, 1, 0.3) @ Scalar(0.5**0.5),
+]
+
+internal_states = [
+    [0.5**0.5, 0.5**0.5],
+    [1],
+    internal_state_random
+]
+
+@pytest.mark.parametrize("qubit_state, internal_state",
+                         itertools.product(qubit_states,
+                                           internal_states))
+def test_dual_rail(qubit_state, internal_state):
+    d = qubit_state >> DualRail(internal_state=internal_state).inflate(len(internal_state))
+
+    qubit_array = qubit_state.to_tensor().eval().array
+    dual_rail_array = (d >> DualRail(internal_state=internal_state).inflate(len(internal_state)).dagger()).to_tensor().eval().array
+    assert np.allclose(qubit_array, dual_rail_array, 4)
+
+    result = (d >> Add(len(internal_state)) @ Add(len(internal_state))).to_zw().to_tensor(max_dim=2).eval().array
+    rounded_result = np.round(result, 6)
+    non_zero_dict = {idx: (val if val != 0 else 0) for idx, val in np.ndenumerate(rounded_result)}
+    s_1 = np.sum(list(non_zero_dict.values()))
+    s_2 = np.sum(qubit_array)
+    assert np.allclose(non_zero_dict[(1, 0)]/s_1, qubit_array[0]/s_2) and np.allclose(non_zero_dict[(0, 1)]/s_1, qubit_array[1]/s_2)
