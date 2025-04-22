@@ -307,8 +307,13 @@ class Diagram(frobenius.Diagram):
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
+        def ob(x):
+            return Ty.tensor(
+                *(o**d if o.name == "mode" else o for o in x)
+            )
+
         return symmetric.Functor(
-            ob=lambda x: x**d,
+            ob=ob,
             ar=lambda f: f.inflate(d),
             cod=symmetric.Category(Ty, Diagram),
             dom=symmetric.Category(Ty, Diagram),
@@ -893,6 +898,9 @@ class Scalar(Box):
     ) -> tensor.Box:
         return tensor.Box(self.name, Dim(1), Dim(1), self.array)
 
+    def inflate(self, d):
+        return self
+
     def determine_output_dimensions(
         self, input_dims: list[int] = None
     ) -> list[int]:
@@ -946,17 +954,21 @@ class DualRail(Box):
     def inflate(self, d):
         from optyx.zw import W, Endo
 
-        diagram = DualRail(self.is_dagger) >> Diagram.tensor(
+        assert self.internal_state is not None, \
+            "Internal state must be provided for dual rail encoding"
+
+        diagram = DualRail() >> Diagram.tensor(
             *[W(d) >> Diagram.tensor(*[Endo(d_i) for
-                                       d_i in self.internal_state])
-               for _ in range(2)]
+                d_i in self.internal_state])
+            for _ in range(2)]
         )
         if self.is_dagger:
             return diagram.dagger()
         return diagram
 
     def dagger(self) -> Diagram:
-        return DualRail(not self.is_dagger)
+        return DualRail(not self.is_dagger,
+                        internal_state=self.internal_state)
 
 
 class PhotonThresholdDetector(Box):

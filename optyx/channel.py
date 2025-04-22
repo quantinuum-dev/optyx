@@ -193,7 +193,12 @@ class Circuit(symmetric.Diagram):
         dom = symmetric.Category(Ty, Circuit)
         cod = symmetric.Category(Ty, Circuit)
 
-        return symmetric.Functor(lambda x: x**d,
+        def ob(x):
+            return (mode**0).tensor(
+                *(o**d if o.name in ["mode", "qmode"] else o for o in x)
+            )
+
+        return symmetric.Functor(lambda x: ob(x),
                                  lambda f: f.inflate(d), dom, cod)(self)
 
     def double(self):
@@ -288,11 +293,18 @@ class Channel(symmetric.Box, Circuit):
         assert d > 0, "Dimension must be positive"
 
         kraus = self.kraus.inflate(d)
-        dom = self.dom**d
-        cod = self.cod**d
+
+        def ob(x):
+            return (mode**0).tensor(
+                *(o**d if o.name in ["mode", "qmode"] else o for o in x)
+            )
+
 
         return Channel(
-            name=self.name + f"^{d}", kraus=kraus, dom=dom, cod=cod,
+            name=self.name + f"^{d}",
+                 kraus=kraus,
+                 dom=ob(self.dom),
+                 cod=ob(self.cod),
         )
 
 

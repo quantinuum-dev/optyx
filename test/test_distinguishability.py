@@ -98,6 +98,29 @@ def test_dual_rail(qubit_state, internal_state):
     dual_rail_array = (d >> DualRail(internal_state=internal_state).inflate(len(internal_state)).dagger()).to_tensor().eval().array
     assert np.allclose(qubit_array, dual_rail_array, 4)
 
+    dual_rail_array = (
+        qubit_state >>
+        DualRail(internal_state=internal_state) >>
+        DualRail(internal_state=internal_state).dagger()
+    )
+
+    dual_rail_array_channel = Channel(
+        "DualRail",
+        dual_rail_array
+    )
+
+    qubit_state_channel = Channel(
+        "Qubit",
+        qubit_state
+    )
+
+    dual_rail_array = dual_rail_array.inflate(len(internal_state)).to_tensor(max_dim=2).eval().array
+    assert np.allclose(dual_rail_array, qubit_array, 4)
+
+    dual_rail_array_channel = dual_rail_array_channel.inflate(len(internal_state)).double().to_tensor(max_dim=2).eval().array
+    qubit_state_channel = qubit_state_channel.inflate(len(internal_state)).double().to_tensor(max_dim=2).eval().array
+    assert np.allclose(dual_rail_array_channel, qubit_state_channel, 4)
+
     result = (d >> Add(len(internal_state)) @ Add(len(internal_state))).to_zw().to_tensor(max_dim=2).eval().array
     rounded_result = np.round(result, 6)
     non_zero_dict = {idx: (val if val != 0 else 0) for idx, val in np.ndenumerate(rounded_result)}
