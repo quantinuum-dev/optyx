@@ -186,7 +186,9 @@ class BitControlledBox(Box):
                 self.name, Dim(*input_dims), Dim(*output_dims), array
             ).dagger()
         return tensor.Box(
-            self.name, Dim(*input_dims), Dim(*output_dims), array
+            self.name,
+            Dim(*[int(d) for d in input_dims]),
+            Dim(*[int(d) for d in output_dims]), array
         )
 
     def to_zw(self):
