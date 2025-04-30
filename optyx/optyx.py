@@ -907,7 +907,7 @@ class DualRail(Box):
 
 class PhotonThresholdDetector(Box):
     """
-    Non-photon resolving detector from mode to bit.
+    Photon-number non-resolving detector from mode to bit.
     Detects whether one or more photons are present.
     """
 
