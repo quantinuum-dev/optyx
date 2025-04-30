@@ -370,38 +370,30 @@ class Measure(Channel):
         r"""Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
         from optyx.feed_forward.classical_arithmetic import Add
 
-        n_inflated_wires = len(self.dom)
-
-        dom = self.dom**d
-
-        kraus = optyx.Id(optyx.Mode(0))
-        kraus = optyx.Diagram.tensor(
-            *[
-                optyx.Spider(1, 2, optyx.Mode(1))**d >>
-                optyx.Diagram.permutation(
-                    optyx.Box.get_perm(d*2, d), optyx.Mode(d*2)
-                ).dagger() >>
-                optyx.Mode(d) @ Add(d)
-                for _ in range(n_inflated_wires)
-            ]
-        )
-
-        measure_discard = optyx.Diagram.tensor(
-            *[
-                Discard(dom[i*d:(i+1)*d]) @
-                Measure(self.dom[i])
-                for i in range(n_inflated_wires)
-            ]
-        )
-
-        channel = (
-            Channel('Measure', kraus) >>
-            measure_discard
+        channel = optyx.Diagram.tensor(
+            *[(
+                    Channel('Measure',
+                        (
+                            (optyx.Spider(1, 2, optyx.Mode(1)) ** d)
+                            >> optyx.Diagram.permutation(
+                                optyx.Box.get_perm(d * 2, d), optyx.Mode(d * 2)
+                            ).dagger()
+                            >> (optyx.Mode(d) @ Add(d))
+                        )
+                    ) >>
+                    (
+                        Discard(ty**d) @
+                        Measure(ty)
+                    )
+                ) if ty == qmode else
+                Measure(ty)
+                for ty in self.dom]
         )
 
         return channel
@@ -415,11 +407,66 @@ class Encode(Channel):
     >>> assert len(Encode(dom).double().cod) == 8
     """
 
-    def __init__(self, dom):
+    def __init__(self, dom, internal_states=None):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
-        super().__init__(name="Encode", kraus=kraus, dom=dom, cod=cod)
+        if internal_states is not None:
+            # the number of internal states must match the number of qmodes in dom
+            assert len(internal_states) == sum(
+                [1 if ob.name == "qmode" else 0 for ob in dom.inside]
+            ), "Number of internal states must match the number of qmodes in dom"
 
+        super().__init__(name="Encode", kraus=kraus, dom=dom, cod=cod)
+        self.internal_states = internal_states
+
+    def inflate(self, d):
+        r"""Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
+        assert self.internal_states is not None, \
+            "Internal states must be provided for encoding"
+        from optyx.feed_forward.classical_arithmetic import Add
+        from optyx.zw import Endo, ZBox
+
+        diagrams_to_tensor = []
+        i = 0
+        for ty in self.dom:
+            if ty == qmode:
+                internal_amplitudes = lambda i: optyx.Diagram.tensor(
+                    *[
+                        ZBox(0, 1, lambda _: 1) >> Endo(s)
+                        for s in self.internal_states[i]
+                    ]
+                )
+
+                diagrams_to_tensor.append(
+                    (
+                        CQMap("internal state",
+                            internal_amplitudes(i),
+                            Ty(*[Ob._classical[ob.name] for ob in internal_amplitudes(i).dom.inside]),
+                            Ty(*[Ob._classical[ob.name] for ob in internal_amplitudes(i).cod.inside]),
+                        ) @ mode >>
+                        Encode(Ty(Ob._classical[ty.name])**(d+1))
+                    ) >>
+                    Channel('Permute and copy',
+                        (
+                            (optyx.Spider(1, 2, optyx.Mode(1)) ** d)
+                            >> optyx.Diagram.permutation(
+                                optyx.Box.get_perm(d * 2, d), optyx.Mode(d * 2)
+                            )
+                            >> (optyx.Mode(d) @ Add(d))
+                        ).dagger()
+                    )
+                )
+                i += 1
+            else:
+                diagrams_to_tensor.append(Measure(ty))
+
+        channel = optyx.Diagram.tensor(*diagrams_to_tensor)
+
+        return channel
 
 class BitFlipError(Channel):
 
