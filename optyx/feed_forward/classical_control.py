@@ -60,7 +60,9 @@ class ClassicalFunctionBox(Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import xor
+    >>> from optyx.zx import X
+    >>> from optyx.optyx import Scalar
+    >>> xor = X(2, 1) @ Scalar(np.sqrt(2))
     >>> f_res = ClassicalFunctionBox(lambda x: [x[0] ^ x[1]],
     ...         Bit(2),
     ...         Bit(1)).to_zw().to_tensor().eval().array
@@ -153,7 +155,9 @@ class BinaryMatrixBox(Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import xor
+    >>> from optyx.zx import X
+    >>> from optyx.optyx import Scalar
+    >>> xor = X(2, 1) @ Scalar(np.sqrt(2))
     >>> matrix = [[1, 1]]
     >>> m_res = BinaryMatrixBox(matrix).to_tensor().eval().array
     >>> xor_res = xor.to_zw().to_tensor().eval().array
