@@ -202,7 +202,8 @@ class BinaryMatrixBox(Box):
             ).dagger()
         return classical_function.truncation(input_dims, output_dims)
 
-    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+    def determine_output_dimensions(self,
+                                    input_dims: List[int]) -> List[int]:
         return ClassicalFunctionBox(
             None, self.dom, self.cod
         ).determine_output_dimensions(input_dims)
