@@ -53,9 +53,10 @@ from optyx.optyx import Box, Bit, Diagram, Mode, MAX_DIM
 
 class ClassicalFunctionBox(Box):
     """
-    A classical function box mode -> bit or bit -> bit,
-    mapping an input list of natural numbers
-    to an output bit via a user-defined function.
+    A classical function box between modes or bits,
+    mapping an input list of natural numbers or
+    a list of bits to a list of
+    natural numbers or a list of bits.
 
     Example
     -------
@@ -76,16 +77,12 @@ class ClassicalFunctionBox(Box):
         is_dagger: bool = False,
     ):
 
-        if is_dagger:
-            assert dom == Bit(len(dom)), "dom must be Bit(n)"
-            assert all(
-                d == cod[0] for d in cod
-            ), "cod must be either all Mode(n) or all Bit(n)"
-        else:
-            assert cod == Bit(len(cod)), "cod must be Bit(n)"
-            assert all(
-                d == dom[0] for d in dom
-            ), "dom must be either all Mode(n) or all Bit(n)"
+        assert all(
+            d == cod[0] for d in cod
+        ), "cod must be either all Mode(n) or all Bit(n)"
+        assert all(
+            d == dom[0] for d in dom
+        ), "dom must be either all Mode(n) or all Bit(n)"
 
         super().__init__("F", dom, cod)
 
@@ -116,10 +113,6 @@ class ClassicalFunctionBox(Box):
             if self.function(i) != 0
         ]
 
-        assert all(
-            max(output) <= 1 for _, output in outputs
-        ), "function must return bits"
-
         full_indices = np.array(
             [tuple(input_) + tuple(output) for input_, output in outputs]
         )
@@ -138,14 +131,12 @@ class ClassicalFunctionBox(Box):
         )
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
-        if self.dom == Bit(self.input_size) and self.cod == Mode(
-            self.output_size
-        ):
+        if self.cod == Mode(self.output_size):
             return [MAX_DIM] * self.output_size
-        elif self.dom == Mode(self.input_size) and self.cod == Bit(
-            self.output_size
-        ):
+
+        elif self.cod == Bit(self.output_size):
             return [2] * self.output_size
+
         else:
             return [int(max(input_dims))] * self.output_size
 
@@ -218,16 +209,6 @@ class BinaryMatrixBox(Box):
 
     def dagger(self):
         return BinaryMatrixBox(self.matrix, not self.is_dagger)
-
-
-class ClassicalCircuitBox(Diagram):
-    """
-    Identity wrapper for classical diagrams. Provides a unified interface for
-    definiting control boxes from optyx diagrams.
-    """
-
-    def __new__(self, diagram: Diagram) -> Diagram:
-        return diagram
 
 
 class ControlChannel(Channel):
