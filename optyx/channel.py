@@ -386,8 +386,8 @@ class Measure(Channel):
                 CQMap(
                     "Gather photons",
                     Add(d),
-                    Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(d).inside]),
-                    Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(1).inside]),
+                    mode**d,
+                    mode,
                 )
                )
             if ty == qmode else
@@ -457,10 +457,10 @@ class Encode(Channel):
                         CQMap(
                             "Amplitudes",
                             Add(d).dagger() >> internal_amplitudes(i),
-                            Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(1).inside]),
-                            Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(d).inside]),
+                            mode,
+                            mode**d,
                         ) >>
-                        Encode(Ty(Ob._classical[ty.name])**d)
+                        Encode(mode**d)
                     )
                 )
 
