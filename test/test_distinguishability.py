@@ -3,7 +3,7 @@ from optyx.lo import BS
 from optyx.zw import W, Create, Endo
 from optyx.optyx import DualRail, Scalar
 from optyx.zx import Z, X
-from optyx.feed_forward.classical_arithmetic import Add
+from optyx.zw import Add
 from optyx.channel import qmode, Measure
 import numpy as np
 import pytest
