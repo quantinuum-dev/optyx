@@ -954,8 +954,12 @@ class DualRail(Box):
     def inflate(self, d):
         from optyx.zw import W, Endo
 
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
         assert self.internal_state is not None, \
-            "Internal state must be provided for dual rail encoding"
+            "Internal state must be provided"
+        assert len(self.internal_state) == d, \
+            "Internal state must be of len d"
 
         diagram = DualRail() >> Diagram.tensor(
             *[W(d) >> Diagram.tensor(*[Endo(d_i) for

@@ -369,7 +369,11 @@ class Measure(Channel):
     def inflate(self, d):
         r"""Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
-        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
+
+        The diagram discards the internal states and measures
+        the number of photons in the modes.
+        """
 
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
@@ -378,22 +382,17 @@ class Measure(Channel):
 
         channel = optyx.Diagram.tensor(
             *[(
-                    Channel('Measure',
-                        (
-                            (optyx.Spider(1, 2, optyx.Mode(1)) ** d)
-                            >> optyx.Diagram.permutation(
-                                optyx.Box.get_perm(d * 2, d), optyx.Mode(d * 2)
-                            ).dagger()
-                            >> (optyx.Mode(d) @ Add(d))
-                        )
-                    ) >>
-                    (
-                        Discard(ty**d) @
-                        Measure(ty)
-                    )
-                ) if ty == qmode else
-                Measure(ty)
-                for ty in self.dom]
+                Measure(ty**d) >>
+                CQMap(
+                    "Gather photons",
+                    Add(d),
+                    Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(d).inside]),
+                    Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(1).inside]),
+                )
+               )
+            if ty == qmode else
+            Measure(ty)
+            for ty in self.dom]
         )
 
         return channel
@@ -411,7 +410,6 @@ class Encode(Channel):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
         if internal_states is not None:
-            # the number of internal states must match the number of qmodes in dom
             assert len(internal_states) == sum(
                 [1 if ob.name == "qmode" else 0 for ob in dom.inside]
             ), "Number of internal states must match the number of qmodes in dom"
@@ -422,16 +420,30 @@ class Encode(Channel):
     def inflate(self, d):
         r"""Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
-        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
+
+        The internal states are used to encode the qmodes.
+        The diagram is a dagger of the inflation of
+        the Measure channel with the difference
+        that instead of discarding becoming a maximally mixed state,
+        we apply the encoding of the internal states.
+        """
+
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
         assert self.internal_states is not None, \
             "Internal states must be provided for encoding"
+        assert all(
+            len(internal_state) == d for internal_state in self.internal_states
+        ), "All internal states must have the same length as d"
+
         from optyx.feed_forward.classical_arithmetic import Add
         from optyx.zw import Endo, ZBox
 
         diagrams_to_tensor = []
         i = 0
+
+        #only inflate the qmodes
         for ty in self.dom:
             if ty == qmode:
                 internal_amplitudes = lambda i: optyx.Diagram.tensor(
@@ -443,10 +455,12 @@ class Encode(Channel):
 
                 diagrams_to_tensor.append(
                     (
-                        CQMap("internal state",
+                        CQMap("Internal state",
                             internal_amplitudes(i),
-                            Ty(*[Ob._classical[ob.name] for ob in internal_amplitudes(i).dom.inside]),
-                            Ty(*[Ob._classical[ob.name] for ob in internal_amplitudes(i).cod.inside]),
+                            Ty(*[Ob._classical[ob.name] for ob in
+                                 internal_amplitudes(i).dom.inside]),
+                            Ty(*[Ob._classical[ob.name] for ob in
+                                 internal_amplitudes(i).cod.inside]),
                         ) @ mode >>
                         Encode(Ty(Ob._classical[ty.name])**(d+1))
                     ) >>

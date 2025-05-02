@@ -456,12 +456,16 @@ class Create(Box):
         self.photons = photons or (1,)
 
         if internal_states is not None:
+            # we define an internal state for each photon
             if not isinstance(internal_states, tuple):
                 internal_states = (internal_states,)
             assert photons == (1,) * len(photons), \
                 "Only one photon per mode allowed for internal states"
-            assert len(internal_states) == len(photons)
-            assert len(set(len(i) for i in internal_states)) == 1
+            assert len(internal_states) == len(photons), \
+                "Internal states must be provided for each photon"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
+
         self.internal_states = internal_states
 
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
@@ -477,6 +481,8 @@ class Create(Box):
         )
 
     def inflate(self, d):
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
         assert self.internal_states is not None, \
             "Internal states in Create must be provided"
         assert all(len(state) == d for state in self.internal_states), \
@@ -555,13 +561,18 @@ class Select(Box):
     def __init__(self,
                  *photons: int,
                  internal_states: tuple[list[int]] = None):
+
         if internal_states is not None:
+            # we define an internal state for each photon
             if not isinstance(internal_states, tuple):
                 internal_states = (internal_states,)
             assert photons == (1,) * len(photons), \
                 "Only one photon per mode allowed for internal states"
-            assert len(internal_states) == len(photons)
-            assert len(set(len(i) for i in internal_states)) == 1
+            assert len(internal_states) == len(photons), \
+                "Internal states must be provided for each photon"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
+
         self.internal_states = internal_states
         self.photons = photons or (1,)
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
@@ -571,6 +582,8 @@ class Select(Box):
         return self
 
     def inflate(self, d):
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
         assert self.internal_states is not None, \
             "Internal states in Create must be provided"
         assert all(len(state) == d for state in self.internal_states), \
