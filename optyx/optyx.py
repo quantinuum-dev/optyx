@@ -14,13 +14,6 @@ with generators :class:`zw.Z`, :class:`zw.W`, creations and selections.
 
 Mode and Bit types can moreover be combined using :class:`DualRail`
 or other instances of :class:`optyx.Box`.
-We can evaluate arbitrary compositions of the above generators via:
-
-- exact tensor network contraction with quimb [Gray18]_ \
-using the method :class:`to_tensor`.
-- exact permanent evaluation with Perceval [FGL+23]_ \
-using the method :class:`to_path`.
-
 Note that the permanent method is only defined for a subclass
 of :class:`zw` diagrams, including :class:`lo` circuits.
 These are also known as QPath diagrams [FC23]_,
@@ -28,7 +21,6 @@ or matrices with creations and annihilation.
 They are implemented in the :class:`path.Matrix` class,
 with an interface :class:`to_perceval`
 or the internal evaluation method :class:`eval`.
-
 The DisCoPy class :class:`tensor.Diagram` is used as an
 implementation of tensor networks,
 with dimensions as types and tensors as boxes,
@@ -157,14 +149,6 @@ diagrams like the Hong-Ou-Mandel effect:
 ...             Hong_Ou_Mandel.to_tensor().eval().array,\\
 ...             np.array([0]))
 
-**Converting :class:`zx` Diagrams**
-
-The :code:`to_pyzx` and :code:`from_pyzx` methods
-enable conversion between Optyx and PyZX [KW20]_:
-
->>> from optyx.zx import Z, SWAP
->>> assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
-
 **:class:`zw` diagrams from Bosonic Operators**
 
 The :code:`from_bosonic_operator` method
@@ -242,6 +226,8 @@ from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
 
+MAX_DIM = 10
+
 
 class Ob(frobenius.Ob):
     """Basic object in an optyx Diagram: bit or mode"""
@@ -250,6 +236,7 @@ class Ob(frobenius.Ob):
 @factory
 class Ty(frobenius.Ty):
     """Optical and (qu)bit types."""
+
     ob_factory = Ob
 
 
@@ -278,7 +265,7 @@ class Diagram(frobenius.Diagram):
     grad = tensor.Diagram.grad
 
     def conjugate(self) -> Diagram:
-        """ Conjugates every box in the diagram"""
+        """Conjugates every box in the diagram"""
         return symmetric.Functor(
             ob=lambda x: x,
             ar=lambda f: f.conjugate(),
@@ -348,20 +335,22 @@ class Diagram(frobenius.Diagram):
                 left = list_to_dim(layer_dims[0:off])
             right = Dim()
             if off + len(box.dom) < right_dim:
-                right = list_to_dim(layer_dims[off + len(box.dom):right_dim])
+                right = list_to_dim(
+                    layer_dims[off + len(box.dom): right_dim]
+                )
 
             cod_right_dim = right_dim - len(box.dom) + len(box.cod)
             cod_layer_dims = (
-                layer_dims[0:off] + dims_out + layer_dims[off + len(box.dom):]
+                layer_dims[0:off]
+                + dims_out
+                + layer_dims[off + len(box.dom):]
             )
 
             diagram_ = left @ box.truncation(dims_in, dims_out) @ right
-
             if i == 0:
                 diagram = diagram_
             else:
                 diagram = diagram >> diagram_
-
             right_dim = cod_right_dim
             layer_dims = cod_layer_dims
         return diagram
@@ -511,7 +500,7 @@ class Diagram(frobenius.Diagram):
                 )
                 scan = (
                     scan[:source]
-                    + scan[source + 1:target]
+                    + scan[source + 1: target]
                     + (scan[source],)
                     + scan[target:]
                 )
@@ -548,13 +537,17 @@ class Diagram(frobenius.Diagram):
             inputs = [
                 v
                 for v in graph.neighbors(node)
-                if v < node and v not in graph.outputs() or v in graph.inputs()
+                if v < node
+                and v not in graph.outputs()
+                or v in graph.inputs()
             ]
             inputs.sort(key=scan.index)
             outputs = [
                 v
                 for v in graph.neighbors(node)
-                if v > node and v not in graph.inputs() or v in graph.outputs()
+                if v > node
+                and v not in graph.inputs()
+                or v in graph.outputs()
             ]
             scan, diagram, offset = make_wires_adjacent(scan, diagram, inputs)
             hadamards = Id(Bit(0)).tensor(
@@ -564,7 +557,7 @@ class Diagram(frobenius.Diagram):
                         if graph.edge_type((i, node)) == EdgeType.HADAMARD
                         else Id(Bit(1))
                     )
-                    for i in scan[offset:offset + len(inputs)]
+                    for i in scan[offset: offset + len(inputs)]
                 ]
             )
             box = node2box(node, len(inputs), len(outputs))
@@ -584,7 +577,9 @@ class Diagram(frobenius.Diagram):
             diagram = (
                 diagram
                 >> swaps
-                >> Id(Bit(target)) @ hadamard @ Id(Bit(len(scan) - target - 1))
+                >> Id(Bit(target))
+                @ hadamard
+                @ Id(Bit(len(scan) - target - 1))
             )
         return diagram
 
@@ -616,13 +611,12 @@ class Box(frobenius.Box, Diagram):
                 self.name,
                 dom=tensor.Dim(2) ** len(self.dom),
                 cod=tensor.Dim(2) ** len(self.cod),
-                data=self._array
+                data=self._array,
             )
         raise NotImplementedError
 
     @property
     def array(self):
-        """Create an array in the semantics of a ZX diagram"""
         raise NotImplementedError
 
     @array.setter
@@ -667,19 +661,16 @@ class Spider(frobenius.Spider, Box):
     def to_zw(self):
         return self
 
-    def determine_output_dimensions(self,
-                                    input_dims: list[int]) -> list[int]:
+    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         if isinstance(self.cod, Bit):
-            return [2]*len(self.cod)
+            return [2] * len(self.cod)
         else:
             if len(self.dom) == 0:
                 return [2 for _ in range(len(self.cod))]
             return [min(input_dims) for _ in range(len(self.cod))]
 
     def truncation(
-            self,
-            input_dims: list[int] = None,
-            output_dims: list[int] = None
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """
         Create a tensor in the semantics of a ZW/ZX diagram depending
@@ -718,9 +709,6 @@ class Sum(symmetric.Sum, Box):
         return sum(term.conjugate() for term in self.terms)
 
     def to_path(self, dtype: type = complex):
-        """Convert the sum to a path diagram.
-        For this function to fully work,
-        formal sums of Path matrices need to be implemented."""
         return sum(term.to_path(dtype) for term in self.terms)
 
     def eval(self, n_photons=0, permanent=None, dtype=complex):
@@ -882,8 +870,8 @@ class DualRail(Box):
     def __init__(self, is_dagger=False):
         dom = Mode(2) if is_dagger else Bit(1)
         cod = Bit(1) if is_dagger else Mode(2)
-        self.is_dagger = is_dagger
         super().__init__("2R", dom, cod)
+        self.is_dagger = is_dagger
 
     def conjugate(self):
         return self
@@ -891,7 +879,6 @@ class DualRail(Box):
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
-        """:class:`tensor.Box` for the dual rail encoding."""
         if self.is_dagger:
             array = np.zeros((2, input_dims[0], input_dims[1]), dtype=complex)
         else:
@@ -899,9 +886,10 @@ class DualRail(Box):
         array[0, 1, 0] = 1
         array[1, 0, 1] = 1
         if self.is_dagger:
-            return tensor.Box(self.name, Dim(2),
-                              Dim(*[int(i) for i in input_dims]),
-                              array).dagger()
+            return tensor.Box(
+                self.name + ".dagger()", Dim(2),
+                Dim(*[int(i) for i in input_dims]), array
+            ).dagger()
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
@@ -915,6 +903,46 @@ class DualRail(Box):
 
     def dagger(self) -> Diagram:
         return DualRail(not self.is_dagger)
+
+
+class PhotonThresholdDetector(Box):
+    """
+    Photon-number non-resolving detector from mode to bit.
+    Detects whether one or more photons are present.
+    """
+
+    def __init__(self, is_dagger=False):
+        if is_dagger:
+            super().__init__("PTD dagger", Bit(1), Mode(1))
+        else:
+            super().__init__("PTD", Mode(1), Bit(1))
+        self.is_dagger = is_dagger
+
+    def to_zw(self):
+        return self
+
+    def truncation(self, input_dims=None, output_dims=None):
+        if self.is_dagger:
+            array = np.zeros((2, 2), dtype=complex)
+        else:
+            array = np.zeros((input_dims[0], 2), dtype=complex)
+        array[0, 0] = 1
+        array[1: input_dims[0], 1] = 1
+        if self.is_dagger:
+            return tensor.Box(self.name, Dim(2), Dim(2), array).dagger()
+
+        return tensor.Box(self.name, Dim(int(input_dims[0])), Dim(2), array)
+
+    def determine_output_dimensions(self, input_dims):
+        if self.is_dagger:
+            return [MAX_DIM] * len(input_dims)
+        return [2] * len(input_dims)
+
+    def conjugate(self):
+        return self
+
+    def dagger(self):
+        return PhotonThresholdDetector(not self.is_dagger)
 
 
 class EmbeddingTensor(tensor.Box):
@@ -943,21 +971,21 @@ class EmbeddingTensor(tensor.Box):
 
 
 def dual_rail(n):
-    '''
+    """
     Encode n qubits into 2n modes via the dual-rail encoding.
-    '''
+    """
     d = DualRail()
-    for i in range(n-1):
+    for i in range(n - 1):
         d @= DualRail()
     return d
 
 
 def embedding_tensor(n, dim):
-    '''
+    """
     Obtain 2->dim embedding tensors on n wires.
-    '''
+    """
     d = EmbeddingTensor(2, dim)
-    for i in range(n-1):
+    for i in range(n - 1):
         d @= EmbeddingTensor(2, dim)
     return d
 

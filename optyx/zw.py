@@ -23,7 +23,7 @@ Generators and diagrams
     :toctree:
 
     W
-    Z
+    ZBox
     Create
     Select
     Endo
@@ -277,7 +277,9 @@ class W(Box):
 
         if self.is_dagger:
             return tensor.Box(self.name, in_dims, out_dims, result_matrix)
-        return tensor.Box(self.name, in_dims, out_dims, result_matrix.conj().T)
+        return tensor.Box(
+            self.name, in_dims, out_dims, result_matrix.conj().T
+        )
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -319,7 +321,7 @@ class ZBox(Spider, Box):
         legs_out: int = 1,
         amplitudes: Union[
             np.ndarray, list, callable, IndexableAmplitudes
-        ] = lambda i: i
+        ] = lambda i: i,
     ):
         # if amplitudes are a function then make it indexable, "conjugable"
         if callable(amplitudes):
@@ -630,7 +632,7 @@ class Endo(Box):
     def truncation(
         self, input_dims: list[int], output_dims: list[int] = None
     ) -> tensor.Box:
-        return ZBox(1, 1, lambda x: self.scalar ** x).truncation(
+        return ZBox(1, 1, lambda x: self.scalar**x).truncation(
             input_dims, output_dims
         )
 
