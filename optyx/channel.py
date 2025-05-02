@@ -448,32 +448,22 @@ class Encode(Channel):
             if ty == qmode:
                 internal_amplitudes = lambda i: optyx.Diagram.tensor(
                     *[
-                        ZBox(0, 1, lambda _: 1) >> Endo(s)
-                        for s in self.internal_states[i]
+                        Endo(s) for s in self.internal_states[i]
                     ]
                 )
 
                 diagrams_to_tensor.append(
                     (
-                        CQMap("Internal state",
-                            internal_amplitudes(i),
-                            Ty(*[Ob._classical[ob.name] for ob in
-                                 internal_amplitudes(i).dom.inside]),
-                            Ty(*[Ob._classical[ob.name] for ob in
-                                 internal_amplitudes(i).cod.inside]),
-                        ) @ mode >>
-                        Encode(Ty(Ob._classical[ty.name])**(d+1))
-                    ) >>
-                    Channel('Permute and copy',
-                        (
-                            (optyx.Spider(1, 2, optyx.Mode(1)) ** d)
-                            >> optyx.Diagram.permutation(
-                                optyx.Box.get_perm(d * 2, d), optyx.Mode(d * 2)
-                            )
-                            >> (optyx.Mode(d) @ Add(d))
-                        ).dagger()
+                        CQMap(
+                            "Amplitudes",
+                            Add(d).dagger() >> internal_amplitudes(i),
+                            Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(1).inside]),
+                            Ty(*[Ob._classical[ob.name] for ob in optyx.Mode(d).inside]),
+                        ) >>
+                        Encode(Ty(Ob._classical[ty.name])**d)
                     )
                 )
+
                 i += 1
             else:
                 diagrams_to_tensor.append(Measure(ty))
