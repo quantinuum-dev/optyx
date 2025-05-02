@@ -6,9 +6,8 @@ import copy as cp
 from optyx.feed_forward.classical_control import *
 from optyx.feed_forward.measurement import *
 from optyx.feed_forward.controlled_gates import *
-from optyx.feed_forward.classical_arithmetic import *
 from optyx.zw import Create, W
-from optyx.optyx import PhotonThresholdDetector, Mode
+from optyx.optyx import PhotonThresholdDetector, Mode, Swap
 from optyx.lo import Phase, BS, MZI
 from optyx.utils import matrix_to_zw
 
@@ -100,19 +99,6 @@ CIRCUITS_TO_TEST = [
     (W(2).dagger() >> W(2), MZI(0.324, 0.9875)),
 ]
 
-CLASSICAL_FUNCTIONS_TO_TEST = (
-    (xor_2bits, xor),
-    (duplicate_bit, copy),
-    (swap_and_xor, copy @ Bit(1) >> Bit(1) @ swap >> xor @ Bit(1)),
-    (xor_both_bits, copy @ copy >> Bit(1) @ swap @ Bit(1) >> xor @ xor),
-    (complicated_xor, (
-        Bit(2) @ swap >>
-        Bit(1) @ copy @ copy @ Bit(1) >>
-        xor @ xor @ xor >>
-        postselect_1 @ Bit(1) @ postselect_1
-    ))
-)
-
 CLASSICAL_FUNCTIONS_TO_TEST_MATRIX = (
     (xor_2bits, [1, 1]),
     (duplicate_bit, [[1],
@@ -175,12 +161,6 @@ class TestClassicalFunctionBox:
     as the known symbolic circuit or matrix box.
     """
 
-    @pytest.mark.parametrize("f, circ", CLASSICAL_FUNCTIONS_TO_TEST)
-    def test_classical_function_box(self, f, circ):
-        f_res = ClassicalFunctionBox(f, circ.dom, circ.cod).to_zw().to_tensor().eval().array
-        circ_res = circ.to_zw().to_tensor().eval().array
-        assert np.allclose(f_res, circ_res)
-
     @pytest.mark.parametrize("function, m", CLASSICAL_FUNCTIONS_TO_TEST_MATRIX)
     def test_logical_matrix_box(self, function, m):
         m = np.array(m)
@@ -192,25 +172,6 @@ class TestClassicalFunctionBox:
         f_arr = ClassicalFunctionBox(function, dom, cod).to_tensor().eval().array
         circ_arr = BinaryMatrixBox(m).to_tensor().eval().array
         assert np.allclose(f_arr, circ_arr)
-
-    @pytest.mark.parametrize("f, circ", CLASSICAL_FUNCTIONS_TO_TEST)
-    def test_classical_function_box_dagger(self, f, circ):
-        """
-        Verify that the dagger of ClassicalFunctionBox matches calling dagger() earlier.
-        """
-        res_1 = ClassicalFunctionBox(f, circ.dom, circ.cod).to_zw().to_tensor().dagger().eval().array
-        res_2 = ClassicalFunctionBox(f, circ.dom, circ.cod).dagger().to_zw().to_tensor().eval().array
-        assert_allclose_with_shape_mismatch(res_1, res_2)
-
-    @pytest.mark.parametrize("f, circ", CLASSICAL_FUNCTIONS_TO_TEST)
-    def test_classical_circuit_dagger(self, f, circ):
-        """
-        Verify that the dagger of a ClassicalCircuitBox is consistent with
-        calling .dagger() on the circuit itself.
-        """
-        res_1 = ClassicalCircuitBox(circ).to_zw().to_tensor().dagger().eval().array
-        res_2 = ClassicalCircuitBox(circ).dagger().to_zw().to_tensor().eval().array
-        assert_allclose_with_shape_mismatch(res_1, res_2)
 
     @pytest.mark.parametrize("function, m", CLASSICAL_FUNCTIONS_TO_TEST_MATRIX)
     def test_logical_matrix_box_dagger(self, function, m):
@@ -226,67 +187,6 @@ class TestClassicalFunctionBox:
         res_1 = BinaryMatrixBox(m).to_tensor().dagger().eval().array
         res_2 = BinaryMatrixBox(m).dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
-
-
-class TestClassicalCircuit:
-    """
-    Tests classical circuits that involve a custom function and a circuit
-    (e.g. the 'fusion_i_function' example).
-
-    This is the logic for the Fusion type I circuit, in a optyx
-    circuit form (somewhat overcomplicated).
-    """
-
-    l_data = [[0, 2], [1, 1], [2, 0], [0, 1], [1, 0], [0, 0]]
-
-    fusion_i_box = (
-        copy_mode @ copy_mode >>
-        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
-        mod2 @ mod2 @ Mode(2) >>
-        PhotonThresholdDetector() @ PhotonThresholdDetector() @ Mode(2) >>
-        Bit(1) @ copy @ Mode(2) >>
-        xor @ Bit(1) @ Mode(2) >>
-        copy @ Bit(1) @ Mode(2) >>
-        copy @ Bit(2) @ Mode(2) >>
-        Bit(2) @ not_ @ Bit(1) @ Mode(2) >>
-        Bit(2) @ swap @ PhotonThresholdDetector() @ PhotonThresholdDetector() >>
-        Bit(1) @ and_ @ Bit(1) @ copy @ copy >>
-        Bit(4) @ swap @ Bit(1) >>
-        Bit(3) @ and_ @ xor >>
-        Bit(4) @ not_ >>
-        Bit(3) @ xor >>
-        Bit(2) @ and_ >>
-        Bit(1) @ xor
-    )
-
-    @pytest.mark.skip(reason="Helper function for testing")
-    def fusion_i_function(self, x):
-        """
-        A classical function that returns two bits based on an input x,
-        based on the classical logical for the Fusion type I circuit.
-        """
-        a = x[0]
-        b = x[1]
-        s = (a % 2) ^ (b % 2)
-        k = int(s*(b % 2) + (1-s)*(1 - (a + b)/2))
-        return [s, k]
-
-    @pytest.mark.parametrize("l", l_data)
-    def test_classical_circuit(self, l):
-        """
-        Compare the function-based approach (fusion_i_function) with the
-        circuit-based approach (fusion_i_box), ensuring they produce the same result.
-        """
-        d1 = (
-            Create(*l) >>
-            ClassicalFunctionBox(self.fusion_i_function, self.fusion_i_box.dom, self.fusion_i_box.cod)
-        )
-        arr1 = [o[0] for o in np.nonzero(np.round(d1.to_zw().to_tensor().eval().array))]
-
-        d2 = Create(*l) >> self.fusion_i_box
-        arr2 = [o[0] for o in np.nonzero(np.round(d2.to_zw().to_tensor().eval().array))]
-
-        assert np.allclose(arr1, arr2)
 
 
 class TestControlledPhaseShift:

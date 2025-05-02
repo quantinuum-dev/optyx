@@ -37,7 +37,8 @@ from optyx.channel import Channel, Measure, bit, qmode
 
 class PhotonThresholdMeasurement(Channel):
     """
-    Ideal non-photon resolving detector from qmode to bit.
+    Ideal photon-number non-resolving detector
+    from mode to bit from qmode to bit.
     Detects whether one or more photons are present.
     """
 

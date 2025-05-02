@@ -511,6 +511,19 @@ class DephasingError(Channel):
         return self
 
 
+class Discard(Channel):
+    """Discarding a qubit or qmode corresponds to
+    applying a 2 -> 0 spider in the doubled picture.
+
+    >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
+    """
+
+    def __init__(self, dom):
+        env = dom.single()
+        kraus = optyx.Id(dom.single())
+        super().__init__("Discard", kraus, dom=dom, cod=Ty(), env=env)
+
+
 class Ket(Channel):
     """Computational basis state for qubits"""
 
