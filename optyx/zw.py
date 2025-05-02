@@ -766,7 +766,7 @@ class Add(Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import Add
+    >>> from optyx.zw import Add
     >>> add_box = Add(2)
     >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
