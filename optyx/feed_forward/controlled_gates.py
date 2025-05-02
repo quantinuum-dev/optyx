@@ -56,8 +56,8 @@ from optyx.optyx import (
     Id,
     Bit,
     Mode,
-    EmbeddingTensor,
     MAX_DIM,
+    truncation_tensor
 )
 from optyx.zw import ZBox
 
@@ -303,19 +303,3 @@ class ControlledPhaseShift(Box):
         return ControlledPhaseShift(
             self.function, self.n_modes, self.n_control_bits, self.is_dagger
         )
-
-
-def truncation_tensor(
-    input_dims: List[int], output_dims: List[int]
-) -> tensor.Box:
-
-    assert len(input_dims) == len(
-        output_dims
-    ), "input_dims and output_dims must have the same length"
-
-    tensor = EmbeddingTensor(input_dims[0], output_dims[0])
-
-    for i in zip(input_dims[1:], output_dims[1:]):
-
-        tensor = tensor @ EmbeddingTensor(i[0], i[1])
-    return tensor

@@ -150,7 +150,10 @@ from typing import Union
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
-from optyx.optyx import Diagram, Mode, Swap, Scalar, Spider
+from typing import List
+from optyx.optyx import (
+    Diagram, Mode, Swap, Scalar, Spider, truncation_tensor
+)
 from optyx.utils import occupation_numbers, multinomial
 from optyx.path import Matrix
 from optyx import optyx
@@ -752,6 +755,66 @@ def filter_occupation_numbers(
             list(config[i] <= input_dims[i] for i in range(len(input_dims)))
         )
     ]
+
+
+class Add(Box):
+    """
+    Adds multiple classical values using a W-dagger operation.
+    Acts by adding the basis vectors without the binomial coefficient.
+    Takes `n` mode inputs and returns a single summed mode output
+    (or vice versa if daggered).
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Add
+    >>> add_box = Add(2)
+    >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> # Expect 4 one-hot outputs for all input combinations
+    >>> assert np.allclose(tensor.sum(), 4)
+    """
+
+    def __init__(self, n: int, is_dagger: bool = False):
+        dom = Mode(1) if is_dagger else Mode(n)
+        cod = Mode(n) if is_dagger else Mode(1)
+
+        super().__init__("Add", dom, cod)
+        self.n = n
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        input_dims = [int(i) for i in input_dims]
+        output_dims = [int(i) for i in output_dims]
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        diag = W(self.n).dagger().to_tensor(input_dims)
+        array = np.sign(
+            (diag >> truncation_tensor(diag.cod.inside, output_dims))
+            .eval()
+            .array
+        )
+        if self.is_dagger:
+            return tensor.Box(
+                "Add", Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+
+        return tensor.Box("Add", Dim(*input_dims), Dim(*output_dims), array)
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [int(input_dims[0])] * self.n
+        return [int(sum(input_dims))]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Add(self.n, not self.is_dagger)
 
 
 SWAP = Swap(Mode(1), Mode(1))

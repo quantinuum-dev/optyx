@@ -127,3 +127,20 @@ def test_dual_rail(qubit_state, internal_state):
     s_1 = np.sum(list(non_zero_dict.values()))
     s_2 = np.sum(qubit_array)
     assert np.allclose(non_zero_dict[(1, 0)]/s_1, qubit_array[0]/s_2) and np.allclose(non_zero_dict[(0, 1)]/s_1, qubit_array[1]/s_2)
+
+def test_encode():
+    from optyx.channel import CQMap, mode, Encode
+
+    create = CQMap(
+        "create",
+        Create(1, 1),
+        dom=mode**0,
+        cod=mode**2,
+    )
+
+    res = (create >> Encode(mode**2, [[0.5**0.5, 0.5**0.5], [1, 0]]) >> Measure(qmode**2)).inflate(2).double().to_zw().to_tensor().eval().array
+
+    rounded_result = np.round(res, 3)
+
+    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+    assert non_zero_dict[(1, 1)] == 1.0
