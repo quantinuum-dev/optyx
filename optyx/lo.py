@@ -165,14 +165,14 @@ References
 """
 
 import numpy as np
-from sympy import Expr, lambdify
 import sympy as sp
+from sympy import Expr, lambdify
 
 from optyx.optyx import Mode, Box, Scalar
 from optyx.path import Matrix
-from optyx.zw import ZBox, W, Create, Select, Endo
-from optyx.zw import Split, Merge, Id, SWAP
 from optyx.utils import matrix_to_zw
+from optyx.zw import Split, Merge, Id, SWAP
+from optyx.zw import ZBox, W, Create, Select, Endo
 
 
 class Gate(Box):
@@ -366,6 +366,35 @@ class BBS(Box):
         return lambda *xs: type(self)(
             lambdify(symbols, self.bias, **kwargs)(*xs)
         )
+
+
+class WavePlate(Box):
+    def __init__(self, delta=np.pi/2, psi=0, is_conj=False):
+        self.delta = delta
+        self.psi = psi
+        self.is_conj = is_conj
+        array = np.array([
+            [1j * np.sin(delta) * np.cos(2 * psi) + np.cos(delta), 1j * np.sin(delta) * np.sin(2 * psi)],
+            [1j * np.sin(delta) * np.sin(2 * psi), -1j * np.sin(delta) * np.cos(2 * psi) + np.cos(delta)]
+        ])
+        super().__init__("WavePlate", Mode(2), Mode(2), array=array)
+
+    def conjugate(self):
+        conj = WavePlate(self.delta, self.psi, is_conj=self.is_conj)
+        conj.array = -1 * self.array
+        return conj
+
+    def __repr__(self):
+        return "WavePlate"
+
+    def to_path(self, dtype=complex):
+        return Matrix[dtype](self.array, len(self.dom), len(self.cod))
+
+    def to_zw(self, dtype=complex):
+        return matrix_to_zw(self.array)
+
+    def dagger(self):
+        return self.conjugate()
 
 
 class TBS(Box):
@@ -623,8 +652,5 @@ def ansatz(width, depth):
 BS = BBS(0)
 
 # an alternative definition of a beam splitter
-BS_matrix_hadamard = np.sqrt(1 / 2) * np.array([[1, 1], [1, -1]])
-# BS_matrix_hadamard = np.array([[1, 1], [1, -1]])
-BS_hadamard = Box("BS_hadamard", Mode(2), Mode(2))
-BS_hadamard.to_zw = lambda: matrix_to_zw(BS_matrix_hadamard)
-BS_hadamard.conjugate = lambda: BS_hadamard
+BS_hadamard = WavePlate()
+BS_hadamard.name = "BS_hadamard"
