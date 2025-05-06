@@ -468,11 +468,14 @@ class Encode(Channel):
 
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
-        assert self.internal_states is not None, \
-            "Internal states must be provided for encoding"
-        assert all(
-            len(internal_state) == d for internal_state in self.internal_states
-        ), "All internal states must have the same length as d"
+        if any(
+            ob.name == "mode" for ob in self.dom.inside
+        ):
+            assert self.internal_states is not None, \
+                "Internal states must be provided for encoding"
+            assert all(
+                len(internal_state) == d for internal_state in self.internal_states
+            ), "All internal states must have the same length as d"
 
         from optyx.zw import Add, Endo
 
