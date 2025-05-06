@@ -170,6 +170,14 @@ class Ty(symmetric.Ty):
         assert isinstance(ty, optyx.Ty)
         return Ty(*[Ob._quantum[ob.name] for ob in ty.inside])
 
+    def needs_inflation(self) -> bool:
+        return "qmode" in self.name
+
+    def inflate(self, d) -> Ty:
+        return (mode**0).tensor(
+                *(o**d if o.needs_inflation() else o for o in self)
+        )
+
 
 bit = Ty("bit")
 mode = Ty("mode")
@@ -183,6 +191,9 @@ class Circuit(symmetric.Diagram):
 
     ty_factory = Ty
 
+    def needs_inflation(self) -> bool:
+        return self.dom.needs_inflation() or self.cod.needs_inflation()
+
     def inflate(self, d):
         r"""Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
@@ -193,12 +204,7 @@ class Circuit(symmetric.Diagram):
         dom = symmetric.Category(Ty, Circuit)
         cod = symmetric.Category(Ty, Circuit)
 
-        def ob(x):
-            return (mode**0).tensor(
-                *(o**d if o.name in ["qmode"] else o for o in x)
-            )
-
-        return symmetric.Functor(lambda x: ob(x),
+        return symmetric.Functor(lambda x: x.inflate(d),
                                  lambda f: f.inflate(d),
                                  dom,
                                  cod)(self)
@@ -291,28 +297,13 @@ class Channel(symmetric.Box, Circuit):
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
-
-        def ob(x):
-            return (mode**0).tensor(
-                *(o**d if o.name in ["qmode"] else o for o in x)
-            )
-
-        def arr(f):
-            if (
-                any(o.name == "qmode" for o in self.dom.inside) or
-                any(o.name == "qmode" for o in self.cod.inside)
-            ):
-                return f.inflate(d)
-            else:
-                return f
 
         return Channel(
             name=self.name + f"^{d}",
-            kraus=arr(self.kraus),
-            dom=ob(self.dom),
-            cod=ob(self.cod),
+            kraus=self.kraus.inflate(d) if
+            self.needs_inflation() else self.kraus,
+            dom=self.dom.inflate(d),
+            cod=self.cod.inflate(d),
         )
 
 
@@ -346,28 +337,13 @@ class CQMap(symmetric.Box, Circuit):
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
-
-        def ob(x):
-            return (mode**0).tensor(
-                *(o**d if o.name in ["qmode"] else o for o in x)
-            )
-
-        def arr(f):
-            if (
-                any(o.name == "qmode" for o in self.dom.inside) or
-                any(o.name == "qmode" for o in self.cod.inside)
-            ):
-                return f.inflate(d)
-            else:
-                return f
 
         return CQMap(
             name=self.name + f"^{d}",
-            density_matrix=arr(self.density_matrix),
-            dom=ob(self.dom),
-            cod=ob(self.cod),
+            density_matrix=self.density_matrix.inflate(d) if
+            self.needs_inflation() else self.density_matrix,
+            dom=self.dom.inflate(d),
+            cod=self.cod.inflate(d)
         )
 
 
@@ -401,29 +377,17 @@ class Measure(Channel):
         The bit, qubit and mode are not inflated.
         """
 
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
+        diagrams = [self._measure_wire(ob, d) for ob in self.dom]
+        return optyx.Diagram.tensor(*diagrams)
 
+    def _measure_wire(self, ob, d):
+        """Return the diagram that measures one `ob`."""
         from optyx.zw import Add
-
-        channel = optyx.Diagram.tensor(
-            *[
-                (
-                    Measure(ty**d) >>
-                    CQMap(
-                        "Gather photons",
-                        Add(d),
-                        mode**d,
-                        mode,
-                    )
-                )
-                if ty == qmode else
-                Measure(ty)
-                for ty in self.dom
-            ]
-        )
-
-        return channel
+        if ob.needs_inflation():
+            return Measure(ob ** d) >> CQMap(
+                "Gather photons", Add(d), mode ** d, mode
+            )
+        return Measure(ob)
 
 
 class Encode(Channel):
@@ -466,8 +430,6 @@ class Encode(Channel):
         we apply the encoding of the internal states.
         """
 
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
         if any(
             ob.name == "mode" for ob in self.dom.inside
         ):
@@ -478,46 +440,28 @@ class Encode(Channel):
                 internal_state in self.internal_states
             ), "All internal states must have the same length as d"
 
+        amps_iter = iter(self.internal_states or [])
+        diagrams = [self._encode_wire(ob, d, amps_iter) for ob in self.dom]
+        return optyx.Diagram.tensor(*diagrams)
+
+    def _encode_wire(self, ob, d, amps_iter):
+        """Return the diagram that encodes *one* object `ob`.
+
+        `amps_iter` yields the internal‑state vectors for `mode` wires.
+        """
         from optyx.zw import Add, Endo
 
-        diagrams_to_tensor = []
-        i = 0
-
-        # only inflate the qmodes/modes
-        for ty in self.dom:
-            if ty == mode:
-                internal_amplitudes = \
-                    lambda i: optyx.Diagram.tensor(  # noqa: E731
-                        *[
-                            Endo(s) for s in self.internal_states[i]
-                        ]
-                    )
-
-                diagrams_to_tensor.append(
-                    (
-                        CQMap(
-                            "Add dagger",
-                            Add(d).dagger(),
-                            mode,
-                            mode**d,
-                        ) >>
-                        Encode(mode**d) >>
-                        Channel(
-                            "Amplitudes",
-                            internal_amplitudes(i)
-                        )
-                    )
-                )
-
-                i += 1
-            elif ty == qmode:
-                diagrams_to_tensor.append(Encode(qmode**d))
-            else:
-                diagrams_to_tensor.append(Encode(ty))
-
-        channel = optyx.Diagram.tensor(*diagrams_to_tensor)
-
-        return channel
+        if ob == mode:
+            amps = next(amps_iter)
+            amp_layer = optyx.Diagram.tensor(*[Endo(a) for a in amps])
+            return (
+                CQMap("Add†", Add(d).dagger(), mode, mode ** d)
+                >> Encode(mode ** d)
+                >> Channel("Amplitudes", amp_layer)
+            )
+        if ob == qmode:
+            return Encode(qmode ** d)
+        return Encode(ob)
 
 
 class BitFlipError(Channel):
