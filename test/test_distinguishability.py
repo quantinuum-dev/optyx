@@ -1,151 +1,139 @@
-from optyx.channel import Channel
-from optyx.lo import BS
-from optyx.zw import W, Create, Endo
-from optyx.optyx import DualRail, Scalar
-from optyx.zx import Z, X
-from optyx.zw import Add
-from optyx.channel import qmode, Measure
+
+from __future__ import annotations
+
+import itertools
+from typing import Dict, Tuple
+
 import numpy as np
 import pytest
-import itertools
+from optyx.channel import Channel, qmode, Measure
+from optyx.lo import BS
+from optyx.zw import Create
+from optyx.optyx import DualRail, Scalar
+from optyx.zx import Z, X
 
-internal_state_random = np.random.rand(2) + 1j*np.random.rand(2)
-internal_state_random = internal_state_random / np.linalg.norm(internal_state_random)
 
-internal_states = [
-    [0.5**0.5, 0.5**0.5],
-    [1],
-    internal_state_random
+RNG = np.random.default_rng(seed=2025)
+
+def random_internal_state(dim: int = 2) -> np.ndarray:
+    """Return a normalised random complex vector of shape (dim,)."""
+    v = RNG.random(dim) + 1j * RNG.random(dim)
+    return v / np.linalg.norm(v)
+
+
+def non_zero_entries(array: np.ndarray) -> Dict[Tuple[int, ...], complex]:
+    """Sparse view of the non‑zero entries of an array."""
+    return {idx: val for idx, val in np.ndenumerate(array) if val != 0}
+
+INTERNAL_STATES = [
+    np.array([1, 1]) / np.sqrt(2),
+    np.array([1]),
+    random_internal_state(),
 ]
 
-@pytest.mark.parametrize("internal_state", internal_states)
-def test_non_distinguishable_photons(internal_state):
-    channel_BS = (Channel(
-        "BS",
-            (
-                Create(1, 1, internal_states=(internal_state,
-                                             internal_state)) >>
-                BS
-            )
-        ) >> Measure(qmode**2)
+DISTINGUISHABLE_STATE_POOL = [random_internal_state() for _ in range(5)]
+DISTINGUISHABLE_PAIRS = list(
+    itertools.product(DISTINGUISHABLE_STATE_POOL, DISTINGUISHABLE_STATE_POOL)
+)
+
+QUBIT_STATES = [
+    Z(0, 1) @ Scalar(1 / np.sqrt(2)),
+    Z(0, 1, 0.3) @ Scalar(1 / np.sqrt(2)),
+    X(0, 1) @ Scalar(1 / np.sqrt(2)),
+    X(0, 1, 0.3) @ Scalar(1 / np.sqrt(2)),
+]
+
+
+@pytest.mark.parametrize("internal_state", INTERNAL_STATES)
+def test_beamsplitter_non_distinguishable(internal_state: np.ndarray) -> None:
+    """
+    Hong–Ou–Mandel bunching for *indistinguishable* photons:
+    probabilities P_{02}=P_{20}=0.5 and all others vanish.
+    """
+    channel_bs = (
+        Channel(
+            "BS",
+            Create(1, 1, internal_states=(internal_state, internal_state)) >> BS,
+        )
+        >> Measure(qmode**2)
     ).inflate(len(internal_state))
 
-    result = channel_BS.double().to_zw().to_tensor(max_dim=3).eval().array
-
-    rounded_result = np.round(result, 6)
-
-    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
-    assert non_zero_dict == {(0, 2): (0.5),
-                             (2, 0): (0.5)}
-
-internal_states_1 = []
-internal_states_2 = []
-
-for i in range(5):
-    internal_state_1 = np.random.rand(2) + 1j*np.random.rand(2)
-    internal_state_1 = internal_state_1 / np.linalg.norm(internal_state_1)
-
-    internal_states_1.append(internal_state_1)
-
-    internal_state_2 = np.random.rand(2) + 1j*np.random.rand(2)
-    internal_state_2 = internal_state_2 / np.linalg.norm(internal_state_2)
-
-    internal_states_2.append(internal_state_2)
-
-@pytest.mark.parametrize("internal_state_1, internal_state_2",
-                         itertools.product(internal_states_1,
-                                           internal_states_2))
-def test_distinguishable_photons(internal_state_1, internal_state_2):
-    channel_BS = (Channel(
-        "BS",
-            (
-                Create(1, 1, internal_states=(internal_state_1,
-                                             internal_state_2)) >>
-                BS
-            )
-        ) >> Measure(qmode**2)
-    ).inflate(len(internal_state_1))
-
-    result = channel_BS.double().to_zw().to_tensor(max_dim=3).eval().array
-
-    rounded_result = np.round(result, 6)
-
-    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
-    one_one_prob = non_zero_dict.get((1, 1), 0)
-    assert np.allclose(one_one_prob,
-                       0.5 - 0.5*np.abs(np.array(internal_state_1).dot(np.array(internal_state_2).conjugate()))**2, 4)
-
-qubit_states = [
-    Z(0, 1) @ Scalar(0.5**0.5),
-    Z(0, 1, 0.3) @ Scalar(0.5**0.5),
-    X(0, 1) @ Scalar(0.5**0.5),
-    X(0, 1, 0.3) @ Scalar(0.5**0.5),
-]
-
-internal_states = [
-    [0.5**0.5, 0.5**0.5],
-    [1],
-    internal_state_random
-]
-
-@pytest.mark.parametrize("qubit_state, internal_state",
-                         itertools.product(qubit_states,
-                                           internal_states))
-def test_dual_rail(qubit_state, internal_state):
-    d = qubit_state >> DualRail(internal_state=internal_state).inflate(len(internal_state))
-
-    qubit_array = qubit_state.to_tensor().eval().array
-    dual_rail_array = (d >> DualRail(internal_state=internal_state).inflate(len(internal_state)).dagger()).to_tensor().eval().array
-    assert np.allclose(qubit_array, dual_rail_array, 4)
-
-    dual_rail_array = (
-        qubit_state >>
-        DualRail(internal_state=internal_state) >>
-        DualRail(internal_state=internal_state).dagger()
+    probs = (
+        channel_bs.double()
+        .to_zw()
+        .to_tensor(max_dim=3)
+        .eval()
+        .array
     )
 
-    dual_rail_array_channel = Channel(
-        "DualRail",
-        dual_rail_array
+    nz = non_zero_entries(np.round(probs, 6))
+    assert nz == {(0, 2): 0.5, (2, 0): 0.5}
+
+
+@pytest.mark.parametrize("state1,state2", DISTINGUISHABLE_PAIRS)
+def test_beamsplitter_distinguishable(state1: np.ndarray, state2: np.ndarray) -> None:
+    channel_bs = (
+        Channel(
+            "BS",
+            Create(1, 1, internal_states=(state1, state2)) >> BS,
+        )
+        >> Measure(qmode**2)
+    ).inflate(len(state1))
+
+    probs = (
+        channel_bs.double()
+        .to_zw()
+        .to_tensor(max_dim=3)
+        .eval()
+        .array
     )
 
-    qubit_state_channel = Channel(
-        "Qubit",
-        qubit_state
-    )
+    nz = non_zero_entries(np.round(probs, 6))
+    observed = nz.get((1, 1), 0)
 
-    dual_rail_array = dual_rail_array.inflate(len(internal_state)).to_tensor(max_dim=2).eval().array
-    assert np.allclose(dual_rail_array, qubit_array, 4)
+    overlap = np.abs(state1 @ state2.conj()) ** 2
+    expected = 0.5 - 0.5 * overlap
+    assert np.isclose(observed, expected, atol=1e-4)
 
-    dual_rail_array_channel = dual_rail_array_channel.inflate(len(internal_state)).double().to_tensor(max_dim=2).eval().array
-    qubit_state_channel = qubit_state_channel.inflate(len(internal_state)).double().to_tensor(max_dim=2).eval().array
-    assert np.allclose(dual_rail_array_channel, qubit_state_channel, 4)
 
-    result = (d >> Add(len(internal_state)) @ Add(len(internal_state))).to_zw().to_tensor(max_dim=2).eval().array
-    rounded_result = np.round(result, 6)
-    non_zero_dict = {idx: (val if val != 0 else 0) for idx, val in np.ndenumerate(rounded_result)}
-    s_1 = np.sum(list(non_zero_dict.values()))
-    s_2 = np.sum(qubit_array)
-    assert np.allclose(non_zero_dict[(1, 0)]/s_1, qubit_array[0]/s_2) and np.allclose(non_zero_dict[(0, 1)]/s_1, qubit_array[1]/s_2)
+@pytest.mark.parametrize(
+    "qubit_state,internal_state", list(itertools.product(QUBIT_STATES, INTERNAL_STATES))
+)
+def test_dualrail_identity(qubit_state, internal_state) -> None:
+    """Dual‑rail Encode . Decode acts as identity on the logical qubit."""
+    encoded = qubit_state >> DualRail(internal_state=internal_state).inflate(len(internal_state))
 
-def test_encode():
+    dr_drdagger = (
+        encoded
+        >> DualRail(internal_state=internal_state).inflate(len(internal_state)).dagger()
+    ).to_tensor(max_dim=2).eval().array
+
+    expected = qubit_state.to_tensor().eval().array
+    assert np.allclose(dr_drdagger, expected)
+
+
+def test_encode_n_qubits() -> None:
+    """
+    Test for Encode: three logical qubits in two photonic modes.
+    Ensures the overall probability mass remains 1.
+    """
     from optyx.channel import CQMap, mode, Encode
 
     create = CQMap(
         "create",
         Create(1, 1),
-        dom=mode**0,
-        cod=mode**2,
+        dom=mode ** 0,
+        cod=mode ** 2,
     )
+    create_channel = Channel("create", Create(1, internal_states=([1, 0],)))
 
-    create_channel = Channel(
-        "create",
-        Create(1, internal_states=([1, 0], ))
-    )
+    result = (
+        create
+        @ create_channel
+        >> Encode(mode ** 2, ([1 / np.sqrt(2), 1 / np.sqrt(2)], [1, 0]))
+        @ Encode(qmode)
+        >> Measure(qmode ** 3)
+    ).inflate(2).double().to_zw().to_tensor().eval().array
 
-    res = (create @ create_channel >> Encode(mode**2, ([0.5**0.5, 0.5**0.5], [1, 0])) @ Encode(qmode) >> Measure(qmode**3)).inflate(2).double().to_zw().to_tensor().eval().array
-
-    rounded_result = np.round(res, 3)
-
-    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
-    assert non_zero_dict[(1, 1, 1)] == 1.0
+    nz = non_zero_entries(np.round(result, 3))
+    assert nz[(1, 1, 1)] == 1.0

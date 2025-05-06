@@ -397,7 +397,8 @@ class Measure(Channel):
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
 
         The diagram discards the internal states and measures
-        the number of photons in the modes.
+        the number of photons in the modes. Only qmodes are inflated.
+        The bit, qubit and mode are not inflated.
         """
 
         assert isinstance(d, int), "Dimension must be an integer"
@@ -456,7 +457,9 @@ class Encode(Channel):
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
 
-        The internal states are used to encode the qmodes.
+        The internal states are used to encode the modes only.
+        Bit and qubit are not encoded, qmode is inflated and
+        mode is encoded.
         The diagram is a dagger of the inflation of
         the Measure channel with the difference
         that instead of discarding becoming a maximally mixed state,
@@ -480,7 +483,7 @@ class Encode(Channel):
         diagrams_to_tensor = []
         i = 0
 
-        # only inflate the qmodes
+        # only inflate the qmodes/modes
         for ty in self.dom:
             if ty == mode:
                 internal_amplitudes = \
