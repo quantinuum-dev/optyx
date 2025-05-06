@@ -631,8 +631,6 @@ class Box(frobenius.Box, Diagram):
         to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
 
         return (
             Diagram.permutation(self.get_perm(len(self.dom)*d, d),
@@ -955,8 +953,6 @@ class DualRail(Box):
     def inflate(self, d):
         from optyx.zw import W, Endo
 
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
         assert self.internal_state is not None, \
             "Internal state must be provided"
         assert len(self.internal_state) == d, \
@@ -1016,6 +1012,10 @@ class PhotonThresholdDetector(Box):
 
     def dagger(self):
         return PhotonThresholdDetector(not self.is_dagger)
+
+    def inflate(self, d):
+        from optyx.zw import Add
+        return Add(d) >> PhotonThresholdDetector()
 
 
 class EmbeddingTensor(tensor.Box):

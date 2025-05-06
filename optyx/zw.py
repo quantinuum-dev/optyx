@@ -484,8 +484,7 @@ class Create(Box):
         )
 
     def inflate(self, d):
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
+
         assert self.internal_states is not None, \
             "Internal states in Create must be provided"
         assert all(len(state) == d for state in self.internal_states), \
@@ -585,8 +584,7 @@ class Select(Box):
         return self
 
     def inflate(self, d):
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
+
         assert self.internal_states is not None, \
             "Internal states in Create must be provided"
         assert all(len(state) == d for state in self.internal_states), \
@@ -816,6 +814,8 @@ class Add(Box):
     def dagger(self):
         return Add(self.n, not self.is_dagger)
 
+    def conjugate(self):
+        return Add(self.n, self.is_dagger)
 
 SWAP = Swap(Mode(1), Mode(1))
 
