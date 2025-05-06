@@ -143,7 +143,7 @@ def test_encode():
         Create(1, internal_states=([1, 0], ))
     )
 
-    res = (create @ create_channel >> Encode(mode**2, [[0.5**0.5, 0.5**0.5], [1, 0]]) @ Encode(qmode) >> Measure(qmode**3)).inflate(2).double().to_zw().to_tensor().eval().array
+    res = (create @ create_channel >> Encode(mode**2, ([0.5**0.5, 0.5**0.5], [1, 0])) @ Encode(qmode) >> Measure(qmode**3)).inflate(2).double().to_zw().to_tensor().eval().array
 
     rounded_result = np.round(res, 3)
 

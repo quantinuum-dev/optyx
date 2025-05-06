@@ -370,22 +370,10 @@ class CQMap(symmetric.Box, Circuit):
             cod=ob(self.cod),
         )
 
+
 class Swap(symmetric.Swap, Channel):
     def dagger(self):
         return self
-
-
-class Discard(Channel):
-    """Discarding a qubit or qmode corresponds to
-    applying a 2 -> 0 spider in the doubled picture.
-
-    >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
-    """
-
-    def __init__(self, dom):
-        env = dom.single()
-        kraus = optyx.Id(dom.single())
-        super().__init__('Discard', kraus, dom=dom, cod=Ty(), env=env)
 
 
 class Measure(Channel):
@@ -418,18 +406,20 @@ class Measure(Channel):
         from optyx.zw import Add
 
         channel = optyx.Diagram.tensor(
-            *[(
-                Measure(ty**d) >>
-                CQMap(
-                    "Gather photons",
-                    Add(d),
-                    mode**d,
-                    mode,
+            *[
+                (
+                    Measure(ty**d) >>
+                    CQMap(
+                        "Gather photons",
+                        Add(d),
+                        mode**d,
+                        mode,
+                    )
                 )
-               )
-            if ty == qmode else
-            Measure(ty)
-            for ty in self.dom]
+                if ty == qmode else
+                Measure(ty)
+                for ty in self.dom
+            ]
         )
 
         return channel
@@ -443,13 +433,20 @@ class Encode(Channel):
     >>> assert len(Encode(dom).double().cod) == 8
     """
 
-    def __init__(self, dom, internal_states=None):
+    def __init__(self,
+                 dom,
+                 internal_states: tuple[list[int]] = None):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
         if internal_states is not None:
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
             assert len(internal_states) == sum(
                 [1 if ob.name == "mode" else 0 for ob in dom.inside]
-            ), "Number of internal states must match the number of modes in dom"
+            ), "Number of internal states must "
+            "match the number of modes in dom"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
 
         super().__init__(name="Encode", kraus=kraus, dom=dom, cod=cod)
         self.internal_states = internal_states
@@ -474,7 +471,8 @@ class Encode(Channel):
             assert self.internal_states is not None, \
                 "Internal states must be provided for encoding"
             assert all(
-                len(internal_state) == d for internal_state in self.internal_states
+                len(internal_state) == d for
+                internal_state in self.internal_states
             ), "All internal states must have the same length as d"
 
         from optyx.zw import Add, Endo
@@ -482,14 +480,15 @@ class Encode(Channel):
         diagrams_to_tensor = []
         i = 0
 
-        #only inflate the qmodes
+        # only inflate the qmodes
         for ty in self.dom:
             if ty == mode:
-                internal_amplitudes = lambda i: optyx.Diagram.tensor(
-                    *[
-                        Endo(s) for s in self.internal_states[i]
-                    ]
-                )
+                internal_amplitudes = \
+                    lambda i: optyx.Diagram.tensor(  # noqa: E731
+                        *[
+                            Endo(s) for s in self.internal_states[i]
+                        ]
+                    )
 
                 diagrams_to_tensor.append(
                     (
@@ -516,6 +515,7 @@ class Encode(Channel):
         channel = optyx.Diagram.tensor(*diagrams_to_tensor)
 
         return channel
+
 
 class BitFlipError(Channel):
 

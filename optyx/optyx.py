@@ -963,9 +963,11 @@ class DualRail(Box):
             "Internal state must be of len d"
 
         diagram = DualRail() >> Diagram.tensor(
-            *[W(d) >> Diagram.tensor(*[Endo(d_i) for
-                d_i in self.internal_state])
-            for _ in range(2)]
+            *[
+                (W(d) >>
+                 Diagram.tensor(*[Endo(d_i) for d_i in self.internal_state]))
+                for _ in range(2)
+            ]
         )
         if self.is_dagger:
             return diagram.dagger()
