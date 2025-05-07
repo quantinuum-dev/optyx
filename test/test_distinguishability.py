@@ -137,3 +137,15 @@ def test_encode_n_qubits() -> None:
 
     nz = non_zero_entries(np.round(result, 3))
     assert nz[(1, 1, 1)] == 1.0
+
+
+def test_photon_threshold_detector():
+    from optyx.optyx import PhotonThresholdDetector
+
+    d_1 = Create(1, internal_states=([1, 0])) >> PhotonThresholdDetector()
+    d_2 = X(1, 0, 0.5) @ Scalar(0.5**0.5)
+
+    arr_1 = d_1.inflate(2).to_tensor(max_dim=3).eval().array
+    arr_2 = d_2.to_tensor(max_dim=3).eval().array
+
+    assert np.allclose(arr_1, arr_2)
