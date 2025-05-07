@@ -301,7 +301,7 @@ class Diagram(frobenius.Diagram):
     def inflate(self, d):
         r"""
         Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
         assert isinstance(d, int), "Dimension must be an integer"
@@ -628,7 +628,7 @@ class Box(frobenius.Box, Diagram):
     def inflate(self, d):
         r"""
         Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
 
@@ -1015,8 +1015,10 @@ class PhotonThresholdDetector(Box):
 
     def inflate(self, d):
         from optyx.zw import Add
-        return Add(d) >> PhotonThresholdDetector()
-
+        diagram = Add(d) >> PhotonThresholdDetector()
+        if self.is_dagger:
+            return diagram.dagger()
+        return diagram
 
 class EmbeddingTensor(tensor.Box):
     """

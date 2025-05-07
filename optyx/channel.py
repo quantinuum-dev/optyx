@@ -196,7 +196,7 @@ class Circuit(symmetric.Diagram):
 
     def inflate(self, d):
         r"""Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
@@ -292,11 +292,9 @@ class Channel(symmetric.Box, Circuit):
         )
 
     def inflate(self, d):
-        r"""
-        Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
-        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
-        """
+        r"""Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
 
         return Channel(
             name=self.name + f"^{d}",
@@ -368,10 +366,7 @@ class Measure(Channel):
         super().__init__(name="Measure", kraus=kraus, dom=dom, cod=cod)
 
     def inflate(self, d):
-        r"""Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
-        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
-
+        r""" A specific choice of inflation for the Measure channel.
         The diagram discards the internal states and measures
         the number of photons in the modes. Only qmodes are inflated.
         The bit, qubit and mode are not inflated.
@@ -417,10 +412,7 @@ class Encode(Channel):
         self.internal_states = internal_states
 
     def inflate(self, d):
-        r"""Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
-        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
-
+        r"""
         The internal states are used to encode the modes only.
         Bit and qubit are not encoded, qmode is inflated and
         mode is encoded.
@@ -438,7 +430,7 @@ class Encode(Channel):
             assert all(
                 len(internal_state) == d for
                 internal_state in self.internal_states
-            ), "All internal states must have the same length as d"
+            ), "All internal states must have length d"
 
         amps_iter = iter(self.internal_states or [])
         diagrams = [self._encode_wire(ob, d, amps_iter) for ob in self.dom]

@@ -757,10 +757,8 @@ def filter_occupation_numbers(
 
 class Add(Box):
     """
-    Adds multiple classical values using a W-dagger operation.
-    Acts by adding the basis vectors without the binomial coefficient.
-    Takes `n` mode inputs and returns a single summed mode output
-    (or vice versa if daggered).
+    Acts as addition on basis states.
+    Like the W-dagger operation but without the binomial coefficients.
 
     Example
     -------
