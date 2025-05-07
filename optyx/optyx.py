@@ -1020,6 +1020,7 @@ class PhotonThresholdDetector(Box):
             return diagram.dagger()
         return diagram
 
+
 class EmbeddingTensor(tensor.Box):
     """
     Embedding tensor for fixing the dimensions of the output tensor.

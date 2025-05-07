@@ -815,6 +815,7 @@ class Add(Box):
     def conjugate(self):
         return Add(self.n, self.is_dagger)
 
+
 SWAP = Swap(Mode(1), Mode(1))
 
 
