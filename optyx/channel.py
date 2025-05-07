@@ -332,7 +332,7 @@ class CQMap(symmetric.Box, Circuit):
     def inflate(self, d):
         r"""
         Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`\mathbb{C}^d`,
+        to a distinguishable one. For a map on :math:`F(\mathbb{C}^d)`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
 
