@@ -10,7 +10,6 @@ Utility functions which are used in the package.
 
 import numpy as np
 
-
 def _build_w_layer(n_nonzero_counts, dagger=False):
     from optyx import zw
 
@@ -25,7 +24,7 @@ def _build_w_layer(n_nonzero_counts, dagger=False):
 
 
 def matrix_to_zw(U):
-    from optyx import zw
+    from optyx.diagram import zw
 
     n = U.shape[0]
     diagram = zw.Id(0)
@@ -208,3 +207,35 @@ def tensor_2_amplitudes(
             )
 
     return np.array(res)
+
+
+def explode_channel(
+    kraus,
+    channel_class=None,
+    circuit_class=None,
+):
+    from optyx.diagram.channel import Channel, Ty, Circuit
+
+    if channel_class is None:
+        channel_class = Channel
+    if circuit_class is None:
+        circuit_class = Circuit
+
+    arrows = []
+    for layer in kraus:
+        generator = layer.inside[0][1]
+        channel = channel_class(
+            generator.name,
+            generator,
+        )
+
+        arrows.append(
+            Ty.from_optyx(layer.inside[0][0]) @
+            channel @
+            Ty.from_optyx(layer.inside[0][2])
+        )
+
+    if len(arrows) == 0:
+        return channel_class("Id", kraus)
+
+    return channel_class.then(*arrows)
