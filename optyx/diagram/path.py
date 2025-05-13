@@ -137,6 +137,7 @@ from math import factorial
 
 import numpy as np
 import perceval as pcvl
+from itertools import permutations
 
 from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
@@ -488,6 +489,53 @@ class Matrix(underlying.Matrix):
             shape="triangle",
             max_try=1,
         )
+
+    def pdist_prob(self, x, y, S, permanent=npperm):
+        """
+        Calculates the probabilities for partially distinguishable photons.
+
+        Parameters
+        ----------
+        x : List[int]
+            Input vector of occupation numbers
+        y : List[int]
+            Output vector of occupation numbers
+        S : np.array
+            Symmetric matrix of mutual distinguishabilities
+            of shape (n_photons, n_photons)
+        permanent : callable, optional
+            Use another function for computing the permanent
+
+        Example
+        -------
+        Check the Hong-Ou-Mandel effect:
+
+        >>> BS = BBS(0)
+        >>> x = [1, 1]
+        >>> S = np.eye(2)
+        >>> assert np.isclose(BS.pdist_prob(x, x, S), 0.5)
+        >>> S = np.ones((2, 2))
+        >>> assert np.isclose(BS.pdist_prob(x, x, S), 0)
+        >>> S = lambda p: np.array([[1, p], [p, 1]])
+        >>> for p in [0.1*x for x in range(11)]:
+        ...     assert np.isclose(BS.pdist_prob(x, x, S(p)), 0.5 * (1 - p **2))
+        """
+        n_modes = len(self.dom)
+        n_photons = sum(x)
+        if sum(x) != sum(y):
+            raise ValueError("Number of photons in != Number of photons out.")
+        matrix = np.stack([self.umatrix.array[:, i] for i in range(n_modes)
+                          for _ in range(y[i])], axis=1)
+        matrix = np.stack([matrix[i] for i in range(n_modes)
+                          for _ in range(x[i])], axis=0)
+        photons = list(range(n_photons))
+        prob = 0
+        for sigma in permutations(photons):
+            for rho in permutations(photons):
+                prob += np.prod([matrix[sigma[j], j]
+                                 * np.conjugate(matrix[rho[j], j])
+                                 * S[rho[j], sigma[j]] for j in photons])
+        return prob
 
     def _to_perceval_post_select(self) -> pcvl.PostSelect:
         post_str = [
