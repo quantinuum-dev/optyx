@@ -18,6 +18,8 @@ Classes
 
     PhotonThresholdMeasurement
     NumberResolvingMeasurement
+    DiscardQMode
+    Select
 
 Examples
 --------

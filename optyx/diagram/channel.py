@@ -201,7 +201,8 @@ class Circuit(symmetric.Diagram):
 
             are_layers_pure.append(
                 all(ty.is_classical for ty in generator.cod.inside) or
-                all(ty.is_classical for ty in generator.dom.inside)
+                all(ty.is_classical for ty in generator.dom.inside) or
+                isinstance(generator, Discard)
             )
 
         return not all(are_layers_pure)

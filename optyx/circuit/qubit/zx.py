@@ -66,7 +66,7 @@ class QubitCircuit(Circuit):
     def to_dual_rail(self):
         """Convert to dual-rail encoding."""
 
-        assert self.is_pure, "Circuit must be pure to convert to tket."
+        assert self.is_pure, "Circuit must be pure to convert to dual rail."
 
         return symmetric.Functor(
             ob=lambda x: qmode**(2*len(x)),
@@ -84,7 +84,6 @@ class QubitCircuit(Circuit):
             QubitChannel,
             QubitCircuit
         )
-
 
     def to_tket(self):
         """
@@ -138,11 +137,12 @@ class Z(QubitChannel):
 
     tikzstyle_name = "Z"
     color = "green"
+    draw_as_spider = True
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
         kraus = ZSingle(n_legs_in, n_legs_out, phase)
         super().__init__(
-            f"Z({n_legs_in}, {n_legs_out}, {phase})",
+            f"Z({phase})",
             kraus,
             qubit**n_legs_in,
             qubit**n_legs_out,
@@ -154,11 +154,12 @@ class X(QubitChannel):
 
     tikzstyle_name = "X"
     color = "red"
+    draw_as_spider = True
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
         kraus = XSingle(n_legs_in, n_legs_out, phase)
         super().__init__(
-            f"X({n_legs_in}, {n_legs_out}, {phase})",
+            f"X({phase})",
             kraus,
             qubit**n_legs_in,
             qubit**n_legs_out,

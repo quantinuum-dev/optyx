@@ -1,9 +1,17 @@
+"""
+This module defines quantum error channels for
+simulating noise in quantum photonic circuits.
+"""
+
 from optyx.diagram.channel import Channel, qubit
 from optyx.diagram import optyx, zx
 
 import numpy as np
 
 class BitFlipError(Channel):
+    """
+    Represents a bit-flip error channel.
+    """
 
     def __init__(self, prob):
         x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
@@ -22,6 +30,9 @@ class BitFlipError(Channel):
 
 
 class DephasingError(Channel):
+    """
+    Represents a quantum dephasing error channel.
+    """
     def __init__(self, prob):
         z_error = (
             zx.H
