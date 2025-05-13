@@ -336,6 +336,7 @@ class Measure(Channel):
     bit @ bit @ mode @ mode
     >>> assert Measure(dom).double().cod == dom.single()
     """
+    draw_as_measures = True
 
     def __init__(self, dom):
         cod = Ty(*[Ob._classical[ob.name] for ob in dom.inside])
@@ -350,6 +351,7 @@ class Encode(Channel):
     >>> dom = qubit @ bit @ qmode @ mode
     >>> assert len(Encode(dom).double().cod) == 8
     """
+    draw_as_measures = True
 
     def __init__(self, dom):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
@@ -402,6 +404,7 @@ class Discard(Channel):
 
     >>> assert Discard(qmode).double() == optyx.Spider(2, 0, optyx.mode)
     """
+    draw_as_discards = True
 
     def __init__(self, dom):
         env = dom.single()

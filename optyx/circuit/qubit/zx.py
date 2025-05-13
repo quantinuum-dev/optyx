@@ -18,12 +18,6 @@ Classes:
     legs and an optional phase.
 - H: Represents a Hadamard gate in ZX-calculus.
 
-Usage:
-------
-This module is intended for use in quantum circuit design, analysis, and
-optimization using ZX-calculus and related frameworks. It allows for seamless
-conversion between different representations and provides tools for manipulating
-quantum circuits and channels at a high level of abstraction.
 """
 
 from optyx.diagram.zx import (
