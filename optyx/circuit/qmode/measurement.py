@@ -57,9 +57,9 @@ class PhotonThresholdMeasurement(Channel):
 
 
 # Ideal photon number resolving detector from qmode to mode.
-NumberResolvingMeasurement = Measure(qmode)
+NumberResolvingMeasurement = lambda n: Measure(qmode**n)
 
-Discard = Discard(qmode)
+DiscardQMode = lambda n: Discard(qmode**n)
 
 class Select(Channel):
     def __init__(self, *n_photons: int):

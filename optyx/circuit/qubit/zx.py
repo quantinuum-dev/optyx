@@ -2,125 +2,30 @@
 Overview
 --------
 
-ZX diagrams, to and from conversions with :code:`pyzx`,
-evaluation with to_tensor via :code:`quimb`,
-mapping to post-selected linear
-optical circuits :code:`zx_to_path`.
+This module defines classes and functions for working with quantum circuits and
+quantum channels using ZX-calculus and related tools. It provides functionality
+to decompose circuits, convert between different representations (e.g., tket,
+dual-rail encoding), and manipulate ZX-diagrams.
 
+Classes:
+- QubitCircuit: Represents a quantum circuit with methods for decomposition,
+    conversion to dual-rail encoding, and conversion to/from tket circuits.
+- QubitChannel: Represents a quantum channel, inheriting from QubitCircuit and
+    Channel, with additional methods for decomposition and dual-rail conversion.
+- Z: Represents a Z spider in ZX-calculus with a specified number of input/output
+    legs and an optional phase.
+- X: Represents an X spider in ZX-calculus with a specified number of input/output
+    legs and an optional phase.
+- H: Represents a Hadamard gate in ZX-calculus.
 
-Generators
--------------
-.. autosummary::
-    :template: class.rst
-    :nosignatures:
-    :toctree:
-
-    Box
-    Spider
-    Z
-    X
-
-Functions
-----------
-.. autosummary::
-    :template: function.rst
-    :nosignatures:
-    :toctree:
-
-    zx_to_path
-    decomp
-    zx2path
-    circuit2zx
-
-
-Examples of usage
-------------------
-
-We can map ZX diagrams to :class:`path` diagrams using
-dual-rail encoding. For example, we can create a GHZ state:
-
->>> from discopy.drawing import Equation
->>> from optyx.optyx import dual_rail, embedding_tensor
->>> ghz = Z(0, 3)
->>> ghz_decom = decomp(ghz)
->>> ghz_path = zx_to_path(ghz_decom)
->>> Equation(ghz >> dual_rail(3), ghz_path, \\
-... symbol="$\\mapsto$").draw(figsize=(10, 10), \\
-... path="docs/_static/ghz_dr.svg")
-
-.. image:: /_static/ghz_dr.svg
-    :align: center
-
-We can also create a graph state as follows
-(where we omit the labels):
-
->>> graph = (Z(0, 2) >> Id(1) @ H >> Id(1) @ Z(1, 2) >> \\
-... Id(2) @ H >> Id(2) @ Z(1, 2))
->>> graph_decom = decomp(graph)
->>> graph_path = zx_to_path(graph_decom)
->>> Equation(graph >> dual_rail(4), graph_path, \\
-... symbol="$\\mapsto$").draw(figsize=(10, 14), \\
-... path="docs/_static/graph_dr.svg", draw_type_labels=False, \\
-... draw_box_labels=False)
-
-.. image:: /_static/graph_dr.svg
-    :align: center
-
-We can check that both diagrams produce the same tensors (we need to
-ensure the tensor dimensions match):
-
->>> assert np.allclose(graph_path.to_zw().to_tensor().eval().array, \\
-... ((graph >> dual_rail(4)).to_tensor() >> \\
-... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 5))).eval().array)
-
-As shown in the example above, we need to decompose a ZX diagram
-into more elementary spiders before mapping it to a path diagram.
-More explicitely:
-
->>> diagram = Z(2, 1, 0.25) >> X(1, 1, 0.35)
->>> print(decomp(diagram))
-Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
->>> print(zx2path(decomp(diagram))[:2])
-mode @ W[::-1] @ mode >> mode @ Select(1) @ mode
->>> assert zx2path(decomp(diagram)) == zx_to_path(diagram)
-
-Evaluating ZX diagrams using PyZX or via the dual rail
-encoding is equivalent.
-
->>> ket = lambda *xs: Id(Bit(0)).tensor(\\
-...         *[X(0, 1, 0.5 if x == 1 else 0) for x in xs])
->>> cnot = Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1)
->>> control = lambda x: ket(x) @ Id(1) >> cnot >> ket(x).dagger() @ Id(1)
->>> assert np.allclose(zx_to_path(control(0)).to_path().eval(1).array, \\
-...                    control(0).to_pyzx().to_tensor())
->>> assert np.allclose(zx_to_path(control(1)).to_path().eval(1).array, \\
-...                    control(1).to_pyzx().to_tensor())
->>> cz = lambda phi: cnot >> Z(1, 1, phi) @ H
->>> amplitude = ket(1, 1) >> cz(0.7) >> ket(1, 1).dagger()
->>> assert np.allclose(zx_to_path(amplitude).to_path().eval().array, \\
-...                    amplitude.to_pyzx().to_tensor())
-
-Corner case where :code:`to_pyzx` and
-:code:`zx_to_path` agree only up to global
-phase.
-
->>> diagram = X(0, 2) @ Z(0, 1, 0.25) @ Scalar(1/2)\\
-...     >> Id(1) @ Z(2, 1) >> X(2, 0, 0.35)
->>> print(decomp(diagram)[:3])
-X(0, 1) >> H >> Z(1, 2)
->>> print(zx_to_path(diagram)[:2])
-Create(1) >> mode @ Create((0,))
->>> pyzx_ampl = diagram.to_pyzx().to_tensor()
->>> assert np.allclose(pyzx_ampl, zx_to_path(diagram).to_path().eval().array)
-
-The array properties of Z and X spiders agree with PyZX.
-
->>> z = Z(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
->>> assert np.allclose(z.array.flatten(), z.to_pyzx().to_tensor().flatten())
-
->>> x = X(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
->>> assert np.allclose(x.array.flatten(), x.to_pyzx().to_tensor().flatten())
+Usage:
+------
+This module is intended for use in quantum circuit design, analysis, and
+optimization using ZX-calculus and related frameworks. It allows for seamless
+conversion between different representations and provides tools for manipulating
+quantum circuits and channels at a high level of abstraction.
 """
+
 from optyx.diagram.zx import (
     X as XSingle,
     Z as ZSingle,

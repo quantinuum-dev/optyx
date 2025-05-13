@@ -2,12 +2,13 @@ from optyx.diagram.channel import (
     Measure,
     Encode,
     qubit,
+    bit,
     Discard
 )
 
-MeasureQubit = Measure(qubit)
-DiscardQubit = Discard(qubit)
-EncodeQubit = Encode(qubit)
+MeasureQubit = lambda n: Measure(qubit**n)
+DiscardQubit = lambda n: Discard(qubit**n)
+EncodeBit = lambda n: Encode(bit**n)
 
 
 

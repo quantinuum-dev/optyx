@@ -1,10 +1,7 @@
 from optyx.diagram.channel import Encode, mode, Channel
 from optyx.diagram.zw import Create
 
-Encode = lambda internal_states=None: Encode(
-    mode,
-    internal_states=internal_states,
-)
+EncodeMode = lambda n: Encode(mode**n)
 
 class Create(Channel):
     def __init__(self, *n_photons: int):

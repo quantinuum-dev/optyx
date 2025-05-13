@@ -206,6 +206,24 @@ class Circuit(symmetric.Diagram):
 
         return not all(are_layers_pure)
 
+    def get_kraus(self):
+        assert self.is_pure, "Cannot get Kraus map of non-pure circuit"
+        kraus_maps = []
+        for layer in self:
+            left = optyx.Ty().tensor(*[ty.single() \
+                                       for ty in layer.inside[0][0]])
+            right = optyx.Ty().tensor(*[ty.single() \
+                                        for ty in layer.inside[0][2]])
+            generator = layer.inside[0][1]
+
+            kraus_maps.append(
+                left @ generator.kraus @ right
+            )
+
+        return optyx.Diagram.then(
+            *kraus_maps
+        )
+
 class Channel(symmetric.Box, Circuit):
     """
     Channel initialised by its Kraus map.
