@@ -11,7 +11,7 @@ Utility functions which are used in the package.
 import numpy as np
 
 def _build_w_layer(n_nonzero_counts, dagger=False):
-    from optyx import zw
+    from optyx.diagram import zw
 
     layer = zw.Id(0)
     for count in n_nonzero_counts:

@@ -51,7 +51,7 @@ from typing import Callable, List
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-from optyx.optyx import (
+from optyx.diagram.optyx import (
     Box,
     Id,
     Bit,
@@ -59,7 +59,7 @@ from optyx.optyx import (
     EmbeddingTensor,
     MAX_DIM,
 )
-from optyx.zw import ZBox
+from optyx.diagram.zw import ZBox
 
 
 class BitControlledBox(Box):

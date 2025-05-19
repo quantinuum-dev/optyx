@@ -351,7 +351,7 @@ class ZBox(Spider, Box):
             )
             return tensor.Box(self.name, Dim(1), Dim(1), amplitudes)
 
-        from optyx.optyx import EmbeddingTensor
+        from optyx.diagram.optyx import EmbeddingTensor
 
         spider_dim = min(input_dims) if self.legs_in > 0 else 2
 

@@ -30,82 +30,19 @@ from optyx.diagram.zx import (
 from optyx.diagram.channel import (
     Channel,
     Circuit,
-    qubit,
-    qmode,
-    Ty
+    qubit
 )
 from optyx.utils import explode_channel
+from pytket.extensions.pyzx import tk_to_pyzx
 from discopy import symmetric
-from discopy.cat import factory
-from pytket.extensions.pyzx import tk_to_pyzx, pyzx_to_tk
+from pytket.extensions.pyzx import pyzx_to_tk
 from optyx.diagram.optyx import Bit, Diagram
 from pyzx import extract_circuit
-
-@factory
-class QubitCircuit(Circuit):
-    """Qubit circuit."""
-
-    ty_factory = Ty
-
-    def decomp(self):
-
-        assert self.is_pure, "Circuit must be pure to convert to tket."
-
-        return symmetric.Functor(
-            ob=lambda x: qubit**len(x),
-            ar=lambda arr: arr.decomp(),
-            cod=symmetric.Category(Ty, QubitCircuit),
-        )(self)
-
-    def to_dual_rail(self):
-        """Convert to dual-rail encoding."""
-
-        assert self.is_pure, "Circuit must be pure to convert to dual rail."
-
-        return symmetric.Functor(
-            ob=lambda x: qmode**(2*len(x)),
-            ar=lambda arr: arr.to_dual_rail(),
-            cod=symmetric.Category(Ty, Circuit),
-        )(self.decomp())
-
-    @classmethod
-    def from_tket(self, tket_circuit):
-        """Convert from tket circuit."""
-        pyzx_circuit = tk_to_pyzx(tket_circuit).to_graph()
-        zx_diagram = Diagram.from_pyzx(pyzx_circuit)
-        return explode_channel(
-            zx_diagram,
-            QubitChannel,
-            QubitCircuit
-        )
-
-    def to_tket(self):
-        """
-        Convert to tket circuit. The circuit must be a pure circuit.
-        """
-
-        assert self.is_pure, "Circuit must be pure to convert to tket."
-
-        kraus_maps = []
-        for layer in self:
-            left = layer.inside[0][0]
-            right = layer.inside[0][2]
-            generator = layer.inside[0][1]
-
-            kraus_maps.append(
-                Bit(len(left)) @ generator.kraus @ Bit(len(right))
-            )
-
-        return pyzx_to_tk(
-            extract_circuit(
-                Diagram.then(
-                    *kraus_maps
-                ).to_pyzx()
-            ).to_basic_gates()
-        )
+from optyx.utils import explode_channel
+from optyx.diagram import optyx
 
 
-class QubitChannel(QubitCircuit, Channel):
+class QubitChannel(Channel):
     """Qubit channel."""
 
     def decomp(self):
@@ -113,7 +50,7 @@ class QubitChannel(QubitCircuit, Channel):
         return explode_channel(
             decomposed,
             QubitChannel,
-            QubitCircuit
+            Circuit
         )
 
     def to_dual_rail(self):

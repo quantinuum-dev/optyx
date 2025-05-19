@@ -28,12 +28,12 @@ class BitControlledGate(Channel):
         if isinstance(control_gate, (Circuit, Channel)):
             assert control_gate.is_pure, \
                  "The input gates must be pure quantum channels"
-            control_gate = control_gate.get_kraus()
+            control_gate_single = control_gate.get_kraus()
         if isinstance(default_gate, (Circuit, Channel)):
             assert default_gate.is_pure, \
                  "The input gates must be pure quantum channels"
             default_gate = default_gate.get_kraus()
-        kraus = BitControlledBox(control_gate, default_gate)
+        kraus = BitControlledBox(control_gate_single, default_gate)
         super().__init__(
             f"BitControlledGate({control_gate}, {default_gate})",
             kraus,
