@@ -1,10 +1,10 @@
 import math
 
-from optyx.zw import *
-from optyx.optyx import mode, DualRail, EmbeddingTensor
+from optyx.diagram.zw import *
+from optyx.diagram.optyx import mode, DualRail, EmbeddingTensor
 from optyx.utils import compare_arrays_of_different_sizes
-import optyx.zx as zx
-import optyx.lo as lo
+import optyx.diagram.zx as zx
+import optyx.diagram.lo as lo
 import itertools
 import pytest
 import numpy as np

@@ -1,6 +1,6 @@
 import math
 
-from optyx.zx import *
+from optyx.diagram.zx import *
 import itertools
 import pytest
 

@@ -16,7 +16,7 @@ class ControlChannel(ClassicalBox):
     """
     Syntactic sugar.
     Converts a classical circuit (Diagram or Box)
-    into a CQMap channel, allowing
+    into a CQMap, allowing
     it to be used as a control channel in hybrid quantum-classical systems.
     """
     pass
@@ -27,7 +27,7 @@ class ClassicalFunction(ControlChannel):
     Represents a classical function as a control channel. It wraps a
     `ClassicalFunctionBox` with the specified function, domain, and codomain.
     """
-    def __init__(cls, function, dom, cod):
+    def __init__(self, function, dom, cod):
         box = ClassicalFunctionBox(
             function,
             dom,
@@ -46,8 +46,8 @@ class BinaryMatrix(ControlChannel):
     Represents a binary matrix as a control channel. It wraps a
     `BinaryMatrixBox` with the specified matrix.
     """
-    def __init__(cls, matrix):
-        box = BinaryMatrixBox(matrix)
+    def __init__(self, matrix):
+        box = BinaryMatrixBox(self, matrix)
         return super().__new__(
             box.name,
             box,

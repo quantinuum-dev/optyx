@@ -6,7 +6,12 @@ and photons in a quantum circuit.
 from optyx.diagram.channel import Encode, mode, Channel
 from optyx.diagram.zw import Create
 
-EncodeMode = lambda n: Encode(mode**n)
+class EncodeModes(Encode):
+    """
+    Encode :math:`n` modes into :math:`n` qmodes.
+    """
+    def __init__(self, n):
+        super().__init__(mode**n)
 
 class Create(Channel):
     """

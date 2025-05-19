@@ -1,7 +1,7 @@
 import pytest
 
-from optyx.zw import *
-from optyx.lo import BS, BBS, Phase
+from optyx.diagram.zw import *
+from optyx.diagram.lo import BS, BBS, Phase
 import numpy as np
 
 unitary_circuits = [

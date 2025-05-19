@@ -1,5 +1,5 @@
-from optyx.zw import Id, Endo, Scalar, Diagram, Mode
-from optyx.lo import Phase, BS, TBS, MZI
+from optyx.diagram.zw import Id, Endo, Scalar, Diagram, Mode
+from optyx.diagram.lo import Phase, BS, TBS, MZI
 from sympy.abc import psi, phi, theta
 import numpy as np
 

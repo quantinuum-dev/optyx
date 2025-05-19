@@ -5,6 +5,7 @@ from optyx.diagram.zx import (
     H as HSingle,
 )
 from optyx.diagram.channel import CQMap
+from optyx.diagram.zw import Scalar as ScalarSingle
 
 DiscardBit = lambda n: Discard(bit**n)
 DiscardMode = lambda n: Discard(mode**n)
@@ -59,4 +60,14 @@ class H(ClassicalBox):
             kraus,
             bit,
             bit,
+        )
+
+
+class Scalar(ClassicalBox):
+    def __init__(self, value: float):
+        super().__init__(
+            f"Scalar({value})",
+            ScalarSingle(value),
+            bit**0,
+            bit**0,
         )

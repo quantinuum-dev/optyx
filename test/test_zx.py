@@ -4,7 +4,7 @@ import numpy as np
 from pytest import raises, fixture
 
 from discopy.quantum.gates import CRz, CRx, CU1
-from optyx.zx import *
+from optyx.diagram.zx import *
 
 
 @fixture

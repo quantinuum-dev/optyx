@@ -1,4 +1,4 @@
-from optyx.zw import *
+from optyx.diagram.zw import *
 
 
 def test_num_op():

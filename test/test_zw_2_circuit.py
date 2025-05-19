@@ -1,7 +1,7 @@
-import optyx.zw as zw
-import optyx.lo as lo
+import optyx.diagram.zw as zw
+import optyx.diagram.lo as lo
 from optyx.utils import tensor_2_amplitudes
-import optyx.lo as qpath
+import optyx.diagram.lo as qpath
 import itertools
 import pytest
 import numpy as np

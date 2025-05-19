@@ -3,12 +3,12 @@ import numpy as np
 import itertools
 import copy as cp
 
-from optyx.feed_forward.classical_control import *
-from optyx.feed_forward.measurement import *
-from optyx.feed_forward.controlled_gates import *
-from optyx.zw import Create, W
-from optyx.optyx import PhotonThresholdDetector, Mode, Swap
-from optyx.lo import Phase, BS, MZI
+from optyx.diagram.classical_functions import *
+#from optyx.diagram.feed_forward.measurement import *
+from optyx.diagram.control import *
+from optyx.diagram.zw import Create, W
+from optyx.diagram.optyx import PhotonThresholdDetector, Mode, Swap
+from optyx.diagram.lo import Phase, BS, MZI
 from optyx.utils import matrix_to_zw
 
 

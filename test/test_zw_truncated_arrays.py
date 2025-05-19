@@ -1,5 +1,5 @@
-from optyx.zw import *
-from optyx.optyx import mode
+from optyx.diagram.zw import *
+from optyx.diagram.optyx import mode
 import pytest
 
 @pytest.mark.skip(reason="Helper function for testing")

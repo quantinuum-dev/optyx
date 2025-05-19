@@ -33,13 +33,7 @@ from optyx.diagram.channel import (
     qubit
 )
 from optyx.utils import explode_channel
-from pytket.extensions.pyzx import tk_to_pyzx
-from discopy import symmetric
-from pytket.extensions.pyzx import pyzx_to_tk
-from optyx.diagram.optyx import Bit, Diagram
-from pyzx import extract_circuit
-from optyx.utils import explode_channel
-from optyx.diagram import optyx
+from optyx.diagram.zw import Scalar as ScalarSingle
 
 
 class QubitChannel(Channel):
@@ -110,3 +104,14 @@ class H(QubitChannel):
             qubit,
             qubit,
         )
+
+
+class Scalar(QubitChannel):
+    def __init__(self, value: float):
+        super().__init__(
+            f"Scalar({value})",
+            ScalarSingle(value),
+            qubit**0,
+            qubit**0,
+        )
+
