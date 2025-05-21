@@ -462,10 +462,10 @@ class Create(Box):
             # we define an internal state for each photon
             if not isinstance(internal_states, tuple):
                 internal_states = (internal_states,)
-            assert photons == (1,) * len(photons), \
-                "Only one photon per mode allowed for internal states"
-            assert len(internal_states) == len(photons), \
-                "Internal states must be provided for each photon"
+            assert all(p in (0, 1) for p in photons), \
+                "Only 0 or 1 photons per mode are allowed for internal states"
+            assert sum(photons) == len(internal_states), \
+                "The number of internal states must match the total number of photons"
             assert len(set(len(i) for i in internal_states)) == 1, \
                 "All internal states must be of the same length"
 
@@ -485,20 +485,28 @@ class Create(Box):
 
     def inflate(self, d):
 
-        assert self.internal_states is not None, \
-            "Internal states in Create must be provided"
-        assert all(len(state) == d for state in self.internal_states), \
+        if any(p == 1 for p in self.photons):
+            assert self.internal_states is not None, \
+            "Internal states in Create/Select must be " \
+            "provided if there is at least one photon being created"
+            assert all(len(state) == d for state in self.internal_states), \
             "All internal states must be of length d"
 
         diagram = Id(Mode(0))
 
-        for i, internal_state in enumerate(self.internal_states):
+        photon_index = 0
+        for i, n_photons in enumerate(self.photons):
+
             endo_layer = Id(Mode(0))
-            for i in internal_state:
-                endo_layer @= Endo(i)
+            if n_photons == 1:
+                for j in self.internal_states[photon_index]:
+                    endo_layer @= Endo(j)
+                photon_index += 1
+            else:
+                endo_layer @= Id(Mode(d))
 
             diagram @= (
-                Create(1) >>
+                Create(self.photons[i]) >>
                 W(d) >>
                 endo_layer
             )
@@ -568,10 +576,10 @@ class Select(Box):
             # we define an internal state for each photon
             if not isinstance(internal_states, tuple):
                 internal_states = (internal_states,)
-            assert photons == (1,) * len(photons), \
-                "Only one photon per mode allowed for internal states"
-            assert len(internal_states) == len(photons), \
-                "Internal states must be provided for each photon"
+            assert all(p in (0, 1) for p in photons), \
+                "Only 0 or 1 photons per mode are allowed for internal states"
+            assert sum(photons) == len(internal_states), \
+                "The number of internal states must match the total number of photons"
             assert len(set(len(i) for i in internal_states)) == 1, \
                 "All internal states must be of the same length"
 
@@ -585,23 +593,10 @@ class Select(Box):
 
     def inflate(self, d):
 
-        assert self.internal_states is not None, \
-            "Internal states in Create must be provided"
-        assert all(len(state) == d for state in self.internal_states), \
-            "All internal states must be of length d"
-
-        diagram = Id(Mode(0))
-
-        for i, internal_state in enumerate(self.internal_states):
-            endo_layer = Id(Mode(0))
-            for i in internal_state:
-                endo_layer @= Endo(i)
-
-            diagram @= (
-                Select(1) >>
-                W(d) >>
-                endo_layer
-            ).dagger()
+        diagram = Create(
+            *self.photons,
+            internal_states=self.internal_states
+        ).inflate(d).dagger()
 
         return diagram
 

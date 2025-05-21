@@ -507,6 +507,12 @@ class Discard(Channel):
         kraus = optyx.Id(dom.single())
         super().__init__("Discard", kraus, dom=dom, cod=Ty(), env=env)
 
+    def inflate(self, d):
+        """
+        Distinguishable setting for the Discard channel.
+        """
+        return Discard(self.dom)**d
+
 
 class Ket(Channel):
     """Computational basis state for qubits"""

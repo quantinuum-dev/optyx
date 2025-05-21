@@ -174,6 +174,9 @@ class Box(optyx.Box):
     def inflate(self, d):
         return self
 
+    def to_zw(self):
+        return self
+
     def __eq__(self, other):
         return (
             isinstance(other, type(self))

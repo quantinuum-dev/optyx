@@ -624,7 +624,6 @@ BS = BBS(0)
 
 # an alternative definition of a beam splitter
 BS_matrix_hadamard = np.sqrt(1 / 2) * np.array([[1, 1], [1, -1]])
-# BS_matrix_hadamard = np.array([[1, 1], [1, -1]])
 BS_hadamard = Box("BS_hadamard", Mode(2), Mode(2))
 BS_hadamard.to_zw = lambda: matrix_to_zw(BS_matrix_hadamard)
 BS_hadamard.conjugate = lambda: BS_hadamard
