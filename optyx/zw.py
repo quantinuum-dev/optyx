@@ -465,7 +465,8 @@ class Create(Box):
             assert all(p in (0, 1) for p in photons), \
                 "Only 0 or 1 photons per mode are allowed for internal states"
             assert sum(photons) == len(internal_states), \
-                "The number of internal states must match the total number of photons"
+                "The number of internal states must " \
+                    "match the total number of photons"
             assert len(set(len(i) for i in internal_states)) == 1, \
                 "All internal states must be of the same length"
 
@@ -487,10 +488,10 @@ class Create(Box):
 
         if any(p == 1 for p in self.photons):
             assert self.internal_states is not None, \
-            "Internal states in Create/Select must be " \
-            "provided if there is at least one photon being created"
+                "Internal states in Create/Select must be " \
+                    "provided if there is at least one photon being created"
             assert all(len(state) == d for state in self.internal_states), \
-            "All internal states must be of length d"
+                "All internal states must be of length d"
 
         diagram = Id(Mode(0))
 
@@ -579,7 +580,8 @@ class Select(Box):
             assert all(p in (0, 1) for p in photons), \
                 "Only 0 or 1 photons per mode are allowed for internal states"
             assert sum(photons) == len(internal_states), \
-                "The number of internal states must match the total number of photons"
+                "The number of internal states must " \
+                    "match the total number of photons"
             assert len(set(len(i) for i in internal_states)) == 1, \
                 "All internal states must be of the same length"
 
