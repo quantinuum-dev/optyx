@@ -323,6 +323,7 @@ class Diagram(frobenius.Diagram):
         self, input_dims: list = None, max_dim: int = None
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
+        from optyx import zw
 
         def list_to_dim(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
@@ -375,6 +376,12 @@ class Diagram(frobenius.Diagram):
                 diagram = diagram >> diagram_
             right_dim = cod_right_dim
             layer_dims = cod_layer_dims
+        zboxes = tensor.Id(Dim(1))
+        for c in diagram.cod:
+            zboxes @= zw.ZBox(1, 1, lambda i: 1).truncation(
+                input_dims=[int(c.inside[0])], output_dims=[int(c.inside[0])]
+            )
+        diagram >>= zboxes
         return diagram
 
     @classmethod
