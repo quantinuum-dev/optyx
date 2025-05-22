@@ -511,7 +511,7 @@ class Discard(Channel):
         """
         Distinguishable setting for the Discard channel.
         """
-        return Discard(self.dom)**d
+        return Discard(self.dom.inflate(d))
 
 
 class Ket(Channel):
