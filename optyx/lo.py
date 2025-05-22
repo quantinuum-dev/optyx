@@ -95,7 +95,7 @@ photons on two output modes.
 .. image:: /_static/BS_hom_2.png
     :align: center
 
->>> np.round(diagram_qpath.to_zw().to_tensor().to_quimb()^..., 1)
+>>> float(np.round(diagram_qpath.to_zw().to_tensor().to_quimb()^..., 1))
 -0.0
 
 We can also do the same using :code:`Perceval`:
