@@ -1,8 +1,7 @@
 import math
 
-from optyx.channel import *
-from optyx import lo, zx, zw
-import itertools
+from optyx.diagram.channel import *
+from optyx.diagram import lo, zx
 import pytest
 import numpy as np
 
@@ -30,7 +29,7 @@ def test_conjugation_MZI():
 def test_conjugation_LO_Gate():
     hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1j], [1j, 1]])
     gate = lo.Gate(hbs_array, 2, 2, "HBS")
-    assert np.allclose(gate.conjugate().to_path().array, 
+    assert np.allclose(gate.conjugate().to_path().array,
                        hbs_array.conjugate())
 
 

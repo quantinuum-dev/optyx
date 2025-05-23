@@ -100,6 +100,22 @@ class CopyN(CQMap):
         )
 
 
+class SwapN(CQMap):
+    """
+    Classical swap of 2 natural numbers.
+    The domain of the map is 2 modes.
+    The codomain of the map is 2 modes.
+    The map will perform swap on the basis states.
+    """
+    def __init__(self):
+        super().__init__(
+            "SwapInt",
+            swap_N,
+            mode**2,
+            mode**2
+        )
+
+
 class PostselectBit(CQMap):
     """
     Postselect on a bit result.
@@ -122,6 +138,32 @@ class PostselectBit(CQMap):
                 postselect_1,
                 bit,
                 bit**0
+            )
+
+
+class InitBit(CQMap):
+    """
+    Initialize a bit to 0 or 1.
+    The domain of the map is a bit.
+    The codomain of the map is a bit.
+    The map will perform initialization on the basis states.
+    """
+    def __init__(self, value):
+        if value not in (0, 1):
+            raise ValueError("Value must be 0 or 1.")
+        if value == 0:
+            super().__init__(
+                f"InitBit(0)",
+                init_0,
+                bit**0,
+                bit
+            )
+        else:
+            super().__init__(
+                f"InitBit(1)",
+                init_1,
+                bit**0,
+                bit
             )
 
 
@@ -148,7 +190,7 @@ class XorBit(CQMap):
     The codomain of the map is a bit.
     The map will perform XOR on the basis states.
     """
-    def __init__(self, n):
+    def __init__(self, n=2):
         super().__init__(
             f"XorBit({n})",
             xor_bits(n),
@@ -164,10 +206,10 @@ class AndBit(CQMap):
     The codomain of the map is a bit.
     The map will perform AND on the basis states.
     """
-    def __init__(self):
+    def __init__(self, n=2):
         super().__init__(
             "AndBit",
-            and_bit,
+            and_bit(n),
             bit**2,
             bit
         )
@@ -180,7 +222,7 @@ class CopyBit(CQMap):
     The codomain of the map is n bits.
     The map will perform copy on the basis states.
     """
-    def __init__(self, n):
+    def __init__(self, n=2):
         super().__init__(
             f"CopyBit({n})",
             copy_bit(n),
@@ -204,3 +246,18 @@ class SwapBit(CQMap):
             bit**2
         )
 
+
+class OrBit(CQMap):
+    """
+    Classical OR gate.
+    The domain of the map is n bits.
+    The codomain of the map is a bit.
+    The map will perform OR on the basis states.
+    """
+    def __init__(self, n=2):
+        super().__init__(
+            f"OrBit({n})",
+            or_bit(n),
+            bit**n,
+            bit
+        )

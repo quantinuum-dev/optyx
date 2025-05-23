@@ -61,7 +61,7 @@ from typing import List
 
 class And(Box):
     """
-    Reversible classical AND gate on two bits.
+    Reversible classical AND gate on n bits.
 
     This gate acts as a classical operation that maps:
         - (1, 1) ↦ 1
@@ -79,8 +79,8 @@ class And(Box):
     ...         assert np.isclose(and_box[a, b, expected], 1.0)
     """
 
-    def __init__(self, is_dagger: bool = False):
-        super().__init__("And", Bit(2), Bit(1))
+    def __init__(self, n=2, is_dagger: bool = False):
+        super().__init__("And", Bit(n), Bit(1))
         self.is_dagger = is_dagger
 
     def truncation(
@@ -91,10 +91,10 @@ class And(Box):
             input_dims, output_dims = output_dims, input_dims
 
         array = np.zeros((*input_dims, *output_dims), dtype=complex)
-        array[1, 1, 1] = 1
-        array[1, 0, 0] = 1
-        array[0, 1, 0] = 1
-        array[0, 0, 0] = 1
+        array[..., 0] = 1
+        all_ones = (1,) * len(input_dims)
+        array[all_ones + (0,)] = 0
+        array[all_ones + (1,)] = 1
 
         if self.is_dagger:
             return tensor.Box(
@@ -106,7 +106,7 @@ class And(Box):
 
     def determine_output_dimensions(self, input_dims):
         if self.is_dagger:
-            return [2, 2]
+            return [2]*len(input_dims)
         return [2]
 
     def to_zw(self):
@@ -114,6 +114,63 @@ class And(Box):
 
     def dagger(self):
         return And(not self.is_dagger)
+
+
+class Or(Box):
+    """
+    Reversible classical OR gate on *n* bits.
+
+    This gate acts as a classical operation that maps
+        - (0, 0, …, 0) ↦ 0
+        - Otherwise    ↦ 1
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Or
+    >>> or_box = Or().to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> assert np.isclose(or_box[0, 0, 0], 1.0)   # only all-zeros→0
+    >>> for a in [0, 1]:
+    ...     for b in [0, 1]:
+    ...         expected = int(a | b)
+    ...         assert np.isclose(or_box[a, b, expected], 1.0)
+    """
+
+    def __init__(self, n: int = 2, is_dagger: bool = False):
+        super().__init__("Or", Bit(n), Bit(1))
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self,
+        input_dims: List[int],
+        output_dims: List[int],
+    ) -> tensor.Box:
+        """
+        Build the (broadcast-sized) truth-table tensor for the OR gate.
+        """
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        array[..., 1] = 1
+
+        all_zeros = (0,) * len(input_dims)
+        array[all_zeros + (1,)] = 0
+        array[all_zeros + (0,)] = 1
+
+        box = tensor.Box(self.name, Dim(*input_dims), Dim(*output_dims), array)
+        return box.dagger() if self.is_dagger else box
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        return [2] * len(input_dims) if self.is_dagger else [2]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Or(n=self.dom.n, is_dagger=not self.is_dagger)
+
 
 
 class Add(Box):
@@ -359,12 +416,16 @@ copy_N = lambda n: Spider(1, n, Mode(1))
 def add_N(n): return Add(n) # add multiple inputs
 subtract_N = add_N(2).dagger() @ Mode(1) >> Mode(1) @ Spider(2, 0, Mode(1)) # subtract first input by second
 mod2 = Mod2() # modulo 2
+swap_N = Swap(Mode(1), Mode(1))
 
 # binary arithmetic
 postselect_1 = X(1, 0, 0.5) @ Scalar(1 / np.sqrt(2))
 postselect_0 = X(1, 0) @ Scalar(1 / np.sqrt(2))
+init_1 = postselect_1.dagger()
+init_0 = postselect_0.dagger()
 xor_bits = lambda n: X(n, 1) @ Scalar(np.sqrt(n))
 not_bit = X(1, 1, 0.5)
 copy_bit = lambda n: Z(1, n)
 swap_bits = Swap(Bit(1), Bit(1))
-and_bit = And()
+and_bit = lambda n: And(n)
+or_bit = lambda n: Or(n)
