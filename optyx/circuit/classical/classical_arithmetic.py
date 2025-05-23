@@ -2,11 +2,26 @@ from optyx.diagram.classical_arithmetic import *
 from optyx.diagram.channel import (
     bit,
     mode,
-    CQMap
+    CQMap,
+    Discard
 )
+from optyx.diagram.zx import (
+    Z as ZSingle,
+    X as XSingle,
+    H as HSingle,
+)
+from optyx.diagram.zw import Scalar as ScalarSingle
 
 
-class AddN(CQMap):
+DiscardBit = lambda n: Discard(bit**n)
+DiscardMode = lambda n: Discard(mode**n)
+
+
+class ClassicalBox(CQMap):
+    pass
+
+
+class AddN(ClassicalBox):
     """
     Classical addition of n natural numbers.
     The domain of the map is n modes.
@@ -21,7 +36,7 @@ class AddN(CQMap):
         )
 
 
-class SubN(CQMap):
+class SubN(ClassicalBox):
     """
     Classical subtraction: subtract the first number from the second.
     The domain of the map is 2 modes.
@@ -37,7 +52,7 @@ class SubN(CQMap):
         )
 
 
-class MultiplyN(CQMap):
+class MultiplyN(ClassicalBox):
     """
     Classical multiplication of 2 natural numbers.
     The domain of the map is 2 modes.
@@ -52,7 +67,7 @@ class MultiplyN(CQMap):
         )
 
 
-class DivideN(CQMap):
+class DivideN(ClassicalBox):
     """
     Classical division: divide the first number by the second.
     The domain of the map is 2 modes.
@@ -68,7 +83,7 @@ class DivideN(CQMap):
         )
 
 
-class ModN(CQMap):
+class ModN(ClassicalBox):
     """
     Classical modulo 2.
     The domain of the map is a mode.
@@ -84,7 +99,7 @@ class ModN(CQMap):
         )
 
 
-class CopyN(CQMap):
+class CopyN(ClassicalBox):
     """
     Classical copy of n natural numbers.
     The domain of the map is a mode.
@@ -100,7 +115,7 @@ class CopyN(CQMap):
         )
 
 
-class SwapN(CQMap):
+class SwapN(ClassicalBox):
     """
     Classical swap of 2 natural numbers.
     The domain of the map is 2 modes.
@@ -116,7 +131,7 @@ class SwapN(CQMap):
         )
 
 
-class PostselectBit(CQMap):
+class PostselectBit(ClassicalBox):
     """
     Postselect on a bit result.
     The domain of the map is a bit.
@@ -141,7 +156,7 @@ class PostselectBit(CQMap):
             )
 
 
-class InitBit(CQMap):
+class InitBit(ClassicalBox):
     """
     Initialize a bit to 0 or 1.
     The domain of the map is a bit.
@@ -167,7 +182,7 @@ class InitBit(CQMap):
             )
 
 
-class NotBit(CQMap):
+class NotBit(ClassicalBox):
     """
     Classical NOT gate.
     The domain of the map is a bit.
@@ -183,7 +198,7 @@ class NotBit(CQMap):
         )
 
 
-class XorBit(CQMap):
+class XorBit(ClassicalBox):
     """
     Classical XOR gate.
     The domain of the map is n bits.
@@ -199,7 +214,7 @@ class XorBit(CQMap):
         )
 
 
-class AndBit(CQMap):
+class AndBit(ClassicalBox):
     """
     Classical AND gate.
     The domain of the map is 2 bits.
@@ -215,7 +230,7 @@ class AndBit(CQMap):
         )
 
 
-class CopyBit(CQMap):
+class CopyBit(ClassicalBox):
     """
     Classical copy of a bit.
     The domain of the map is a bit.
@@ -231,7 +246,7 @@ class CopyBit(CQMap):
         )
 
 
-class SwapBit(CQMap):
+class SwapBit(ClassicalBox):
     """
     Classical swap of 2 bits.
     The domain of the map is 2 bits.
@@ -247,7 +262,7 @@ class SwapBit(CQMap):
         )
 
 
-class OrBit(CQMap):
+class OrBit(ClassicalBox):
     """
     Classical OR gate.
     The domain of the map is n bits.
@@ -260,4 +275,62 @@ class OrBit(CQMap):
             or_bit(n),
             bit**n,
             bit
+        )
+
+
+class Z(ClassicalBox):
+    """Z spider."""
+    tikzstyle_name = "Z"
+    color = "green"
+    draw_as_spider = True
+
+    def __init__(self, n_legs_in, n_legs_out, phase=0):
+        kraus = ZSingle(n_legs_in, n_legs_out, phase)
+        super().__init__(
+            f"Z({phase})",
+            kraus,
+            bit**n_legs_in,
+            bit**n_legs_out,
+        )
+
+
+class X(ClassicalBox):
+    """X spider."""
+    tikzstyle_name = "X"
+    color = "red"
+    draw_as_spider = True
+
+    def __init__(self, n_legs_in, n_legs_out, phase=0):
+        kraus = XSingle(n_legs_in, n_legs_out, phase)
+        super().__init__(
+            f"X({phase})",
+            kraus,
+            bit**n_legs_in,
+            bit**n_legs_out,
+        )
+
+
+class H(ClassicalBox):
+    """Hadamard spider."""
+    tikzstyle_name = "H"
+    color = "blue"
+    draw_as_spider = True
+
+    def __init__(self):
+        kraus = HSingle()
+        super().__init__(
+            f"H",
+            kraus,
+            bit,
+            bit,
+        )
+
+
+class Scalar(ClassicalBox):
+    def __init__(self, value: float):
+        super().__init__(
+            f"Scalar({value})",
+            ScalarSingle(value),
+            bit**0,
+            bit**0,
         )
