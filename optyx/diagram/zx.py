@@ -427,16 +427,7 @@ def ar_zx2path(box):
             fusion = Id(Mode(1)) @ plus.dagger() @ Id(Mode(1)) >> plus.dagger()
             return bot >> mid >> (Id(Mode(2)) @ fusion @ Id(Mode(2)))
     if box == H:
-        hadamard_bs = (
-            comonoid @ comonoid
-            >> zw.Endo(np.sqrt(1 / 2))
-            @ zw.Endo(np.sqrt(1 / 2))
-            @ zw.Endo(np.sqrt(1 / 2))
-            @ zw.Endo(-np.sqrt(1 / 2))
-            >> zw.Id(Mode(1)) @ zw.SWAP @ zw.Id(Mode(1))
-            >> monoid @ monoid
-        )
-        return hadamard_bs
+        return lo.BS_hadamard
     raise NotImplementedError(f"No translation of {box} in QPath.")
 
 

@@ -225,6 +225,7 @@ from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils import modify_io_dims_against_max_dim
+from typing import List
 
 MAX_DIM = 10
 
@@ -988,6 +989,22 @@ def embedding_tensor(n, dim):
     for i in range(n - 1):
         d @= EmbeddingTensor(2, dim)
     return d
+
+
+def truncation_tensor(
+    input_dims: List[int], output_dims: List[int]
+) -> tensor.Box:
+
+    assert len(input_dims) == len(
+        output_dims
+    ), "input_dims and output_dims must have the same length"
+
+    tensor = EmbeddingTensor(input_dims[0], output_dims[0])
+
+    for i in zip(input_dims[1:], output_dims[1:]):
+
+        tensor = tensor @ EmbeddingTensor(i[0], i[1])
+    return tensor
 
 
 bit = Bit(1)

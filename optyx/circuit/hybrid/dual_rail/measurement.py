@@ -28,13 +28,7 @@ kraus_map_fusion_I = (
 )
 
 fusion_I = Channel(
-    "Fusion",
-    (
-        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
-        Mode(1) @ BS_hadamard @ Mode(1) >>
-        Mode(2) @ Swap(Mode(1), Mode(1)) >>
-        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1)
-    )
+    "Fusion", kraus_map_fusion_I
 )
 
 def fusion_I_function(x):
