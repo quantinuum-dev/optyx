@@ -8,7 +8,7 @@ from optyx.diagram.classical_functions import (
     ClassicalFunctionBox,
     BinaryMatrixBox
 )
-from optyx.circuit.classical.classical_circuit import ClassicalBox
+from optyx.circuit.classical.classical_arithmetic import ClassicalBox
 from optyx.diagram.channel import Ty, Ob
 
 
