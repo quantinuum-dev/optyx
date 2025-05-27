@@ -236,10 +236,11 @@ class PhaseShift(Channel):
     """
     Represents a phase shift operation in dual-rail encoding.
     """
+    from optyx.diagram.lo import Phase as PhaseSingle
     def __init__(self, phase):
         super().__init__(
             f"PhaseShift({phase})",
-            Mode(1) @ Phase(phase)
+            Mode(1) @ PhaseSingle(phase)
         )
 
 

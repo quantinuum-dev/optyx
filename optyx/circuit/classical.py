@@ -24,7 +24,6 @@ from optyx.diagram.classical_functions import (
     ClassicalFunctionBox,
     BinaryMatrixBox
 )
-from optyx.circuit.classical import ClassicalBox
 from optyx.diagram.channel import Ty, Ob
 
 
