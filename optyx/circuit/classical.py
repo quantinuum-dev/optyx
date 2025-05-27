@@ -1,16 +1,79 @@
-from optyx.diagram.classical_arithmetic import *
+
+from optyx.diagram.control import (
+    BitControlledBox,
+    ControlledPhaseShift as ControlledPhaseShiftBox,
+)
 from optyx.diagram.channel import (
+    Channel,
     bit,
     mode,
+    qmode,
+    Circuit,
     CQMap,
     Discard
 )
+from typing import Callable, List
+from optyx.diagram.classical_arithmetic import *
+from optyx.diagram.zw import Scalar as ScalarSingle
 from optyx.diagram.zx import (
     Z as ZSingle,
     X as XSingle,
     H as HSingle,
 )
-from optyx.diagram.zw import Scalar as ScalarSingle
+from optyx.diagram.classical_functions import (
+    ClassicalFunctionBox,
+    BinaryMatrixBox
+)
+from optyx.circuit.classical import ClassicalBox
+from optyx.diagram.channel import Ty, Ob
+
+
+class BitControlledGate(Channel):
+    """
+    Represents a gate that is
+    controlled by a classical bit.
+    It uses a `BitControlledBox` to define
+    the Kraus operators for the gate.
+    """
+    def __init__(self,
+                 control_gate,
+                 default_gate=None):
+        if isinstance(control_gate, (Circuit, Channel)):
+            assert control_gate.is_pure, \
+                 "The input gates must be pure quantum channels"
+            control_gate_single = control_gate.get_kraus()
+        if isinstance(default_gate, (Circuit, Channel)):
+            assert default_gate.is_pure, \
+                 "The input gates must be pure quantum channels"
+            default_gate = default_gate.get_kraus()
+        kraus = BitControlledBox(control_gate_single, default_gate)
+        super().__init__(
+            f"BitControlledGate({control_gate}, {default_gate})",
+            kraus,
+            bit @ control_gate.dom,
+            control_gate.cod
+        )
+
+
+class BitControlledPhaseShift(Channel):
+    """
+    Represents a phase shift operation
+    that is controlled by classical bits.
+    It uses a `ControlledPhaseShiftBox` to
+    define the Kraus operators for the phase shift.
+    """
+    def __init__(self,
+                 function: Callable[[List[int]], List[int]],
+                 n_modes: int = 1,
+                 n_control_modes: int = 1):
+        kraus = ControlledPhaseShiftBox(function, n_modes, n_control_modes)
+        super().__init__(
+            "BitControlledPhaseShift",
+            kraus,
+            mode**n_control_modes @ qmode**n_modes,
+            mode**n_modes,
+        )
+
 
 
 DiscardBit = lambda n: Discard(bit**n)
@@ -333,4 +396,48 @@ class Scalar(ClassicalBox):
             ScalarSingle(value),
             bit**0,
             bit**0,
+        )
+
+
+class ControlChannel(ClassicalBox):
+    """
+    Syntactic sugar.
+    Converts a classical circuit (Diagram or Box)
+    into a CQMap, allowing
+    it to be used as a control channel in hybrid quantum-classical systems.
+    """
+    pass
+
+
+class ClassicalFunction(ControlChannel):
+    """
+    Represents a classical function as a control channel. It wraps a
+    `ClassicalFunctionBox` with the specified function, domain, and codomain.
+    """
+    def __init__(self, function, dom, cod):
+        box = ClassicalFunctionBox(
+            function,
+            dom,
+            cod
+        )
+        return super().__init__(
+            box.name,
+            box,
+            Ty(*[Ob._classical[ob.name] for ob in box.dom.inside]),
+            Ty(*[Ob._classical[ob.name] for ob in box.cod.inside]),
+        )
+
+
+class BinaryMatrix(ControlChannel):
+    """
+    Represents a binary matrix as a control channel. It wraps a
+    `BinaryMatrixBox` with the specified matrix.
+    """
+    def __init__(self, matrix):
+        box = BinaryMatrixBox(self, matrix)
+        return super().__new__(
+            box.name,
+            box,
+            Ty(*[Ob._classical[ob.name] for ob in box.dom.inside]),
+            Ty(*[Ob._classical[ob.name] for ob in box.cod.inside]),
         )

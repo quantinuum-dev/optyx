@@ -1,25 +1,12 @@
-"""
-Overview
---------
-
-This module defines classes and functions for working with quantum circuits and
-quantum channels using ZX-calculus and related tools. It provides functionality
-to decompose circuits, convert between different representations (e.g., tket,
-dual-rail encoding), and manipulate ZX-diagrams.
-
-Classes:
-- QubitCircuit: Represents a quantum circuit with methods for decomposition,
-    conversion to dual-rail encoding, and conversion to/from tket circuits.
-- QubitChannel: Represents a quantum channel, inheriting from QubitCircuit and
-    Channel, with additional methods for decomposition and dual-rail conversion.
-- Z: Represents a Z spider in ZX-calculus with a specified number of input/output
-    legs and an optional phase.
-- X: Represents an X spider in ZX-calculus with a specified number of input/output
-    legs and an optional phase.
-- H: Represents a Hadamard gate in ZX-calculus.
-
-"""
-
+from optyx.diagram.channel import (
+    Measure,
+    Encode,
+    qubit,
+    bit,
+    Discard,
+    Channel,
+    Circuit,
+)
 from optyx.diagram.zx import (
     X as XSingle,
     Z as ZSingle,
@@ -27,13 +14,40 @@ from optyx.diagram.zx import (
     decomp,
     zx2path
 )
-from optyx.diagram.channel import (
-    Channel,
-    Circuit,
-    qubit
-)
 from optyx.utils import explode_channel
 from optyx.diagram.zw import Scalar as ScalarSingle
+
+class MeasureQubits(Measure):
+    """
+    Ideal qubit measurement (in computational basis) from qubit to bit.
+    """
+
+    def __init__(self, n):
+        super().__init__(
+            qubit**n
+        )
+
+
+class DiscardQubits(Discard):
+    """
+    Discard :math:`n` qubits.
+    """
+
+    def __init__(self, n):
+        super().__init__(
+            qubit**n
+        )
+
+
+class EncodeBits(Encode):
+    """
+    Encode :math:`n` bits into :math:`n` qubits.
+    """
+
+    def __init__(self, n):
+        super().__init__(
+            bit**n
+        )
 
 
 class QubitChannel(Channel):
