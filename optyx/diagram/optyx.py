@@ -224,7 +224,7 @@ from discopy import symmetric, frobenius, tensor
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
-from optyx.utils import modify_io_dims_against_max_dim
+from optyx._utils import modify_io_dims_against_max_dim
 from typing import List
 
 MAX_DIM = 10
@@ -290,7 +290,7 @@ class Diagram(frobenius.Diagram):
         of a :class:`Diagram`.
         In other words, it is the underlying matrix
         representation of a :class:`path` and :class:`lo` diagrams."""
-        from optyx.diagram import path
+        from optyx import path
 
         return symmetric.Functor(
             ob=len,
@@ -359,7 +359,7 @@ class Diagram(frobenius.Diagram):
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
         """Create a :class:`zw` diagram from a bosonic operator."""
-        from optyx.diagram import zw
+        from optyx import zw
 
         d = cls.id(Mode(n_modes))
         annil = zw.Split(2) >> zw.Select(1) @ zw.Id(Mode(1))
@@ -400,7 +400,7 @@ class Diagram(frobenius.Diagram):
         ...     7: {5: 1}}
         """
         from pyzx import Graph, VertexType, EdgeType
-        from optyx.diagram import zx
+        from optyx import zx
 
         graph, scan = Graph(), []
         for i, _ in enumerate(self.dom):
@@ -469,7 +469,7 @@ class Diagram(frobenius.Diagram):
         * or :code:`set(graph.inputs()).intersection(graph.outputs())`.
         """
         from pyzx import VertexType, EdgeType
-        from optyx.diagram import zx
+        from optyx import zx
 
         def node2box(node, n_legs_in, n_legs_out):
             if graph.type(node) not in {VertexType.Z, VertexType.X}:
@@ -717,7 +717,7 @@ class Sum(symmetric.Sum, Box):
         # we need to implement the proper sums of qpath diagrams
         # this is only a temporary solution, so that the grad tests pass
         if permanent is None:
-            from optyx.diagram.path import npperm
+            from optyx.path import npperm
 
             permanent = npperm
         return sum(
@@ -769,7 +769,7 @@ class Swap(frobenius.Swap, Box):
         return self
 
     def to_path(self, dtype: type = complex):
-        from optyx.diagram.path import Matrix
+        from optyx.path import Matrix
 
         return Matrix([0, 1, 1, 0], 2, 2)
 
@@ -822,7 +822,7 @@ class Scalar(Box):
         return f"scalar({format_number(self.data)})"
 
     def to_path(self, dtype: type = complex):
-        from optyx.diagram.path import Matrix
+        from optyx.path import Matrix
 
         return Matrix[dtype]([], 0, 0, scalar=self.scalar)
 
@@ -830,7 +830,7 @@ class Scalar(Box):
         return Scalar(self.scalar.conjugate())
 
     def to_zw(self):
-        from optyx.diagram.zw import ZBox
+        from optyx.zw import ZBox
 
         return ZBox(0, 0, self.array)
 

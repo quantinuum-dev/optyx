@@ -110,8 +110,9 @@ from discopy.cat import factory
 from pytket.extensions.pyzx import tk_to_pyzx, pyzx_to_tk
 from pyzx import extract_circuit
 
-from optyx.utils import explode_channel
-from optyx.diagram import optyx, zx
+from optyx._utils import explode_channel
+from optyx import zx
+from optyx.diagram import optyx
 
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
@@ -276,7 +277,7 @@ class Circuit(symmetric.Diagram):
     @classmethod
     def from_tket(self, tket_circuit):
         """Convert from tket circuit."""
-        from optyx.circuit.qubit.zx import QubitChannel
+        from optyx.qubit import QubitChannel
         pyzx_circuit = tk_to_pyzx(tket_circuit).to_graph()
         zx_diagram = optyx.Diagram.from_pyzx(pyzx_circuit)
         return explode_channel(

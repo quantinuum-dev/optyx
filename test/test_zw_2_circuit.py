@@ -1,6 +1,6 @@
 import optyx.diagram.zw as zw
 import optyx.diagram.lo as lo
-from optyx.utils import tensor_2_amplitudes
+from optyx._utils import tensor_2_amplitudes
 import optyx.diagram.lo as qpath
 import itertools
 import pytest

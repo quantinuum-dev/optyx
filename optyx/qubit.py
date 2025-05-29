@@ -1,4 +1,4 @@
-from optyx.diagram.channel import (
+from optyx.channel import (
     Measure,
     Encode,
     qubit,
@@ -7,15 +7,18 @@ from optyx.diagram.channel import (
     Channel,
     Circuit,
 )
-from optyx.diagram.zx import (
+from optyx.diagram import optyx
+from optyx.zx import (
     X as XSingle,
     Z as ZSingle,
     H as HSingle,
     decomp,
     zx2path
 )
-from optyx.utils import explode_channel
-from optyx.diagram.zw import Scalar as ScalarSingle
+from optyx._utils import explode_channel
+from optyx.zw import Scalar as ScalarSingle
+from optyx import channel
+import numpy as np
 
 class MeasureQubits(Measure):
     """
@@ -129,3 +132,49 @@ class Scalar(QubitChannel):
             qubit**0,
         )
 
+
+class BitFlipError(channel.Channel):
+    """
+    Represents a bit-flip error channel.
+    """
+
+    def __init__(self, prob):
+        from optyx import zx
+        x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
+            1, 1, np.sqrt((1 - prob) / prob)
+        ) @ zx.Scalar(np.sqrt(prob * 2))
+        super().__init__(
+            name=f"BitFlipError({prob})",
+            kraus=x_error,
+            dom=channel.qubit,
+            cod=channel.qubit,
+            env=optyx.Bit(1),
+        )
+
+    def dagger(self):
+        return self
+
+
+class DephasingError(channel.Channel):
+    """
+    Represents a quantum dephasing error channel.
+    """
+    def __init__(self, prob):
+        from optyx import zx
+        z_error = (
+            zx.H
+            >> zx.X(1, 2)
+            >> zx.H
+            @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
+            @ zx.Scalar(np.sqrt(prob * 2))
+        )
+        super().__init__(
+            name=f"DephasingError({prob})",
+            kraus=z_error,
+            dom=channel.qubit,
+            cod=channel.qubit,
+            env=optyx.Bit(1),
+        )
+
+    def dagger(self):
+        return self

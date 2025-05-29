@@ -49,9 +49,9 @@ from optyx.diagram.optyx import (
     Mode,
     Scalar,
 )
-from optyx.diagram.zw import W, Create
+from optyx.zw import W, Create
 from optyx.diagram.optyx import Spider
-from optyx.diagram.zx import Z, X
+from optyx.zx import Z, X
 from optyx.diagram.optyx import truncation_tensor
 from discopy import tensor
 from discopy.frobenius import Dim

@@ -136,8 +136,8 @@ from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.diagram import optyx
-from optyx.diagram import zw
-from optyx.diagram import lo
+from optyx import zw
+from optyx import photonic
 from optyx.diagram.optyx import Diagram, Bit, Sum, Swap, bit, Mode, Scalar
 
 
@@ -374,14 +374,6 @@ decomp = symmetric.Functor(
     cod=symmetric.Category(Bit, Diagram),
 )
 
-unit = zw.Create(0)
-counit = zw.Select(0)
-create = zw.Create(1)
-annil = zw.Select(1)
-comonoid = zw.Split(2)
-monoid = zw.Merge(2)
-BS = lo.BS
-
 
 def Id(n):
     return Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Bit(n))
@@ -393,6 +385,14 @@ def ar_zx2path(box):
     >>> zx2path(decomp(X(0, 1) @ X(0, 1) >> Z(2, 1))).to_path().eval()
     Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
     """
+    unit = zw.Create(0)
+    counit = zw.Select(0)
+    create = zw.Create(1)
+    annil = zw.Select(1)
+    comonoid = zw.Split(2)
+    monoid = zw.Merge(2)
+    BS = photonic.BS.to_zw()
+
     n, m = len(box.dom), len(box.cod)
     if isinstance(box, Scalar):
         return zw.Scalar(box.data)
@@ -415,7 +415,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return Id(Mode(1)) @ lo.Phase(phase)
+            return Id(Mode(1)) @ photonic.Phase(phase).to_zw()
         if (n, m, phase) == (2, 1, 0):
             return Id(Mode(1)) @ (monoid >> annil) @ Id(Mode(1))
         if (n, m, phase) == (1, 2, 0):
@@ -427,7 +427,7 @@ def ar_zx2path(box):
             fusion = Id(Mode(1)) @ plus.dagger() @ Id(Mode(1)) >> plus.dagger()
             return bot >> mid >> (Id(Mode(2)) @ fusion @ Id(Mode(2)))
     if box == H:
-        return lo.BS_hadamard
+        return photonic.HadamardBS.to_zw()
     raise NotImplementedError(f"No translation of {box} in QPath.")
 
 

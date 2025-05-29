@@ -151,8 +151,8 @@ import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.diagram.optyx import Diagram, Mode, Swap, Scalar, Spider
-from optyx.utils import occupation_numbers, multinomial
-from optyx.diagram.path import Matrix
+from optyx._utils import occupation_numbers, multinomial
+from optyx.path import Matrix
 from optyx.diagram import optyx
 
 

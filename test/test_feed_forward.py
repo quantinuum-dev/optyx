@@ -9,7 +9,7 @@ from optyx.diagram.control import *
 from optyx.diagram.zw import Create, W
 from optyx.diagram.optyx import PhotonThresholdDetector, Mode, Swap
 from optyx.diagram.lo import Phase, BS, MZI
-from optyx.utils import matrix_to_zw
+from optyx._utils import matrix_to_zw
 
 
 # Helper Functions and Data
