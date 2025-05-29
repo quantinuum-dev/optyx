@@ -2,11 +2,14 @@ import numpy as np
 import sympy as sp
 from sympy import Expr, lambdify
 
-import optyx.channel as channel
-import optyx.diagram.optyx as optyx
-import optyx.zw as zw
+from optyx.diagram import (
+    channel,
+    optyx,
+    zw
+)
+
 from optyx.classical import ClassicalFunction, DiscardMode
-from optyx.path import Matrix
+from optyx.diagram.path import Matrix
 from optyx._utils import matrix_to_zw
 
 

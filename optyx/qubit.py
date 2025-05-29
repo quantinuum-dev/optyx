@@ -1,76 +1,64 @@
-from optyx.channel import (
-    Measure,
-    Encode,
-    qubit,
-    bit,
-    Discard,
-    Channel,
-    Circuit,
-)
-from optyx.diagram import optyx
-from optyx.zx import (
-    X as XSingle,
-    Z as ZSingle,
-    H as HSingle,
-    decomp,
-    zx2path
-)
-from optyx._utils import explode_channel
-from optyx.zw import Scalar as ScalarSingle
-from optyx import channel
+
 import numpy as np
 
-class MeasureQubits(Measure):
+from optyx.diagram import (
+    channel,
+    optyx,
+    zx,
+)
+from optyx._utils import explode_channel
+
+class MeasureQubits(channel.Measure):
     """
     Ideal qubit measurement (in computational basis) from qubit to bit.
     """
 
     def __init__(self, n):
         super().__init__(
-            qubit**n
+            channel.qubit**n
         )
 
 
-class DiscardQubits(Discard):
+class DiscardQubits(channel.Discard):
     """
     Discard :math:`n` qubits.
     """
 
     def __init__(self, n):
         super().__init__(
-            qubit**n
+            channel.qubit**n
         )
 
 
-class EncodeBits(Encode):
+class EncodeBits(channel.Encode):
     """
     Encode :math:`n` bits into :math:`n` qubits.
     """
 
     def __init__(self, n):
         super().__init__(
-            bit**n
+            channel.bit**n
         )
 
 
-class QubitChannel(Channel):
+class QubitChannel(channel.Channel):
     """Qubit channel."""
 
     def decomp(self):
-        decomposed = decomp(self.kraus)
+        decomposed = zx.decomp(self.kraus)
         return explode_channel(
             decomposed,
             QubitChannel,
-            Circuit
+            channel.Circuit
         )
 
     def to_dual_rail(self):
         """Convert to dual-rail encoding."""
-        kraus_path = zx2path(self.kraus)
+        kraus_path = zx.zx2path(self.kraus)
         return explode_channel(
             kraus_path,
-            Channel,
-            Circuit
+            channel.Channel,
+            channel.Circuit
         )
 
 
@@ -82,12 +70,12 @@ class Z(QubitChannel):
     draw_as_spider = True
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        kraus = ZSingle(n_legs_in, n_legs_out, phase)
+        kraus = zx.Z(n_legs_in, n_legs_out, phase)
         super().__init__(
             f"Z({phase})",
             kraus,
-            qubit**n_legs_in,
-            qubit**n_legs_out,
+            channel.qubit**n_legs_in,
+            channel.qubit**n_legs_out,
         )
 
 
@@ -99,12 +87,12 @@ class X(QubitChannel):
     draw_as_spider = True
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        kraus = XSingle(n_legs_in, n_legs_out, phase)
+        kraus = zx.Z(n_legs_in, n_legs_out, phase)
         super().__init__(
             f"X({phase})",
             kraus,
-            qubit**n_legs_in,
-            qubit**n_legs_out,
+            channel.qubit**n_legs_in,
+            channel.qubit**n_legs_out,
         )
 
 
@@ -117,9 +105,9 @@ class H(QubitChannel):
     def __init__(self):
         super().__init__(
             "H",
-            HSingle(),
-            qubit,
-            qubit,
+            zx.H(),
+            channel.qubit,
+            channel.qubit,
         )
 
 
@@ -127,9 +115,9 @@ class Scalar(QubitChannel):
     def __init__(self, value: float):
         super().__init__(
             f"Scalar({value})",
-            ScalarSingle(value),
-            qubit**0,
-            qubit**0,
+            zx.Scalar(value),
+            channel.qubit**0,
+            channel.qubit**0,
         )
 
 

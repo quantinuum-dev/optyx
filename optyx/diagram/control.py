@@ -59,7 +59,7 @@ from optyx.diagram.optyx import (
     MAX_DIM,
     truncation_tensor
 )
-from optyx.zw import ZBox
+from optyx.diagram.zw import ZBox
 
 class BitControlledBox(Box):
     """
