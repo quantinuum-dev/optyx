@@ -467,7 +467,7 @@ class PhaseShiftDR(channel.Channel):
         )
 
 
-class ZMeasurementDR(channel.Circuit):
+class ZMeasurementDR(channel.Diagram):
     def __new__(cls, alpha):
         """
         ZMeasurement circuit that performs a measurement in the Z basis
@@ -481,7 +481,7 @@ class ZMeasurementDR(channel.Circuit):
         )
 
 
-class XMeasurementDR(channel.Circuit):
+class XMeasurementDR(channel.Diagram):
     def __new__(cls, alpha):
         """
         XMeasurement circuit that performs a measurement in the X basis
@@ -493,7 +493,7 @@ class XMeasurementDR(channel.Circuit):
         )
 
 
-class FusionTypeI(channel.Circuit):
+class FusionTypeI(channel.Diagram):
     def __new__(cls):
         kraus_map_fusion_I = (
             optyx.Mode(1) @ optyx.Swap(optyx.Mode(1),
@@ -533,7 +533,7 @@ class FusionTypeI(channel.Circuit):
         )
 
 
-class FusionTypeII(channel.Circuit):
+class FusionTypeII(channel.Diagram):
     def __new__(cls):
         fusion_II = channel.Channel(
             "Fusion II",

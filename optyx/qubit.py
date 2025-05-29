@@ -49,7 +49,7 @@ class QubitChannel(channel.Channel):
         return explode_channel(
             decomposed,
             QubitChannel,
-            channel.Circuit
+            channel.Diagram
         )
 
     def to_dual_rail(self):
@@ -58,7 +58,7 @@ class QubitChannel(channel.Channel):
         return explode_channel(
             kraus_path,
             channel.Channel,
-            channel.Circuit
+            channel.Diagram
         )
 
 

@@ -21,9 +21,9 @@ the classical inputs or outputs of the computation.
 In the doubled picture, encoding or measuring a classical type
 is implemented through instances of :class:`optyx.Spider`.
 
-This module allows to build an arbitrary syntactic :class:`Circuit`
+This module allows to build an arbitrary syntactic :class:`Diagram`
 from instances of :class:`Channel`.
-The :code:`Circuit.double` method returns an :class:`optyx.Diagram`,
+The :code:`Diagram.double` method returns an :class:`optyx.Diagram`,
 whose tensor evaluation gives all the relevant statistics of the circuit.
 
 Types
@@ -45,7 +45,7 @@ Generators and diagrams
     :nosignatures:
     :toctree:
 
-    Circuit
+    Diagram
     Channel
     Measure
     Encode
@@ -181,7 +181,7 @@ qmode = Ty("qmode")
 
 
 @factory
-class Circuit(symmetric.Diagram):
+class Diagram(symmetric.Diagram):
     """Classical-quantum circuits over qubits and optical modes"""
 
     ty_factory = Ty
@@ -190,7 +190,7 @@ class Circuit(symmetric.Diagram):
         """Returns the optyx.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
-        dom = symmetric.Category(Ty, Circuit)
+        dom = symmetric.Category(Ty, Diagram)
         cod = symmetric.Category(optyx.Ty, optyx.Diagram)
         return symmetric.Functor(
             lambda x: x.double(), lambda f: f.double(), dom, cod
@@ -230,23 +230,23 @@ class Circuit(symmetric.Diagram):
 
     def decomp(self):
 
-        assert self.is_pure, "Circuit must be pure to convert to tket."
+        assert self.is_pure, "Diagram must be pure to convert to tket."
 
         return symmetric.Functor(
             ob=lambda x: qubit**len(x),
             ar=lambda arr: arr.decomp(),
-            cod=symmetric.Category(Ty, Circuit),
+            cod=symmetric.Category(Ty, Diagram),
         )(self)
 
     def to_dual_rail(self):
         """Convert to dual-rail encoding."""
 
-        assert self.is_pure, "Circuit must be pure to convert to dual rail."
+        assert self.is_pure, "Diagram must be pure to convert to dual rail."
 
         return symmetric.Functor(
             ob=lambda x: qmode**(2*len(x)),
             ar=lambda arr: arr.to_dual_rail(),
-            cod=symmetric.Category(Ty, Circuit),
+            cod=symmetric.Category(Ty, Diagram),
         )(self.decomp())
 
     def to_tket(self):
@@ -254,7 +254,7 @@ class Circuit(symmetric.Diagram):
         Convert to tket circuit. The circuit must be a pure circuit.
         """
 
-        assert self.is_pure, "Circuit must be pure to convert to tket."
+        assert self.is_pure, "Diagram must be pure to convert to tket."
 
         kraus_maps = []
         for layer in self:
@@ -283,11 +283,11 @@ class Circuit(symmetric.Diagram):
         return explode_channel(
             zx_diagram,
             QubitChannel,
-            Circuit
+            Diagram
         )
 
 
-class Channel(symmetric.Box, Circuit):
+class Channel(symmetric.Box, Diagram):
     """
     Channel initialised by its Kraus map.
     """
@@ -365,7 +365,7 @@ class Channel(symmetric.Box, Circuit):
         raise NotImplementedError("Only ZX channels can be converted to dual rail.")
 
 
-class CQMap(symmetric.Box, Circuit):
+class CQMap(symmetric.Box, Diagram):
     """
     Channel initialised by its Density matrix.
     """
@@ -504,4 +504,4 @@ class Bra(Channel):
         super().__init__(f"<{value}|", kraus, dom=dom)
 
 
-Circuit.braid_factory = Swap
+Diagram.braid_factory = Swap

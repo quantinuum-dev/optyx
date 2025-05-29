@@ -1,5 +1,4 @@
 from typing import Callable, List
-
 from optyx.diagram import (
     channel,
     control,
@@ -19,11 +18,11 @@ class BitControlledGate(channel.Channel):
     def __init__(self,
                  control_gate,
                  default_gate=None):
-        if isinstance(control_gate, (channel.Circuit, channel.Channel)):
+        if isinstance(control_gate, (channel.Diagram, channel.Channel)):
             assert control_gate.is_pure, \
                  "The input gates must be pure quantum channels"
             control_gate_single = control_gate.get_kraus()
-        if isinstance(default_gate, (channel.Circuit, channel.Channel)):
+        if isinstance(default_gate, (channel.Diagram, channel.Channel)):
             assert default_gate.is_pure, \
                  "The input gates must be pure quantum channels"
             default_gate = default_gate.get_kraus()
