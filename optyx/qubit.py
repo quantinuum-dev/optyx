@@ -1,9 +1,9 @@
 
 import numpy as np
 
-from optyx.diagram import (
+from optyx.core import (
     channel,
-    optyx,
+    diagram,
     zx,
 )
 from optyx._utils import explode_channel
@@ -127,7 +127,7 @@ class BitFlipError(channel.Channel):
     """
 
     def __init__(self, prob):
-        from optyx import zx
+        from optyx.core import zx
         x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
             1, 1, np.sqrt((1 - prob) / prob)
         ) @ zx.Scalar(np.sqrt(prob * 2))
@@ -136,7 +136,7 @@ class BitFlipError(channel.Channel):
             kraus=x_error,
             dom=channel.qubit,
             cod=channel.qubit,
-            env=optyx.Bit(1),
+            env=diagram.Bit(1),
         )
 
     def dagger(self):
@@ -148,7 +148,7 @@ class DephasingError(channel.Channel):
     Represents a quantum dephasing error channel.
     """
     def __init__(self, prob):
-        from optyx import zx
+        from optyx.core import zx
         z_error = (
             zx.H
             >> zx.X(1, 2)
@@ -161,7 +161,7 @@ class DephasingError(channel.Channel):
             kraus=z_error,
             dom=channel.qubit,
             cod=channel.qubit,
-            env=optyx.Bit(1),
+            env=diagram.Bit(1),
         )
 
     def dagger(self):

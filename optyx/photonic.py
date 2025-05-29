@@ -2,14 +2,14 @@ import numpy as np
 import sympy as sp
 from sympy import Expr, lambdify
 
-from optyx.diagram import (
+from optyx.core import (
     channel,
-    optyx,
+    diagram,
     zw
 )
 
 from optyx.classical import ClassicalFunction, DiscardMode
-from optyx.diagram.path import Matrix
+from optyx.core.path import Matrix
 from optyx._utils import matrix_to_zw
 
 
@@ -17,7 +17,7 @@ class Scalar(channel.Channel):
     def __init__(value):
         super().__init__(
             f"{value}",
-            optyx.Scalar(value)
+            diagram.Scalar(value)
         )
 
 
@@ -48,7 +48,7 @@ class PhotonThresholdMeasurement(channel.Channel):
     def __init__(self):
         super().__init__(
             "PhotonThresholdMeasurement",
-            optyx.PhotonThresholdDetector(),
+            diagram.PhotonThresholdDetector(),
             cod=channel.bit
         )
 
@@ -207,12 +207,12 @@ class BBS(Gate):
 
     We can check the Hong-Ou-Mandel effect:
 
-    >>> diagram = Create(1, 1) >> BS
-    >>> assert np.isclose((diagram >> Select(0, 2)).to_path().prob().array,
+    >>> d = Create(1, 1) >> BS
+    >>> assert np.isclose((d >> Select(0, 2)).to_path().prob().array,
     ...                                                                0.5)
-    >>> assert np.isclose((diagram >> Select(2, 0)).to_path().prob().array,
+    >>> assert np.isclose((d >> Select(2, 0)).to_path().prob().array,
     ...                                                                0.5)
-    >>> assert np.isclose((diagram >> Select(1, 1)).to_path().prob().array,
+    >>> assert np.isclose((d >> Select(1, 1)).to_path().prob().array,
     ...                                                                  0)
 
     Check the dagger:
@@ -451,7 +451,7 @@ class DualRail(channel.Channel):
     def __init__(self, n_qubits):
         super().__init__(
             f"DualRail({n_qubits})",
-            optyx.dual_rail(n_qubits)
+            diagram.dual_rail(n_qubits)
         )
 
 
@@ -463,7 +463,7 @@ class PhaseShiftDR(channel.Channel):
     def __init__(self, phase):
         super().__init__(
             f"PhaseShift({phase})",
-            optyx.Mode(1) @ Phase(phase).to_zw()
+            diagram.Mode(1) @ Phase(phase).to_zw()
         )
 
 
@@ -496,13 +496,13 @@ class XMeasurementDR(channel.Diagram):
 class FusionTypeI(channel.Diagram):
     def __new__(cls):
         kraus_map_fusion_I = (
-            optyx.Mode(1) @ optyx.Swap(optyx.Mode(1),
-                                       optyx.Mode(1)) @ optyx.Mode(1) >>
-            optyx.Mode(1) @ HadamardBS.to_zw() @ optyx.Mode(1) >>
-            optyx.Mode(2) @ optyx.Swap(optyx.Mode(1),
-                                       optyx.Mode(1)) >>
-            optyx.Mode(1) @ optyx.Swap(optyx.Mode(1),
-                                       optyx.Mode(1)) @ optyx.Mode(1)
+            diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
+                                       diagram.Mode(1)) @ diagram.Mode(1) >>
+            diagram.Mode(1) @ HadamardBS.to_zw() @ diagram.Mode(1) >>
+            diagram.Mode(2) @ diagram.Swap(diagram.Mode(1),
+                                       diagram.Mode(1)) >>
+            diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
+                                       diagram.Mode(1)) @ diagram.Mode(1)
         )
 
         fusion_I = channel.Channel(
@@ -522,8 +522,8 @@ class FusionTypeI(channel.Diagram):
 
         classical_function_I = ClassicalFunction(
             fusion_I_function,
-            optyx.Mode(2),
-            optyx.Bit(2)
+            diagram.Mode(2),
+            diagram.Bit(2)
         )
 
         return (
@@ -539,14 +539,14 @@ class FusionTypeII(channel.Diagram):
             "Fusion II",
             (
                 HadamardBS.to_zw() @ HadamardBS.to_zw() >>
-                optyx.Mode(1) @ optyx.Swap(optyx.Mode(1),
-                                           optyx.Mode(1)) @ optyx.Mode(1) >>
-                optyx.Mode(1) @ HadamardBS.to_zw() @ optyx.Mode(1) >>
-                optyx.Mode(2) @ optyx.Swap(optyx.Mode(1),
-                                           optyx.Mode(1)) >>
-                optyx.Mode(1) @ optyx.Swap(optyx.Mode(1),
-                                           optyx.Mode(1)) @ optyx.Mode(1) >>
-                HadamardBS.to_zw() @ optyx.Mode(2)
+                diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
+                                           diagram.Mode(1)) @ diagram.Mode(1) >>
+                diagram.Mode(1) @ HadamardBS.to_zw() @ diagram.Mode(1) >>
+                diagram.Mode(2) @ diagram.Swap(diagram.Mode(1),
+                                           diagram.Mode(1)) >>
+                diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
+                                           diagram.Mode(1)) @ diagram.Mode(1) >>
+                HadamardBS.to_zw() @ diagram.Mode(2)
             )
         )
 
@@ -564,8 +564,8 @@ class FusionTypeII(channel.Diagram):
 
         classical_function_II = ClassicalFunction(
             fusion_II_function,
-            optyx.Mode(4),
-            optyx.Bit(2)
+            diagram.Mode(4),
+            diagram.Bit(2)
         )
 
         return (

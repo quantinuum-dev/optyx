@@ -1,9 +1,7 @@
 from typing import Callable, List
-from optyx.diagram import (
+from optyx.core import (
     channel,
-    control,
-    classical_arithmetic,
-    classical_functions,
+    classical,
     zw,
     zx,
 )
@@ -26,7 +24,7 @@ class BitControlledGate(channel.Channel):
             assert default_gate.is_pure, \
                  "The input gates must be pure quantum channels"
             default_gate = default_gate.get_kraus()
-        kraus = control.BitControlledBox(control_gate_single, default_gate)
+        kraus = classical.BitControlledBox(control_gate_single, default_gate)
         super().__init__(
             f"BitControlledGate({control_gate}, {default_gate})",
             kraus,
@@ -46,7 +44,7 @@ class BitControlledPhaseShift(channel.Channel):
                  function: Callable[[List[int]], List[int]],
                  n_modes: int = 1,
                  n_control_modes: int = 1):
-        kraus = control.ControlledPhaseShift(function, n_modes, n_control_modes)
+        kraus = classical.ControlledPhaseShift(function, n_modes, n_control_modes)
         super().__init__(
             "BitControlledPhaseShift",
             kraus,
@@ -72,7 +70,7 @@ class AddN(ClassicalBox):
     def __init__(self, n):
         super().__init__(
             f"AddInt({n})",
-            classical_arithmetic.add_N(n),
+            classical.add_N(n),
             channel.mode**n,
             channel.mode
         )
@@ -88,7 +86,7 @@ class SubN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "SubInt",
-            classical_arithmetic.ubtract_N,
+            classical.ubtract_N,
             channel.mode**2,
             channel.mode
         )
@@ -103,7 +101,7 @@ class MultiplyN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "MultiplyInt",
-            classical_arithmetic.multiply_N,
+            classical.multiply_N,
             channel.mode**2,
             channel.mode
         )
@@ -119,7 +117,7 @@ class DivideN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "DivideInt",
-            classical_arithmetic.divide_N,
+            classical.divide_N,
             channel.mode**2,
             channel.mode
         )
@@ -135,7 +133,7 @@ class ModN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "ModInt",
-            classical_arithmetic.mod2,
+            classical.mod2,
             channel.mode,
             channel.bit
         )
@@ -151,7 +149,7 @@ class CopyN(ClassicalBox):
     def __init__(self, n):
         super().__init__(
             f"CopyInt({n})",
-            classical_arithmetic.copy_N(n),
+            classical.copy_N(n),
             channel.mode,
             channel.mode**n
         )
@@ -167,7 +165,7 @@ class SwapN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "SwapInt",
-            classical_arithmetic.swap_N,
+            classical.swap_N,
             channel.mode**2,
             channel.mode**2
         )
@@ -185,14 +183,14 @@ class PostselectBit(ClassicalBox):
         if result == 0:
             super().__init__(
                 f"PostselectBit(0)",
-                classical_arithmetic.postselect_0,
+                classical.postselect_0,
                 channel.bit,
                 channel.bit**0
             )
         else:
             super().__init__(
                 f"PostselectBit(1)",
-                classical_arithmetic.postselect_1,
+                classical.postselect_1,
                 channel.bit,
                 channel.bit**0
             )
@@ -211,14 +209,14 @@ class InitBit(ClassicalBox):
         if value == 0:
             super().__init__(
                 f"InitBit(0)",
-                classical_arithmetic.init_0,
+                classical.init_0,
                 channel.bit**0,
                 channel.bit
             )
         else:
             super().__init__(
                 f"InitBit(1)",
-                classical_arithmetic.init_1,
+                classical.init_1,
                 channel.bit**0,
                 channel.bit
             )
@@ -234,7 +232,7 @@ class NotBit(ClassicalBox):
     def __init__(self):
         super().__init__(
             "NotBit",
-            classical_arithmetic.not_bit,
+            classical.not_bit,
             channel.bit,
             channel.bit
         )
@@ -250,7 +248,7 @@ class XorBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             f"XorBit({n})",
-            classical_arithmetic.xor_bits(n),
+            classical.xor_bits(n),
             channel.bit**n,
             channel.bit
         )
@@ -266,7 +264,7 @@ class AndBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             "AndBit",
-            classical_arithmetic.and_bit(n),
+            classical.and_bit(n),
             channel.bit**2,
             channel.bit
         )
@@ -282,7 +280,7 @@ class CopyBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             f"CopyBit({n})",
-            classical_arithmetic.copy_bit(n),
+            classical.copy_bit(n),
             channel.bit,
             channel.bit**n
         )
@@ -298,7 +296,7 @@ class SwapBit(ClassicalBox):
     def __init__(self):
         super().__init__(
             "SwapBit",
-            classical_arithmetic.swap_bits,
+            classical.swap_bits,
             channel.bit**2,
             channel.bit**2
         )
@@ -314,7 +312,7 @@ class OrBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             f"OrBit({n})",
-            classical_arithmetic.or_bit(n),
+            classical.or_bit(n),
             channel.bit**n,
             channel.bit
         )
@@ -408,7 +406,7 @@ class ClassicalFunction(ControlChannel):
     """
 
     def __init__(self, function, dom, cod):
-        box = classical_functions.ClassicalFunctionBox(
+        box = classical.ClassicalFunctionBox(
             function,
             dom,
             cod
@@ -442,7 +440,7 @@ class BinaryMatrix(ControlChannel):
     """
 
     def __init__(self, matrix):
-        box = classical_functions.BinaryMatrixBox(self, matrix)
+        box = classical.BinaryMatrixBox(self, matrix)
         return super().__new__(
             box.name,
             box,
