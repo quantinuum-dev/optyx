@@ -298,21 +298,65 @@ def bounded_min_trail_decomp(g: nx.Graph, length: int) -> list[list[int]]:
 
     return bounded_trails
 
-def photon_bounded_min_trail_decomp_count(g: nx.Graph, photon_length: int) -> int:
+def photon_bounded_min_trail_decomp_count(g: nx.Graph, photon_length: int, r: int) -> int:
     """Compute the number of trails in a trail decomposition of graph where the number of
     photons in each trail is at most some amount
     """
+    assert photon_length > 2*r
+
     trails = min_trail_decomp(g)
 
     num_trails = 0
     for i, trail in enumerate(trails):
-        num_photons = compute_photons_with_x_fusions(trails, i)
-        if num_photons == 2:
+        num_photons = compute_photons_with_x_fusions(trails, i, r)
+        if num_photons <= 2*r:
             num_trails += 1
         else:
-            num_trails += math.ceil(float(num_photons - 2)/float(photon_length - 2))
+            num_trails += math.ceil(float(num_photons - 2*r)/float(photon_length - 2*r))
 
     return num_trails
+
+def photon_bounded_min_trail_decomp(g: nx.Graph, photon_length: int, r: int) -> list[list[int]]:
+    """Compute the number of trails in a trail decomposition of graph where the number of
+    photons in each trail is at most some amount
+    """
+    assert photon_length > 2*r
+
+    trails = min_trail_decomp(g)
+
+    num_trails = 0
+    new_trail_cover: list[list[int]] = []
+
+    photon_map = compute_photons_with_x_fusions_single_node(trails, r)
+
+    for i, trail in enumerate(trails):
+        photon_count = 0
+        residual_trail = []
+
+        for node_index, node in enumerate(trail):
+            photon_count += photon_map[i][node_index]
+
+            while photon_count > photon_length - r:
+                remaining_photons = sum(photon_map[i][node_index+1:])
+                if photon_count + remaining_photons <= photon_length:
+                    # The remaining nodes can all fit in this resource state
+                    break
+
+                # We will need to split the trail some time, now we check whether this photon is our last chance to do so
+                # if photon_count + next_nodes_photons > photon_length - r:
+                residual_trail.append(node)
+                # We broke off "photon_length" photons, but we had to introduce 2*r as well
+                photon_count -= photon_length - 2*r
+
+                new_trail_cover.append(residual_trail)
+                residual_trail = []
+
+            residual_trail.append(node)
+
+        new_trail_cover.append(residual_trail)
+
+    return new_trail_cover
+
 
 def reduce_x_fusions(g: nx.Graph) -> nx.Graph:
     """Returns a graph which has been reduced into an equivalent graph which
@@ -334,7 +378,7 @@ def compliment_triangles_x(g: nx.Graph) -> nx.Graph:
     h, _ = complement_triangles(g.copy(), triangle_complement_condition)
     return h
 
-def compute_photons_with_x_fusions(trails: list[list[int]], trail_index: int) -> int:
+def compute_photons_with_x_fusions(trails: list[list[int]], trail_index: int, r: int) -> int:
     """Computes the number of photons in a trail.
     There is some ambiguity as to which trails the measurement photons in a
     fusion should live and where the extra fusion photons should live as
@@ -371,8 +415,62 @@ def compute_photons_with_x_fusions(trails: list[list[int]], trail_index: int) ->
 
         # Spread the fusion photons evenly across the trails
         if trail_order[0] == trail_index or trail_order[-1] == trail_index:
-            num_photons += 1
+            num_photons += r
         else:
-            num_photons += 2
+            num_photons += 2*r
 
     return num_photons
+
+
+def compute_photons_with_x_fusions_single_node(trails: list[list[int]], r: int) -> list[list[int]]:
+    """Computes the number of photons in a single node in a trail
+
+    There is some ambiguity as to which trails the measurement photons in a
+    fusion should live and where the extra fusion photons should live as
+    well.
+
+    Here we have put the measurement photons in the first trail in the
+    decomposition that has the node, and spread the fusion photons evenly. So
+    in an N-way fusion, the first trail has one fusion photon, the next has
+    two, and the next next has two until the last which has one.
+    """
+
+    # Key is the node and value is the indices of the trails which this node
+    # appears in in ascending order
+    occurances: dict[int, list[int]] = {}
+    for i, t in enumerate(trails):
+        for node in t:
+            trail_order = occurances.get(node, [])
+            trail_order.append(i)
+            occurances[node] = trail_order
+
+    # The number of photons in each node
+    photon_map: list[list[int]] = []
+
+    for trail_index, trail in enumerate(trails):
+        trail_photons = []
+
+        for node in trail:
+            # Start with all the measurement photons
+            num_photons = 0
+            trail_order = occurances[node]
+
+            if trail_order[0] == trail_index:
+                # Add the measurement photon
+                num_photons += 1
+
+            if len(trail_order) == 1:
+                # No fusions here
+                trail_photons.append(num_photons)
+                continue
+
+            # Spread the fusion photons evenly across the trails
+            if trail_order[0] == trail_index or trail_order[-1] == trail_index:
+                num_photons += r
+            else:
+                num_photons += 2*r
+
+            trail_photons.append(num_photons)
+        photon_map.append(trail_photons)
+
+    return photon_map

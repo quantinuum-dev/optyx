@@ -49,7 +49,8 @@ def compute_y_fusions(g: nx.Graph, tc: list[list[int]]) -> list[tuple[int, int]]
 
     return list(edge_set - tc_edge_set)
 
-def count_paths_in_photon_restricted_network(g: nx.Graph, paths: list[list[int]], photon_length: int) -> int:
+def count_paths_in_photon_restricted_network(g: nx.Graph, paths: list[list[int]], photon_length: int, r: int) -> int:
+    assert photon_length > 2*r
     y_fusions = compute_y_fusions(g, paths)
 
     # Contains the number of Y fusions a node in involved in
@@ -64,12 +65,12 @@ def count_paths_in_photon_restricted_network(g: nx.Graph, paths: list[list[int]]
 
         # Add all the Y fusion photons
         for node in path:
-            num_photons += fusion_dict.get(node, 0)
+            num_photons += r*fusion_dict.get(node, 0)
 
-        if num_photons == 2:
+        if num_photons <= 2*r:
             num_paths += 1
         else:
-            num_paths += math.ceil(float(num_photons - 2)/float(photon_length - 2))
+            num_paths += math.ceil(float(num_photons - 2*r)/float(photon_length - 2*r))
 
     return num_paths
 

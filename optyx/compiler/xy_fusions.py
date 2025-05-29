@@ -293,10 +293,12 @@ def compliment_triangles_xy(g: nx.Graph) -> nx.Graph:
     h, _ = complement_triangles(g.copy(), triangle_complement_condition)
     return h
 
-def photon_bounded_trail_cover_count(g: nx.Graph, photon_length: int) -> int:
+def photon_bounded_trail_cover_count(g: nx.Graph, photon_length: int, r=1) -> int:
     """Compute the number of trails in a trail cover of graph where the number of
-    photons in each trail is at most some amount
+    photons in each trail is at most some amount. r is the number of RUS
+    fusions to perform
     """
+    assert photon_length > 2*r
 
     trails = find_unbounded_trail_cover(g.copy())
 
@@ -311,7 +313,7 @@ def photon_bounded_trail_cover_count(g: nx.Graph, photon_length: int) -> int:
     seen = set()
     num_trails = 0
     for i, trail in enumerate(trails):
-        num_photons = compute_photons_with_x_fusions(trails, i)
+        num_photons = compute_photons_with_x_fusions(trails, i, r)
 
         # Add all the Y fusion photons
         for node in trail:
@@ -320,13 +322,13 @@ def photon_bounded_trail_cover_count(g: nx.Graph, photon_length: int) -> int:
             # balance or do something more intelligent, but for now we are just
             # putting all of them on the first time we encounter a node
             if node not in seen:
-                num_photons += fusion_dict.get(node, 0)
+                num_photons += r*fusion_dict.get(node, 0)
                 seen.add(node)
 
-        if num_photons == 2:
+        if num_photons <= 2*r:
             num_trails += 1
         else:
-            num_trails += math.ceil(float(num_photons - 2)/float(photon_length - 2))
+            num_trails += math.ceil(float(num_photons - 2*r)/float(photon_length - 2*r))
 
     return num_trails
 
