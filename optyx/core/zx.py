@@ -123,6 +123,7 @@ The array properties of Z and X spiders agree with PyZX.
 """
 
 from math import pi
+from typing import List
 
 import numpy as np
 from discopy import quantum
@@ -135,6 +136,7 @@ from discopy.cat import Category
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
+from optyx.core import diagram
 from optyx.diagram import optyx
 from optyx import zw
 from optyx import photonic
@@ -518,3 +520,116 @@ def swap_truncation(diagram, _, __):
 
 
 SWAP.truncation = swap_truncation
+
+
+class And(diagram.Box):
+    """
+    Reversible classical AND gate on n bits.
+
+    This gate acts as a classical operation that maps:
+        - (1, 1) ↦ 1
+        - Otherwise ↦ 0
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import And
+    >>> and_box = And().to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> assert np.isclose(and_box[1, 1, 1], 1.0)
+    >>> for a in [0, 1]:
+    ...     for b in [0, 1]:
+    ...         expected = int(a & b)
+    ...         assert np.isclose(and_box[a, b, expected], 1.0)
+    """
+
+    def __init__(self, n=2, is_dagger: bool = False):
+        super().__init__("And", diagram.Bit(n), diagram.Bit(1))
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+        array[..., 0] = 1
+        all_ones = (1,) * len(input_dims)
+        array[all_ones + (0,)] = 0
+        array[all_ones + (1,)] = 1
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims):
+        if self.is_dagger:
+            return [2]*len(input_dims)
+        return [2]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return And(not self.is_dagger)
+
+
+class Or(diagram.Box):
+    """
+    Reversible classical OR gate on *n* bits.
+
+    This gate acts as a classical operation that maps
+        - (0, 0, …, 0) ↦ 0
+        - Otherwise    ↦ 1
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Or
+    >>> or_box = Or().to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> assert np.isclose(or_box[0, 0, 0], 1.0)   # only all-zeros→0
+    >>> for a in [0, 1]:
+    ...     for b in [0, 1]:
+    ...         expected = int(a | b)
+    ...         assert np.isclose(or_box[a, b, expected], 1.0)
+    """
+
+    def __init__(self, n: int = 2, is_dagger: bool = False):
+        super().__init__("Or", diagram.Bit(n), diagram.Bit(1))
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self,
+        input_dims: List[int],
+        output_dims: List[int],
+    ) -> tensor.Box:
+        """
+        Build the (broadcast-sized) truth-table tensor for the OR gate.
+        """
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        array[..., 1] = 1
+
+        all_zeros = (0,) * len(input_dims)
+        array[all_zeros + (1,)] = 0
+        array[all_zeros + (0,)] = 1
+
+        box = tensor.Box(self.name, Dim(*input_dims), Dim(*output_dims), array)
+        return box.dagger() if self.is_dagger else box
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        return [2] * len(input_dims) if self.is_dagger else [2]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Or(n=self.dom.n, is_dagger=not self.is_dagger)

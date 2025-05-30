@@ -73,7 +73,7 @@ class AddN(ClassicalBox):
     def __init__(self, n):
         super().__init__(
             f"AddInt({n})",
-            classical.Add(n),
+            zw.Add(n),
             channel.mode**n,
             channel.mode
         )
@@ -90,7 +90,7 @@ class SubN(ClassicalBox):
         super().__init__(
             "SubInt",
             (
-                classical.Add(2).dagger() @ diagram.Mode(1) >>
+                zw.Add(2).dagger() @ diagram.Mode(1) >>
                 diagram.Mode(1) @ diagram.Spider(2, 0, diagram.Mode(1))
             ).
             channel.mode**2,
@@ -107,7 +107,7 @@ class MultiplyN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "MultiplyInt",
-            classical.Multiply(),
+            zw.Multiply(),
             channel.mode**2,
             channel.mode
         )
@@ -123,7 +123,7 @@ class DivideN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "DivideInt",
-            classical.Divide(),
+            zw.Divide(),
             channel.mode**2,
             channel.mode
         )
@@ -139,7 +139,7 @@ class ModN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "ModInt",
-            classical.Mod2(),
+            zw.Mod2(),
             channel.mode,
             channel.bit
         )
@@ -270,7 +270,7 @@ class AndBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             "AndBit",
-            classical.And(n),
+            zx.And(n),
             channel.bit**2,
             channel.bit
         )
@@ -318,7 +318,7 @@ class OrBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             f"OrBit({n})",
-            classical.Or(n),
+            zx.Or(n),
             channel.bit**n,
             channel.bit
         )

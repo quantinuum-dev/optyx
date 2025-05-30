@@ -146,10 +146,11 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
     :align: center
 """
 
-from typing import Union
+from typing import List, Union
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
+from optyx.core import diagram, zw
 from optyx.diagram.optyx import Diagram, Mode, Swap, Scalar, Spider
 from optyx._utils import occupation_numbers, multinomial
 from optyx.path import Matrix
@@ -690,3 +691,239 @@ def Merge(n):
 
 def Id(n):
     return Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
+
+
+class Add(diagram.Box):
+    """
+    Adds multiple classical values using a W-dagger operation.
+    Acts by adding the basis vectors without the binomial coefficient.
+    Takes `n` mode inputs and returns a single summed mode output
+    (or vice versa if daggered).
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Add
+    >>> add_box = Add(2)
+    >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> # Expect 4 one-hot outputs for all input combinations
+    >>> assert np.allclose(tensor.sum(), 4)
+    """
+
+    def __init__(self, n: int, is_dagger: bool = False):
+        dom = diagram.Mode(1) if is_dagger else diagram.Mode(n)
+        cod = diagram.Mode(n) if is_dagger else diagram.Mode(1)
+
+        super().__init__("Add", dom, cod)
+        self.n = n
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        input_dims = [int(i) for i in input_dims]
+        output_dims = [int(i) for i in output_dims]
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        diag = zw.W(self.n).dagger().to_tensor(input_dims)
+        array = np.sign(
+            (diag >> diagram.truncation_tensor(diag.cod.inside, output_dims))
+            .eval()
+            .array
+        )
+        if self.is_dagger:
+            return tensor.Box(
+                "Add", Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+
+        return tensor.Box("Add", Dim(*input_dims), Dim(*output_dims), array)
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [int(input_dims[0])] * self.n
+        return [int(sum(input_dims))]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Add(self.n, not self.is_dagger)
+
+
+class Multiply(diagram.Box):
+    """
+    Multiplies two classical integers.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Multiply
+    >>> mbox = Multiply()
+    >>> result = mbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
+    >>> import numpy as np
+    >>> assert result.shape == (3, 3, 9)
+    >>> nonzero = np.nonzero(result)
+    >>> assert len(nonzero[0]) > 0
+    """
+
+    def __init__(self, is_dagger: bool = False):
+        dom = diagram.Mode(1) if is_dagger else diagram.Mode(2)
+        cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
+
+        super().__init__("Multiply", dom, cod)
+
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        for i in range(input_dims[0]):
+            if i > 0:
+                def multiply_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
+                                                 add_N(n))
+            else:
+                def multiply_diagram(n): return (diagram.Spider(1, 0, diagram.Mode(1)) >>
+                                                 zw.Create(0))
+
+            d = multiply_diagram(i).to_tensor([input_dims[1]])
+            d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
+
+            array[i, :] = d.eval().array.reshape(array[i, :].shape)
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [int(input_dims[0])]
+        return [int(np.prod(input_dims))]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Multiply(not self.is_dagger)
+
+
+class Divide(diagram.Box):
+    """
+    Inverse of multiplication: decomposes a product into factors if possible.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Divide
+    >>> dbox = Divide()
+    >>> result = dbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
+    >>> import numpy as np
+    >>> assert result.shape == (3, 3, 9)
+    >>> assert np.all(result >= 0)
+    """
+
+    def __init__(self, is_dagger: bool = False):
+        dom = diagram.Mode(1) if is_dagger else diagram.Mode(2)
+        cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
+
+        super().__init__("Divide", dom, cod)
+
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        for i in range(input_dims[1]):
+            if i > 0:
+                def divide_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
+                                               add_N(n)).dagger()
+
+                d = divide_diagram(i).to_tensor([input_dims[0]])
+                d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
+
+                array[:, i, :] = d.eval().array.reshape(array[:, i, :].shape)
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [int(input_dims[0])]
+        return [int(np.prod(input_dims))]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Divide(not self.is_dagger)
+
+
+class Mod2(diagram.Box):
+    """
+    Reduces a classical mode to its parity (even/odd), i.e., modulo 2.
+
+    Example
+    -------
+    >>> from optyx.feed_forward.classical_arithmetic import Mod2
+    >>> m2 = Mod2()
+    >>> array = m2.to_zw().to_tensor(input_dims=[5]).eval().array
+    >>> import numpy as np
+    >>> assert np.allclose([np.argmax(array[i]) for i in range(5)],
+    ...    [i % 2 for i in range(5)])
+    """
+
+    def __init__(self, is_dagger: bool = False):
+        super().__init__("Mod2", diagram.Mode(1), diagram.Mode(1))
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        for i in range(input_dims[0]):
+            array[i, i % 2] = 1
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [input_dims[0]]
+        return [2]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Mod2(not self.is_dagger)
