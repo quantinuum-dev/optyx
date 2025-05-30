@@ -794,25 +794,3 @@ class BinaryMatrixBox(diagram.Box):
 
     def dagger(self):
         return BinaryMatrixBox(self.matrix, not self.is_dagger)
-
-
-# natural number arithmetic
-divide_N = Divide() # divide first input by second
-multiply_N = Multiply() # multiply two inputs
-copy_N = lambda n: diagram.Spider(1, n, diagram.Mode(1))
-def add_N(n): return Add(n) # add multiple inputs
-subtract_N = add_N(2).dagger() @ diagram.Mode(1) >> diagram.Mode(1) @ diagram.Spider(2, 0, diagram.Mode(1)) # subtract first input by second
-mod2 = Mod2() # modulo 2
-swap_N = diagram.Swap(diagram.Mode(1), diagram.Mode(1))
-
-# binary arithmetic
-postselect_1 = zx.X(1, 0, 0.5) @ diagram.Scalar(1 / np.sqrt(2))
-postselect_0 = zx.X(1, 0) @ diagram.Scalar(1 / np.sqrt(2))
-init_1 = postselect_1.dagger()
-init_0 = postselect_0.dagger()
-xor_bits = lambda n: zx.X(n, 1) @ diagram.Scalar(np.sqrt(n))
-not_bit = zx.X(1, 1, 0.5)
-copy_bit = lambda n: zx.Z(1, n)
-swap_bits = diagram.Swap(diagram.Bit(1), diagram.Bit(1))
-and_bit = lambda n: And(n)
-or_bit = lambda n: Or(n)

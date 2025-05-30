@@ -1,9 +1,12 @@
+import numpy as np
+
 from typing import Callable, List
 from optyx.core import (
     channel,
     classical,
     zw,
     zx,
+    diagram
 )
 
 class BitControlledGate(channel.Channel):
@@ -70,7 +73,7 @@ class AddN(ClassicalBox):
     def __init__(self, n):
         super().__init__(
             f"AddInt({n})",
-            classical.add_N(n),
+            classical.Add(n),
             channel.mode**n,
             channel.mode
         )
@@ -86,7 +89,10 @@ class SubN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "SubInt",
-            classical.ubtract_N,
+            (
+                classical.Add(2).dagger() @ diagram.Mode(1) >>
+                diagram.Mode(1) @ diagram.Spider(2, 0, diagram.Mode(1))
+            ).
             channel.mode**2,
             channel.mode
         )
@@ -101,7 +107,7 @@ class MultiplyN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "MultiplyInt",
-            classical.multiply_N,
+            classical.Multiply(),
             channel.mode**2,
             channel.mode
         )
@@ -117,7 +123,7 @@ class DivideN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "DivideInt",
-            classical.divide_N,
+            classical.Divide(),
             channel.mode**2,
             channel.mode
         )
@@ -133,7 +139,7 @@ class ModN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "ModInt",
-            classical.mod2,
+            classical.Mod2(),
             channel.mode,
             channel.bit
         )
@@ -149,7 +155,7 @@ class CopyN(ClassicalBox):
     def __init__(self, n):
         super().__init__(
             f"CopyInt({n})",
-            classical.copy_N(n),
+            lambda n: diagram.Spider(1, n, diagram.Mode(1)),
             channel.mode,
             channel.mode**n
         )
@@ -165,7 +171,7 @@ class SwapN(ClassicalBox):
     def __init__(self):
         super().__init__(
             "SwapInt",
-            classical.swap_N,
+            diagram.Swap(diagram.Mode(1), diagram.Mode(1)),
             channel.mode**2,
             channel.mode**2
         )
@@ -183,14 +189,14 @@ class PostselectBit(ClassicalBox):
         if result == 0:
             super().__init__(
                 f"PostselectBit(0)",
-                classical.postselect_0,
+                zx.X(1, 0) @ diagram.Scalar(1 / np.sqrt(2)),
                 channel.bit,
                 channel.bit**0
             )
         else:
             super().__init__(
                 f"PostselectBit(1)",
-                classical.postselect_1,
+                zx.X(1, 0, 0.5) @ diagram.Scalar(1 / np.sqrt(2)),
                 channel.bit,
                 channel.bit**0
             )
@@ -209,14 +215,14 @@ class InitBit(ClassicalBox):
         if value == 0:
             super().__init__(
                 f"InitBit(0)",
-                classical.init_0,
+                zx.X(0, 1) @ diagram.Scalar(1 / np.sqrt(2)),
                 channel.bit**0,
                 channel.bit
             )
         else:
             super().__init__(
                 f"InitBit(1)",
-                classical.init_1,
+                zx.X(0, 1, 0.5) @ diagram.Scalar(1 / np.sqrt(2)),
                 channel.bit**0,
                 channel.bit
             )
@@ -232,7 +238,7 @@ class NotBit(ClassicalBox):
     def __init__(self):
         super().__init__(
             "NotBit",
-            classical.not_bit,
+            zx.X(1, 1, 0.5),
             channel.bit,
             channel.bit
         )
@@ -248,7 +254,7 @@ class XorBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             f"XorBit({n})",
-            classical.xor_bits(n),
+            zx.X(n, 1) @ diagram.Scalar(np.sqrt(n)),
             channel.bit**n,
             channel.bit
         )
@@ -264,7 +270,7 @@ class AndBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             "AndBit",
-            classical.and_bit(n),
+            classical.And(n),
             channel.bit**2,
             channel.bit
         )
@@ -280,7 +286,7 @@ class CopyBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             f"CopyBit({n})",
-            classical.copy_bit(n),
+            zx.Z(1, n),
             channel.bit,
             channel.bit**n
         )
@@ -296,7 +302,7 @@ class SwapBit(ClassicalBox):
     def __init__(self):
         super().__init__(
             "SwapBit",
-            classical.swap_bits,
+            diagram.Swap(diagram.Bit(1), diagram.Bit(1)),
             channel.bit**2,
             channel.bit**2
         )
@@ -312,7 +318,7 @@ class OrBit(ClassicalBox):
     def __init__(self, n=2):
         super().__init__(
             f"OrBit({n})",
-            classical.or_bit(n),
+            classical.Or(n),
             channel.bit**n,
             channel.bit
         )
