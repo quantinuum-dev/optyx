@@ -221,7 +221,7 @@ from __future__ import annotations
 import numpy as np
 from typing import List
 from sympy.core import Symbol, Mul
-from discopy import symmetric, frobenius, tensor
+from discopy import symmetric, frobenius, tensor, hypergraph
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
@@ -1088,10 +1088,42 @@ def truncation_tensor(
         tensor = tensor @ EmbeddingTensor(i[0], i[1])
     return tensor
 
+class Category(frobenius.Category):
+    """
+    A hypergraph category is a compact category with a method :code:`spiders`.
+
+    Parameters:
+        ob : The objects of the category, default is :class:`Ty`.
+        ar : The arrows of the category, default is :class:`Diagram`.
+    """
+
+    ob, ar = Ty, Diagram
+
+
+class Functor(frobenius.Functor):
+    """
+    A hypergraph functor is a compact functor that preserves spiders.
+
+    Parameters:
+        ob (Mapping[Ty, Ty]) : Map from atomic :class:`Ty` to :code:`cod.ob`.
+        ar (Mapping[Box, Diagram]) : Map from :class:`Box` to :code:`cod.ar`.
+        cod (Category) : The codomain of the functor.
+    """
+
+    dom = cod = Category()
+
+    def __call__(self, other):
+        return frobenius.Functor.__call__(self, other)
+
+
+class Hypergraph(hypergraph.Hypergraph):
+    category, functor = Category, Functor
+
 
 bit = Bit(1)
 mode = Mode(1)
 
+Diagram.hypergraph_factory = Hypergraph
 Diagram.braid_factory, Diagram.spider_factory = Swap, Spider
 Diagram.ty_factory = Ty
 Diagram.sum_factory = Sum

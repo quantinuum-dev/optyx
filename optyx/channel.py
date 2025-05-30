@@ -105,7 +105,7 @@ from __future__ import annotations
 from typing import Literal
 
 import numpy as np
-from discopy import symmetric
+from discopy import symmetric, markov, hypergraph
 from discopy.cat import factory
 
 from optyx import optyx, zx
@@ -186,7 +186,7 @@ qmode = Ty("qmode")
 
 
 @factory
-class Circuit(symmetric.Diagram):
+class Circuit(markov.Diagram):
     """Classical-quantum circuits over qubits and optical modes"""
 
     ty_factory = Ty
@@ -201,10 +201,10 @@ class Circuit(symmetric.Diagram):
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
-        dom = symmetric.Category(Ty, Circuit)
-        cod = symmetric.Category(Ty, Circuit)
+        dom = markov.Category(Ty, Circuit)
+        cod = markov.Category(Ty, Circuit)
 
-        return symmetric.Functor(lambda x: x.inflate(d),
+        return markov.Functor(lambda x: x.inflate(d),
                                  lambda f: f.inflate(d),
                                  dom,
                                  cod)(self)
@@ -213,14 +213,14 @@ class Circuit(symmetric.Diagram):
         """Returns the optyx.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
-        dom = symmetric.Category(Ty, Circuit)
-        cod = symmetric.Category(optyx.Ty, optyx.Diagram)
-        return symmetric.Functor(
+        dom = markov.Category(Ty, Circuit)
+        cod = markov.Category(optyx.Ty, optyx.Diagram)
+        return markov.Functor(
             lambda x: x.double(), lambda f: f.double(), dom, cod
         )(self)
 
 
-class Channel(symmetric.Box, Circuit):
+class Channel(markov.Box, Circuit):
     """
     Channel initialised by its Kraus map.
     """
@@ -305,7 +305,7 @@ class Channel(symmetric.Box, Circuit):
         )
 
 
-class CQMap(symmetric.Box, Circuit):
+class CQMap(markov.Box, Circuit):
     """
     Channel initialised by its Density matrix.
     """
@@ -345,7 +345,7 @@ class CQMap(symmetric.Box, Circuit):
         )
 
 
-class Swap(symmetric.Swap, Channel):
+class Swap(markov.Swap, Channel):
     def dagger(self):
         return self
 
@@ -538,4 +538,39 @@ class Bra(Channel):
         super().__init__(f"<{value}|", kraus, dom=dom)
 
 
+class Category(markov.Category):
+    """
+    A hypergraph category is a compact category with a method :code:`spiders`.
+
+    Parameters:
+        ob : The objects of the category, default is :class:`Ty`.
+        ar : The arrows of the category, default is :class:`Diagram`.
+    """
+    __ambiguous_inheritance__ = (markov.Category)
+
+    ob, ar = Ty, Circuit
+
+
+class Functor(markov.Functor):
+    """
+    A hypergraph functor is a compact functor that preserves spiders.
+
+    Parameters:
+        ob (Mapping[Ty, Ty]) : Map from atomic :class:`Ty` to :code:`cod.ob`.
+        ar (Mapping[Box, Diagram]) : Map from :class:`Box` to :code:`cod.ar`.
+        cod (Category) : The codomain of the functor.
+    """
+    __ambiguous_inheritance__ = (markov.Category)
+
+    dom = cod = Category()
+
+    def __call__(self, other):
+        return markov.Functor.__call__(self, other)
+
+
+class Hypergraph(hypergraph.Hypergraph):
+    category, functor = Category, Functor
+
 Circuit.braid_factory = Swap
+Circuit.discard_factory = Discard
+Circuit.hypergraph_factory = Hypergraph
