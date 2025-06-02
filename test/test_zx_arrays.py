@@ -1,6 +1,5 @@
-import math
-
-from optyx.diagram.zx import *
+from optyx.core.zx import *
+from optyx.core.diagram import Scalar
 import itertools
 import pytest
 
