@@ -9,9 +9,9 @@ from optyx.photonic import (
 from optyx.core.diagram import Mode, Diagram
 import numpy as np
 
-BS = BS_.to_zw()
-BBS = lambda theta: BBS_(theta).to_zw()
-Phase = lambda theta: Phase_(theta).to_zw()
+BS = BS_.get_kraus()
+BBS = lambda theta: BBS_(theta).get_kraus()
+Phase = lambda theta: Phase_(theta).get_kraus()
 
 unitary_circuits = [
 	BS >> Phase(1 / 4) @ Id(Mode(1)) >> BS.dagger(),

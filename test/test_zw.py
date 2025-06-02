@@ -478,6 +478,6 @@ def test_DR_beamsplitter():
 phases = phases = [0.0, 0.3, 0.6]
 @pytest.mark.parametrize("phase", phases)
 def test_DR_phase_shift(phase):
-    left = DualRail().to_zw() >> Mode(1) @ photonic.Phase(phase).to_zw()
+    left = DualRail().to_zw() >> Mode(1) @ photonic.Phase(phase).get_kraus()
     right = zx.Z(1, 1, phase=phase) >> DualRail()
     assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)

@@ -60,11 +60,11 @@ A Channel is initialised by its Kraus map from `dom` to `cod @ env`.
 >>> from optyx.core import zx, zw, diagram
 >>> from optyx import photonic
 >>> circ = (
-...     photonic.Phase(0.25).to_zw() @
-...     photonic.BS.to_zw() @
-...     photonic.Phase(0.56).to_zw() >>
-...     photonic.BS.to_zw() @ photonic.BS.to_zw()
-... )
+...     photonic.Phase(0.25) @
+...     photonic.BS @
+...     photonic.Phase(0.56) >>
+...     photonic.BS @ photonic.BS
+... ).get_kraus()
 >>> channel = Channel(name='circuit', kraus=circ,\\
 ...                   dom=qmode ** 4, cod=qmode ** 4, env=diagram.Ty())
 
@@ -111,6 +111,7 @@ from __future__ import annotations
 from typing import Literal
 
 import numpy as np
+from discopy import tensor
 from discopy import symmetric
 from discopy.cat import factory
 from pytket.extensions.pyzx import tk_to_pyzx, pyzx_to_tk
@@ -190,6 +191,20 @@ class Diagram(symmetric.Diagram):
     """Classical-quantum circuits over qubits and optical modes"""
 
     ty_factory = Ty
+    grad = tensor.Diagram.grad
+
+    def to_path(self, dtype: type = complex):
+        """Returns the :class:`Matrix` normal form
+        of a :class:`Diagram`.
+        In other words, it is the underlying matrix
+        representation of a :class:`path` and :class:`photonic` diagrams."""
+        from optyx.core import path
+
+        return symmetric.Functor(
+            ob=len,
+            ar=lambda f: f.to_path(dtype),
+            cod=symmetric.Category(int, path.Matrix[dtype]),
+        )(self)
 
     def double(self):
         """Returns the diagram.Diagram obtained by
@@ -201,6 +216,8 @@ class Diagram(symmetric.Diagram):
             lambda x: x.double(), lambda f: f.double(), dom, cod
         )(self)
 
+
+    ######## is the implementation of this correct???
     @property
     def is_pure(self):
         are_layers_pure = []
@@ -215,8 +232,10 @@ class Diagram(symmetric.Diagram):
 
         return not all(are_layers_pure)
 
+
+    ######## does this make sense???
     def get_kraus(self):
-        assert self.is_pure, "Cannot get Kraus map of non-pure circuit"
+        assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
         kraus_maps = []
         for layer in self:
             left = diagram.Ty().tensor(*[ty.single() \
@@ -282,7 +301,7 @@ class Diagram(symmetric.Diagram):
     @classmethod
     def from_tket(self, tket_circuit):
         """Convert from tket circuit."""
-        from diagram.qubit import QubitChannel
+        from optyx.qubit import QubitChannel
         pyzx_circuit = tk_to_pyzx(tket_circuit).to_graph()
         zx_diagram = diagram.Diagram.from_pyzx(pyzx_circuit)
         return explode_channel(
@@ -308,6 +327,9 @@ class Channel(symmetric.Box, Diagram):
         self.kraus = kraus
         self.env = env
         super().__init__(name, dom, cod)
+
+    def to_path(self, dtype: type = complex):
+        raise NotImplementedError
 
     def double(self):
         """
@@ -368,6 +390,37 @@ class Channel(symmetric.Box, Diagram):
 
     def to_dual_rail(self):
         raise NotImplementedError("Only ZX channels can be converted to dual rail.")
+
+    def grad(self, var, **params):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory(
+                "",
+                diagram.Diagram((), self.dom.single(), self.cod.single()),
+                self.dom,
+                self.cod
+            )
+        return sum(term.grad(var, **params) for term in self.terms)
+
+
+class Sum(symmetric.Sum, Diagram):
+    """
+    Formal sum of optyx channel diagrams
+    """
+
+    __ambiguous_inheritance__ = (symmetric.Sum,)
+
+    def double(self):
+        terms = diagram.Diagram.id(diagram.Mode(0))
+        for term in [t for t in self]:
+            terms += term.double()
+        return terms
+
+    def grad(self, var, **params):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return sum(term.grad(var, **params) for term in self.terms)
 
 
 class CQMap(symmetric.Box, Diagram):
@@ -510,3 +563,4 @@ class Bra(Channel):
 
 
 Diagram.braid_factory = Swap
+Diagram.sum_factory = Sum

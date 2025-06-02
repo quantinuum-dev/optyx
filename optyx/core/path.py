@@ -49,7 +49,7 @@ evaluating the permanent of the underlying matrix:
 
 >>> from optyx.core.zw import Create, Select, Split, Merge, Id
 >>> from optyx.photonic import BS
->>> HOM = Create(1, 1) >> BS.to_zw()
+>>> HOM = Create(1, 1) >> BS.get_kraus()
 >>> assert np.allclose(HOM.to_path().eval().array,\\
 ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j],\\
 ... dom=1, cod=3).array)
@@ -57,7 +57,7 @@ evaluating the permanent of the underlying matrix:
 >>> assert(HOM.to_path().prob().array, \\
 ... Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], \\
 ... dom=1, cod=3))
->>> left = Create(1, 1) >> BS.to_zw() >> Select(2, 0)
+>>> left = Create(1, 1) >> BS.get_kraus() >> Select(2, 0)
 >>> left.to_path().prob()
 Probabilities[complex]([0.5+0.j], dom=1, cod=1)
 
@@ -104,7 +104,7 @@ We can construct a Bell state in dual rail encoding:
 >>> plus = Create() >> Split(2)
 >>> state = plus >> Id(1) @ plus @ Id(1)
 >>> bell = state @ state\\
-...     >> Id(2) @ (BS.to_zw() @ BS.to_zw().dagger() >> state.dagger()) @ Id(2)
+...     >> Id(2) @ (BS.get_kraus() @ BS.get_kraus().dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose(
 ...     (bell >> H @ H).to_path().eval().array,
@@ -508,11 +508,11 @@ class Amplitudes(underlying.Matrix):
     -------
     >>> from optyx.core.zw import Select, Id
     >>> from optyx.photonic import BS
-    >>> BS.to_zw().to_path().eval(1)
+    >>> BS.get_kraus().to_path().eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
-    >>> assert isinstance(BS.to_zw().to_path().eval(2), Amplitudes)
-    >>> assert np.allclose((BS.to_zw() >> Select(1) @ \\
+    >>> assert isinstance(BS.get_kraus().to_path().eval(2), Amplitudes)
+    >>> assert np.allclose((BS.get_kraus() >> Select(1) @ \\
     ... Id(1)).to_path().eval(2).array,\\
     ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], \\
     ... dom=3, cod=1).array)
@@ -532,9 +532,9 @@ class Probabilities(underlying.Matrix):
     -------
     >>> from optyx.core.zw import Create
     >>> from optyx.photonic import BS
-    >>> BS.to_zw().to_path().prob(1).round(1)
+    >>> BS.get_kraus().to_path().prob(1).round(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
-    >>> (Create(1, 1) >> BS.to_zw()).to_path().prob().round(1)
+    >>> (Create(1, 1) >> BS.get_kraus()).to_path().prob().round(1)
     Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
     """
 

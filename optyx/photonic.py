@@ -108,12 +108,21 @@ class Gate(channel.Channel):
         self.cod = channel.mode**cod
         super().__init__(
             name,
-            self.to_zw()
+            matrix_to_zw(
+                np.reshape(
+                    self.array,
+                    (len(self.dom), len(self.cod))
+                )
+            )
         )
 
-    def to_zw(self):
-        array = np.reshape(self.array, (len(self.dom), len(self.cod)))
-        return matrix_to_zw(array)
+    ###### remove this and move the code inside __init__
+    ###### the functionality of this (especially for the tests)
+    ###### should be moved to channel.Diagram.get_kraus or something similar
+    ###### we should be able to get a zw representation of pure quantum maps
+    # def to_zw(self):
+    #     array =
+    #     return
 
     def to_path(self, dtype=complex):
         array = self.array(dtype)
@@ -500,7 +509,7 @@ class PhaseShiftDR(channel.Channel):
     def __init__(self, phase):
         super().__init__(
             f"PhaseShift({phase})",
-            diagram.Mode(1) @ Phase(phase).to_zw()
+            diagram.Mode(1) @ Phase(phase).get_kraus()
         )
 
 
@@ -535,7 +544,7 @@ class FusionTypeI(channel.Diagram):
         kraus_map_fusion_I = (
             diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
                                        diagram.Mode(1)) @ diagram.Mode(1) >>
-            diagram.Mode(1) @ HadamardBS.to_zw() @ diagram.Mode(1) >>
+            diagram.Mode(1) @ HadamardBS.get_kraus() @ diagram.Mode(1) >>
             diagram.Mode(2) @ diagram.Swap(diagram.Mode(1),
                                        diagram.Mode(1)) >>
             diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
@@ -575,15 +584,15 @@ class FusionTypeII(channel.Diagram):
         fusion_II = channel.Channel(
             "Fusion II",
             (
-                HadamardBS.to_zw() @ HadamardBS.to_zw() >>
+                HadamardBS.get_kraus() @ HadamardBS.get_kraus() >>
                 diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
                                            diagram.Mode(1)) @ diagram.Mode(1) >>
-                diagram.Mode(1) @ HadamardBS.to_zw() @ diagram.Mode(1) >>
+                diagram.Mode(1) @ HadamardBS.get_kraus() @ diagram.Mode(1) >>
                 diagram.Mode(2) @ diagram.Swap(diagram.Mode(1),
                                            diagram.Mode(1)) >>
                 diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
                                            diagram.Mode(1)) @ diagram.Mode(1) >>
-                HadamardBS.to_zw() @ diagram.Mode(2)
+                HadamardBS.get_kraus() @ diagram.Mode(2)
             )
         )
 

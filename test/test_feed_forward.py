@@ -89,11 +89,11 @@ def real_f_3(x):
 # Parametrized data sets
 
 CIRCUITS_TO_TEST = [
-    (Phase(0.1).to_zw(), None),
-    (Phase(0.456).to_zw(), Phase(0.8765).to_zw()),
-    (BS.to_zw(), None),
-    (BS.to_zw(), MZI(0.324, 0.9875).to_zw()),
-    (W(2).dagger() >> W(2), MZI(0.324, 0.9875).to_zw()),
+    (Phase(0.1).get_kraus(), None),
+    (Phase(0.456).get_kraus(), Phase(0.8765).get_kraus()),
+    (BS.get_kraus(), None),
+    (BS.get_kraus(), MZI(0.324, 0.9875).get_kraus()),
+    (W(2).dagger() >> W(2), MZI(0.324, 0.9875).get_kraus()),
 ]
 
 CLASSICAL_FUNCTIONS_TO_TEST_MATRIX = (

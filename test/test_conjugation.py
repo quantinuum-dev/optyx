@@ -9,7 +9,7 @@ import numpy as np
 
 @pytest.mark.parametrize("box", [photonic.Phase, photonic.BBS, photonic.TBS])
 def test_conjugation_LO(box):
-    gate = box(0.27).to_zw()
+    gate = box(0.27).get_kraus()
     dom = Ty.from_optyx(gate.dom)
     lhs = Discard(dom)
     rhs = Channel("Gate", gate) >> Discard(dom)
@@ -18,7 +18,7 @@ def test_conjugation_LO(box):
     assert np.allclose(lhs_tensor, rhs_tensor)
 
 def test_conjugation_MZI():
-    gate = photonic.MZI(0.27, 0.76).to_zw()
+    gate = photonic.MZI(0.27, 0.76).get_kraus()
     dom = qmode ** 2
     lhs = Discard(dom)
     rhs = Channel("Gate", gate) >> Discard(dom)
@@ -29,7 +29,7 @@ def test_conjugation_MZI():
 
 def test_conjugation_LO_Gate():
     hbs_array = (1 / 2) ** (1 / 2) * np.array([[1, 1j], [1j, 1]])
-    gate = photonic.Gate(hbs_array, 2, 2, "HBS").to_zw()
+    gate = photonic.Gate(hbs_array, 2, 2, "HBS").get_kraus()
     assert np.allclose(gate.conjugate().to_path().array,
                        hbs_array.conjugate())
 
@@ -45,7 +45,7 @@ def test_conjugation_ZX(box):
 
 
 def test_conjugation_ZW():
-    diagram = photonic.TBS(0.24, 0.86).to_zw()
+    diagram = photonic.TBS(0.24, 0.86).get_kraus()
     lhs = Discard(qmode ** 2)
     rhs = Channel('diagram', diagram) >> Discard(qmode ** 2)
     lhs_tensor = lhs.double().to_zw().to_tensor().eval().array

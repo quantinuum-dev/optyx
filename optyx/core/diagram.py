@@ -95,7 +95,7 @@ boxes is done using the :code:`<<` operator:
 We can also compose boxes in parallel (tensor) using the :code:`@` operator :
 
 >>> from optyx.photonic import BS, Phase
->>> beam_splitter_phase = BS.to_zw() @ Phase(0.5).to_zw()
+>>> beam_splitter_phase = (BS @ Phase(0.5)).get_kraus()
 >>> beam_splitter_phase.draw(path="docs/_static/parallel_comp_example.png")
 
 .. image:: /_static/parallel_comp_example.png
@@ -105,7 +105,7 @@ A beam-splitter from the :class:`photonic` calculus can be
 expressed using the :class:`zw` calculus:
 
 >>> from optyx.photonic import BS
->>> beam_splitter = BS.to_zw()
+>>> beam_splitter = BS.get_kraus()
 >>> beam_splitter.draw(path="docs/_static/bs_zw.png")
 
 .. image:: /_static/bs_zw.png
@@ -798,7 +798,7 @@ class Scalar(Box):
     >>> assert Scalar(0.45).to_path() == Matrix(
     ...     [], dom=0, cod=0,
     ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS.to_zw() >> Select(2, 0)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS.get_kraus() >> Select(2, 0)
     >>> assert np.isclose(s.to_path().eval().array[0], 1)
     """
 

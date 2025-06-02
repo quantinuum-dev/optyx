@@ -9,7 +9,7 @@ pairs = [(1, 2), (2, 1)]
 
 @pytest.mark.parametrize("photons_1, photons_2", pairs)
 def test_BS(photons_1, photons_2):
-    BS = photonic.BBS(0).to_zw()
+    BS = photonic.BBS(0).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
@@ -29,7 +29,7 @@ pairs_bias = [(1, 2, 0), (2, 1, 0), (1, 2, 0.5), (2, 1, 0.5)]
 
 @pytest.mark.parametrize("photons_1, photons_2, bias", pairs_bias)
 def test_BBS(photons_1, photons_2, bias):
-    BS = photonic.BBS(bias).to_zw()
+    BS = photonic.BBS(bias).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
@@ -46,7 +46,7 @@ def test_BBS(photons_1, photons_2, bias):
 
 @pytest.mark.parametrize("photons_1, photons_2, theta", pairs_bias)
 def test_TBS(photons_1, photons_2, theta):
-    BS = photonic.TBS(theta).to_zw()
+    BS = photonic.TBS(theta).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
@@ -70,7 +70,7 @@ pairs_theta_phi = list(
 
 @pytest.mark.parametrize("photons_1, photons_2, theta, phi", pairs_theta_phi)
 def test_MZI(photons_1, photons_2, theta, phi):
-    BS = photonic.MZI(theta, phi).to_zw()
+    BS = photonic.MZI(theta, phi).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
@@ -86,9 +86,9 @@ def test_MZI(photons_1, photons_2, theta, phi):
 
 
 circs = [
-    zw.Create(1, 1) >> photonic.BBS(0.3).to_zw(),
-    zw.Create(1, 1) >> photonic.TBS(0.3).to_zw(),
-    zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).to_zw()
+    zw.Create(1, 1) >> photonic.BBS(0.3).get_kraus(),
+    zw.Create(1, 1) >> photonic.TBS(0.3).get_kraus(),
+    zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).get_kraus()
 ]
 
 
@@ -99,12 +99,12 @@ def test_conversion_from_amplitudes_to_tensor(circ):
     assert np.allclose(ts, amps)
 
 circs = [
-    (photonic.BBS(0.3).to_zw(), 2),
-    (photonic.BBS(0.3).to_zw() >> photonic.BBS(0.7).to_zw(), 3),
-    (photonic.TBS(0.3).to_zw(), 2),
-    (photonic.TBS(0.3).to_zw() >> photonic.TBS(0.2).to_zw(), 4),
-    (zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).to_zw() >> photonic.MZI(0.3, 0.5).to_zw(), 0),
-    (zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).to_zw() >> photonic.BBS(0.5).to_zw(), 0)
+    (photonic.BBS(0.3).get_kraus(), 2),
+    (photonic.BBS(0.3).get_kraus() >> photonic.BBS(0.7).get_kraus(), 3),
+    (photonic.TBS(0.3).get_kraus(), 2),
+    (photonic.TBS(0.3).get_kraus() >> photonic.TBS(0.2).get_kraus(), 4),
+    (zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).get_kraus() >> photonic.MZI(0.3, 0.5).get_kraus(), 0),
+    (zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).get_kraus() >> photonic.BBS(0.5).get_kraus(), 0)
 ]
 
 @pytest.mark.parametrize("circ, n_extra_photons", circs)

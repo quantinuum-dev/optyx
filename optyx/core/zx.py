@@ -392,7 +392,7 @@ def ar_zx2path(box):
     annil = zw.Select(1)
     comonoid = zw.Split(2)
     monoid = zw.Merge(2)
-    BS = BS.to_zw()
+    BS = BS.get_kraus()
 
     n, m = len(box.dom), len(box.cod)
     if isinstance(box, diagram.Scalar):
@@ -416,7 +416,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return Id(diagram.Mode(1)) @ Phase(phase).to_zw()
+            return Id(diagram.Mode(1)) @ Phase(phase).get_kraus()
         if (n, m, phase) == (2, 1, 0):
             return Id(diagram.Mode(1)) @ (monoid >> annil) @ Id(diagram.Mode(1))
         if (n, m, phase) == (1, 2, 0):
@@ -428,7 +428,7 @@ def ar_zx2path(box):
             fusion = Id(diagram.Mode(1)) @ plus.dagger() @ Id(diagram.Mode(1)) >> plus.dagger()
             return bot >> mid >> (Id(diagram.Mode(2)) @ fusion @ Id(diagram.Mode(2)))
     if box == H:
-        return HadamardBS().to_zw()
+        return HadamardBS().get_kraus()
     raise NotImplementedError(f"No translation of {box} in QPath.")
 
 

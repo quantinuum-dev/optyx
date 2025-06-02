@@ -64,7 +64,7 @@ class BitControlledBox(diagram.Box):
     >>> from optyx.photonic import Phase
     >>> from optyx.core.diagram import PhotonThresholdDetector, Mode
     >>> from optyx.core.zw import Create, ZBox
-    >>> action = Phase(0.1).to_zw()
+    >>> action = Phase(0.1).get_kraus()
     >>> default = ZBox(1, 1, lambda x: 1)
     >>> action_result = action.to_zw().to_tensor().eval().array
     >>> default_result = default.to_zw().to_tensor().eval().array
