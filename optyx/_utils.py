@@ -26,11 +26,16 @@ def _build_w_layer(n_nonzero_counts, dagger=False):
 def matrix_to_zw(U):
 
     from optyx.core import zw
+    from sympy import Expr
+
     n = U.shape[0]
     diagram = zw.Id(0)
 
     # initial W layer
-    n_cols_nonzero = np.abs(np.sign(U)).sum(axis=1).astype(int)
+    if isinstance(U[0, 0], Expr):
+        n_cols_nonzero = [U.shape[1]]*n
+    else:
+        n_cols_nonzero = np.abs(np.sign(U)).sum(axis=1).astype(int)
     diagram @= _build_w_layer(n_cols_nonzero, dagger=False)
 
     # endomorphism layer
@@ -51,19 +56,25 @@ def matrix_to_zw(U):
 
     swap_list = []
     for r, c in zip(sorted_rows, sorted_cols):
-        swap_list.append(n * r + c)
+        swap_list.append(int(n * r + c))
 
-    n_s_output_flat = np.abs(np.sign(U)).flatten()
-    adjusted_swap_list = []
-    for idx in swap_list:
-        sum_missing = np.abs(np.array(n_s_output_flat)[:idx] - 1).sum()
-        adjusted_swap_list.append(int(idx - sum_missing))
+    if not isinstance(U[0, 0], Expr):
+        n_s_output_flat = np.abs(np.sign(U)).flatten()
+        adjusted_swap_list = []
+        for idx in swap_list:
+            sum_missing = np.abs(np.array(n_s_output_flat)[:idx] - 1).sum()
+            adjusted_swap_list.append(int(idx - sum_missing))
+    else:
+        adjusted_swap_list = swap_list
 
     if adjusted_swap_list:
         diagram = diagram.permute(*adjusted_swap_list)
 
     # W-dagger layer
-    n_rows_nonzero = np.abs(np.sign(U)).sum(axis=0).astype(int)
+    if isinstance(U[0, 0], Expr):
+        n_rows_nonzero = [U.shape[0]]*U.shape[1]
+    else:
+        n_rows_nonzero = np.abs(np.sign(U)).sum(axis=0).astype(int)
     diagram >>= _build_w_layer(n_rows_nonzero, dagger=True)
 
     return diagram

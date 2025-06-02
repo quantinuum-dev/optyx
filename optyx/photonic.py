@@ -125,12 +125,16 @@ class Gate(channel.Channel):
     def dagger(self):
         return Gate(
             np.conjugate(self.array.T),
+            len(self.cod),
+            len(self.dom),
             self.name
         )
 
     def conjugate(self):
         return Gate(
             np.conjugate(self.array),
+            len(self.dom),
+            len(self.cod),
             self.name
         )
 
@@ -240,10 +244,14 @@ class BBS(Gate):
     """
 
     def __init__(self, bias, conj=False):
+        if isinstance(bias, Expr):
+            dtype = Expr
+        else:
+            dtype = complex
         self.bias = bias
         self.conj = conj
         super().__init__(
-            self.array(),
+            self.array(dtype),
             2, 2,
             f"BBS({bias})",
         )
@@ -292,10 +300,14 @@ class TBS(Gate):
     """
 
     def __init__(self, theta, is_dagger=False):
+        if isinstance(theta, Expr):
+            dtype = Expr
+        else:
+            dtype = complex
         self.theta = theta
         self.is_dagger = is_dagger
         super().__init__(
-            self.array(),
+            self.array(dtype),
             2, 2,
             f"TBS({theta})",
         )
@@ -314,10 +326,10 @@ class TBS(Gate):
 
     def array(self, dtype=complex):
         backend = sp if dtype is Expr else np
-        sin = backend.sin(self.theta * np.pi)
-        cos = backend.cos(self.theta * np.pi)
-        array = backend.array([sin, cos, cos, -sin])
-        return array * self.global_phase()
+        sin = backend.sin(self.theta * backend.pi)
+        cos = backend.cos(self.theta * backend.pi)
+        array = np.array([sin, cos, cos, -sin])
+        return array * self.global_phase(dtype=dtype)
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
@@ -376,11 +388,15 @@ class MZI(Gate):
     """
 
     def __init__(self, theta, phi, is_dagger=False, is_conj=False):
+        if isinstance(theta, Expr) or isinstance(phi, Expr):
+            dtype = Expr
+        else:
+            dtype = complex
         self.theta, self.phi = theta, phi
         self.is_conj = is_conj
         self.is_dagger = is_dagger
         super().__init__(
-            self.array(),
+            self.array(dtype),
             2, 2,
             f"MZI({theta}, {phi})"
         )
