@@ -3,7 +3,7 @@ import numpy as np
 from typing import Callable, List
 from optyx.core import (
     channel,
-    classical,
+    control,
     zw,
     zx,
     diagram
@@ -27,7 +27,7 @@ class BitControlledGate(channel.Channel):
             assert default_gate.is_pure, \
                  "The input gates must be pure quantum channels"
             default_gate = default_gate.get_kraus()
-        kraus = classical.BitControlledBox(control_gate_single, default_gate)
+        kraus = control.BitControlledBox(control_gate_single, default_gate)
         super().__init__(
             f"BitControlledGate({control_gate}, {default_gate})",
             kraus,
@@ -47,7 +47,7 @@ class BitControlledPhaseShift(channel.Channel):
                  function: Callable[[List[int]], List[int]],
                  n_modes: int = 1,
                  n_control_modes: int = 1):
-        kraus = classical.ControlledPhaseShift(function, n_modes, n_control_modes)
+        kraus = control.ControlledPhaseShift(function, n_modes, n_control_modes)
         super().__init__(
             "BitControlledPhaseShift",
             kraus,
@@ -412,7 +412,7 @@ class ClassicalFunction(ControlChannel):
     """
 
     def __init__(self, function, dom, cod):
-        box = classical.ClassicalFunctionBox(
+        box = control.ClassicalFunctionBox(
             function,
             dom,
             cod
@@ -446,7 +446,7 @@ class BinaryMatrix(ControlChannel):
     """
 
     def __init__(self, matrix):
-        box = classical.BinaryMatrixBox(self, matrix)
+        box = control.BinaryMatrixBox(self, matrix)
         return super().__new__(
             box.name,
             box,
