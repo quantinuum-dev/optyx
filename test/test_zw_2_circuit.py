@@ -1,7 +1,6 @@
-import optyx.diagram.zw as zw
-import optyx.diagram.lo as lo
+import optyx.core.zw as zw
+from optyx import photonic
 from optyx._utils import tensor_2_amplitudes
-import optyx.diagram.lo as qpath
 import itertools
 import pytest
 import numpy as np
@@ -10,9 +9,9 @@ pairs = [(1, 2), (2, 1)]
 
 @pytest.mark.parametrize("photons_1, photons_2", pairs)
 def test_BS(photons_1, photons_2):
-    BS = qpath.BBS(0)
+    BS = photonic.BBS(0).to_zw()
 
-    diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
+    diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
     tensor = diagram_zw.to_tensor()
 
@@ -30,9 +29,9 @@ pairs_bias = [(1, 2, 0), (2, 1, 0), (1, 2, 0.5), (2, 1, 0.5)]
 
 @pytest.mark.parametrize("photons_1, photons_2, bias", pairs_bias)
 def test_BBS(photons_1, photons_2, bias):
-    BS = qpath.BBS(bias)
+    BS = photonic.BBS(bias).to_zw()
 
-    diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
+    diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
     tensor = diagram_zw.to_tensor()
 
@@ -47,9 +46,9 @@ def test_BBS(photons_1, photons_2, bias):
 
 @pytest.mark.parametrize("photons_1, photons_2, theta", pairs_bias)
 def test_TBS(photons_1, photons_2, theta):
-    BS = qpath.TBS(theta)
+    BS = photonic.TBS(theta).to_zw()
 
-    diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
+    diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
     tensor = diagram_zw.to_tensor()
 
@@ -71,9 +70,9 @@ pairs_theta_phi = list(
 
 @pytest.mark.parametrize("photons_1, photons_2, theta, phi", pairs_theta_phi)
 def test_MZI(photons_1, photons_2, theta, phi):
-    BS = qpath.MZI(theta, phi)
+    BS = photonic.MZI(theta, phi).to_zw()
 
-    diagram_qpath = qpath.Create(photons_1, photons_2) >> BS
+    diagram_qpath = zw.Create(photons_1, photons_2) >> BS
     diagram_zw = diagram_qpath.to_zw()
     tensor = diagram_zw.to_tensor()
 
@@ -87,9 +86,9 @@ def test_MZI(photons_1, photons_2, theta, phi):
 
 
 circs = [
-    zw.Create(1, 1) >> lo.BBS(0.3),
-    zw.Create(1, 1) >> lo.TBS(0.3),
-    zw.Create(1, 1) >> lo.MZI(0.3, 0.5)
+    zw.Create(1, 1) >> photonic.BBS(0.3).to_zw(),
+    zw.Create(1, 1) >> photonic.TBS(0.3).to_zw(),
+    zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).to_zw()
 ]
 
 
@@ -100,12 +99,12 @@ def test_conversion_from_amplitudes_to_tensor(circ):
     assert np.allclose(ts, amps)
 
 circs = [
-    (lo.BBS(0.3), 2),
-    (lo.BBS(0.3) >> lo.BBS(0.7), 3),
-    (lo.TBS(0.3), 2),
-    (lo.TBS(0.3) >> lo.TBS(0.2), 4),
-    (zw.Create(1, 1) >> lo.MZI(0.3, 0.5) >> lo.MZI(0.3, 0.5), 0),
-    (zw.Create(1, 1) >> lo.MZI(0.3, 0.5) >> lo.BBS(0.5), 0)
+    (photonic.BBS(0.3).to_zw(), 2),
+    (photonic.BBS(0.3).to_zw() >> photonic.BBS(0.7).to_zw(), 3),
+    (photonic.TBS(0.3).to_zw(), 2),
+    (photonic.TBS(0.3).to_zw() >> photonic.TBS(0.2).to_zw(), 4),
+    (zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).to_zw() >> photonic.MZI(0.3, 0.5).to_zw(), 0),
+    (zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).to_zw() >> photonic.BBS(0.5).to_zw(), 0)
 ]
 
 @pytest.mark.parametrize("circ, n_extra_photons", circs)

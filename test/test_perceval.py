@@ -1,8 +1,17 @@
 import pytest
 
-from optyx.diagram.zw import *
-from optyx.diagram.lo import BS, BBS, Phase
+from optyx.core.zw import *
+from optyx.photonic import (
+    BS as BS_,
+	BBS as BBS_,
+	Phase as Phase_,
+)
+from optyx.core.diagram import Mode, Diagram
 import numpy as np
+
+BS = BS_.to_zw()
+BBS = lambda theta: BBS_(theta).to_zw()
+Phase = lambda theta: Phase_(theta).to_zw()
 
 unitary_circuits = [
 	BS >> Phase(1 / 4) @ Id(Mode(1)) >> BS.dagger(),

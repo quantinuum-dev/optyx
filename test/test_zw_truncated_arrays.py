@@ -1,5 +1,6 @@
-from optyx.diagram.zw import *
-from optyx.diagram.optyx import mode
+from optyx.core.zw import *
+from optyx.core.diagram import mode, Swap
+import numpy as np
 import pytest
 
 @pytest.mark.skip(reason="Helper function for testing")

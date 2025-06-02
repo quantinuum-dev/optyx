@@ -1,14 +1,11 @@
 import pytest
 import numpy as np
-import itertools
 import copy as cp
 
-from optyx.diagram.classical_functions import *
-#from optyx.diagram.feed_forward.measurement import *
-from optyx.diagram.control import *
-from optyx.diagram.zw import Create, W
-from optyx.diagram.optyx import PhotonThresholdDetector, Mode, Swap
-from optyx.diagram.lo import Phase, BS, MZI
+from optyx.core.control import *
+from optyx.core.zw import Create, W, ZBox
+from optyx.core.diagram import PhotonThresholdDetector, Mode, Swap, Bit, Id
+from optyx.photonic import Phase, BS, MZI
 from optyx._utils import matrix_to_zw
 
 
@@ -92,11 +89,11 @@ def real_f_3(x):
 # Parametrized data sets
 
 CIRCUITS_TO_TEST = [
-    (Phase(0.1), None),
-    (Phase(0.456), Phase(0.8765)),
-    (BS, None),
-    (BS, MZI(0.324, 0.9875)),
-    (W(2).dagger() >> W(2), MZI(0.324, 0.9875)),
+    (Phase(0.1).to_zw(), None),
+    (Phase(0.456).to_zw(), Phase(0.8765).to_zw()),
+    (BS.to_zw(), None),
+    (BS.to_zw(), MZI(0.324, 0.9875).to_zw()),
+    (W(2).dagger() >> W(2), MZI(0.324, 0.9875).to_zw()),
 ]
 
 CLASSICAL_FUNCTIONS_TO_TEST_MATRIX = (

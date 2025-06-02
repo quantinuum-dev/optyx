@@ -103,6 +103,7 @@ class Gate(channel.Channel):
         name: str
     ):
         self.array = np.array(array)
+        self.data = np.array(array)
         self.dom = channel.mode**dom
         self.cod = channel.mode**cod
         super().__init__(
@@ -153,8 +154,12 @@ class Phase(Gate):
 
     def __init__(self, angle: float):
         self.angle = angle
+        if isinstance(angle, Expr):
+            dtype = Expr
+        else:
+            dtype = complex
         super().__init__(
-            self.array(),
+            self.array(dtype),
             1, 1,
             f"Phase({angle})",
         )
@@ -299,6 +304,14 @@ class TBS(Gate):
         backend = sp if dtype is Expr else np
         return 1j * backend.exp(1j * self.theta * backend.pi)
 
+    def global_phase(self, dtype=complex):
+        backend = sp if dtype is Expr else np
+        return (
+            -1j * backend.exp(-1j * self.theta * backend.pi)
+            if self.is_dagger
+            else 1j * backend.exp(1j * self.theta * backend.pi)
+        )
+
     def array(self, dtype=complex):
         backend = sp if dtype is Expr else np
         sin = backend.sin(self.theta * np.pi)
@@ -367,9 +380,9 @@ class MZI(Gate):
         self.is_conj = is_conj
         self.is_dagger = is_dagger
         super().__init__(
-            f"MZI({theta}, {phi})",
+            self.array(),
             2, 2,
-            self.array()
+            f"MZI({theta}, {phi})"
         )
 
     def global_phase(self, dtype=complex):

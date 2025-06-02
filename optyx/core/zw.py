@@ -637,21 +637,21 @@ class Endo(Box):
         return input_dims
 
 
-def calculate_num_creations_selections(diagram: diagram.Diagram) -> tuple:
+def calculate_num_creations_selections(dgrm: diagram.Diagram) -> tuple:
     """Calculate the number of creations and selections in the diagram"""
 
     n_selections = 0
     n_creations = 0
 
-    if not isinstance(diagram, diagram.Sum):
-        for box, _ in zip(diagram.boxes, diagram.offsets):
+    if not isinstance(dgrm, diagram.Sum):
+        for box, _ in zip(dgrm.boxes, dgrm.offsets):
             if isinstance(box, Create):
                 n_creations += sum(box.photons)
             elif isinstance(box, Select):
                 n_selections += sum(box.photons)
     else:
         arr_selections_creations = []
-        for term in diagram:
+        for term in dgrm:
             arr_selections_creations.append(
                 calculate_num_creations_selections(term)
             )

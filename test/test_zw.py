@@ -1,10 +1,10 @@
 import math
 
-from optyx.diagram.zw import *
-from optyx.diagram.optyx import mode, DualRail, EmbeddingTensor
+from optyx.core.zw import *
+from optyx.core.diagram import mode, DualRail, EmbeddingTensor, Swap, Diagram, Mode, Spider, Scalar
 from optyx._utils import compare_arrays_of_different_sizes
-import optyx.diagram.zx as zx
-import optyx.diagram.lo as lo
+import optyx.core.zx as zx
+from optyx import photonic
 import itertools
 import pytest
 import numpy as np
@@ -139,7 +139,7 @@ def test_Id_eq(k: int):
 
 
 def test_permutation_dagger():
-    perm = optyx.Diagram.permutation([1, 0], Mode(2))
+    perm = Diagram.permutation([1, 0], Mode(2))
 
     assert compare_arrays_of_different_sizes(
         perm.to_tensor().eval().array,
@@ -149,7 +149,7 @@ def test_permutation_dagger():
 
 
 def test_permutation_path_dagger():
-    perm = optyx.Diagram.permutation([1, 0], Mode(2))
+    perm = Diagram.permutation([1, 0], Mode(2))
 
     assert compare_arrays_of_different_sizes(
         perm.to_path().array,
@@ -235,12 +235,12 @@ def test_bZBA_optyx_Spider(max_dim):
 
     bZBA_l = (
             ZBox(1, 1, N) @ ZBox(1, 1, N)
-            >> optyx.Spider(1, 2, optyx.Mode(1)) @ optyx.Spider(1, 2, optyx.Mode(1))
+            >> Spider(1, 2, Mode(1)) @ Spider(1, 2, Mode(1))
             >> Id(1) @ Swap(mode, mode) @ Id(1)
             >> W(2).dagger() @ W(2).dagger()
             >> Id(1) @ ZBox(1, 1, frac_N)
     )
-    bZBA_r = W(2).dagger() >> optyx.Spider(1, 2, optyx.Mode(1))
+    bZBA_r = W(2).dagger() >> Spider(1, 2, Mode(1))
 
     assert compare_arrays_of_different_sizes(
         bZBA_l.to_tensor(max_dim=max_dim).eval().array,
@@ -451,12 +451,12 @@ def test_hom(postselect_and_prob: list):
 
 def test_DR_X():
     left = Create(1, 0)
-    right = zx.X(0, 1) @ optyx.Scalar((1/2)**(1/2)) >> DualRail()
+    right = zx.X(0, 1) @ Scalar((1/2)**(1/2)) >> DualRail()
     assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)
 
 def test_DR_X_pi():
     left = Create(0, 1)
-    right = zx.X(0, 1, phase=0.5) @ optyx.Scalar((1/2)**(1/2)) >> DualRail()
+    right = zx.X(0, 1, phase=0.5) @ Scalar((1/2)**(1/2)) >> DualRail()
     assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)
 
 def test_DR_beamsplitter():
@@ -478,6 +478,6 @@ def test_DR_beamsplitter():
 phases = phases = [0.0, 0.3, 0.6]
 @pytest.mark.parametrize("phase", phases)
 def test_DR_phase_shift(phase):
-    left = DualRail().to_zw() >> lo.Id(1) @ lo.Phase(phase).to_zw()
+    left = DualRail().to_zw() >> Mode(1) @ photonic.Phase(phase).to_zw()
     right = zx.Z(1, 1, phase=phase) >> DualRail()
     assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)

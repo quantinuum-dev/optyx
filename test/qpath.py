@@ -1,4 +1,5 @@
-from optyx.diagram.zw import *
+from optyx.core.zw import *
+from optyx.core.diagram import Diagram, Mode, Id, Scalar
 
 
 def test_num_op():
