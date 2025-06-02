@@ -40,7 +40,7 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 
 **W commutativity**
 
->>> from optyx.utils import compare_arrays_of_different_sizes
+>>> from optyx._utils import compare_arrays_of_different_sizes
 >>> from discopy.drawing import Equation
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> SWAP
@@ -150,7 +150,7 @@ from typing import List, Union
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
-from optyx.core import diagram, zw
+from optyx.core import diagram
 from optyx._utils import occupation_numbers, multinomial
 from optyx.core.path import Matrix
 
@@ -291,7 +291,7 @@ class W(Box):
         array = np.ones(self.n_legs)
         if self.is_dagger:
             return Matrix[dtype](array, self.n_legs, 1)
-        return Matrix[dtype](array, 1, self.n_legs)
+        return Matrix[dtype](array, 1, int(self.n_legs))
 
     def dagger(self) -> diagram.Diagram:
         return W(self.n_legs, not self.is_dagger)
@@ -699,7 +699,6 @@ class Add(diagram.Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import Add
     >>> add_box = Add(2)
     >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
@@ -725,7 +724,7 @@ class Add(diagram.Box):
         if self.is_dagger:
             input_dims, output_dims = output_dims, input_dims
 
-        diag = zw.W(self.n).dagger().to_tensor(input_dims)
+        diag = W(self.n).dagger().to_tensor(input_dims)
         array = np.sign(
             (diag >> diagram.truncation_tensor(diag.cod.inside, output_dims))
             .eval()
@@ -756,7 +755,6 @@ class Multiply(diagram.Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import Multiply
     >>> mbox = Multiply()
     >>> result = mbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
     >>> import numpy as np
@@ -788,7 +786,7 @@ class Multiply(diagram.Box):
                                                  Add(n))
             else:
                 def multiply_diagram(n): return (diagram.Spider(1, 0, diagram.Mode(1)) >>
-                                                 zw.Create(0))
+                                                 Create(0))
 
             d = multiply_diagram(i).to_tensor([input_dims[1]])
             d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
@@ -821,7 +819,6 @@ class Divide(diagram.Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import Divide
     >>> dbox = Divide()
     >>> result = dbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
     >>> import numpy as np
@@ -882,7 +879,6 @@ class Mod2(diagram.Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import Mod2
     >>> m2 = Mod2()
     >>> array = m2.to_zw().to_tensor(input_dims=[5]).eval().array
     >>> import numpy as np

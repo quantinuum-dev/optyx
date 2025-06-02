@@ -47,9 +47,9 @@ Examples of usage
 We can check the Hong-Ou-Mandel effect by
 evaluating the permanent of the underlying matrix:
 
->>> from optyx.zw import Create, Select, Split, Merge, Id
->>> from optyx.lo import BS
->>> HOM = Create(1, 1) >> BS
+>>> from optyx.core.zw import Create, Select, Split, Merge, Id
+>>> from optyx.photonic import BS
+>>> HOM = Create(1, 1) >> BS.to_zw()
 >>> assert np.allclose(HOM.to_path().eval().array,\\
 ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j],\\
 ... dom=1, cod=3).array)
@@ -57,14 +57,14 @@ evaluating the permanent of the underlying matrix:
 >>> assert(HOM.to_path().prob().array, \\
 ... Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], \\
 ... dom=1, cod=3))
->>> left = Create(1, 1) >> BS >> Select(2, 0)
+>>> left = Create(1, 1) >> BS.to_zw() >> Select(2, 0)
 >>> left.to_path().prob()
 Probabilities[complex]([0.5+0.j], dom=1, cod=1)
 
 We can also show the Hong-Ou-Mandel effect by
 using the rules of the :class:`path` calculus:
 
->>> from optyx.zw import W, Endo, SWAP, Create, Select
+>>> from optyx.core.zw import W, Endo, SWAP, Create, Select
 >>> left_hs = (Create(1, 1) >> \\
 ... W(2) @ W(2) >> \\
 ... Endo(1j) @ Id(1) @ Id(1) @ Endo(1j) >> \\
@@ -104,7 +104,7 @@ We can construct a Bell state in dual rail encoding:
 >>> plus = Create() >> Split(2)
 >>> state = plus >> Id(1) @ plus @ Id(1)
 >>> bell = state @ state\\
-...     >> Id(2) @ (BS @ BS.dagger() >> state.dagger()) @ Id(2)
+...     >> Id(2) @ (BS.to_zw() @ BS.to_zw().dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose(
 ...     (bell >> H @ H).to_path().eval().array,
@@ -186,7 +186,7 @@ class Matrix(underlying.Matrix):
 
     Example
     -------
-    >>> from optyx.zw import Split, Select, Create, Merge, Id
+    >>> from optyx.core.zw import Split, Select, Create, Merge, Id
     >>> array = np.array([[1, 1], [1, 0]])
     >>> matrix = Matrix(array, 1, 1, creations=(1,), selections=(1,))
     >>> matrix.eval(3)
@@ -314,7 +314,7 @@ class Matrix(underlying.Matrix):
 
         Example
         -------
-        >>> from optyx.zw import Split, Select, Create, Merge, Id
+        >>> from optyx.core.zw import Split, Select, Create, Merge, Id
         >>> num_op = Split(2) >> Select() @ Id(1) \\
         ...           >> Create() @ Id(1) >> Merge(2)
         >>> U = num_op.to_path().dilate()
@@ -423,7 +423,7 @@ class Matrix(underlying.Matrix):
         Example
         -------
         >>> import numpy as np
-        >>> from optyx.zw import Split, Select, Create, Merge, Id, Endo, SWAP
+        >>> from optyx.core.zw import Split, Select, Create, Merge, Id, Endo, SWAP
         >>> theta, phi = np.pi / 4, 0
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)
@@ -506,13 +506,13 @@ class Amplitudes(underlying.Matrix):
 
     Example
     -------
-    >>> from optyx.zw import Select, Id
-    >>> from optyx.lo import BS
-    >>> BS.to_path().eval(1)
+    >>> from optyx.core.zw import Select, Id
+    >>> from optyx.photonic import BS
+    >>> BS.to_zw().to_path().eval(1)
     Amplitudes([0.    +0.70710678j, 0.70710678+0.j    , 0.70710678+0.j    ,
      0.    +0.70710678j], dom=2, cod=2)
-    >>> assert isinstance(BS.to_path().eval(2), Amplitudes)
-    >>> assert np.allclose((BS >> Select(1) @ \\
+    >>> assert isinstance(BS.to_zw().to_path().eval(2), Amplitudes)
+    >>> assert np.allclose((BS.to_zw() >> Select(1) @ \\
     ... Id(1)).to_path().eval(2).array,\\
     ... Amplitudes([0.+0.70710678j, -0.+0.j    , 0.+0.70710678j], \\
     ... dom=3, cod=1).array)
@@ -530,11 +530,11 @@ class Probabilities(underlying.Matrix):
 
     Example
     -------
-    >>> from optyx.zw import Create
-    >>> from optyx.lo import BS
-    >>> BS.to_path().prob(1).round(1)
+    >>> from optyx.core.zw import Create
+    >>> from optyx.photonic import BS
+    >>> BS.to_zw().to_path().prob(1).round(1)
     Probabilities[complex]([0.5+0.j, 0.5+0.j, 0.5+0.j, 0.5+0.j], dom=2, cod=2)
-    >>> (Create(1, 1) >> BS).to_path().prob().round(1)
+    >>> (Create(1, 1) >> BS.to_zw()).to_path().prob().round(1)
     Probabilities[complex]([0.5+0.j, 0. +0.j, 0.5+0.j], dom=1, cod=3)
     """
 

@@ -13,7 +13,7 @@ with generators :class:`zw.Z`, :class:`zw.W`, creations and selections.
 :class:`zx.Z` and :class:`zx.X`.
 
 Mode and Bit types can moreover be combined using :class:`DualRail`
-or other instances of :class:`optyx.Box`.
+or other instances of :class:`diagram.core.Box`.
 Note that the permanent method is only defined for a subclass
 of :class:`zw` diagrams, including :class:`lo` circuits.
 These are also known as QPath diagrams [FC23]_,
@@ -85,7 +85,7 @@ We can create and draw Optyx diagrams using the syntax of
 the Discopy package [FTC21]_. Sequential composition of
 boxes is done using the :code:`<<` operator:
 
->>> from optyx.zw import Create, W
+>>> from optyx.core.zw import Create, W
 >>> split_photon = Create(1) >> W(2)
 >>> split_photon.draw(path="docs/_static/seq_comp_example.png")
 
@@ -94,17 +94,17 @@ boxes is done using the :code:`<<` operator:
 
 We can also compose boxes in parallel (tensor) using the :code:`@` operator :
 
->>> from optyx.lo import BS, Phase
->>> beam_splitter_phase = BS @ Phase(0.5)
+>>> from optyx.photonic import BS, Phase
+>>> beam_splitter_phase = BS.to_zw() @ Phase(0.5).to_zw()
 >>> beam_splitter_phase.draw(path="docs/_static/parallel_comp_example.png")
 
 .. image:: /_static/parallel_comp_example.png
     :align: center
 
-A beam-splitter from the :class:`lo` calculus can be
+A beam-splitter from the :class:`photonic` calculus can be
 expressed using the :class:`zw` calculus:
 
->>> from optyx.lo import BS
+>>> from optyx.photonic import BS
 >>> beam_splitter = BS.to_zw()
 >>> beam_splitter.draw(path="docs/_static/bs_zw.png")
 
@@ -113,15 +113,15 @@ expressed using the :class:`zw` calculus:
 
 Optyx diagrams can combine the generators from
 :class:`zw` (Mode type),
-:class:`lo` (Mode type) and :class:`zx` calculi (Bit type).
+:class:`photonic` (Mode type) and :class:`zx` calculi (Bit type).
 We can check their equivalence as tensors.
 
 **Branching Law**
 
 Let's check the branching law from [FC23]_.
 
->>> from optyx.zw import Create, W
->>> from optyx.utils import compare_arrays_of_different_sizes
+>>> from optyx.core.zw import Create, W
+>>> from optyx._utils import compare_arrays_of_different_sizes
 >>> branching_l = Create(1) >> W(2)
 >>> branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
@@ -135,7 +135,7 @@ Let's check the branching law from [FC23]_.
 The :code:`to_tensor` method supports evaluation of
 diagrams like the Hong-Ou-Mandel effect:
 
->>> from optyx.zw import ZBox, SWAP, W, Select, Id
+>>> from optyx.core.zw import ZBox, SWAP, W, Select, Id
 >>> Zb_i = ZBox(1,1,np.array([1, 1j/(np.sqrt(2))]))
 >>> Zb_1 = ZBox(1,1,np.array([1, 1/(np.sqrt(2))]))
 >>> beam_splitter = W(2) @ W(2) >> \\
@@ -154,7 +154,7 @@ diagrams like the Hong-Ou-Mandel effect:
 The :code:`from_bosonic_operator` method
 supports creating :class:`path` diagrams:
 
->>> from optyx.zw import Split, Select, Id, Mode, Scalar
+>>> from optyx.core.zw import Split, Select, Id
 >>> d1 = Diagram.from_bosonic_operator(
 ...     n_modes= 2,
 ...     operators=((0, False), (1, False), (0, True)),
@@ -174,7 +174,7 @@ supports creating :class:`path` diagrams:
 The :code:`to_path` method supports evaluation by
 calculating a permanent of an underlying matrix:
 
->>> from optyx.zw import Create, W
+>>> from optyx.core.zw import Create, W
 >>> counit_l = W(2) >> Select(0) @ Id(Mode(1))
 >>> counit_r = W(2) >> Id(Mode(1)) @ Select(0)
 >>> assert counit_l.to_path().eval(2) == counit_r.to_path().eval(2)
@@ -290,7 +290,7 @@ class Diagram(frobenius.Diagram):
         of a :class:`Diagram`.
         In other words, it is the underlying matrix
         representation of a :class:`path` and :class:`lo` diagrams."""
-        from optyx import path
+        from optyx.core import path
 
         return symmetric.Functor(
             ob=len,
@@ -359,10 +359,10 @@ class Diagram(frobenius.Diagram):
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
         """Create a :class:`zw` diagram from a bosonic operator."""
-        from optyx import zw
+        from optyx.core import zw
 
         d = cls.id(Mode(n_modes))
-        annil = zw.Split(2) >> zw.Select(1) @ zw.Id(Mode(1))
+        annil = zw.Split(2) >> zw.Select(1) @ zw.Id(1)
         create = annil.dagger()
         for idx, dagger in operators:
             if not 0 <= idx < n_modes:
@@ -371,14 +371,14 @@ class Diagram(frobenius.Diagram):
             d = d >> zw.Id(idx) @ box @ zw.Id(n_modes - idx - 1)
 
         if scalar != 1:
-            d = zw.Scalar(scalar) @ d
+            d = Scalar(scalar) @ d
         return d
 
     def to_pyzx(self):
         """
         Returns a :class:`pyzx.Graph`.
 
-        >>> import optyx.zx as zx
+        >>> import optyx.core.zx as zx
         >>> bialgebra = zx.Z(1, 2, .25) @ zx.Z(1, 2, .75) >> Id(Bit(1)) @ \\
         ...   zx.SWAP @ Id(Bit(1)) >> zx.X(2, 1, .5) @ zx.X(2, 1, .5)
         >>> graph = bialgebra.to_pyzx()
@@ -400,7 +400,7 @@ class Diagram(frobenius.Diagram):
         ...     7: {5: 1}}
         """
         from pyzx import Graph, VertexType, EdgeType
-        from optyx import zx
+        from optyx.core import zx
 
         graph, scan = Graph(), []
         for i, _ in enumerate(self.dom):
@@ -430,7 +430,7 @@ class Diagram(frobenius.Diagram):
                     + [scan[offset + 1], scan[offset]]
                     + scan[offset + 2:]
                 )
-            elif isinstance(box, zx.Scalar):
+            elif isinstance(box, Scalar):
                 graph.scalar.add_float(box.data)
             elif box == zx.H:
                 node, hadamard = scan[offset]
@@ -454,7 +454,7 @@ class Diagram(frobenius.Diagram):
         Examples
         --------
 
-        >>> import optyx.zx as zx
+        >>> import optyx.core.zx as zx
         >>> bialgebra = zx.Z(1, 2, .25) @ zx.Z(1, 2, .75) >> \\
         ...    zx.Id(Bit(1)) @ zx.SWAP @ zx.Id(Bit(1)) >> \\
         ...    zx.X(2, 1, .5) @ zx.X(2, 1, .5)
@@ -469,7 +469,7 @@ class Diagram(frobenius.Diagram):
         * or :code:`set(graph.inputs()).intersection(graph.outputs())`.
         """
         from pyzx import VertexType, EdgeType
-        from optyx import zx
+        from optyx.core import zx
 
         def node2box(node, n_legs_in, n_legs_out):
             if graph.type(node) not in {VertexType.Z, VertexType.X}:
@@ -717,7 +717,7 @@ class Sum(symmetric.Sum, Box):
         # we need to implement the proper sums of qpath diagrams
         # this is only a temporary solution, so that the grad tests pass
         if permanent is None:
-            from optyx.path import npperm
+            from optyx.core.path import npperm
 
             permanent = npperm
         return sum(
@@ -769,7 +769,7 @@ class Swap(frobenius.Swap, Box):
         return self
 
     def to_path(self, dtype: type = complex):
-        from optyx.path import Matrix
+        from optyx.core.path import Matrix
 
         return Matrix([0, 1, 1, 0], 2, 2)
 
@@ -792,13 +792,13 @@ class Scalar(Box):
 
     Example
     -------
-    >>> from optyx.path import Matrix
-    >>> from optyx.zw import Create, Select
-    >>> from optyx.lo import BS
+    >>> from optyx.core.path import Matrix
+    >>> from optyx.core.zw import Create, Select
+    >>> from optyx.photonic import BS
     >>> assert Scalar(0.45).to_path() == Matrix(
     ...     [], dom=0, cod=0,
     ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS.to_zw() >> Select(2, 0)
     >>> assert np.isclose(s.to_path().eval().array[0], 1)
     """
 
@@ -822,7 +822,7 @@ class Scalar(Box):
         return f"scalar({format_number(self.data)})"
 
     def to_path(self, dtype: type = complex):
-        from optyx.path import Matrix
+        from optyx.core.path import Matrix
 
         return Matrix[dtype]([], 0, 0, scalar=self.scalar)
 
@@ -830,7 +830,7 @@ class Scalar(Box):
         return Scalar(self.scalar.conjugate())
 
     def to_zw(self):
-        from optyx.zw import ZBox
+        from optyx.core.zw import ZBox
 
         return ZBox(0, 0, self.array)
 

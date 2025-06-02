@@ -11,7 +11,7 @@ Utility functions which are used in the package.
 import numpy as np
 
 def _build_w_layer(n_nonzero_counts, dagger=False):
-    from optyx.diagram import zw
+    from optyx.core import zw
 
     layer = zw.Id(0)
     for count in n_nonzero_counts:
@@ -24,8 +24,8 @@ def _build_w_layer(n_nonzero_counts, dagger=False):
 
 
 def matrix_to_zw(U):
-    from optyx.diagram import zw
 
+    from optyx.core import zw
     n = U.shape[0]
     diagram = zw.Id(0)
 
@@ -214,7 +214,7 @@ def explode_channel(
     channel_class=None,
     circuit_class=None,
 ):
-    from optyx.diagram.channel import Channel, Ty, Circuit
+    from optyx.core.channel import Channel, Ty, Circuit
 
     if channel_class is None:
         channel_class = Channel

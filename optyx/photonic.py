@@ -98,16 +98,21 @@ class Gate(channel.Channel):
     def __init__(
         self,
         array,
+        dom: int,
+        cod: int,
         name: str
     ):
-        self.array = array
+        self.array = np.array(array)
+        self.dom = channel.mode**dom
+        self.cod = channel.mode**cod
         super().__init__(
             name,
             self.to_zw()
         )
 
     def to_zw(self):
-        return matrix_to_zw(self.array)
+        array = np.reshape(self.array, (len(self.dom), len(self.cod)))
+        return matrix_to_zw(array)
 
     def to_path(self, dtype=complex):
         array = self.array(dtype)
@@ -150,6 +155,7 @@ class Phase(Gate):
         self.angle = angle
         super().__init__(
             self.array(),
+            1, 1,
             f"Phase({angle})",
         )
 
@@ -231,11 +237,11 @@ class BBS(Gate):
     def __init__(self, bias, conj=False):
         self.bias = bias
         self.conj = conj
-        def __init__(self, bias: float):
-            super().__init__(
-                self.array(),
-                f"BBS({bias})",
-            )
+        super().__init__(
+            self.array(),
+            2, 2,
+            f"BBS({bias})",
+        )
 
     def array(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -285,6 +291,7 @@ class TBS(Gate):
         self.is_dagger = is_dagger
         super().__init__(
             self.array(),
+            2, 2,
             f"TBS({theta})",
         )
 
@@ -361,6 +368,7 @@ class MZI(Gate):
         self.is_dagger = is_dagger
         super().__init__(
             f"MZI({theta}, {phi})",
+            2, 2,
             self.array()
         )
 
@@ -436,10 +444,10 @@ def ansatz(width, depth):
 
 
 class HadamardBS(Gate):
-    def __init__():
+    def __init__(self):
         matrix = np.sqrt(1 / 2) * np.array([[1, 1], [1, -1]])
         super().__init__(
-            matrix, "HadamardBS"
+            matrix, 2, 2, "HadamardBS"
         )
 
 

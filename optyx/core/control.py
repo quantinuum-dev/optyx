@@ -34,15 +34,13 @@ Examples
 
 We can construct a controlled gate acting on a quantum mode:
 
->>> from optyx.feed_forward.controlled_gates import ControlledPhaseShift
 >>> f = lambda x: [x * 0.1, x * 0.2]
 >>> box = ControlledPhaseShift(f, n_modes=2)
 >>> box.to_zw().draw(path='docs/_static/controlled_phase.svg')
 
 A bit-controlled gate can be composed as:
 
->>> from optyx.feed_forward.controlled_gates import BitControlledBox
->>> from optyx.zw import ZBox
+>>> from optyx.core.zw import ZBox
 >>> control = BitControlledBox(ZBox(1, 1, lambda x: x))
 >>> control.to_zw().draw(path='docs/_static/binary_control.svg')
 """
@@ -63,10 +61,10 @@ class BitControlledBox(diagram.Box):
 
     Example
     -------
-    >>> from optyx.lo import Phase
-    >>> from optyx.optyx import PhotonThresholdDetector, Mode
-    >>> from optyx.zw import Create
-    >>> action = Phase(0.1)
+    >>> from optyx.photonic import Phase
+    >>> from optyx.core.diagram import PhotonThresholdDetector, Mode
+    >>> from optyx.core.zw import Create, ZBox
+    >>> action = Phase(0.1).to_zw()
     >>> default = ZBox(1, 1, lambda x: 1)
     >>> action_result = action.to_zw().to_tensor().eval().array
     >>> default_result = default.to_zw().to_tensor().eval().array
@@ -210,8 +208,8 @@ class ControlledPhaseShift(diagram.Box):
 
     Example
     -------
-    >>> from optyx.optyx import Id
-    >>> from optyx.zw import Create
+    >>> from optyx.core.diagram import Id, Mode
+    >>> from optyx.core.zw import Create, ZBox
     >>> f = lambda x: [x[0]*0.1, x[0]*0.2, x[0]*0.3]
     >>> n = len(f([0]))
     >>> controlled_phase = (Create(2) @ Mode(n) >>
@@ -383,8 +381,8 @@ class BinaryMatrixBox(diagram.Box):
 
     Example
     -------
-    >>> from optyx.zx import X
-    >>> from optyx.optyx import Scalar
+    >>> from optyx.core.zx import X
+    >>> from optyx.core.diagram import Scalar
     >>> xor = X(2, 1) @ Scalar(np.sqrt(2))
     >>> matrix = [[1, 1]]
     >>> m_res = BinaryMatrixBox(matrix).to_tensor().eval().array

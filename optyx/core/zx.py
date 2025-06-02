@@ -40,7 +40,7 @@ We can map ZX diagrams to :class:`path` diagrams using
 dual-rail encoding. For example, we can create a GHZ state:
 
 >>> from discopy.drawing import Equation
->>> from optyx.optyx import dual_rail, embedding_tensor
+>>> from optyx.core.diagram import dual_rail, embedding_tensor
 >>> ghz = Z(0, 3)
 >>> ghz_decom = decomp(ghz)
 >>> ghz_path = zx_to_path(ghz_decom)
@@ -77,17 +77,17 @@ As shown in the example above, we need to decompose a ZX diagram
 into more elementary spiders before mapping it to a path diagram.
 More explicitely:
 
->>> diagram = Z(2, 1, 0.25) >> X(1, 1, 0.35)
->>> print(decomp(diagram))
+>>> dgr = Z(2, 1, 0.25) >> X(1, 1, 0.35)
+>>> print(decomp(dgr))
 Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
->>> print(zx2path(decomp(diagram))[:2])
+>>> print(zx2path(decomp(dgr))[:2])
 mode @ W[::-1] @ mode >> mode @ Select(1) @ mode
->>> assert zx2path(decomp(diagram)) == zx_to_path(diagram)
+>>> assert zx2path(decomp(dgr)) == zx_to_path(dgr)
 
 Evaluating ZX diagrams using PyZX or via the dual rail
 encoding is equivalent.
 
->>> ket = lambda *xs: Id(Bit(0)).tensor(\\
+>>> ket = lambda *xs: Id(diagram.Bit(0)).tensor(\\
 ...         *[X(0, 1, 0.5 if x == 1 else 0) for x in xs])
 >>> cnot = Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1)
 >>> control = lambda x: ket(x) @ Id(1) >> cnot >> ket(x).dagger() @ Id(1)
@@ -104,7 +104,7 @@ Corner case where :code:`to_pyzx` and
 :code:`zx_to_path` agree only up to global
 phase.
 
->>> diagram = X(0, 2) @ Z(0, 1, 0.25) @ Scalar(1/2)\\
+>>> diagram = X(0, 2) @ Z(0, 1, 0.25) @ scalar(1/2)\\
 ...     >> Id(1) @ Z(2, 1) >> X(2, 0, 0.35)
 >>> print(decomp(diagram)[:3])
 X(0, 1) >> H >> Z(1, 2)
@@ -136,9 +136,7 @@ from discopy.cat import Category
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
-from optyx.core import diagram
-from optyx import zw
-from optyx import photonic
+from optyx.core import diagram, zw
 
 
 class Box(diagram.Box):
@@ -376,7 +374,7 @@ decomp = symmetric.Functor(
 
 
 def Id(n):
-    return diagram.Diagram.id(n) if isinstance(n, diagram.optyx.Ty) \
+    return diagram.Diagram.id(n) if isinstance(n, diagram.Ty) \
           else diagram.Diagram.id(diagram.Bit(n))
 
 
@@ -386,17 +384,19 @@ def ar_zx2path(box):
     >>> zx2path(decomp(X(0, 1) @ X(0, 1) >> Z(2, 1))).to_path().eval()
     Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
     """
+    from optyx.photonic import HadamardBS, Phase, BS
+
     unit = zw.Create(0)
     counit = zw.Select(0)
     create = zw.Create(1)
     annil = zw.Select(1)
     comonoid = zw.Split(2)
     monoid = zw.Merge(2)
-    BS = photonic.BS.to_zw()
+    BS = BS.to_zw()
 
     n, m = len(box.dom), len(box.cod)
     if isinstance(box, diagram.Scalar):
-        return zw.Scalar(box.data)
+        return diagram.Scalar(box.data)
     if isinstance(box, X):
         phase = 1 + box.phase if box.phase < 0 else box.phase
         if (n, m, phase) == (0, 1, 0):
@@ -416,7 +416,7 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return Id(diagram.Mode(1)) @ photonic.Phase(phase).to_zw()
+            return Id(diagram.Mode(1)) @ Phase(phase).to_zw()
         if (n, m, phase) == (2, 1, 0):
             return Id(diagram.Mode(1)) @ (monoid >> annil) @ Id(diagram.Mode(1))
         if (n, m, phase) == (1, 2, 0):
@@ -428,7 +428,7 @@ def ar_zx2path(box):
             fusion = Id(diagram.Mode(1)) @ plus.dagger() @ Id(diagram.Mode(1)) >> plus.dagger()
             return bot >> mid >> (Id(diagram.Mode(2)) @ fusion @ Id(diagram.Mode(2)))
     if box == H:
-        return photonic.HadamardBS.to_zw()
+        return HadamardBS().to_zw()
     raise NotImplementedError(f"No translation of {box} in QPath.")
 
 
@@ -439,7 +439,7 @@ zx2path = symmetric.Functor(
 )
 
 
-def zx_to_path(diagram: diagram.Diagram) -> diagram.optyx.Diagram:
+def zx_to_path(diagram: diagram.Diagram) -> diagram.Diagram:
     """
     Dual-rail encoding of any ZX diagram as a QPath diagram.
     """
@@ -531,7 +531,6 @@ class And(diagram.Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import And
     >>> and_box = And().to_zw().to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
     >>> assert np.isclose(and_box[1, 1, 1], 1.0)
@@ -588,7 +587,6 @@ class Or(diagram.Box):
 
     Example
     -------
-    >>> from optyx.feed_forward.classical_arithmetic import Or
     >>> or_box = Or().to_zw().to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
     >>> assert np.isclose(or_box[0, 0, 0], 1.0)   # only all-zeros→0
