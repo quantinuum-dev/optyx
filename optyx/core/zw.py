@@ -151,20 +151,18 @@ import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.core import diagram, zw
-from optyx.diagram.optyx import Diagram, Mode, Swap, Scalar, Spider
 from optyx._utils import occupation_numbers, multinomial
-from optyx.path import Matrix
-from optyx.diagram import optyx
+from optyx.core.path import Matrix
 
 
-class Box(optyx.Box):
+class Box(diagram.Box):
     """Box in a :class:`Diagram`"""
 
     def __init__(self, name, dom, cod, **params):
         if isinstance(dom, int):
-            dom = Mode(dom)
+            dom = diagram.Mode(dom)
         if isinstance(cod, int):
-            cod = Mode(cod)
+            cod = diagram.Mode(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
 
     def to_zw(self):
@@ -222,8 +220,8 @@ class W(Box):
     color = "white"
 
     def __init__(self, n_legs: int, is_dagger: bool = False):
-        dom = Mode(n_legs) if is_dagger else Mode(1)
-        cod = Mode(1) if is_dagger else Mode(n_legs)
+        dom = diagram.Mode(n_legs) if is_dagger else diagram.Mode(1)
+        cod = diagram.Mode(1) if is_dagger else diagram.Mode(n_legs)
         super().__init__("W", dom, cod)
         self.n_legs = n_legs
         self.is_dagger = is_dagger
@@ -295,7 +293,7 @@ class W(Box):
             return Matrix[dtype](array, self.n_legs, 1)
         return Matrix[dtype](array, 1, self.n_legs)
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return W(self.n_legs, not self.is_dagger)
 
     def __repr__(self):
@@ -311,7 +309,7 @@ class W(Box):
         )
 
 
-class ZBox(Spider, Box):
+class ZBox(diagram.Spider, Box):
     """
     Z spider from the ZW calculus.
     """
@@ -329,7 +327,7 @@ class ZBox(Spider, Box):
             self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
-        super().__init__(legs_in, legs_out, Mode(1))
+        super().__init__(legs_in, legs_out, diagram.Mode(1))
         self.legs_in = legs_in
         self.legs_out = legs_out
 
@@ -352,8 +350,6 @@ class ZBox(Spider, Box):
             )
             return tensor.Box(self.name, Dim(1), Dim(1), amplitudes)
 
-        from optyx.diagram.optyx import EmbeddingTensor
-
         spider_dim = min(input_dims) if self.legs_in > 0 else 2
 
         # create the array
@@ -372,7 +368,7 @@ class ZBox(Spider, Box):
         idx_leg_zbox = 0
         for i, input_dim in enumerate(input_dims):
             embedding_layer @= (
-                EmbeddingTensor(input_dim, spider_dim)
+                diagram.EmbeddingTensor(input_dim, spider_dim)
                 if input_dim > spider_dim
                 else tensor.Id(Dim(int(input_dim)))
             )
@@ -430,7 +426,7 @@ class ZBox(Spider, Box):
             return self.amplitudes == other.amplitudes
         return np.allclose(self.amplitudes, other.amplitudes)
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return ZBox(self.legs_out, self.legs_in, np.conj(self.amplitudes))
 
 
@@ -500,7 +496,7 @@ class Create(Box):
             for i in range(len(self.cod))
         ]
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return Select(*self.photons)
 
 
@@ -569,7 +565,7 @@ class Select(Box):
         """Determine the output dimensions based on the input dimensions."""
         return []
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return Create(*self.photons)
 
 
@@ -611,7 +607,7 @@ class Endo(Box):
         """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([self.scalar], 1, 1)
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return Endo(self.scalar.conjugate())
 
     def grad(self, var):
@@ -620,7 +616,7 @@ class Endo(Box):
             return self.sum_factory((), self.dom, self.cod)
         s = self.scalar.diff(var) / self.scalar
         num_op = Split(2) >> Id(1) @ (Select() >> Create()) >> Merge(2)
-        d = Scalar(s) @ (self >> num_op)
+        d = diagram.Scalar(s) @ (self >> num_op)
         return d
 
     def lambdify(self, *symbols, **kwargs):
@@ -641,13 +637,13 @@ class Endo(Box):
         return input_dims
 
 
-def calculate_num_creations_selections(diagram: Diagram) -> tuple:
+def calculate_num_creations_selections(diagram: diagram.Diagram) -> tuple:
     """Calculate the number of creations and selections in the diagram"""
 
     n_selections = 0
     n_creations = 0
 
-    if not isinstance(diagram, optyx.Sum):
+    if not isinstance(diagram, diagram.Sum):
         for box, _ in zip(diagram.boxes, diagram.offsets):
             if isinstance(box, Create):
                 n_creations += sum(box.photons)
@@ -678,7 +674,7 @@ def filter_occupation_numbers(
     ]
 
 
-SWAP = Swap(Mode(1), Mode(1))
+SWAP = diagram.Swap(diagram.Mode(1), diagram.Mode(1))
 
 
 def Split(n):
@@ -690,7 +686,8 @@ def Merge(n):
 
 
 def Id(n):
-    return Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
+    return diagram.Diagram.id(n) if \
+          isinstance(n, diagram.Ty) else diagram.Diagram.id(diagram.Mode(n))
 
 
 class Add(diagram.Box):
@@ -788,7 +785,7 @@ class Multiply(diagram.Box):
         for i in range(input_dims[0]):
             if i > 0:
                 def multiply_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
-                                                 add_N(n))
+                                                 Add(n))
             else:
                 def multiply_diagram(n): return (diagram.Spider(1, 0, diagram.Mode(1)) >>
                                                  zw.Create(0))
@@ -852,7 +849,7 @@ class Divide(diagram.Box):
         for i in range(input_dims[1]):
             if i > 0:
                 def divide_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
-                                               add_N(n)).dagger()
+                                               Add(n)).dagger()
 
                 d = divide_diagram(i).to_tensor([input_dims[0]])
                 d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)

@@ -137,20 +137,18 @@ from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.core import diagram
-from optyx.diagram import optyx
 from optyx import zw
 from optyx import photonic
-from optyx.diagram.optyx import Diagram, Bit, Sum, Swap, bit, Mode, Scalar
 
 
-class Box(optyx.Box):
+class Box(diagram.Box):
     """A box in a ZX diagram."""
 
     def __init__(self, name, dom, cod, **params):
         if isinstance(dom, int):
-            dom = Bit(dom)
+            dom = diagram.Bit(dom)
         if isinstance(cod, int):
-            cod = Bit(cod)
+            cod = diagram.Bit(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
 
     @property
@@ -182,11 +180,11 @@ class Box(optyx.Box):
         )
 
 
-class Spider(optyx.Spider, Box):
+class Spider(diagram.Spider, Box):
     """Abstract spider box."""
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        super().__init__(n_legs_in, n_legs_out, Bit(1), phase)
+        super().__init__(n_legs_in, n_legs_out, diagram.Bit(1), phase)
         factory_str = type(self).__name__
         phase_str = f", {self.phase}" if self.phase else ""
         self.name = f"{factory_str}({n_legs_in}, {n_legs_out}{phase_str})"
@@ -206,10 +204,10 @@ class Spider(optyx.Spider, Box):
         """Gradient with respect to a variable."""
 
         if var not in self.free_symbols:
-            return Sum((), self.dom, self.cod)
+            return diagram.Sum((), self.dom, self.cod)
         gradient = self.phase.diff(var)
         gradient = complex(gradient) if not gradient.free_symbols else gradient
-        return Scalar(pi * gradient) @ type(self)(
+        return diagram.Scalar(pi * gradient) @ type(self)(
             len(self.dom), len(self.cod), self.phase + 0.5
         )
 
@@ -329,7 +327,7 @@ class X(Spider):
 
 def scalar(data):
     """Returns a scalar."""
-    return Scalar(data)
+    return diagram.Scalar(data)
 
 
 def make_spiders(n):
@@ -371,14 +369,15 @@ def decomp_ar(box):
 
 
 decomp = symmetric.Functor(
-    ob=lambda x: Bit(len(x)),
+    ob=lambda x: diagram.Bit(len(x)),
     ar=decomp_ar,
-    cod=symmetric.Category(Bit, Diagram),
+    cod=symmetric.Category(diagram.Bit, diagram.Diagram),
 )
 
 
 def Id(n):
-    return Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Bit(n))
+    return diagram.Diagram.id(n) if isinstance(n, diagram.optyx.Ty) \
+          else diagram.Diagram.id(diagram.Bit(n))
 
 
 def ar_zx2path(box):
@@ -396,7 +395,7 @@ def ar_zx2path(box):
     BS = photonic.BS.to_zw()
 
     n, m = len(box.dom), len(box.cod)
-    if isinstance(box, Scalar):
+    if isinstance(box, diagram.Scalar):
         return zw.Scalar(box.data)
     if isinstance(box, X):
         phase = 1 + box.phase if box.phase < 0 else box.phase
@@ -417,30 +416,30 @@ def ar_zx2path(box):
         if (n, m) == (0, 1):
             return create >> comonoid
         if (n, m) == (1, 1):
-            return Id(Mode(1)) @ photonic.Phase(phase).to_zw()
+            return Id(diagram.Mode(1)) @ photonic.Phase(phase).to_zw()
         if (n, m, phase) == (2, 1, 0):
-            return Id(Mode(1)) @ (monoid >> annil) @ Id(Mode(1))
+            return Id(diagram.Mode(1)) @ (monoid >> annil) @ Id(diagram.Mode(1))
         if (n, m, phase) == (1, 2, 0):
             plus = create >> comonoid
-            bot = (plus >> Id(Mode(1)) @ plus @ Id(Mode(1))) @ (
-                Id(Mode(1)) @ plus @ Id(Mode(1))
+            bot = (plus >> Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1))) @ (
+                Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1))
             )
-            mid = Id(Mode(2)) @ BS.dagger() @ BS @ Id(Mode(2))
-            fusion = Id(Mode(1)) @ plus.dagger() @ Id(Mode(1)) >> plus.dagger()
-            return bot >> mid >> (Id(Mode(2)) @ fusion @ Id(Mode(2)))
+            mid = Id(diagram.Mode(2)) @ BS.dagger() @ BS @ Id(diagram.Mode(2))
+            fusion = Id(diagram.Mode(1)) @ plus.dagger() @ Id(diagram.Mode(1)) >> plus.dagger()
+            return bot >> mid >> (Id(diagram.Mode(2)) @ fusion @ Id(diagram.Mode(2)))
     if box == H:
         return photonic.HadamardBS.to_zw()
     raise NotImplementedError(f"No translation of {box} in QPath.")
 
 
 zx2path = symmetric.Functor(
-    ob=lambda x: Mode(2 * len(x)),
+    ob=lambda x: diagram.Mode(2 * len(x)),
     ar=ar_zx2path,
-    cod=symmetric.Category(Mode, Diagram),
+    cod=symmetric.Category(diagram.Mode, diagram.Diagram),
 )
 
 
-def zx_to_path(diagram: Diagram) -> optyx.Diagram:
+def zx_to_path(diagram: diagram.Diagram) -> diagram.optyx.Diagram:
     """
     Dual-rail encoding of any ZX diagram as a QPath diagram.
     """
@@ -455,7 +454,7 @@ def gate2zx(box):
     if isinstance(box, (Bra, Ket)):
         dom, cod = (1, 0) if isinstance(box, Bra) else (0, 1)
         spiders = [X(dom, cod, phase=0.5 * bit) for bit in box.bitstring]
-        return Id(Bit(0)).tensor(*spiders) @ scalar(
+        return Id(diagram.Bit(0)).tensor(*spiders) @ scalar(
             pow(2, -len(box.bitstring) / 2)
         )
     if isinstance(box, (Rz, Rx)):
@@ -494,10 +493,10 @@ def gate2zx(box):
 
 
 circuit2zx = quantum.circuit.Functor(
-    ob={qubit: Bit(1)},
+    ob={qubit: diagram.Bit(1)},
     ar=gate2zx,
     dom=Category(quantum.circuit.Ty, Circuit),
-    cod=Category(Bit, Diagram),
+    cod=Category(diagram.Bit, diagram.Diagram),
 )
 
 H = Box("H", 1, 1)
@@ -511,7 +510,7 @@ H.draw_as_spider = True
 H.data = np.array([[1, 1], [1, -1]]) / 2**0.5
 H.color, H.shape = "yellow", "rectangle"
 
-SWAP = Swap(bit, bit)
+SWAP = diagram.Swap(diagram.bit, diagram.bit)
 SWAP.array = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
 

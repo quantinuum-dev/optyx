@@ -57,7 +57,7 @@ Examples
 
 A Channel is initialised by its Kraus map from `dom` to `cod @ env`.
 
->>> from optyx import lo, zx, zw
+>>> from optyx.core import lo, zx, zw
 >>> circ = lo.Phase(0.25) @ lo.BS @ lo.Phase(0.56) >> lo.BS @ lo.BS
 >>> channel = Channel(name='circuit', kraus=circ,\\
 ...                   dom=qmode ** 4, cod=qmode ** 4, env=optyx.Ty())
@@ -111,8 +111,7 @@ from pytket.extensions.pyzx import tk_to_pyzx, pyzx_to_tk
 from pyzx import extract_circuit
 
 from optyx._utils import explode_channel
-from optyx import zx
-from optyx.diagram import optyx
+from optyx.core import zx, optyx
 
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
