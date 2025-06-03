@@ -202,7 +202,7 @@ class Diagram(symmetric.Diagram):
 
         return symmetric.Functor(
             ob=len,
-            ar=lambda f: f.to_path(dtype),
+            ar=lambda f: f.get_kraus().to_path(dtype),
             cod=symmetric.Category(int, path.Matrix[dtype]),
         )(self)
 
@@ -225,18 +225,19 @@ class Diagram(symmetric.Diagram):
             generator = layer.inside[0][1]
 
             are_layers_pure.append(
-                all(ty.is_classical for ty in generator.cod.inside) or
-                all(ty.is_classical for ty in generator.dom.inside) or
+                any(ty.is_classical for ty in generator.cod.inside) or
+                any(ty.is_classical for ty in generator.dom.inside) or
                 isinstance(generator, Discard)
             )
 
-        return not all(are_layers_pure)
+        return not any(are_layers_pure)
 
 
     ######## does this make sense???
     def get_kraus(self):
         assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
-        kraus_maps = []
+        id = diagram.Id(self.dom.single())
+        kraus_maps = [id]
         for layer in self:
             left = diagram.Ty().tensor(*[ty.single() \
                                        for ty in layer.inside[0][0]])
@@ -248,8 +249,10 @@ class Diagram(symmetric.Diagram):
                 left @ generator.kraus @ right
             )
 
-        return diagram.Diagram.then(
-            *kraus_maps
+        if len(kraus_maps) == 1:
+            return kraus_maps[0]
+        return kraus_maps[0].then(
+            *kraus_maps[1:]
         )
 
     def decomp(self):
@@ -328,9 +331,6 @@ class Channel(symmetric.Box, Diagram):
         self.env = env
         super().__init__(name, dom, cod)
 
-    def to_path(self, dtype: type = complex):
-        raise NotImplementedError
-
     def double(self):
         """
         Returns the :class:`diagram.Diagram` representing
@@ -391,16 +391,6 @@ class Channel(symmetric.Box, Diagram):
     def to_dual_rail(self):
         raise NotImplementedError("Only ZX channels can be converted to dual rail.")
 
-    # def grad(self, var, **params):
-    #     """Gradient with respect to :code:`var`."""
-    #     if var not in self.free_symbols:
-    #         return self.sum_factory(
-    #             "",
-    #             diagram.Diagram((), self.dom.single(), self.cod.single()),
-    #             self.dom,
-    #             self.cod
-    #         )
-    #     return sum(term.grad(var, **params) for term in self.terms)
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
@@ -409,6 +399,7 @@ class Channel(symmetric.Box, Diagram):
     def subs(self, *args) -> Diagram:
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
+
 
 class Sum(symmetric.Sum, Diagram):
     """

@@ -2,6 +2,10 @@ import numpy as np
 import sympy as sp
 from sympy import Expr, lambdify, Symbol, Mul
 from discopy.cat import rsubs
+from typing import Set
+from functools import cached_property
+from abc import abstractmethod, ABC
+from collections.abc import Iterable
 
 from optyx.core import (
     channel,
@@ -10,7 +14,6 @@ from optyx.core import (
 )
 
 from optyx.classical import ClassicalFunction, DiscardMode
-from optyx.core.path import Matrix
 from optyx._utils import matrix_to_zw
 
 
@@ -25,9 +28,6 @@ class Scalar(channel.Channel):
             diagram.Scalar(value)
         )
         self.data = value
-
-    def to_path(self, dtype: type = complex):
-        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
 
     def subs(self, *args):
         data = rsubs(self.scalar, *args)
@@ -45,6 +45,7 @@ class Scalar(channel.Channel):
         return lambda *xs: type(self)(
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )
+
 
 class EncodePhotonic(channel.Encode):
     """
@@ -100,14 +101,44 @@ class Create(channel.Channel):
             zw.Create(*photons)
         )
 
-    def to_path(self, dtype=complex):
-        array = np.eye(len(self.photons))
-        return Matrix[dtype](
-            array, 0, len(self.photons), creations=self.photons
+
+class AbstractGate(channel.Channel, ABC):
+
+    def __init__(
+        self,
+        dom: int,
+        cod: int,
+        name: str,
+        data=None
+    ):
+
+        self.dtype = Expr if self._contains_expr(data) else complex
+        super().__init__(
+            name,
+            self._normal_form(dom, cod)
         )
+        self.data = data
+
+    def _normal_form(self, dom, cod):
+        return matrix_to_zw(self.array.reshape(dom, cod))
+
+    @cached_property
+    def array(self):
+        return np.asarray(self._compute_array())
+
+    @abstractmethod
+    def _compute_array(self):
+        pass
+
+    def _contains_expr(self, obj):
+        if isinstance(obj, Expr):
+            return True
+        if isinstance(obj, Iterable) and not isinstance(obj, (str, bytes)):
+            return any(self._contains_expr(item) for item in obj)
+        return False
 
 
-class Gate(channel.Channel):
+class Gate(AbstractGate):
     """
     Unitary LO gate in a diagram.
 
@@ -129,35 +160,17 @@ class Gate(channel.Channel):
 
     def __init__(
         self,
-        array,
+        matrix,
         dom: int,
         cod: int,
         name: str,
-        is_dagger: bool = False,
-        is_conj: bool = False
+        data=None
     ):
-        self.array = np.array(array)
-        self.data = np.array(array)
-        self.dom = channel.mode**dom
-        self.cod = channel.mode**cod
-        super().__init__(
-            name,
-            matrix_to_zw(
-                np.reshape(
-                    self.array,
-                    (len(self.dom), len(self.cod))
-                )
-            )
-        )
-        self.is_dagger = is_dagger
-        self.is_conj = is_conj
+        self._matrix = np.asanyarray(matrix)
+        super().__init__(dom, cod, name, data=data)
 
-    def to_path(self, dtype=complex):
-        array = self.array_(dtype)
-        return Matrix[dtype](array, len(self.dom), len(self.cod))
-
-    def array_(self, dtype=complex):
-        return self.array
+    def _compute_array(self):
+        return self._matrix
 
     def dagger(self):
         return Gate(
@@ -176,7 +189,7 @@ class Gate(channel.Channel):
         )
 
 
-class Phase(Gate):
+class Phase(AbstractGate):
     """
     Phase shift with angle parameter between 0 and 1
 
@@ -195,19 +208,14 @@ class Phase(Gate):
 
     def __init__(self, angle: float):
         self.angle = angle
-        if isinstance(angle, Expr):
-            dtype = Expr
-        else:
-            dtype = complex
         super().__init__(
-            self.array_(dtype),
             1, 1,
             f"Phase({angle})",
+            data=angle
         )
-        self.data = angle
 
-    def array_(self, dtype=complex):
-        backend = sp if dtype is Expr else np
+    def _compute_array(self):
+        backend = sp if self.dtype is Expr else np
         return [backend.exp(2 * np.pi * 1j * self.angle)]
 
     def grad(self, var):
@@ -241,11 +249,7 @@ class NumOp(channel.Channel):
             )
         )
 
-    def to_path(self, dtype=complex):
-        return self.get_kraus().to_path(dtype=dtype)
-
-
-class BBS(Gate):
+class BBS(AbstractGate):
     """
     Beam splitter with a bias.
 
@@ -292,22 +296,16 @@ class BBS(Gate):
 
     """
 
-    def __init__(self, bias, conj=False):
-        if isinstance(bias, Expr):
-            dtype = Expr
-        else:
-            dtype = complex
+    def __init__(self, bias):
         self.bias = bias
-        self.conj = conj
         super().__init__(
-            self.array_(dtype),
             2, 2,
             f"BBS({bias})",
+            data=bias
         )
-        self.data = bias
 
-    def array_(self, dtype=complex):
-        backend = sp if dtype is Expr else np
+    def _compute_array(self):
+        backend = sp if self.dtype is Expr else np
         sin = backend.sin((0.25 + self.bias) * np.pi)
         cos = backend.cos((0.25 + self.bias) * np.pi)
         array = [1j * cos, sin, sin, 1j * cos]
@@ -322,10 +320,10 @@ class BBS(Gate):
         return BBS(0.5 - self.bias)
 
     def conjugate(self):
-        return BBS(self.bias, not self.conj)
+        return BBS(self.bias)
 
 
-class TBS(Gate):
+class TBS(AbstractGate):
     """
     Tunable Beam Splitter.
 
@@ -350,42 +348,36 @@ class TBS(Gate):
     >>> assert np.allclose(
     ...     (TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
     ...     channel.Diagram.id(channel.qmode**2).to_path().array)
-    >>> assert (TBS(0.25).dagger().global_phase() ==\\
-    ...         np.conjugate(TBS(0.25).global_phase()))
+    >>> assert (TBS(0.25).dagger().global_phase ==\\
+    ...         np.conjugate(TBS(0.25).global_phase))
 
     """
 
-    def __init__(self, theta, is_dagger=False, is_conj=False):
-        if isinstance(theta, Expr):
-            dtype = Expr
-        else:
-            dtype = complex
+    def __init__(self, theta, is_dagger=False):
         self.theta = theta
         self.is_dagger = is_dagger
-        self.is_conj = is_conj
         super().__init__(
-            self.array_(dtype),
             2, 2,
             f"TBS({theta})",
-            is_dagger=is_dagger,
-            is_conj=is_conj
+            data=theta
         )
-        self.data = theta
+        self.is_dagger = is_dagger
 
-    def global_phase(self, dtype=complex):
-        backend = sp if dtype is Expr else np
+    @cached_property
+    def global_phase(self):
+        backend = sp if self.dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
             if self.is_dagger
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
-    def array_(self, dtype=complex):
-        backend = sp if dtype is Expr else np
+    def _compute_array(self):
+        backend = sp if self.dtype is Expr else np
         sin = backend.sin(self.theta * backend.pi)
         cos = backend.cos(self.theta * backend.pi)
         array = np.array([sin, cos, cos, -sin])
-        return array * self.global_phase(dtype=dtype)
+        return array * self.global_phase
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
@@ -404,13 +396,13 @@ class TBS(Gate):
         return self._decomp().grad(var)
 
     def conjugate(self):
-        return self
+        return TBS(self.theta, self.is_dagger)
 
     def dagger(self):
         return TBS(self.theta, is_dagger=not self.is_dagger)
 
 
-class MZI(Gate):
+class MZI(AbstractGate):
     """
     Mach-Zender interferometer.
 
@@ -434,11 +426,11 @@ class MZI(Gate):
     ...     MZI(0.28, 0).to_path().array,
     ...     TBS(0.28).to_path().array)
     >>> assert np.isclose(
-    ...    MZI(0.28, 0.3).global_phase(),
-    ...    TBS(0.28).global_phase())
+    ...    MZI(0.28, 0.3).global_phase,
+    ...    TBS(0.28).global_phase)
     >>> assert np.isclose(
-    ...     MZI(0.12, 0.3).global_phase().conjugate(),
-    ...     MZI(0.12, 0.3).dagger().global_phase())
+    ...     MZI(0.12, 0.3).global_phase.conjugate(),
+    ...     MZI(0.12, 0.3).dagger().global_phase)
     >>> mach = lambda x, y: TBS(x) >> Phase(y) @ channel.Diagram.id(channel.qmode)
     >>> assert np.allclose(
     ...     MZI(0.28, 0.9).to_path().array,
@@ -449,38 +441,32 @@ class MZI(Gate):
 
     """
 
-    def __init__(self, theta, phi, is_dagger=False, is_conj=False):
-        if isinstance(theta, Expr) or isinstance(phi, Expr):
-            dtype = Expr
-        else:
-            dtype = complex
+    def __init__(self, theta, phi, is_dagger=False):
         self.theta, self.phi = theta, phi
         self.is_dagger = is_dagger
-        self.is_conj = is_conj
         super().__init__(
-            self.array_(dtype),
             2, 2,
             f"MZI({theta}, {phi})",
-            is_dagger=is_dagger,
-            is_conj=is_conj
+            data=(theta, phi)
         )
-        self.data = (theta, phi)
+        self.is_dagger = is_dagger
 
-    def global_phase(self, dtype=complex):
-        backend = sp if dtype is Expr else np
+    @cached_property
+    def global_phase(self):
+        backend = sp if self.dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
             if self.is_dagger
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
-    def array_(self, dtype=complex):
-        backend = sp if dtype is Expr else np
+    def _compute_array(self):
+        backend = sp if self.dtype is Expr else np
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
         array = np.array([exp * sin, cos, exp * cos, -sin])
-        return array * self.global_phase(dtype=dtype)
+        return array * self.global_phase
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
@@ -500,10 +486,10 @@ class MZI(Gate):
         return self._decomp().grad(var)
 
     def dagger(self):
-        return MZI(self.theta, self.phi, is_dagger=not self.is_dagger, is_conj=self.is_conj)
+        return MZI(self.theta, self.phi, is_dagger=not self.is_dagger)
 
     def conjugate(self):
-        return MZI(self.theta, -self.phi, self.is_dagger, not self.is_conj)
+        return MZI(self.theta, -self.phi, self.is_dagger)
 
 
 def ansatz(width, depth):
