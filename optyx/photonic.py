@@ -1,6 +1,7 @@
 import numpy as np
 import sympy as sp
-from sympy import Expr, lambdify
+from sympy import Expr, lambdify, Symbol, Mul
+from discopy.cat import rsubs
 
 from optyx.core import (
     channel,
@@ -14,12 +15,36 @@ from optyx._utils import matrix_to_zw
 
 
 class Scalar(channel.Channel):
-    def __init__(value):
+    def __init__(self, value):
+        if not isinstance(value, (Symbol, Mul)):
+            self.scalar = complex(value)
+        else:
+            self.scalar = value
         super().__init__(
             f"{value}",
             diagram.Scalar(value)
         )
+        self.data = value
 
+    def to_path(self, dtype: type = complex):
+        return Matrix[dtype]([], 0, 0, scalar=self.scalar)
+
+    def subs(self, *args):
+        data = rsubs(self.scalar, *args)
+        return Scalar(data)
+
+    def grad(self, var, **params):
+        """Gradient with respect to :code:`var`."""
+        if var not in self.free_symbols:
+            return self.sum_factory((), self.dom, self.cod)
+        return Scalar(self.scalar.diff(var))
+
+    def lambdify(self, *symbols, **kwargs):
+        from sympy import lambdify
+
+        return lambda *xs: type(self)(
+            lambdify(symbols, self.scalar, **kwargs)(*xs)
+        )
 
 class EncodePhotonic(channel.Encode):
     """
@@ -68,10 +93,17 @@ class Create(channel.Channel):
     a specified number of photons
     in a specified number of channel.qmodes.
     """
-    def __init__(self, *n_photons: int):
+    def __init__(self, *photons: int):
+        self.photons = photons
         super().__init__(
-            f"Create({n_photons})",
-            zw.Create(*n_photons)
+            f"Create({photons})",
+            zw.Create(*photons)
+        )
+
+    def to_path(self, dtype=complex):
+        array = np.eye(len(self.photons))
+        return Matrix[dtype](
+            array, 0, len(self.photons), creations=self.photons
         )
 
 
@@ -91,7 +123,7 @@ class Gate(channel.Channel):
     >>> HBS = Gate(hbs_array, 2, 2, "HBS")
     >>> assert np.allclose(
     ...     (HBS.dagger() >> HBS).to_path().eval(2).array,
-    ...                 Id(2).to_path().eval(2).array)
+    ...                 diagram.Id(diagram.Mode(2)).to_path().eval(2).array)
     """
 
 
@@ -100,7 +132,9 @@ class Gate(channel.Channel):
         array,
         dom: int,
         cod: int,
-        name: str
+        name: str,
+        is_dagger: bool = False,
+        is_conj: bool = False
     ):
         self.array = np.array(array)
         self.data = np.array(array)
@@ -115,20 +149,14 @@ class Gate(channel.Channel):
                 )
             )
         )
-
-    ###### remove this and move the code inside __init__
-    ###### the functionality of this (especially for the tests)
-    ###### should be moved to channel.Diagram.get_kraus or something similar
-    ###### we should be able to get a zw representation of pure quantum maps
-    # def to_zw(self):
-    #     array =
-    #     return
+        self.is_dagger = is_dagger
+        self.is_conj = is_conj
 
     def to_path(self, dtype=complex):
-        array = self.array(dtype)
+        array = self.array_(dtype)
         return Matrix[dtype](array, len(self.dom), len(self.cod))
 
-    def array(self, dtype=complex):
+    def array_(self, dtype=complex):
         return self.array
 
     def dagger(self):
@@ -172,12 +200,13 @@ class Phase(Gate):
         else:
             dtype = complex
         super().__init__(
-            self.array(dtype),
+            self.array_(dtype),
             1, 1,
             f"Phase({angle})",
         )
+        self.data = angle
 
-    def array(self, dtype=complex):
+    def array_(self, dtype=complex):
         backend = sp if dtype is Expr else np
         return [backend.exp(2 * np.pi * 1j * self.angle)]
 
@@ -194,9 +223,15 @@ class Phase(Gate):
             lambdify(symbols, self.angle, **kwargs)(*xs)
         )
 
+    def dagger(self):
+        return Phase(-self.angle)
+
+    def conjugate(self):
+        return Phase(-self.angle)
+
 
 class NumOp(channel.Channel):
-    def __init__():
+    def __init__(self):
         super().__init__(
             "NumOp",
             (
@@ -205,6 +240,9 @@ class NumOp(channel.Channel):
                 zw.Merge(2)
             )
         )
+
+    def to_path(self, dtype=complex):
+        return self.get_kraus().to_path(dtype=dtype)
 
 
 class BBS(Gate):
@@ -231,6 +269,7 @@ class BBS(Gate):
 
     We can check the Hong-Ou-Mandel effect:
 
+    >>> from optyx.classical import Select
     >>> d = Create(1, 1) >> BS
     >>> assert np.isclose((d >> Select(0, 2)).to_path().prob().array,
     ...                                                                0.5)
@@ -242,13 +281,14 @@ class BBS(Gate):
     Check the dagger:
 
     >>> y = BBS(0.4)
+    >>> x = y.get_kraus()
     >>> assert np.allclose((
     ...     y >> y.dagger()).to_path().eval(2).array,
-    ...             Id(2).to_path().eval(2).array)
-    >>> comp = (y @ y >> Id(1) @ y @ Id(1)) >> \\
-    ...             (y @ y >> Id(1) @ y @ Id(1)).dagger()
+    ...             diagram.Id(diagram.Mode(2)).to_path().eval(2).array)
+    >>> comp = (x @ x >> diagram.Id(diagram.Mode(1)) @ x @ diagram.Id(diagram.Mode(1))) >> \\
+    ...             (x @ x >> diagram.Id(diagram.Mode(1)) @ x @ diagram.Id(diagram.Mode(1))).dagger()
     >>> assert np.allclose(comp.to_path().eval(2).array,
-    ...                     Id(4).to_path().eval(2).array)
+    ...                     diagram.Id(diagram.Mode(4)).to_path().eval(2).array)
 
     """
 
@@ -260,12 +300,13 @@ class BBS(Gate):
         self.bias = bias
         self.conj = conj
         super().__init__(
-            self.array(dtype),
+            self.array_(dtype),
             2, 2,
             f"BBS({bias})",
         )
+        self.data = bias
 
-    def array(self, dtype=complex):
+    def array_(self, dtype=complex):
         backend = sp if dtype is Expr else np
         sin = backend.sin((0.25 + self.bias) * np.pi)
         cos = backend.cos((0.25 + self.bias) * np.pi)
@@ -276,6 +317,12 @@ class BBS(Gate):
         return lambda *xs: type(self)(
             lambdify(symbols, self.bias, **kwargs)(*xs)
         )
+
+    def dagger(self):
+        return BBS(0.5 - self.bias)
+
+    def conjugate(self):
+        return BBS(self.bias, not self.conj)
 
 
 class TBS(Gate):
@@ -297,33 +344,33 @@ class TBS(Gate):
     Example
     -------
     >>> BS = BBS(0)
-    >>> tbs = lambda x: BS >> Id(1) @ Phase(x) >> BS
+    >>> tbs = lambda x: BS >> channel.Diagram.id(channel.qmode) @ Phase(x) >> BS
     >>> assert np.allclose(
     ...     TBS(0.15).to_path().array, tbs(0.15).to_path().array)
     >>> assert np.allclose(
     ...     (TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
-    ...     Id(2).to_path().array)
+    ...     channel.Diagram.id(channel.qmode**2).to_path().array)
     >>> assert (TBS(0.25).dagger().global_phase() ==\\
     ...         np.conjugate(TBS(0.25).global_phase()))
 
     """
 
-    def __init__(self, theta, is_dagger=False):
+    def __init__(self, theta, is_dagger=False, is_conj=False):
         if isinstance(theta, Expr):
             dtype = Expr
         else:
             dtype = complex
         self.theta = theta
         self.is_dagger = is_dagger
+        self.is_conj = is_conj
         super().__init__(
-            self.array(dtype),
+            self.array_(dtype),
             2, 2,
             f"TBS({theta})",
+            is_dagger=is_dagger,
+            is_conj=is_conj
         )
-
-    def array(self, dtype=complex):
-        backend = sp if dtype is Expr else np
-        return 1j * backend.exp(1j * self.theta * backend.pi)
+        self.data = theta
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -333,7 +380,7 @@ class TBS(Gate):
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
-    def array(self, dtype=complex):
+    def array_(self, dtype=complex):
         backend = sp if dtype is Expr else np
         sin = backend.sin(self.theta * backend.pi)
         cos = backend.cos(self.theta * backend.pi)
@@ -347,7 +394,7 @@ class TBS(Gate):
         )
 
     def _decomp(self):
-        d = BS >> channel.mode @ Phase(self.theta) >> BS
+        d = BS >> channel.qmode @ Phase(self.theta) >> BS
         return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
@@ -355,6 +402,12 @@ class TBS(Gate):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         return self._decomp().grad(var)
+
+    def conjugate(self):
+        return self
+
+    def dagger(self):
+        return TBS(self.theta, is_dagger=not self.is_dagger)
 
 
 class MZI(Gate):
@@ -386,13 +439,13 @@ class MZI(Gate):
     >>> assert np.isclose(
     ...     MZI(0.12, 0.3).global_phase().conjugate(),
     ...     MZI(0.12, 0.3).dagger().global_phase())
-    >>> mach = lambda x, y: TBS(x) >> Phase(y) @ Id(1)
+    >>> mach = lambda x, y: TBS(x) >> Phase(y) @ channel.Diagram.id(channel.qmode)
     >>> assert np.allclose(
     ...     MZI(0.28, 0.9).to_path().array,
     ...     mach(0.28, 0.9).to_path().array)
     >>> assert np.allclose(
     ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
-    ...     Id(2).to_path().array)
+    ...     channel.Diagram.id(channel.qmode**2).to_path().array)
 
     """
 
@@ -402,13 +455,16 @@ class MZI(Gate):
         else:
             dtype = complex
         self.theta, self.phi = theta, phi
-        self.is_conj = is_conj
         self.is_dagger = is_dagger
+        self.is_conj = is_conj
         super().__init__(
-            self.array(dtype),
+            self.array_(dtype),
             2, 2,
-            f"MZI({theta}, {phi})"
+            f"MZI({theta}, {phi})",
+            is_dagger=is_dagger,
+            is_conj=is_conj
         )
+        self.data = (theta, phi)
 
     def global_phase(self, dtype=complex):
         backend = sp if dtype is Expr else np
@@ -418,7 +474,7 @@ class MZI(Gate):
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
-    def array(self, dtype=complex):
+    def array_(self, dtype=complex):
         backend = sp if dtype is Expr else np
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
@@ -434,7 +490,7 @@ class MZI(Gate):
 
     def _decomp(self):
         x, y = self.theta, self.phi
-        d = BS >> channel.mode @ Phase(x) >> BS >> Phase(y) @ channel.mode
+        d = BS >> channel.qmode @ Phase(x) >> BS >> Phase(y) @ channel.qmode
         return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
@@ -442,6 +498,12 @@ class MZI(Gate):
         if var not in self.free_symbols:
             return self.sum_factory((), self.dom, self.cod)
         return self._decomp().grad(var)
+
+    def dagger(self):
+        return MZI(self.theta, self.phi, is_dagger=not self.is_dagger, is_conj=self.is_conj)
+
+    def conjugate(self):
+        return MZI(self.theta, -self.phi, self.is_dagger, not self.is_conj)
 
 
 def ansatz(width, depth):
@@ -471,12 +533,12 @@ def ansatz(width, depth):
     def p(i, j):
         return sp.Symbol(f"a_{i}_{j}"), sp.Symbol(f"b_{i}_{j}")
 
-    d = channel.mode**0
+    d = channel.Diagram.id(channel.qmode**width)
     for i in range(depth):
         n_mzi = (width - 1) // 2 if i % 2 else width // 2
-        left = channel.mode**(i % 2)
-        right = channel.mode**(width - len(left.dom) - 2 * n_mzi)
-        d >>= left.tensor(*[MZI(*p(i, j)) for j in range(n_mzi)]) @ right
+        left = channel.qmode**(i % 2)
+        right = channel.qmode**(width - (i % 2) - 2 * n_mzi)
+        d >>= left @ channel.Diagram.tensor(*[MZI(*p(i, j)) for j in range(n_mzi)]) @ right
 
     return d
 

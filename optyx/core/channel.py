@@ -391,17 +391,24 @@ class Channel(symmetric.Box, Diagram):
     def to_dual_rail(self):
         raise NotImplementedError("Only ZX channels can be converted to dual rail.")
 
-    def grad(self, var, **params):
-        """Gradient with respect to :code:`var`."""
-        if var not in self.free_symbols:
-            return self.sum_factory(
-                "",
-                diagram.Diagram((), self.dom.single(), self.cod.single()),
-                self.dom,
-                self.cod
-            )
-        return sum(term.grad(var, **params) for term in self.terms)
+    # def grad(self, var, **params):
+    #     """Gradient with respect to :code:`var`."""
+    #     if var not in self.free_symbols:
+    #         return self.sum_factory(
+    #             "",
+    #             diagram.Diagram((), self.dom.single(), self.cod.single()),
+    #             self.dom,
+    #             self.cod
+    #         )
+    #     return sum(term.grad(var, **params) for term in self.terms)
 
+    def lambdify(self, *symbols, **kwargs):
+        # Non-symbolic gates can be returned directly
+        return lambda *xs: self
+
+    def subs(self, *args) -> Diagram:
+        syms, exprs = zip(*args)
+        return self.lambdify(*syms)(*exprs)
 
 class Sum(symmetric.Sum, Diagram):
     """
@@ -422,6 +429,18 @@ class Sum(symmetric.Sum, Diagram):
             return self.sum_factory((), self.dom, self.cod)
         return sum(term.grad(var, **params) for term in self.terms)
 
+    def eval(self, n_photons=0, permanent=None, dtype=complex):
+        """Evaluate the sum of diagrams."""
+        # we need to implement the proper sums of qpath diagrams
+        # this is only a temporary solution, so that the grad tests pass
+        if permanent is None:
+            from optyx.core.path import npperm
+
+            permanent = npperm
+        return sum(
+            term.to_path(dtype).eval(n_photons, permanent)
+            for term in self.terms
+        )
 
 class CQMap(symmetric.Box, Diagram):
     """

@@ -23,7 +23,7 @@ values = [x * 0.123 for x in range(10)]
 @pytest.mark.parametrize("circ, value", product(param_circuits, values))
 def test_daggers_cancel(circ, value):
     d = circ >> circ.dagger()
-    out = d.grad(psi).subs((psi, value)).to_path().eval(2).array
+    out = d.grad(psi).subs((psi, value)).eval(2).array
     assert np.allclose(out, np.zeros(shape=out.shape))
 
 

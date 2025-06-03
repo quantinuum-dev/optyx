@@ -6,7 +6,8 @@ from optyx.core import (
     control,
     zw,
     zx,
-    diagram
+    diagram,
+    path
 )
 
 class BitControlledGate(channel.Channel):
@@ -62,6 +63,16 @@ DiscardMode = lambda n: channel.Discard(channel.mode**n)
 
 class ClassicalBox(channel.CQMap):
     pass
+
+
+class Scalar(ClassicalBox):
+    def __init__(self, value):
+        super().__init__(
+            f"{value}",
+            diagram.Scalar(value),
+            channel.bit**0,
+            channel.bit**0
+        )
 
 
 class AddN(ClassicalBox):
@@ -371,17 +382,6 @@ class H(ClassicalBox):
             channel.bit,
         )
 
-
-class Scalar(ClassicalBox):
-    def __init__(self, value: float):
-        super().__init__(
-            f"Scalar({value})",
-            zw.Scalar(value),
-            channel.bit**0,
-            channel.bit**0,
-        )
-
-
 class ControlChannel(ClassicalBox):
     """
     Syntactic sugar.
@@ -401,13 +401,12 @@ class ClassicalFunction(ControlChannel):
 
     Example
     -------
-    >>> from optyx.zx import X
-    >>> from optyx.optyx import Scalar
-    >>> xor = X(2, 1) @ Scalar(np.sqrt(2))
-    >>> f_res = ClassicalFunctionBox(lambda x: [x[0] ^ x[1]],
-    ...         Bit(2),
-    ...         Bit(1)).to_zw().to_tensor().eval().array
-    >>> xor_res = xor.to_zw().to_tensor().eval().array
+    >>> from optyx.classical import X, Scalar
+    >>> xor = X(2, 1) @ Scalar(2**0.5)
+    >>> f_res = (ClassicalFunction(lambda x: [x[0] ^ x[1]],
+    ...         diagram.Bit(2),
+    ...         diagram.Bit(1))).double().to_zw().to_tensor().eval().array
+    >>> xor_res = xor.double().to_zw().to_tensor().eval().array
     >>> assert np.allclose(f_res, xor_res)
     """
 
@@ -436,18 +435,17 @@ class BinaryMatrix(ControlChannel):
 
     Example
     -------
-    >>> from optyx.zx import X
-    >>> from optyx.optyx import Scalar
-    >>> xor = X(2, 1) @ Scalar(np.sqrt(2))
+    >>> from optyx.classical import X, Scalar
+    >>> xor = X(2, 1) @ Scalar(2**0.5)
     >>> matrix = [[1, 1]]
-    >>> m_res = BinaryMatrixBox(matrix).to_tensor().eval().array
-    >>> xor_res = xor.to_zw().to_tensor().eval().array
+    >>> m_res = BinaryMatrix(matrix).double().to_tensor().eval().array
+    >>> xor_res = xor.double().to_zw().to_tensor().eval().array
     >>> assert np.allclose(m_res, xor_res)
     """
 
     def __init__(self, matrix):
-        box = control.BinaryMatrixBox(self, matrix)
-        return super().__new__(
+        box = control.BinaryMatrixBox(matrix)
+        return super().__init__(
             box.name,
             box,
             channel.Ty(
@@ -460,8 +458,15 @@ class BinaryMatrix(ControlChannel):
 
 
 class Select(channel.Channel):
-    def __init__(self, *n_photons: int):
+    def __init__(self, *photons: int):
+        self.photons = photons
         super().__init__(
-            f"Select({n_photons})",
-            zw.Scalar(*n_photons)
+            f"Select({photons})",
+            zw.Select(*photons)
+        )
+
+    def to_path(self, dtype=complex) -> path.Matrix:
+        array = np.eye(len(self.photons))
+        return path.Matrix[dtype](
+            array, len(self.photons), 0, selections=self.photons
         )
