@@ -368,6 +368,34 @@ class BBS(Box):
         )
 
 
+class BSHad(Box):
+    def __init__(self, theta=np.pi/2, is_conj=False):
+        self.theta = theta
+        self.is_conj = is_conj
+        array = np.array([
+            [np.cos(theta/2), np.sin(theta/2)],
+            [np.sin(theta/2), -np.cos(theta/2)]
+        ])
+        super().__init__("BSHad", Mode(2), Mode(2), array=array)
+
+    def conjugate(self):
+        conj = BSHad(self.theta, self.psi, is_conj=self.is_conj)
+        conj.array = -1 * self.array
+        return conj
+
+    def __repr__(self):
+        return "BSHad"
+
+    def to_path(self, dtype=complex):
+        return Matrix[dtype](self.array, len(self.dom), len(self.cod))
+
+    def to_zw(self, dtype=complex):
+        return matrix_to_zw(self.array)
+
+    def dagger(self):
+        return self.conjugate()
+
+
 class WavePlate(Box):
     def __init__(self, delta=np.pi/2, psi=0, is_conj=False):
         self.delta = delta
@@ -652,5 +680,8 @@ def ansatz(width, depth):
 BS = BBS(0)
 
 # an alternative definition of a beam splitter
-BS_hadamard = WavePlate()
-BS_hadamard.name = "BS_hadamard"
+BS_matrix_hadamard = np.sqrt(1 / 2) * np.array([[1, 1], [1, -1]])
+# BS_matrix_hadamard = np.array([[1, 1], [1, -1]])
+BS_hadamard = Box("BS_hadamard", Mode(2), Mode(2))
+BS_hadamard.to_zw = lambda: matrix_to_zw(BS_matrix_hadamard)
+BS_hadamard.conjugate = lambda: BS_hadamard
