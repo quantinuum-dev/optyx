@@ -170,6 +170,14 @@ class Ty(symmetric.Ty):
         assert isinstance(ty, optyx.Ty)
         return Ty(*[Ob._quantum[ob.name] for ob in ty.inside])
 
+    def needs_inflation(self) -> bool:
+        return "qmode" in self.name
+
+    def inflate(self, d) -> Ty:
+        return (mode**0).tensor(
+                *(o**d if o.needs_inflation() else o for o in self)
+        )
+
 
 bit = Ty("bit")
 mode = Ty("mode")
@@ -182,6 +190,24 @@ class Circuit(symmetric.Diagram):
     """Classical-quantum circuits over qubits and optical modes"""
 
     ty_factory = Ty
+
+    def needs_inflation(self) -> bool:
+        return self.dom.needs_inflation() or self.cod.needs_inflation()
+
+    def inflate(self, d):
+        r"""Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
+
+        dom = symmetric.Category(Ty, Circuit)
+        cod = symmetric.Category(Ty, Circuit)
+
+        return symmetric.Functor(lambda x: x.inflate(d),
+                                 lambda f: f.inflate(d),
+                                 dom,
+                                 cod)(self)
 
     def double(self):
         """Returns the optyx.Diagram obtained by
@@ -265,6 +291,19 @@ class Channel(symmetric.Box, Circuit):
             cod=self.dom,
         )
 
+    def inflate(self, d):
+        r"""Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`."""
+
+        return Channel(
+            name=self.name + f"^{d}",
+            kraus=self.kraus.inflate(d) if
+            self.needs_inflation() else self.kraus,
+            dom=self.dom.inflate(d),
+            cod=self.cod.inflate(d),
+        )
+
 
 class CQMap(symmetric.Box, Circuit):
     """
@@ -290,6 +329,21 @@ class CQMap(symmetric.Box, Circuit):
             cod=self.dom,
         )
 
+    def inflate(self, d):
+        r"""
+        Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`F(\mathbb{C}^d)`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
+        """
+
+        return CQMap(
+            name=self.name + f"^{d}",
+            density_matrix=self.density_matrix.inflate(d) if
+            self.needs_inflation() else self.density_matrix,
+            dom=self.dom.inflate(d),
+            cod=self.cod.inflate(d)
+        )
+
 
 class Swap(symmetric.Swap, Channel):
     def dagger(self):
@@ -311,6 +365,25 @@ class Measure(Channel):
         kraus = optyx.Id(dom.single())
         super().__init__(name="Measure", kraus=kraus, dom=dom, cod=cod)
 
+    def inflate(self, d):
+        r""" A specific choice of inflation for the Measure channel.
+        The diagram discards the internal states and measures
+        the number of photons in the modes. Only qmodes are inflated.
+        The bit, qubit and mode are not inflated.
+        """
+
+        diagrams = [self._measure_wire(ob, d) for ob in self.dom]
+        return optyx.Diagram.tensor(*diagrams)
+
+    def _measure_wire(self, ob, d):
+        """Return the diagram that measures one `ob`."""
+        from optyx.zw import Add
+        if ob.needs_inflation():
+            return Measure(ob ** d) >> CQMap(
+                "Gather photons", Add(d), mode ** d, mode
+            )
+        return Measure(ob)
+
 
 class Encode(Channel):
     """Encoding a bit or mode corresponds to
@@ -320,10 +393,67 @@ class Encode(Channel):
     >>> assert len(Encode(dom).double().cod) == 8
     """
 
-    def __init__(self, dom):
+    def __init__(self,
+                 dom,
+                 internal_states: tuple[list[int]] = None):
         cod = Ty(*[Ob._quantum[ob.name] for ob in dom.inside])
         kraus = optyx.Id(dom.single())
+        if internal_states is not None:
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
+            assert len(internal_states) == sum(
+                [1 if ob.name == "mode" else 0 for ob in dom.inside]
+            ), "Number of internal states must "
+            "match the number of modes in dom"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
+
         super().__init__(name="Encode", kraus=kraus, dom=dom, cod=cod)
+        self.internal_states = internal_states
+
+    def inflate(self, d):
+        r"""
+        The internal states are used to encode the modes only.
+        Bit and qubit are not encoded, qmode is inflated and
+        mode is encoded.
+        The diagram is a dagger of the inflation of
+        the Measure channel with the difference
+        that instead of discarding becoming a maximally mixed state,
+        we apply the encoding of the internal states.
+        """
+
+        if any(
+            ob.name == "mode" for ob in self.dom.inside
+        ):
+            assert self.internal_states is not None, \
+                "Internal states must be provided for encoding"
+            assert all(
+                len(internal_state) == d for
+                internal_state in self.internal_states
+            ), "All internal states must have length d"
+
+        amps_iter = iter(self.internal_states or [])
+        diagrams = [self._encode_wire(ob, d, amps_iter) for ob in self.dom]
+        return optyx.Diagram.tensor(*diagrams)
+
+    def _encode_wire(self, ob, d, amps_iter):
+        """Return the diagram that encodes *one* object `ob`.
+
+        `amps_iter` yields the internal‑state vectors for `mode` wires.
+        """
+        from optyx.zw import Add, Endo
+
+        if ob == mode:
+            amps = next(amps_iter)
+            amp_layer = optyx.Diagram.tensor(*[Endo(a) for a in amps])
+            return (
+                CQMap("Add†", Add(d).dagger(), mode, mode ** d)
+                >> Encode(mode ** d)
+                >> Channel("Amplitudes", amp_layer)
+            )
+        if ob == qmode:
+            return Encode(qmode ** d)
+        return Encode(ob)
 
 
 class BitFlipError(Channel):
@@ -376,6 +506,12 @@ class Discard(Channel):
         env = dom.single()
         kraus = optyx.Id(dom.single())
         super().__init__("Discard", kraus, dom=dom, cod=Ty(), env=env)
+
+    def inflate(self, d):
+        """
+        Distinguishable setting for the Discard channel.
+        """
+        return Discard(self.dom.inflate(d))
 
 
 class Ket(Channel):

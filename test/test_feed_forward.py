@@ -7,10 +7,10 @@ from optyx.feed_forward.classical_control import *
 from optyx.feed_forward.measurement import *
 from optyx.feed_forward.controlled_gates import *
 from optyx.zw import Create, W
-from optyx.optyx import PhotonThresholdDetector, Mode, Swap
-from optyx.lo import Phase, BS, MZI
+from optyx.optyx import PhotonThresholdDetector, Mode, Swap, Scalar, DualRail, Id
+from optyx.lo import Phase, BS, MZI, BS_hadamard
 from optyx.utils import matrix_to_zw
-
+from optyx.zx import X, Z
 
 # Helper Functions and Data
 
@@ -287,3 +287,82 @@ class TestMatrixToZW:
 
         assert np.allclose(diagram1.to_tensor().eval().array,
                            diagram2.to_tensor().eval().array)
+
+
+def test_teleportation():
+    kraus_map_fusion = (
+        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
+        Mode(1) @ BS_hadamard @ Mode(1) >>
+        Swap(Mode(1), Mode(1)) @ Mode(1) @ Mode(1) >>
+        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
+        Mode(1) @ Mode(1) @ BS_hadamard
+    )
+
+    fusion = Channel(
+        "Fusion",
+        kraus_map_fusion
+    )
+
+    def fusion_function(x):
+        a = x[0]
+        b = x[1]
+        c = x[2]
+        d = x[3]
+        s = (a % 2) ^ (b % 2)
+        k = int(s*(b + d) + (1-s)*(1 - (a + b)/2))%2
+        return [s, k]
+
+    classical_function = ControlChannel(
+        ClassicalFunctionBox(
+            fusion_function,
+            Mode(4),
+            Bit(2)
+        )
+    )
+
+    postselect_1 = postselect_1 = X(1, 0, 0.5) @ Scalar(0.5**0.5)
+
+    from optyx.channel import (
+        bit,
+        qmode
+    )
+
+    fusion_failure_processing = ControlChannel(
+        postselect_1
+    )
+
+    correction = Channel(
+        "Phase Correction",
+        BitControlledBox(
+            Phase(0.5) @ Mode(1)
+        ),
+        dom = bit @ qmode**2
+    )
+
+    channel_bell = Channel(
+        "Bell pair preparation",
+        Z(0, 2) @ Scalar(0.5**0.5) >> DualRail() @ DualRail()
+    )
+
+    dual_rail_input = Channel(
+        "Dual rail of input",
+        DualRail()
+    )
+
+    teleportation = (
+        dual_rail_input @ channel_bell >>
+        fusion @ qmode**2 >>
+        Measure(qmode**4) @ qmode**2 >>
+        classical_function @ qmode**2 >>
+        fusion_failure_processing @ correction >>
+        Channel("Dual rail projection", DualRail().dagger())
+    )
+
+    array_teleportation = teleportation.double().to_zw().to_tensor().eval().array
+
+    array_id = Channel(
+        "Identity",
+        Id(Bit(1)) @ Scalar(0.5**0.5)
+    ).double().to_zw().to_tensor().eval().array
+
+    assert np.allclose(array_teleportation, array_id)

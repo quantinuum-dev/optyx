@@ -171,6 +171,12 @@ class Box(optyx.Box):
 
         return tensor.Box(self.name, in_dims, out_dims, self.array)
 
+    def inflate(self, d):
+        return self
+
+    def to_zw(self):
+        return self
+
     def __eq__(self, other):
         return (
             isinstance(other, type(self))
@@ -210,6 +216,9 @@ class Spider(optyx.Spider, Box):
         return Scalar(pi * gradient) @ type(self)(
             len(self.dom), len(self.cod), self.phase + 0.5
         )
+
+    def inflate(self, d):
+        return self
 
     def dagger(self):
         return type(self)(len(self.cod), len(self.dom), -self.phase)

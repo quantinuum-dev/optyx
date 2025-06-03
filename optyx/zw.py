@@ -150,7 +150,10 @@ from typing import Union
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
-from optyx.optyx import Diagram, Mode, Swap, Scalar, Spider
+from typing import List
+from optyx.optyx import (
+    Diagram, Mode, Swap, Scalar, Spider, truncation_tensor
+)
 from optyx.utils import occupation_numbers, multinomial
 from optyx.path import Matrix
 from optyx import optyx
@@ -450,8 +453,25 @@ class Create(Box):
     draw_as_spider = True
     color = "blue"
 
-    def __init__(self, *photons: int):
+    def __init__(self,
+                 *photons: int,
+                 internal_states: tuple[list[int]] = None):
         self.photons = photons or (1,)
+
+        if internal_states is not None:
+            # we define an internal state for each photon
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
+            assert all(p in (0, 1) for p in photons), \
+                "Only 0 or 1 photons per mode are allowed for internal states"
+            assert sum(photons) == len(internal_states), \
+                "The number of internal states must " \
+                "match the total number of photons"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
+
+        self.internal_states = internal_states
+
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
@@ -463,6 +483,36 @@ class Create(Box):
         return Matrix[dtype](
             array, 0, len(self.photons), creations=self.photons
         )
+
+    def inflate(self, d):
+
+        if any(p == 1 for p in self.photons):
+            assert self.internal_states is not None, \
+                "Internal states in Create/Select must be " \
+                "provided if there is at least one photon being created"
+            assert all(len(state) == d for state in self.internal_states), \
+                "All internal states must be of length d"
+
+        diagram = Id(Mode(0))
+
+        photon_index = 0
+        for i, n_photons in enumerate(self.photons):
+
+            endo_layer = Id(Mode(0))
+            if n_photons == 1:
+                for j in self.internal_states[photon_index]:
+                    endo_layer @= Endo(j)
+                photon_index += 1
+            else:
+                endo_layer @= Id(Mode(d))
+
+            diagram @= (
+                Create(self.photons[i]) >>
+                W(d) >>
+                endo_layer
+            )
+
+        return diagram
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
@@ -519,13 +569,38 @@ class Select(Box):
     draw_as_spider = True
     color = "blue"
 
-    def __init__(self, *photons: int):
+    def __init__(self,
+                 *photons: int,
+                 internal_states: tuple[list[int]] = None):
+
+        if internal_states is not None:
+            # we define an internal state for each photon
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
+            assert all(p in (0, 1) for p in photons), \
+                "Only 0 or 1 photons per mode are allowed for internal states"
+            assert sum(photons) == len(internal_states), \
+                "The number of internal states must " \
+                "match the total number of photons"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
+
+        self.internal_states = internal_states
         self.photons = photons or (1,)
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
 
     def conjugate(self):
         return self
+
+    def inflate(self, d):
+
+        diagram = Create(
+            *self.photons,
+            internal_states=self.internal_states
+        ).inflate(d).dagger()
+
+        return diagram
 
     def to_path(self, dtype=complex) -> Matrix:
         array = np.eye(len(self.photons))
@@ -675,6 +750,67 @@ def filter_occupation_numbers(
             list(config[i] <= input_dims[i] for i in range(len(input_dims)))
         )
     ]
+
+
+class Add(Box):
+    """
+    Acts as addition on basis states.
+    Like the W-dagger operation but without the binomial coefficients.
+
+    Example
+    -------
+    >>> from optyx.zw import Add
+    >>> add_box = Add(2)
+    >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> import numpy as np
+    >>> # Expect 4 one-hot outputs for all input combinations
+    >>> assert np.allclose(tensor.sum(), 4)
+    """
+
+    def __init__(self, n: int, is_dagger: bool = False):
+        dom = Mode(1) if is_dagger else Mode(n)
+        cod = Mode(n) if is_dagger else Mode(1)
+
+        super().__init__("Add", dom, cod)
+        self.n = n
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        input_dims = [int(i) for i in input_dims]
+        output_dims = [int(i) for i in output_dims]
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        diag = W(self.n).dagger().to_tensor(input_dims)
+        array = np.sign(
+            (diag >> truncation_tensor(diag.cod.inside, output_dims))
+            .eval()
+            .array
+        )
+        if self.is_dagger:
+            return tensor.Box(
+                "Add", Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+
+        return tensor.Box("Add", Dim(*input_dims), Dim(*output_dims), array)
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [int(input_dims[0])] * self.n
+        return [int(sum(input_dims))]
+
+    def to_zw(self):
+        return self
+
+    def dagger(self):
+        return Add(self.n, not self.is_dagger)
+
+    def conjugate(self):
+        return Add(self.n, self.is_dagger)
 
 
 SWAP = Swap(Mode(1), Mode(1))
