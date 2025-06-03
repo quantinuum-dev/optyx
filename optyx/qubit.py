@@ -166,3 +166,38 @@ class DephasingError(channel.Channel):
 
     def dagger(self):
         return self
+
+
+class Circuit(channel.Circuit):
+    """
+    A circuit that operates on qubits.
+    It can be initialised from ZX diagram, PyZX diagram,
+    a tket circuit, or a discopy circuit. This is black box circuit
+    until evaluated.
+    """
+
+    def __init__(self, circuit):
+        self.circuit = circuit
+
+    def to_optyx(self):
+        """
+        Convert the circuit to an optyx channel diagram.
+        """
+
+        #check if the circuit is the type (PyZX, tket, discopy)
+
+    def _from_tket(self, tket_circuit):
+        """
+        Convert a tket circuit to an optyx channel diagram.
+        """
+        return self.from_tket(tket_circuit)
+
+    def _from_pyzx(self, pyzx_circuit):
+        """
+        Convert a PyZX circuit to an optyx channel diagram.
+        """
+
+    def _from_discopy(self, discopy_circuit):
+        """
+        Convert a discopy circuit to an optyx channel diagram.
+        """

@@ -157,7 +157,9 @@ class Gate(AbstractGate):
     ...                 diagram.Id(diagram.Mode(2)).to_path().eval(2).array)
     """
 
-
+    # need to make it a Circuit?
+    # this should also take a perceval matrix
+    # as an input
     def __init__(
         self,
         matrix,
