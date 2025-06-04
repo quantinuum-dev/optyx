@@ -449,56 +449,6 @@ def zx_to_path(diagram: diagram.Diagram) -> diagram.Diagram:
 root2 = scalar(2**0.5)
 
 
-def gate2zx(box):
-    """Turns gates into ZX diagrams."""
-    if isinstance(box, (Bra, Ket)):
-        dom, cod = (1, 0) if isinstance(box, Bra) else (0, 1)
-        spiders = [X(dom, cod, phase=0.5 * bit) for bit in box.bitstring]
-        return Id(diagram.Bit(0)).tensor(*spiders) @ scalar(
-            pow(2, -len(box.bitstring) / 2)
-        )
-    if isinstance(box, (Rz, Rx)):
-        return (Z if isinstance(box, Rz) else X)(1, 1, box.phase)
-    if isinstance(box, Controlled) and box.name.startswith("CRz"):
-        return (
-            Z(1, 2) @ Z(1, 2, box.phase / 2)
-            >> Id(1) @ (X(2, 1) >> Z(1, 0, -box.phase / 2)) @ Id(1) @ root2
-        )
-    if isinstance(box, Controlled) and box.name.startswith("CRx"):
-        return (
-            X(1, 2) @ X(1, 2, box.phase / 2)
-            >> Id(1) @ (Z(2, 1) >> X(1, 0, -box.phase / 2)) @ Id(1) @ root2
-        )
-    if isinstance(box, quantum.CU1):
-        return Z(1, 2, box.phase) @ Z(1, 2, box.phase) >> Id(1) @ (
-            X(2, 1) >> Z(1, 0, -box.phase)
-        ) @ Id(1)
-    if isinstance(box, GatesScalar):
-        if box.is_mixed:
-            raise NotImplementedError
-        return scalar(box.data)
-    if isinstance(box, Controlled) and box.distance != 1:
-        return circuit2zx(box._decompose())
-    standard_gates = {
-        quantum.H: H,
-        quantum.Z: Z(1, 1, 0.5),
-        quantum.X: X(1, 1, 0.5),
-        quantum.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ scalar(1j),
-        quantum.S: Z(1, 1, 0.25),
-        quantum.T: Z(1, 1, 0.125),
-        CZ: Z(1, 2) @ Id(1) >> Id(1) @ H @ Id(1) >> Id(1) @ Z(2, 1) @ root2,
-        CX: Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1) @ root2,
-    }
-    return standard_gates[box]
-
-
-circuit2zx = quantum.circuit.Functor(
-    ob={qubit: diagram.Bit(1)},
-    ar=gate2zx,
-    dom=Category(quantum.circuit.Ty, Circuit),
-    cod=Category(diagram.Bit, diagram.Diagram),
-)
-
 H = Box("H", 1, 1)
 H.dagger = lambda: H
 H.conjugate = lambda: H

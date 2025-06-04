@@ -193,18 +193,6 @@ class Diagram(symmetric.Diagram):
     ty_factory = Ty
     grad = tensor.Diagram.grad
 
-    def to_path(self, dtype: type = complex):
-        """Returns the :class:`Matrix` normal form
-        of a :class:`Diagram`.
-        In other words, it is the underlying matrix
-        representation of a :class:`path` and :class:`photonic` diagrams."""
-        from optyx.core import path
-
-        return symmetric.Functor(
-            ob=len,
-            ar=lambda f: f.get_kraus().to_path(dtype),
-            cod=symmetric.Category(int, path.Matrix[dtype]),
-        )(self)
 
     def double(self):
         """Returns the diagram.Diagram obtained by
@@ -255,13 +243,26 @@ class Diagram(symmetric.Diagram):
             *kraus_maps[1:]
         )
 
-    def decomp(self):
+    def to_path(self, dtype: type = complex):
+        """Returns the :class:`Matrix` normal form
+        of a :class:`Diagram`.
+        In other words, it is the underlying matrix
+        representation of a :class:`path` and :class:`photonic` diagrams."""
+        from optyx.core import path
 
-        assert self.is_pure, "Diagram must be pure to convert to tket."
+        assert self.is_pure, "Diagram must be pure to convert to path."
+
+        return symmetric.Functor(
+            ob=len,
+            ar=lambda f: f.get_kraus().to_path(dtype),
+            cod=symmetric.Category(int, path.Matrix[dtype]),
+        )(self)
+
+    def _decomp(self):
 
         return symmetric.Functor(
             ob=lambda x: qubit**len(x),
-            ar=lambda arr: arr.decomp(),
+            ar=lambda arr: arr._decomp(),
             cod=symmetric.Category(Ty, Diagram),
         )(self)
 
@@ -274,44 +275,60 @@ class Diagram(symmetric.Diagram):
             ob=lambda x: qmode**(2*len(x)),
             ar=lambda arr: arr.to_dual_rail(),
             cod=symmetric.Category(Ty, Diagram),
-        )(self.decomp())
+        )(self._decomp())
 
-    def to_tket(self):
-        """
-        Convert to tket circuit. The circuit must be a pure circuit.
-        """
+    # def to_tket(self):
+    #     """
+    #     Convert to tket circuit. The circuit must be a pure circuit.
+    #     """
+    #     pass
+    #     # assert self.is_pure, "Diagram must be pure to convert to tket."
 
-        assert self.is_pure, "Diagram must be pure to convert to tket."
+    #     # kraus_maps = []
+    #     # for layer in self:
+    #     #     left = layer.inside[0][0]
+    #     #     right = layer.inside[0][2]
+    #     #     generator = layer.inside[0][1]
 
-        kraus_maps = []
-        for layer in self:
-            left = layer.inside[0][0]
-            right = layer.inside[0][2]
-            generator = layer.inside[0][1]
+    #     #     kraus_maps.append(
+    #     #         diagram.Bit(len(left)) @ generator.kraus @ diagram.Bit(len(right))
+    #     #     )
 
-            kraus_maps.append(
-                diagram.Bit(len(left)) @ generator.kraus @ diagram.Bit(len(right))
-            )
+    #     # return pyzx_to_tk(
+    #     #     extract_circuit(
+    #     #         diagram.Diagram.then(
+    #     #             *kraus_maps
+    #     #         ).to_pyzx()
+    #     #     ).to_basic_gates()
+    #     # )
 
-        return pyzx_to_tk(
-            extract_circuit(
-                diagram.Diagram.then(
-                    *kraus_maps
-                ).to_pyzx()
-            ).to_basic_gates()
-        )
+    # def to_pyzx(self):
+
+    #     assert self.is_pure, "Diagram must be pure to convert to tket."
+
+    #     return self.get_kraus().to_pyzx()
+
+    # def to_discopy(self):
+    #     pass
+
 
     @classmethod
     def from_tket(self, tket_circuit):
         """Convert from tket circuit."""
-        from optyx.qubit import QubitChannel
-        pyzx_circuit = tk_to_pyzx(tket_circuit).to_graph()
-        zx_diagram = diagram.Diagram.from_pyzx(pyzx_circuit)
-        return explode_channel(
-            zx_diagram,
-            QubitChannel,
-            Diagram
-        )
+        from optyx.qubit import Circuit
+        return Circuit(tket_circuit)._to_optyx()
+
+    @classmethod
+    def from_pyzx(self, pyzx_circuit):
+        """Convert from PyZX circuit."""
+        from optyx.qubit import Circuit
+        return Circuit.from_pyzx(pyzx_circuit)._to_optyx()
+
+    @classmethod
+    def from_discopy(self, discopy_circuit):
+        """Convert from discopy circuit."""
+        from optyx.qubit import Circuit
+        return Circuit.from_discopy(discopy_circuit)._to_optyx()
 
 
 class Channel(symmetric.Box, Diagram):
@@ -385,12 +402,11 @@ class Channel(symmetric.Box, Diagram):
             cod=self.dom,
         )
 
-    def decomp(self):
+    def _decomp(self):
         raise NotImplementedError("Only ZX channels can be decomposed.")
 
     def to_dual_rail(self):
         raise NotImplementedError("Only ZX channels can be converted to dual rail.")
-
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly

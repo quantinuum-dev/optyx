@@ -601,7 +601,7 @@ class Box(frobenius.Box, Diagram):
         raise NotImplementedError
 
     def to_path(self, dtype: type = complex):
-        raise NotImplementedError
+        raise NotImplementedError("Only LO circuits can be converted to path.")
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
