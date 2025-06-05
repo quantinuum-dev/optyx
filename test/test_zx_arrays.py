@@ -38,4 +38,4 @@ scalar = [0, 0.5, 1]
 @pytest.mark.parametrize("scalar", scalar)
 def test_scalar(scalar):
     s = Scalar(scalar)
-    assert np.allclose(s.array.flatten(), s.to_pyzx().to_tensor().flatten())
+    assert np.allclose(s.to_tensor().eval().array.flatten(), s.to_pyzx().to_tensor().flatten())

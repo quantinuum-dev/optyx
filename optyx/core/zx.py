@@ -69,7 +69,7 @@ We can also create a graph state as follows
 We can check that both diagrams produce the same tensors (we need to
 ensure the tensor dimensions match):
 
->>> assert np.allclose(graph_path.to_zw().to_tensor().eval().array, \\
+>>> assert np.allclose(graph_path.to_tensor().eval().array, \\
 ... ((graph >> dual_rail(4)).to_tensor() >> \\
 ... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 5))).eval().array)
 
@@ -155,6 +155,10 @@ class Box(diagram.Box):
             return self.data
         raise NotImplementedError(f"Array not implemented for {self}.")
 
+    @array.setter
+    def array(self, value):
+        self._array = value
+
     def conjugate(self):
         raise NotImplementedError
 
@@ -216,6 +220,13 @@ class Spider(diagram.Spider, Box):
         del left
         return type(self)(len(self.cod), len(self.dom), self.phase)
 
+    @property
+    def array(self):
+        return self.truncation().eval().array
+
+    def truncation(self, input_dims = None, output_dims = None):
+        return super().truncation([2]*self.n_legs_in, [2]*self.n_legs_out)
+
 
 class ZBox(Spider):
     """Z box."""
@@ -229,20 +240,6 @@ class ZBox(Spider):
         return zw.ZBox(
             self.n_legs_in, self.n_legs_out, [1, self.phase]
         ).truncation([2] * self.n_legs_in)
-
-    @property
-    def array(self):
-
-        return_array = np.zeros(
-            (2**self.n_legs_out, 2**self.n_legs_in), dtype=complex
-        )
-
-        return_array[0, 0] = 1
-        return_array[
-            2**self.n_legs_out - 1, 2**self.n_legs_in - 1
-        ] = self.phase
-
-        return return_array
 
 
 class Z(Spider):
@@ -258,20 +255,6 @@ class Z(Spider):
             self.n_legs_in, self.n_legs_out,
             [1, np.exp(1j * self.phase * 2 * np.pi)]
         ).truncation([2] * self.n_legs_in)
-
-    @property
-    def array(self):
-
-        return_array = np.zeros(
-            (2**self.n_legs_out, 2**self.n_legs_in), dtype=complex
-        )
-
-        return_array[0, 0] = 1
-        return_array[
-            2**self.n_legs_out - 1, 2**self.n_legs_in - 1
-        ] = np.exp(1j * self.phase * 2 * np.pi)
-
-        return return_array
 
 
 class X(Spider):
@@ -296,31 +279,6 @@ class X(Spider):
             >> Z(self.n_legs_in, self.n_legs_out, self.phase).truncation()
             >> out_hadamards
         )
-
-    @property
-    def array(self):
-
-        dim_out = 2**self.n_legs_out
-        dim_in = 2**self.n_legs_in
-
-        matrix = np.ones((dim_out, dim_in), dtype=complex) / (
-            2 ** ((self.n_legs_out + self.n_legs_in) / 2)
-        )
-
-        signs_out = (-1) ** np.array(
-            [bin(i).count("1") for i in range(dim_out)]
-        )
-        signs_in = (-1) ** np.array([bin(i).count("1") for i in range(dim_in)])
-
-        phase_term = (
-            np.exp(1j * self.phase * 2 * np.pi)
-            * np.outer(signs_out, signs_in)
-            / (2 ** ((self.n_legs_out + self.n_legs_in) / 2))
-        )
-
-        matrix += phase_term
-
-        return matrix
 
 
 def scalar(data):
@@ -481,7 +439,7 @@ class And(diagram.Box):
 
     Example
     -------
-    >>> and_box = And().to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> and_box = And().to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
     >>> assert np.isclose(and_box[1, 1, 1], 1.0)
     >>> for a in [0, 1]:
@@ -520,9 +478,6 @@ class And(diagram.Box):
             return [2]*len(input_dims)
         return [2]
 
-    def to_zw(self):
-        return self
-
     def dagger(self):
         return And(not self.is_dagger)
 
@@ -537,7 +492,7 @@ class Or(diagram.Box):
 
     Example
     -------
-    >>> or_box = Or().to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> or_box = Or().to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
     >>> assert np.isclose(or_box[0, 0, 0], 1.0)   # only all-zeros→0
     >>> for a in [0, 1]:
@@ -574,9 +529,6 @@ class Or(diagram.Box):
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         return [2] * len(input_dims) if self.is_dagger else [2]
-
-    def to_zw(self):
-        return self
 
     def dagger(self):
         return Or(n=self.dom.n, is_dagger=not self.is_dagger)

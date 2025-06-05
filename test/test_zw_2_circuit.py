@@ -12,7 +12,7 @@ def test_BS(photons_1, photons_2):
     BS = photonic.BBS(0).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath.to_zw()
+    diagram_zw = diagram_qpath
     tensor = diagram_zw.to_tensor()
 
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
@@ -32,7 +32,7 @@ def test_BBS(photons_1, photons_2, bias):
     BS = photonic.BBS(bias).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath.to_zw()
+    diagram_zw = diagram_qpath
     tensor = diagram_zw.to_tensor()
 
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
@@ -49,7 +49,7 @@ def test_TBS(photons_1, photons_2, theta):
     BS = photonic.TBS(theta).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath.to_zw()
+    diagram_zw = diagram_qpath
     tensor = diagram_zw.to_tensor()
 
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)
@@ -73,7 +73,7 @@ def test_MZI(photons_1, photons_2, theta, phi):
     BS = photonic.MZI(theta, phi).get_kraus()
 
     diagram_qpath = zw.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath.to_zw()
+    diagram_zw = diagram_qpath
     tensor = diagram_zw.to_tensor()
 
     n_photons_out = zw.calculate_num_creations_selections(diagram_zw)

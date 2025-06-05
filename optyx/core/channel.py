@@ -72,8 +72,8 @@ We can check that this channel is causal:
 
 >>> import numpy as np
 >>> discards = Discard(qmode ** 4)
->>> rhs = (channel >> discards).double().to_zw().to_tensor().eval().array
->>> lhs = (discards).double().to_zw().to_tensor().eval().array
+>>> rhs = (channel >> discards).double().to_tensor().eval().array
+>>> lhs = (discards).double().to_tensor().eval().array
 >>> assert np.allclose(lhs, rhs)
 
 We can calculate the probability of an input-output pair:
@@ -81,9 +81,9 @@ We can calculate the probability of an input-output pair:
 >>> state = Channel('state', zw.Create(1, 0, 1, 0))
 >>> effect = Channel('effect', zw.Select(1, 0, 1, 0))
 >>> prob = (state >> channel >> effect).double(\\
-...     ).to_zw().to_tensor().eval().array
+...     ).to_tensor().eval().array
 >>> amp = (zw.Create(1, 0, 1, 0) >> circ >> zw.Select(1, 0, 1, 0)\\
-...     ).to_zw().to_tensor().eval().array
+...     ).to_tensor().eval().array
 >>> assert np.allclose(prob, np.absolute(amp) ** 2)
 
 We can check that the probabilities of a normalised state sum to 1:
@@ -92,7 +92,7 @@ We can check that the probabilities of a normalised state sum to 1:
 >>> dual_rail = Channel('2R', diagram.dual_rail(2))
 >>> measure = Discard(qmode ** 3) @ Measure(qmode)
 >>> setup = bell_state >> dual_rail >> channel >> measure
->>> assert np.isclose(sum(setup.double().to_zw().to_tensor().eval().array), 1)
+>>> assert np.isclose(sum(setup.double().to_tensor().eval().array), 1)
 
 We can construct a lossy optical channel and compute its probabilities:
 
@@ -102,7 +102,7 @@ We can construct a lossy optical channel and compute its probabilities:
 >>> uniform_loss = loss.tensor(*[loss for _ in range(3)])
 >>> lossy_channel = channel >> uniform_loss
 >>> lossy_prob = (state >> lossy_channel >> effect).double(\\
-...     ).to_zw().to_tensor().eval().array
+...     ).to_tensor().eval().array
 >>> assert np.allclose(lossy_prob, prob * (eff ** 2))
 """
 

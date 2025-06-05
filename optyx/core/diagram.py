@@ -274,17 +274,6 @@ class Diagram(frobenius.Diagram):
             dom=symmetric.Category(Ty, Diagram),
         )(self)
 
-    def to_zw(self) -> Diagram:
-        """To be used with :class:`lo` diagrams which can
-        be decomposed into the underlying
-        :class:`zw` generators."""
-        return symmetric.Functor(
-            ob=lambda x: x,
-            ar=lambda f: f.to_zw(),
-            cod=symmetric.Category(Ty, Diagram),
-            dom=symmetric.Category(Ty, Diagram),
-        )(self)
-
     def to_path(self, dtype: type = complex):
         """Returns the :class:`Matrix` normal form
         of a :class:`Diagram`.
@@ -594,15 +583,6 @@ class Box(frobenius.Box, Diagram):
         self._array = array
         super().__init__(name, dom, cod, **params)
 
-    def conjugate(self):
-        raise NotImplementedError
-
-    def to_zw(self):
-        raise NotImplementedError
-
-    def to_path(self, dtype: type = complex):
-        raise NotImplementedError("Only LO circuits can be converted to path.")
-
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
@@ -616,18 +596,6 @@ class Box(frobenius.Box, Diagram):
             )
         raise NotImplementedError
 
-    @property
-    def array(self):
-        raise NotImplementedError
-
-    @array.setter
-    def array(self, value):
-        self._array = value
-
-    @array.getter
-    def array(self):
-        return self._array
-
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions.
         The generators of ZW affect the dimensions
@@ -635,6 +603,11 @@ class Box(frobenius.Box, Diagram):
         if self._array is not None:
             return input_dims
         raise NotImplementedError
+
+    def to_path(self, dtype=complex):
+        raise NotImplementedError(f"{self.__class__.__name__} does not support to_path")
+
+
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
@@ -657,9 +630,6 @@ class Spider(frobenius.Spider, Box):
     color = "green"
 
     def conjugate(self):
-        return self
-
-    def to_zw(self):
         return self
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
@@ -773,8 +743,7 @@ class Swap(frobenius.Swap, Box):
 
         return Matrix([0, 1, 1, 0], 2, 2)
 
-    def to_zw(self):
-        return self
+
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -814,10 +783,6 @@ class Scalar(Box):
     def conjugate(self):
         return Scalar(self.scalar.conjugate())
 
-    @property
-    def array(self):
-        return np.array([self.scalar], dtype=complex)
-
     def __str__(self):
         return f"scalar({format_number(self.data)})"
 
@@ -828,11 +793,6 @@ class Scalar(Box):
 
     def dagger(self) -> Diagram:
         return Scalar(self.scalar.conjugate())
-
-    def to_zw(self):
-        from optyx.core.zw import ZBox
-
-        return ZBox(0, 0, self.array)
 
     def subs(self, *args):
         data = rsubs(self.scalar, *args)
@@ -854,7 +814,7 @@ class Scalar(Box):
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
-        return tensor.Box(self.name, Dim(1), Dim(1), self.array)
+        return tensor.Box(self.name, Dim(1), Dim(1), [self.scalar])
 
     def determine_output_dimensions(
         self, input_dims: list[int] = None
@@ -899,8 +859,7 @@ class DualRail(Box):
             return [2]
         return [2, 2]
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self) -> Diagram:
         return DualRail(not self.is_dagger)
@@ -919,8 +878,7 @@ class PhotonThresholdDetector(Box):
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
 
-    def to_zw(self):
-        return self
+
 
     def truncation(self, input_dims=None, output_dims=None):
         if self.is_dagger:

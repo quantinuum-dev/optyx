@@ -165,14 +165,6 @@ class Box(diagram.Box):
             cod = diagram.Mode(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
 
-    def to_zw(self):
-        return self
-
-    def to_path(self, dtype=complex):
-        if isinstance(self.data, Matrix):
-            return self.data
-        raise NotImplementedError
-
     def conjugate(self):
         raise NotImplementedError
 
@@ -700,7 +692,7 @@ class Add(diagram.Box):
     Example
     -------
     >>> add_box = Add(2)
-    >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> tensor = add_box.to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
     >>> # Expect 4 one-hot outputs for all input combinations
     >>> assert np.allclose(tensor.sum(), 4)
@@ -742,8 +734,7 @@ class Add(diagram.Box):
             return [int(input_dims[0])] * self.n
         return [int(sum(input_dims))]
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self):
         return Add(self.n, not self.is_dagger)
@@ -756,7 +747,7 @@ class Multiply(diagram.Box):
     Example
     -------
     >>> mbox = Multiply()
-    >>> result = mbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
+    >>> result = mbox.to_tensor(input_dims=[3, 3]).eval().array
     >>> import numpy as np
     >>> assert result.shape == (3, 3, 9)
     >>> nonzero = np.nonzero(result)
@@ -806,8 +797,7 @@ class Multiply(diagram.Box):
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self):
         return Multiply(not self.is_dagger)
@@ -820,7 +810,7 @@ class Divide(diagram.Box):
     Example
     -------
     >>> dbox = Divide()
-    >>> result = dbox.to_zw().to_tensor(input_dims=[3, 3]).eval().array
+    >>> result = dbox.to_tensor(input_dims=[3, 3]).eval().array
     >>> import numpy as np
     >>> assert result.shape == (3, 3, 9)
     >>> assert np.all(result >= 0)
@@ -866,8 +856,7 @@ class Divide(diagram.Box):
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self):
         return Divide(not self.is_dagger)
@@ -880,7 +869,7 @@ class Mod2(diagram.Box):
     Example
     -------
     >>> m2 = Mod2()
-    >>> array = m2.to_zw().to_tensor(input_dims=[5]).eval().array
+    >>> array = m2.to_tensor(input_dims=[5]).eval().array
     >>> import numpy as np
     >>> assert np.allclose([np.argmax(array[i]) for i in range(5)],
     ...    [i % 2 for i in range(5)])
@@ -915,8 +904,7 @@ class Mod2(diagram.Box):
             return [input_dims[0]]
         return [2]
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self):
         return Mod2(not self.is_dagger)

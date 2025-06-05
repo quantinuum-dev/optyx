@@ -469,7 +469,7 @@ def test_DR_beamsplitter():
     )
 
 
-    left = DualRail().to_zw() >> beam_splitter
+    left = DualRail() >> beam_splitter
     right = zx.H >> DualRail()
     assert compare_arrays_of_different_sizes((right.to_tensor() >>
                                             EmbeddingTensor(2, 3) @ EmbeddingTensor(2, 3)).eval().array.flatten(),
@@ -478,6 +478,6 @@ def test_DR_beamsplitter():
 phases = phases = [0.0, 0.3, 0.6]
 @pytest.mark.parametrize("phase", phases)
 def test_DR_phase_shift(phase):
-    left = DualRail().to_zw() >> Mode(1) @ photonic.Phase(phase).get_kraus()
+    left = DualRail() >> Mode(1) @ photonic.Phase(phase).get_kraus()
     right = zx.Z(1, 1, phase=phase) >> DualRail()
     assert np.allclose(right.to_tensor().eval().array, left.to_tensor().eval().array)

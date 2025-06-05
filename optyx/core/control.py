@@ -36,13 +36,13 @@ We can construct a controlled gate acting on a quantum mode:
 
 >>> f = lambda x: [x * 0.1, x * 0.2]
 >>> box = ControlledPhaseShift(f, n_modes=2)
->>> box.to_zw().draw(path='docs/_static/controlled_phase.svg')
+>>> box.draw(path='docs/_static/controlled_phase.svg')
 
 A bit-controlled gate can be composed as:
 
 >>> from optyx.core.zw import ZBox
 >>> control = BitControlledBox(ZBox(1, 1, lambda x: x))
->>> control.to_zw().draw(path='docs/_static/binary_control.svg')
+>>> control.draw(path='docs/_static/binary_control.svg')
 """
 
 from typing import Callable, List
@@ -66,14 +66,14 @@ class BitControlledBox(diagram.Box):
     >>> from optyx.core.zw import Create, ZBox
     >>> action = Phase(0.1).get_kraus()
     >>> default = ZBox(1, 1, lambda x: 1)
-    >>> action_result = action.to_zw().to_tensor().eval().array
-    >>> default_result = default.to_zw().to_tensor().eval().array
+    >>> action_result = action.to_tensor().eval().array
+    >>> default_result = default.to_tensor().eval().array
     >>> action_test = ((Create(1) >> PhotonThresholdDetector()) @
     ...         Mode(len(action.cod)) >>
-    ...         BitControlledBox(action)).to_zw().to_tensor().eval().array
+    ...         BitControlledBox(action)).to_tensor().eval().array
     >>> default_test = ((Create(0) >> PhotonThresholdDetector()) @
     ...         Mode(len(default.cod)) >>
-    ...         BitControlledBox(default)).to_zw().to_tensor().eval().array
+    ...         BitControlledBox(default)).to_tensor().eval().array
     >>> assert np.allclose(action_result, action_test)
     >>> assert np.allclose(default_result, default_test)
     """
@@ -103,9 +103,6 @@ class BitControlledBox(diagram.Box):
             box_name = action_box.name + "_controlled"
         else:
             box_name = "controlled_box"
-
-        action_box = action_box.to_zw()
-        default_box = default_box.to_zw()
 
         super().__init__(box_name, dom, cod)
 
@@ -181,8 +178,7 @@ class BitControlledBox(diagram.Box):
             Dim(*[int(d) for d in output_dims]), array
         )
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self):
         return BitControlledBox(
@@ -280,8 +276,7 @@ class ControlledPhaseShift(diagram.Box):
             return [diagram.MAX_DIM]*self.n_control_modes + input_dims
         return input_dims[self.n_control_modes:]
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self):
         return ControlledPhaseShift(
@@ -319,8 +314,7 @@ class ClassicalFunctionBox(diagram.Box):
         self.output_size = len(cod)
         self.is_dagger = is_dagger
 
-    def to_zw(self):
-        return self
+
 
     def truncation(
         self, input_dims: List[int], output_dims: List[int]
@@ -386,7 +380,7 @@ class BinaryMatrixBox(diagram.Box):
     >>> xor = X(2, 1) @ Scalar(np.sqrt(2))
     >>> matrix = [[1, 1]]
     >>> m_res = BinaryMatrixBox(matrix).to_tensor().eval().array
-    >>> xor_res = xor.to_zw().to_tensor().eval().array
+    >>> xor_res = xor.to_tensor().eval().array
     >>> assert np.allclose(m_res, xor_res)
 
     """
@@ -405,8 +399,7 @@ class BinaryMatrixBox(diagram.Box):
         self.matrix = matrix
         self.is_dagger = is_dagger
 
-    def to_zw(self):
-        return self
+
 
     def truncation(
         self, input_dims: List[int], output_dims: List[int]

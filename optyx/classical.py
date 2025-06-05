@@ -405,8 +405,8 @@ class ClassicalFunction(ControlChannel):
     >>> xor = X(2, 1) @ Scalar(2**0.5)
     >>> f_res = (ClassicalFunction(lambda x: [x[0] ^ x[1]],
     ...         diagram.Bit(2),
-    ...         diagram.Bit(1))).double().to_zw().to_tensor().eval().array
-    >>> xor_res = xor.double().to_zw().to_tensor().eval().array
+    ...         diagram.Bit(1))).double().to_tensor().eval().array
+    >>> xor_res = xor.double().to_tensor().eval().array
     >>> assert np.allclose(f_res, xor_res)
     """
 
@@ -439,7 +439,7 @@ class BinaryMatrix(ControlChannel):
     >>> xor = X(2, 1) @ Scalar(2**0.5)
     >>> matrix = [[1, 1]]
     >>> m_res = BinaryMatrix(matrix).double().to_tensor().eval().array
-    >>> xor_res = xor.double().to_zw().to_tensor().eval().array
+    >>> xor_res = xor.double().to_tensor().eval().array
     >>> assert np.allclose(m_res, xor_res)
     """
 

@@ -119,27 +119,27 @@ class TestBinaryControlledBox:
 
     @pytest.mark.parametrize("action, default", CIRCUITS_TO_TEST)
     def test_binary_controlled_box(self, action, default):
-        action_result = action.to_zw().to_tensor().eval().array
-        default_result = default.to_zw().to_tensor().eval().array if default is not None else None
+        action_result = action.to_tensor().eval().array
+        default_result = default.to_tensor().eval().array if default is not None else None
 
         if default is None:
             action_test = (
                 (Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
                 >> BitControlledBox(action)
-            ).to_zw().to_tensor().eval().array
+            ).to_tensor().eval().array
             default_test = (
                 (Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
                 >> BitControlledBox(action)
-            ).to_zw().to_tensor().eval().array
+            ).to_tensor().eval().array
         else:
             action_test = (
                 (Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
-                >> BitControlledBox(action, default.to_zw())
-            ).to_zw().to_tensor().eval().array
+                >> BitControlledBox(action, default)
+            ).to_tensor().eval().array
             default_test = (
                 (Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
-                >> BitControlledBox(action, default.to_zw())
-            ).to_zw().to_tensor().eval().array
+                >> BitControlledBox(action, default)
+            ).to_tensor().eval().array
 
         assert np.allclose(action_result, action_test)
         if default is not None:
@@ -147,8 +147,8 @@ class TestBinaryControlledBox:
 
     @pytest.mark.parametrize("action, default", CIRCUITS_TO_TEST)
     def test_binary_controlled_box_dagger(self, action, default):
-        res_1 = BitControlledBox(action, default).to_zw().to_tensor().dagger().eval().array
-        res_2 = BitControlledBox(action, default).dagger().to_zw().to_tensor().eval().array
+        res_1 = BitControlledBox(action, default).to_tensor().dagger().eval().array
+        res_2 = BitControlledBox(action, default).dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
 
@@ -203,8 +203,8 @@ class TestControlledPhaseShift:
         with converting the diagram to a tensor, then taking dagger.
         """
         diagram = diagram_creator(f)
-        res_1 = diagram.to_zw().to_tensor().dagger().eval().array
-        res_2 = diagram.dagger().to_zw().to_tensor().eval().array
+        res_1 = diagram.to_tensor().dagger().eval().array
+        res_2 = diagram.dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
     diagrams_to_test_2 = [
@@ -220,8 +220,8 @@ class TestControlledPhaseShift:
         Additional tests for ControlledPhaseShift, verifying that dagger
         consistency holds.
         """
-        res_1 = diagram.to_zw().to_tensor().dagger().eval().array
-        res_2 = diagram.dagger().to_zw().to_tensor().eval().array
+        res_1 = diagram.to_tensor().dagger().eval().array
+        res_2 = diagram.dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
     xs = range(5)
@@ -262,8 +262,8 @@ class TestPhotonThresholdDetector:
 
     @pytest.mark.parametrize("circ", circuits_to_test)
     def test_photon_threshold_detector_dagger(self, circ):
-        res_1 = circ.to_zw().to_tensor().dagger().eval().array
-        res_2 = circ.dagger().to_zw().to_tensor().eval().array
+        res_1 = circ.to_tensor().dagger().eval().array
+        res_2 = circ.dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
 
