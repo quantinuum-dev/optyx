@@ -734,8 +734,6 @@ class Add(diagram.Box):
             return [int(input_dims[0])] * self.n
         return [int(sum(input_dims))]
 
-
-
     def dagger(self):
         return Add(self.n, not self.is_dagger)
 
