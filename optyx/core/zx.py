@@ -116,23 +116,18 @@ Create(1) >> mode @ Create((0,))
 The array properties of Z and X spiders agree with PyZX.
 
 >>> z = Z(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
->>> assert np.allclose(z.array.flatten(), z.to_pyzx().to_tensor().flatten())
+>>> assert np.allclose(z.to_tensor().eval().array.flatten(), z.to_pyzx().to_tensor().flatten())
 
 >>> x = X(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
->>> assert np.allclose(x.array.flatten(), x.to_pyzx().to_tensor().flatten())
+>>> assert np.allclose(x.to_tensor().eval().array.flatten(), x.to_pyzx().to_tensor().flatten())
 """
 
 from math import pi
 from typing import List
 
 import numpy as np
-from discopy import quantum
 from discopy import symmetric
 from discopy import cat
-from discopy.quantum.gates import Bra, Ket, Rz, Rx, CX, CZ, Controlled
-from discopy.quantum.circuit import qubit, Circuit
-from discopy.quantum.gates import Scalar as GatesScalar
-from discopy.cat import Category
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
@@ -287,8 +282,8 @@ class ZXDiagram(diagram.Diagram):
         Returns a :class:`pyzx.Graph`.
 
         >>> import optyx.core.zx as zx
-        >>> bialgebra = Z(1, 2, .25) @ Z(1, 2, .75) >> Id(Bit(1)) @ \\
-        ...   SWAP @ Id(Bit(1)) >> X(2, 1, .5) @ X(2, 1, .5)
+        >>> bialgebra = Z(1, 2, .25) @ Z(1, 2, .75) >> Id(diagram.Bit(1)) @ \\
+        ...   SWAP @ Id(diagram.Bit(1)) >> X(2, 1, .5) @ X(2, 1, .5)
         >>> graph = bialgebra.to_pyzx()
         >>> assert len(graph.vertices()) == 8
         >>> assert (graph.inputs(), graph.outputs()) == ((0, 1), (6, 7))
@@ -364,16 +359,6 @@ class Box(diagram.Box, ZXDiagram):
             cod = diagram.Bit(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
 
-    @property
-    def array(self):
-        if self.data is not None:
-            return self.data
-        raise NotImplementedError(f"Array not implemented for {self}.")
-
-    @array.setter
-    def array(self, value):
-        self._array = value
-
     def conjugate(self):
         raise NotImplementedError
 
@@ -398,7 +383,9 @@ class Box(diagram.Box, ZXDiagram):
 
 
 class Spider(diagram.Spider, Box):
-    """Abstract spider box."""
+    """
+    Abstract spider box.
+    """
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
         super().__init__(n_legs_in, n_legs_out, diagram.Bit(1), phase)
@@ -435,13 +422,13 @@ class Spider(diagram.Spider, Box):
         del left
         return type(self)(len(self.cod), len(self.dom), self.phase)
 
-    @property
-    def array(self):
-        return self.truncation().eval().array
-
     def truncation(self, input_dims = None, output_dims = None):
-        return super().truncation([2]*self.n_legs_in, [2]*self.n_legs_out)
-
+        """
+        All inheriting classes must implement this method.
+        """
+        raise NotImplementedError(
+            f"Truncation not implemented for {self}."
+        )
 
 class ZBox(Spider):
     """Z box."""
@@ -630,7 +617,7 @@ H.draw_as_spider = True
     "",
     "H",
 )
-H.data = np.array([[1, 1], [1, -1]]) / 2**0.5
+H.array = np.array([[1, 1], [1, -1]]) / 2**0.5
 H.color, H.shape = "yellow", "rectangle"
 
 SWAP = diagram.Swap(diagram.bit, diagram.bit)

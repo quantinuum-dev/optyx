@@ -13,7 +13,7 @@ combinations = list(itertools.product(n_legs_in, n_legs_out, phase))
 @pytest.mark.parametrize("n_legs_in, n_legs_out, phase", combinations)
 def test_Z(n_legs_in, n_legs_out, phase):
     z = Z(n_legs_in, n_legs_out, phase)
-    assert np.allclose(z.array.flatten(), z.to_pyzx().to_tensor().flatten())
+    assert np.allclose(z.to_tensor().eval().array.flatten(), z.to_pyzx().to_tensor().flatten())
 
 @pytest.mark.parametrize("n_legs_in, n_legs_out, phase", combinations)
 def test_Z_tensor(n_legs_in, n_legs_out, phase):
@@ -24,7 +24,7 @@ def test_Z_tensor(n_legs_in, n_legs_out, phase):
 @pytest.mark.parametrize("n_legs_in, n_legs_out, phase", combinations)
 def test_X(n_legs_in, n_legs_out, phase):
     x = X(n_legs_in, n_legs_out, phase)
-    assert np.allclose(x.array.flatten(), x.to_pyzx().to_tensor().flatten())
+    assert np.allclose(x.to_tensor().eval().array.flatten(), x.to_pyzx().to_tensor().flatten())
 
 @pytest.mark.parametrize("n_legs_in, n_legs_out, phase", combinations)
 def test_X_tensor(n_legs_in, n_legs_out, phase):

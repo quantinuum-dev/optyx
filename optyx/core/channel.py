@@ -114,10 +114,6 @@ import numpy as np
 from discopy import tensor
 from discopy import symmetric
 from discopy.cat import factory
-from pytket.extensions.pyzx import tk_to_pyzx, pyzx_to_tk
-from pyzx import extract_circuit
-
-from optyx._utils import explode_channel
 from optyx.core import zx, diagram
 
 class Ob(symmetric.Ob):

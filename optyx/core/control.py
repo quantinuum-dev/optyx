@@ -367,6 +367,7 @@ class ClassicalFunctionBox(diagram.Box):
             self.function, self.cod, self.dom, not self.is_dagger
         )
 
+    # conj?
 
 class BinaryMatrixBox(diagram.Box):
     """
@@ -433,3 +434,5 @@ class BinaryMatrixBox(diagram.Box):
 
     def dagger(self):
         return BinaryMatrixBox(self.matrix, not self.is_dagger)
+
+    # conj?

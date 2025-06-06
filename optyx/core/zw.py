@@ -165,9 +165,6 @@ class Box(diagram.Box):
             cod = diagram.Mode(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
 
-    def conjugate(self):
-        raise NotImplementedError
-
 
 class IndexableAmplitudes:
     """Since the amplitudes can be an infinite list,
@@ -737,6 +734,7 @@ class Add(diagram.Box):
     def dagger(self):
         return Add(self.n, not self.is_dagger)
 
+    #conj?
 
 class Multiply(diagram.Box):
     """
@@ -795,7 +793,7 @@ class Multiply(diagram.Box):
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
 
-
+    # conj?
 
     def dagger(self):
         return Multiply(not self.is_dagger)
@@ -854,7 +852,7 @@ class Divide(diagram.Box):
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
 
-
+    # conj?
 
     def dagger(self):
         return Divide(not self.is_dagger)
@@ -902,7 +900,7 @@ class Mod2(diagram.Box):
             return [input_dims[0]]
         return [2]
 
-
+    # conj?
 
     def dagger(self):
         return Mod2(not self.is_dagger)

@@ -29,5 +29,6 @@ def test_CQMap():
 
     CALCULATED_FIDELITY = (Noisy_bell >> Diagram.id(qubit) @ X >> Perfect_Bell_Effect).double().to_tensor().eval().array.real
     REAL_FIDELITY = .96898
-
+    print(CALCULATED_FIDELITY)
+    print(REAL_FIDELITY)
     assert np.isclose(CALCULATED_FIDELITY, REAL_FIDELITY, rtol=1e-3)

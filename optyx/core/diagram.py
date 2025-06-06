@@ -388,10 +388,24 @@ class Box(frobenius.Box, Diagram):
         self._array = array
         super().__init__(name, dom, cod, **params)
 
+    def conjugate(self) -> Box:
+        """Conjugate the box."""
+        if self._array is not None:
+            return Box(
+                self.name + ".dagger()",
+                dom=self.cod,
+                cod=self.dom,
+                array=self._array.conjugate(),
+            )
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support conjugation"
+        )
+
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
-        """Create a tensor in the semantics of a ZW diagram"""
+        """Create a tensor in the semantics of a ZW diagram.
+        This can be deduced from an array if provided"""
         if self._array is not None:
             return tensor.Box(
                 self.name,
@@ -399,7 +413,9 @@ class Box(frobenius.Box, Diagram):
                 cod=tensor.Dim(2) ** len(self.cod),
                 data=self._array,
             )
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support dagger"
+        )
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions.
@@ -407,7 +423,9 @@ class Box(frobenius.Box, Diagram):
         of the output tensor diagrams."""
         if self._array is not None:
             return input_dims
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support determine_output_dimensions"
+        )
 
     def to_path(self, dtype=complex):
         raise NotImplementedError(
@@ -427,6 +445,18 @@ class Box(frobenius.Box, Diagram):
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
 
+    @property
+    def array(self):
+        return self._array
+
+    @array.setter
+    def array(self, value):
+        """
+        A :code:`diagram.Box` can be defined through an array
+        which will inform `Box.truncation()`.
+        """
+        self._array = value
+
     def __pow__(self, n):
         if n == 1:
             return self
@@ -438,6 +468,8 @@ class Spider(frobenius.Spider, Box):
 
     draw_as_spider = True
     color = "green"
+
+    # dagger - inherited?
 
     def conjugate(self):
         return self
@@ -483,6 +515,8 @@ class Sum(symmetric.Sum, Box):
     """
     Formal sum of optyx diagrams
     """
+
+    # dagger - inherited?
 
     __ambiguous_inheritance__ = (symmetric.Sum,)
 
@@ -553,7 +587,7 @@ class Swap(frobenius.Swap, Box):
 
         return Matrix([0, 1, 1, 0], 2, 2)
 
-
+    # dagger - inherited?
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -670,7 +704,6 @@ class DualRail(Box):
         return [2, 2]
 
 
-
     def dagger(self) -> Diagram:
         return DualRail(not self.is_dagger)
 
@@ -687,8 +720,6 @@ class PhotonThresholdDetector(Box):
         else:
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
-
-
 
     def truncation(self, input_dims=None, output_dims=None):
         if self.is_dagger:
@@ -714,6 +745,7 @@ class PhotonThresholdDetector(Box):
         return PhotonThresholdDetector(not self.is_dagger)
 
 
+## tensor
 class EmbeddingTensor(tensor.Box):
     """
     Embedding tensor for fixing the dimensions of the output tensor.
