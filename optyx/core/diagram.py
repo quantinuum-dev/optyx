@@ -389,7 +389,9 @@ class Box(frobenius.Box, Diagram):
         super().__init__(name, dom, cod, **params)
 
     def conjugate(self) -> Box:
-        """Conjugate the box."""
+        """Conjugate the box.
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
         if self._array is not None:
             return type(self)(
                 self.name + ".dagger()",
@@ -402,7 +404,9 @@ class Box(frobenius.Box, Diagram):
         )
 
     def dagger(self) -> Box:
-        """Return the dagger of the box."""
+        """Return the dagger of the box.
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
         if self._array is not None:
             return type(self)(
                 self.name + ".dagger()",
@@ -418,7 +422,8 @@ class Box(frobenius.Box, Diagram):
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
         """Create a tensor in the semantics of a ZW diagram.
-        This can be deduced from an array if provided"""
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
         if self._array is not None:
             return tensor.Box(
                 self.name,
@@ -433,7 +438,9 @@ class Box(frobenius.Box, Diagram):
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions.
         The generators of ZW affect the dimensions
-        of the output tensor diagrams."""
+        of the output tensor diagrams.
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
         if self._array is not None:
             return input_dims
         raise NotImplementedError(
@@ -441,6 +448,10 @@ class Box(frobenius.Box, Diagram):
         )
 
     def to_path(self, dtype=complex):
+        """Convert the box to a (Q)path representation.
+        It can only be defined for zw boxes which are also part of
+        the QPath graphical language
+        """
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support to_path"
         )
@@ -466,7 +477,10 @@ class Box(frobenius.Box, Diagram):
     def array(self, value):
         """
         A :code:`diagram.Box` can be defined through an array
-        which will inform `Box.truncation()`.
+        which will inform :code:`Box.truncation()`, :code:`Box.dagger()`,
+        :code:`Box.conjugate()` and :code:`Box.determine_output_dimensions()`.
+        The box need to have fixed dom and cod. The tensor should also have
+        fixed dimensions. Usually used for zx boxes (Bit) with tensor with dims of 2.
         """
         self._array = value
 
@@ -477,7 +491,10 @@ class Box(frobenius.Box, Diagram):
 
 
 class Spider(frobenius.Spider, Box):
-    """Abstract spider (dagger-SCFA)"""
+    """Abstract spider (dagger-SCFA)
+
+    No amplitudes, or no phases.
+    """
 
     draw_as_spider = True
     color = "green"
@@ -500,7 +517,11 @@ class Spider(frobenius.Spider, Box):
     ) -> tensor.Box:
         """
         Create a tensor in the semantics of a ZW/ZX diagram depending
-        on the domain and codomain type
+        on the domain and codomain type.
+
+        The truncation is defined as a tensor.Spider with
+        EmbeddingTensor layers to fix the dimensions of the spider to
+        the lowest dimension of the input wires.
         """
         if isinstance(self.cod, Bit) and isinstance(self.dom, Bit):
             return tensor.Spider(len(self.dom), len(self.cod), Dim(2))
@@ -715,7 +736,6 @@ class DualRail(Box):
         if self.is_dagger:
             return [2]
         return [2, 2]
-
 
     def dagger(self) -> Diagram:
         return DualRail(not self.is_dagger)
