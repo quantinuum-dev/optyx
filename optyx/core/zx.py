@@ -131,6 +131,7 @@ from discopy import cat
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
+from discopy import quantum
 from optyx.core import diagram, zw
 
 
@@ -395,7 +396,7 @@ class Spider(diagram.Spider, Box):
         self.n_legs_in, self.n_legs_out = n_legs_in, n_legs_out
 
     def conjugate(self):
-        return Spider(self.n_legs_in, self.n_legs_out, -self.phase)
+        return type(self)(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def __repr__(self):
         return str(self).replace(type(self).__name__, factory_name(type(self)))
@@ -435,9 +436,6 @@ class ZBox(Spider):
 
     tikzstyle_name = "ZBox"
 
-    def conjugate(self):
-        return ZBox(self.n_legs_in, self.n_legs_out, np.conjugate(self.phase))
-
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
         return zw.ZBox(
             self.n_legs_in, self.n_legs_out, [1, self.phase]
@@ -448,9 +446,6 @@ class Z(Spider):
     """Z spider."""
 
     tikzstyle_name = "Z"
-
-    def conjugate(self):
-        return Z(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
         return zw.ZBox(
@@ -464,9 +459,6 @@ class X(Spider):
 
     tikzstyle_name = "X"
     color = "red"
-
-    def conjugate(self):
-        return X(self.n_legs_in, self.n_legs_out, -self.phase)
 
     def truncation(self, input_dims=None, output_dims=None) -> tensor.Box:
         in_hadamards = tensor.Id(1)
@@ -610,9 +602,7 @@ root2 = scalar(2**0.5)
 
 
 H = Box("H", 1, 1)
-H.dagger = lambda: H
-H.conjugate = lambda: H
-H.draw_as_spider = True
+H.draw_as_spider = False
 (H.drawing_name, H.tikzstyle_name,) = (
     "",
     "H",

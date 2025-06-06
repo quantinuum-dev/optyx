@@ -391,7 +391,7 @@ class Box(frobenius.Box, Diagram):
     def conjugate(self) -> Box:
         """Conjugate the box."""
         if self._array is not None:
-            return Box(
+            return type(self)(
                 self.name + ".dagger()",
                 dom=self.cod,
                 cod=self.dom,
@@ -399,6 +399,19 @@ class Box(frobenius.Box, Diagram):
             )
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support conjugation"
+        )
+
+    def dagger(self) -> Box:
+        """Return the dagger of the box."""
+        if self._array is not None:
+            return type(self)(
+                self.name + ".dagger()",
+                dom=self.cod,
+                cod=self.dom,
+                array=self._array.T.conjugate(),
+            )
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support dagger"
         )
 
     def truncation(

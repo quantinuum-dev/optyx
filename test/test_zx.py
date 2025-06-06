@@ -3,7 +3,7 @@ import random
 import numpy as np
 from pytest import raises, fixture
 
-from discopy.quantum.gates import CRz, CRx, CU1
+from discopy.quantum.gates import CRz, CRx, CU1, Ket, Rx
 from optyx.core.zx import *
 from optyx.core.diagram import Diagram, Bit
 
@@ -44,7 +44,7 @@ def test_Spider():
 
 def test_H():
     assert str(H) == "H"
-    assert H[::-1] == H
+    assert np.allclose(H[::-1].to_tensor().eval().array, H.to_tensor().eval().array)
 
 
 def test_Sum():
