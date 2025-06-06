@@ -350,7 +350,7 @@ class ZXDiagram(diagram.Diagram):
         return graph
 
 
-class Box(diagram.Box, ZXDiagram):
+class ZXBox(diagram.Box, ZXDiagram):
     """A box in a ZX diagram."""
 
     def __init__(self, name, dom, cod, **params):
@@ -383,7 +383,7 @@ class Box(diagram.Box, ZXDiagram):
         )
 
 
-class Spider(diagram.Spider, Box):
+class Spider(diagram.Spider, ZXBox):
     """
     Abstract spider box.
     """
@@ -601,7 +601,7 @@ def zx_to_path(diagram: diagram.Diagram) -> diagram.Diagram:
 root2 = scalar(2**0.5)
 
 
-H = Box("H", 1, 1)
+H = ZXBox("H", 1, 1)
 H.draw_as_spider = False
 (H.drawing_name, H.tikzstyle_name,) = (
     "",
@@ -621,7 +621,7 @@ def swap_truncation(diagram, _, __):
 SWAP.truncation = swap_truncation
 
 
-class And(diagram.Box):
+class And(ZXBox):
     """
     Reversible classical AND gate on n bits.
 
@@ -674,7 +674,7 @@ class And(diagram.Box):
         return And(not self.is_dagger)
 
 
-class Or(diagram.Box):
+class Or(ZXBox):
     """
     Reversible classical OR gate on *n* bits.
 

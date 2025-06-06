@@ -151,11 +151,18 @@ import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.core import diagram
-from optyx._utils import occupation_numbers, multinomial
+from optyx._utils import (
+    occupation_numbers,
+    multinomial,
+    filter_occupation_numbers
+)
 from optyx.core.path import Matrix
 
 
-class Box(diagram.Box):
+class ZWDiagram(diagram.Diagram):
+    pass
+
+class ZWBox(diagram.Box, ZWDiagram):
     """Box in a :class:`Diagram`"""
 
     def __init__(self, name, dom, cod, **params):
@@ -200,7 +207,7 @@ class IndexableAmplitudes:
         return self.func.__code__.co_code == other.func.__code__.co_code
 
 
-class W(Box):
+class W(ZWBox):
     """
     W node from the infinite ZW calculus - one input and n outputs
     """
@@ -298,7 +305,7 @@ class W(Box):
         )
 
 
-class ZBox(diagram.Spider, Box):
+class ZBox(diagram.Spider, ZWBox):
     """
     Z spider from the ZW calculus.
     """
@@ -419,7 +426,7 @@ class ZBox(diagram.Spider, Box):
         return ZBox(self.legs_out, self.legs_in, np.conj(self.amplitudes))
 
 
-class Create(Box):
+class Create(ZWBox):
     """
     Creation of photons on modes given a list of occupation numbers.
 
@@ -489,7 +496,7 @@ class Create(Box):
         return Select(*self.photons)
 
 
-class Select(Box):
+class Select(ZWBox):
     """
     Post-selection of photons given a list of occupation numbers.
 
@@ -558,7 +565,7 @@ class Select(Box):
         return Create(*self.photons)
 
 
-class Endo(Box):
+class Endo(ZWBox):
     """
     Endomorphism with one input and one output.
 
@@ -626,60 +633,7 @@ class Endo(Box):
         return input_dims
 
 
-def calculate_num_creations_selections(dgrm: diagram.Diagram) -> tuple:
-    """Calculate the number of creations and selections in the diagram"""
-
-    n_selections = 0
-    n_creations = 0
-
-    if not isinstance(dgrm, diagram.Sum):
-        for box, _ in zip(dgrm.boxes, dgrm.offsets):
-            if isinstance(box, Create):
-                n_creations += sum(box.photons)
-            elif isinstance(box, Select):
-                n_selections += sum(box.photons)
-    else:
-        arr_selections_creations = []
-        for term in dgrm:
-            arr_selections_creations.append(
-                calculate_num_creations_selections(term)
-            )
-        n_selections = max(i[0] for i in arr_selections_creations)
-        n_creations = max(i[1] for i in arr_selections_creations)
-    return n_selections, n_creations
-
-
-def filter_occupation_numbers(
-    allowed_occupation_configurations: list[list[int]],
-    input_dims: list[int],
-) -> list[list[int]]:
-    """Filter the occupation numbers based on the input dimensions"""
-    return [
-        config
-        for config in allowed_occupation_configurations
-        if all(
-            list(config[i] <= input_dims[i] for i in range(len(input_dims)))
-        )
-    ]
-
-
-SWAP = diagram.Swap(diagram.Mode(1), diagram.Mode(1))
-
-
-def Split(n):
-    return W(n)
-
-
-def Merge(n):
-    return W(n).dagger()
-
-
-def Id(n):
-    return diagram.Diagram.id(n) if \
-          isinstance(n, diagram.Ty) else diagram.Diagram.id(diagram.Mode(n))
-
-
-class Add(diagram.Box):
+class Add(ZWBox):
     """
     Adds multiple classical values using a W-dagger operation.
     Acts by adding the basis vectors without the binomial coefficient.
@@ -734,9 +688,11 @@ class Add(diagram.Box):
     def dagger(self):
         return Add(self.n, not self.is_dagger)
 
-    #conj?
+    def conjugate(self):
+        return self
 
-class Multiply(diagram.Box):
+
+class Multiply(ZWBox):
     """
     Multiplies two classical integers.
 
@@ -793,13 +749,14 @@ class Multiply(diagram.Box):
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
 
-    # conj?
+    def conjugate(self):
+        return self
 
     def dagger(self):
         return Multiply(not self.is_dagger)
 
 
-class Divide(diagram.Box):
+class Divide(ZWBox):
     """
     Inverse of multiplication: decomposes a product into factors if possible.
 
@@ -852,13 +809,14 @@ class Divide(diagram.Box):
             return [int(input_dims[0])]
         return [int(np.prod(input_dims))]
 
-    # conj?
+    def conjugate(self):
+        return self
 
     def dagger(self):
         return Divide(not self.is_dagger)
 
 
-class Mod2(diagram.Box):
+class Mod2(ZWBox):
     """
     Reduces a classical mode to its parity (even/odd), i.e., modulo 2.
 
@@ -900,7 +858,24 @@ class Mod2(diagram.Box):
             return [input_dims[0]]
         return [2]
 
-    # conj?
+    def conjugate(self):
+        return self
 
     def dagger(self):
         return Mod2(not self.is_dagger)
+
+
+SWAP = diagram.Swap(diagram.Mode(1), diagram.Mode(1))
+
+
+def Split(n):
+    return W(n)
+
+
+def Merge(n):
+    return W(n).dagger()
+
+
+def Id(n):
+    return diagram.Diagram.id(n) if \
+          isinstance(n, diagram.Ty) else diagram.Diagram.id(diagram.Mode(n))

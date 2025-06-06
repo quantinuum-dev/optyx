@@ -230,6 +230,14 @@ from typing import List
 MAX_DIM = 10
 
 
+"""
+Each class (especially classes from which other boxes inherit: ZXBox, ZWBox etc):
+should have a well-defined role -- the boxes which inherit should have the least
+number of attributes and methods.
+
+Simply try to move as many methods and attributes up the inheritance tree.
+"""
+
 class Ob(frobenius.Ob):
     """Basic object in an optyx Diagram: bit or mode"""
 

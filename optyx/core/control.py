@@ -52,7 +52,24 @@ import numpy as np
 
 from optyx.core import diagram, zw
 
-class BitControlledBox(diagram.Box):
+class ControlDiagram(diagram.Diagram):
+    pass
+
+
+class ControlBox(diagram.Box, ControlDiagram):
+    pass
+
+
+class ClassicalDiagram(diagram.Diagram):
+    pass
+
+
+class ClassicalBox(diagram.Box, ClassicalDiagram):
+    def conjugate(self):
+        return self
+
+
+class BitControlledBox(ControlBox):
     """
     A box controlled by a bit that switches between two boxes:
     - action_box: the box that is applied when the control bit is 1
@@ -179,7 +196,6 @@ class BitControlledBox(diagram.Box):
         )
 
 
-
     def dagger(self):
         return BitControlledBox(
             self.action_box, self.default_box, not self.is_dagger
@@ -193,7 +209,7 @@ class BitControlledBox(diagram.Box):
         )
 
 
-class ControlledPhaseShift(diagram.Box):
+class ControlledPhaseShift(ControlBox):
     """
     A controlled phase shift on modes, where the control
     is a natural number and
@@ -290,7 +306,7 @@ class ControlledPhaseShift(diagram.Box):
         )
 
 
-class ClassicalFunctionBox(diagram.Box):
+class ClassicalFunctionBox(ClassicalBox):
 
     def __init__(
         self,
@@ -367,9 +383,8 @@ class ClassicalFunctionBox(diagram.Box):
             self.function, self.cod, self.dom, not self.is_dagger
         )
 
-    # conj?
 
-class BinaryMatrixBox(diagram.Box):
+class BinaryMatrixBox(ClassicalBox):
     """
     Represents a linear transformation over
     GF(2) using matrix multiplication.
@@ -435,4 +450,5 @@ class BinaryMatrixBox(diagram.Box):
     def dagger(self):
         return BinaryMatrixBox(self.matrix, not self.is_dagger)
 
-    # conj?
+    def conjugate(self):
+        return self

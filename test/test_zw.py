@@ -1,6 +1,7 @@
 import math
 
 from optyx.core.zw import *
+from optyx._utils import calculate_num_creations_selections
 from optyx.core.diagram import mode, DualRail, EmbeddingTensor, Swap, Diagram, Mode, Spider, Scalar
 from optyx._utils import compare_arrays_of_different_sizes
 import optyx.core.zx as zx

@@ -250,3 +250,40 @@ def explode_channel(
         return channel_class("Id", kraus)
 
     return channel_class.then(*arrows)
+
+def calculate_num_creations_selections(dgrm) -> tuple:
+    """Calculate the number of creations and selections in the diagram"""
+    from optyx.core import diagram, zw
+
+    n_selections = 0
+    n_creations = 0
+
+    if not isinstance(dgrm, diagram.Sum):
+        for box, _ in zip(dgrm.boxes, dgrm.offsets):
+            if isinstance(box, zw.Create):
+                n_creations += sum(box.photons)
+            elif isinstance(box, zw.Select):
+                n_selections += sum(box.photons)
+    else:
+        arr_selections_creations = []
+        for term in dgrm:
+            arr_selections_creations.append(
+                calculate_num_creations_selections(term)
+            )
+        n_selections = max(i[0] for i in arr_selections_creations)
+        n_creations = max(i[1] for i in arr_selections_creations)
+    return n_selections, n_creations
+
+
+def filter_occupation_numbers(
+    allowed_occupation_configurations: list[list[int]],
+    input_dims: list[int],
+) -> list[list[int]]:
+    """Filter the occupation numbers based on the input dimensions"""
+    return [
+        config
+        for config in allowed_occupation_configurations
+        if all(
+            list(config[i] <= input_dims[i] for i in range(len(input_dims)))
+        )
+    ]
