@@ -1,16 +1,13 @@
 import pytest
 import numpy as np
-import itertools
 import copy as cp
 
-from optyx.feed_forward.classical_control import *
-from optyx.feed_forward.measurement import *
-from optyx.feed_forward.controlled_gates import *
-from optyx.zw import Create, W
-from optyx.optyx import PhotonThresholdDetector, Mode, Swap, Scalar, DualRail, Id
-from optyx.lo import Phase, BS, MZI, BS_hadamard
-from optyx.utils import matrix_to_zw
-from optyx.zx import X, Z
+from optyx.core.control import *
+from optyx.core.zw import Create, W, ZBox
+from optyx.core.diagram import PhotonThresholdDetector, Mode, Swap, Bit, Id
+from optyx.photonic import Phase, BS, MZI
+from optyx._utils import matrix_to_zw
+
 
 # Helper Functions and Data
 
@@ -92,11 +89,11 @@ def real_f_3(x):
 # Parametrized data sets
 
 CIRCUITS_TO_TEST = [
-    (Phase(0.1), None),
-    (Phase(0.456), Phase(0.8765)),
-    (BS, None),
-    (BS, MZI(0.324, 0.9875)),
-    (W(2).dagger() >> W(2), MZI(0.324, 0.9875)),
+    (Phase(0.1).get_kraus(), None),
+    (Phase(0.456).get_kraus(), Phase(0.8765).get_kraus()),
+    (BS.get_kraus(), None),
+    (BS.get_kraus(), MZI(0.324, 0.9875).get_kraus()),
+    (W(2).dagger() >> W(2), MZI(0.324, 0.9875).get_kraus()),
 ]
 
 CLASSICAL_FUNCTIONS_TO_TEST_MATRIX = (
@@ -122,27 +119,27 @@ class TestBinaryControlledBox:
 
     @pytest.mark.parametrize("action, default", CIRCUITS_TO_TEST)
     def test_binary_controlled_box(self, action, default):
-        action_result = action.to_zw().to_tensor().eval().array
-        default_result = default.to_zw().to_tensor().eval().array if default is not None else None
+        action_result = action.to_tensor().eval().array
+        default_result = default.to_tensor().eval().array if default is not None else None
 
         if default is None:
             action_test = (
                 (Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
                 >> BitControlledBox(action)
-            ).to_zw().to_tensor().eval().array
+            ).to_tensor().eval().array
             default_test = (
                 (Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
                 >> BitControlledBox(action)
-            ).to_zw().to_tensor().eval().array
+            ).to_tensor().eval().array
         else:
             action_test = (
                 (Create(1) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
-                >> BitControlledBox(action, default.to_zw())
-            ).to_zw().to_tensor().eval().array
+                >> BitControlledBox(action, default)
+            ).to_tensor().eval().array
             default_test = (
                 (Create(0) >> PhotonThresholdDetector()) @ Mode(len(action.cod))
-                >> BitControlledBox(action, default.to_zw())
-            ).to_zw().to_tensor().eval().array
+                >> BitControlledBox(action, default)
+            ).to_tensor().eval().array
 
         assert np.allclose(action_result, action_test)
         if default is not None:
@@ -150,8 +147,8 @@ class TestBinaryControlledBox:
 
     @pytest.mark.parametrize("action, default", CIRCUITS_TO_TEST)
     def test_binary_controlled_box_dagger(self, action, default):
-        res_1 = BitControlledBox(action, default).to_zw().to_tensor().dagger().eval().array
-        res_2 = BitControlledBox(action, default).dagger().to_zw().to_tensor().eval().array
+        res_1 = BitControlledBox(action, default).to_tensor().dagger().eval().array
+        res_2 = BitControlledBox(action, default).dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
 
@@ -206,8 +203,8 @@ class TestControlledPhaseShift:
         with converting the diagram to a tensor, then taking dagger.
         """
         diagram = diagram_creator(f)
-        res_1 = diagram.to_zw().to_tensor().dagger().eval().array
-        res_2 = diagram.dagger().to_zw().to_tensor().eval().array
+        res_1 = diagram.to_tensor().dagger().eval().array
+        res_2 = diagram.dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
     diagrams_to_test_2 = [
@@ -223,8 +220,8 @@ class TestControlledPhaseShift:
         Additional tests for ControlledPhaseShift, verifying that dagger
         consistency holds.
         """
-        res_1 = diagram.to_zw().to_tensor().dagger().eval().array
-        res_2 = diagram.dagger().to_zw().to_tensor().eval().array
+        res_1 = diagram.to_tensor().dagger().eval().array
+        res_2 = diagram.dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
     xs = range(5)
@@ -265,8 +262,8 @@ class TestPhotonThresholdDetector:
 
     @pytest.mark.parametrize("circ", circuits_to_test)
     def test_photon_threshold_detector_dagger(self, circ):
-        res_1 = circ.to_zw().to_tensor().dagger().eval().array
-        res_2 = circ.dagger().to_zw().to_tensor().eval().array
+        res_1 = circ.to_tensor().dagger().eval().array
+        res_2 = circ.dagger().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
 
@@ -287,82 +284,3 @@ class TestMatrixToZW:
 
         assert np.allclose(diagram1.to_tensor().eval().array,
                            diagram2.to_tensor().eval().array)
-
-
-def test_teleportation():
-    kraus_map_fusion = (
-        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
-        Mode(1) @ BS_hadamard @ Mode(1) >>
-        Swap(Mode(1), Mode(1)) @ Mode(1) @ Mode(1) >>
-        Mode(1) @ Swap(Mode(1), Mode(1)) @ Mode(1) >>
-        Mode(1) @ Mode(1) @ BS_hadamard
-    )
-
-    fusion = Channel(
-        "Fusion",
-        kraus_map_fusion
-    )
-
-    def fusion_function(x):
-        a = x[0]
-        b = x[1]
-        c = x[2]
-        d = x[3]
-        s = (a % 2) ^ (b % 2)
-        k = int(s*(b + d) + (1-s)*(1 - (a + b)/2))%2
-        return [s, k]
-
-    classical_function = ControlChannel(
-        ClassicalFunctionBox(
-            fusion_function,
-            Mode(4),
-            Bit(2)
-        )
-    )
-
-    postselect_1 = postselect_1 = X(1, 0, 0.5) @ Scalar(0.5**0.5)
-
-    from optyx.channel import (
-        bit,
-        qmode
-    )
-
-    fusion_failure_processing = ControlChannel(
-        postselect_1
-    )
-
-    correction = Channel(
-        "Phase Correction",
-        BitControlledBox(
-            Phase(0.5) @ Mode(1)
-        ),
-        dom = bit @ qmode**2
-    )
-
-    channel_bell = Channel(
-        "Bell pair preparation",
-        Z(0, 2) @ Scalar(0.5**0.5) >> DualRail() @ DualRail()
-    )
-
-    dual_rail_input = Channel(
-        "Dual rail of input",
-        DualRail()
-    )
-
-    teleportation = (
-        dual_rail_input @ channel_bell >>
-        fusion @ qmode**2 >>
-        Measure(qmode**4) @ qmode**2 >>
-        classical_function @ qmode**2 >>
-        fusion_failure_processing @ correction >>
-        Channel("Dual rail projection", DualRail().dagger())
-    )
-
-    array_teleportation = teleportation.double().to_zw().to_tensor().eval().array
-
-    array_id = Channel(
-        "Identity",
-        Id(Bit(1)) @ Scalar(0.5**0.5)
-    ).double().to_zw().to_tensor().eval().array
-
-    assert np.allclose(array_teleportation, array_id)

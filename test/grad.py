@@ -1,6 +1,7 @@
-from optyx.zw import Id, Endo, Scalar, Diagram, Mode
-from optyx.lo import Phase, BS, TBS, MZI
-from sympy.abc import psi, phi, theta
+from optyx.core.zw import Id
+from optyx.photonic import Phase, BS, TBS, MZI
+from optyx.core.channel import qmode, Diagram
+from sympy.abc import psi, theta
 import numpy as np
 
 from itertools import product
@@ -9,7 +10,7 @@ import pytest
 
 param_circuits = [
     Phase(psi),
-    BS >> Phase(psi) @ Id(Mode(1)) >> BS,
+    BS >> Phase(psi) @ qmode >> BS,
     Phase(3 * psi ** 3),
     TBS(psi),
     MZI(psi, 0.123),
@@ -23,7 +24,6 @@ values = [x * 0.123 for x in range(10)]
 def test_daggers_cancel(circ, value):
     d = circ >> circ.dagger()
     out = d.grad(psi).subs((psi, value)).eval(2).array
-    print(out)
     assert np.allclose(out, np.zeros(shape=out.shape))
 
 

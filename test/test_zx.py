@@ -3,9 +3,9 @@ import random
 import numpy as np
 from pytest import raises, fixture
 
-from discopy.quantum.gates import CRz, CRx, CU1
-from optyx.zx import *
-
+from discopy.quantum.gates import CRz, CRx, CU1, Ket, Rx
+from optyx.core.zx import *
+from optyx.core.diagram import Diagram, Bit
 
 @fixture
 def random_had_cnot_diagram():
@@ -44,7 +44,7 @@ def test_Spider():
 
 def test_H():
     assert str(H) == "H"
-    assert H[::-1] == H
+    assert np.allclose(H[::-1].to_tensor().eval().array, H.to_tensor().eval().array)
 
 
 def test_Sum():
@@ -78,7 +78,7 @@ def test_to_pyzx_errors():
 
 
 def test_to_pyzx():
-    assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
+    assert ZXDiagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
 
 
 def test_to_pyzx_scalar():
@@ -95,11 +95,11 @@ def test_from_pyzx_errors():
     graph.set_inputs(())
     graph.set_outputs(())
     with raises(ValueError):  # missing_boundary
-        Diagram.from_pyzx(graph)
+        ZXDiagram.from_pyzx(graph)
     graph.auto_detect_io()
     graph.set_inputs(graph.inputs() + graph.outputs())
     with raises(ValueError):  # duplicate_boundary
-        Diagram.from_pyzx(graph)
+        ZXDiagram.from_pyzx(graph)
 
 
 def _std_basis_v(*c):

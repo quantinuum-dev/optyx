@@ -34,35 +34,42 @@ Examples
 
 We can construct a controlled gate acting on a quantum mode:
 
->>> from optyx.feed_forward.controlled_gates import ControlledPhaseShift
 >>> f = lambda x: [x * 0.1, x * 0.2]
 >>> box = ControlledPhaseShift(f, n_modes=2)
->>> box.to_zw().draw(path='docs/_static/controlled_phase.svg')
+>>> box.draw(path='docs/_static/controlled_phase.svg')
 
 A bit-controlled gate can be composed as:
 
->>> from optyx.feed_forward.controlled_gates import BitControlledBox
->>> from optyx.zw import ZBox
+>>> from optyx.core.zw import ZBox
 >>> control = BitControlledBox(ZBox(1, 1, lambda x: x))
->>> control.to_zw().draw(path='docs/_static/binary_control.svg')
+>>> control.draw(path='docs/_static/binary_control.svg')
 """
 
 from typing import Callable, List
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-from optyx.optyx import (
-    Box,
-    Id,
-    Bit,
-    Mode,
-    MAX_DIM,
-    truncation_tensor
-)
-from optyx.zw import ZBox
+
+from optyx.core import diagram, zw
+
+class ControlDiagram(diagram.Diagram):
+    pass
 
 
-class BitControlledBox(Box):
+class ControlBox(diagram.Box, ControlDiagram):
+    pass
+
+
+class ClassicalDiagram(diagram.Diagram):
+    pass
+
+
+class ClassicalBox(diagram.Box, ClassicalDiagram):
+    def conjugate(self):
+        return self
+
+
+class BitControlledBox(ControlBox):
     """
     A box controlled by a bit that switches between two boxes:
     - action_box: the box that is applied when the control bit is 1
@@ -71,32 +78,32 @@ class BitControlledBox(Box):
 
     Example
     -------
-    >>> from optyx.lo import Phase
-    >>> from optyx.optyx import PhotonThresholdDetector, Mode
-    >>> from optyx.zw import Create
-    >>> action = Phase(0.1)
+    >>> from optyx.photonic import Phase
+    >>> from optyx.core.diagram import PhotonThresholdDetector, Mode
+    >>> from optyx.core.zw import Create, ZBox
+    >>> action = Phase(0.1).get_kraus()
     >>> default = ZBox(1, 1, lambda x: 1)
-    >>> action_result = action.to_zw().to_tensor().eval().array
-    >>> default_result = default.to_zw().to_tensor().eval().array
+    >>> action_result = action.to_tensor().eval().array
+    >>> default_result = default.to_tensor().eval().array
     >>> action_test = ((Create(1) >> PhotonThresholdDetector()) @
     ...         Mode(len(action.cod)) >>
-    ...         BitControlledBox(action)).to_zw().to_tensor().eval().array
+    ...         BitControlledBox(action)).to_tensor().eval().array
     >>> default_test = ((Create(0) >> PhotonThresholdDetector()) @
     ...         Mode(len(default.cod)) >>
-    ...         BitControlledBox(default)).to_zw().to_tensor().eval().array
+    ...         BitControlledBox(default)).to_tensor().eval().array
     >>> assert np.allclose(action_result, action_test)
     >>> assert np.allclose(default_result, default_test)
     """
 
     def __init__(
         self,
-        action_box: Box,
-        default_box: Box = None,
+        action_box: diagram.Box,
+        default_box: diagram.Box = None,
         is_dagger: bool = False,
     ):
 
         if default_box is None:
-            default_box = Id(action_box.dom)
+            default_box = diagram.Id(action_box.dom)
 
         assert (
             action_box.dom == default_box.dom
@@ -106,16 +113,13 @@ class BitControlledBox(Box):
             action_box.cod
         ), "action_box must have the same number of inputs and outputs"
 
-        dom = action_box.cod if is_dagger else Bit(1) @ action_box.dom
-        cod = Bit(1) @ action_box.cod if is_dagger else action_box.cod
+        dom = action_box.cod if is_dagger else diagram.Bit(1) @ action_box.dom
+        cod = diagram.Bit(1) @ action_box.cod if is_dagger else action_box.cod
 
         if hasattr(action_box, "name"):
             box_name = action_box.name + "_controlled"
         else:
             box_name = "controlled_box"
-
-        action_box = action_box.to_zw()
-        default_box = default_box.to_zw()
 
         super().__init__(box_name, dom, cod)
 
@@ -162,7 +166,7 @@ class BitControlledBox(Box):
         array[0, :, :] = (
             (
                 default_box_tensor
-                >> truncation_tensor(
+                >> diagram.truncation_tensor(
                     default_box_tensor.cod.inside, output_dims
                 )
             )
@@ -173,7 +177,7 @@ class BitControlledBox(Box):
         array[1, :, :] = (
             (
                 action_box_tensor
-                >> truncation_tensor(
+                >> diagram.truncation_tensor(
                     action_box_tensor.cod.inside, output_dims
                 )
             )
@@ -191,8 +195,6 @@ class BitControlledBox(Box):
             Dim(*[int(d) for d in output_dims]), array
         )
 
-    def to_zw(self):
-        return self
 
     def dagger(self):
         return BitControlledBox(
@@ -207,7 +209,7 @@ class BitControlledBox(Box):
         )
 
 
-class ControlledPhaseShift(Box):
+class ControlledPhaseShift(ControlBox):
     """
     A controlled phase shift on modes, where the control
     is a natural number and
@@ -218,8 +220,8 @@ class ControlledPhaseShift(Box):
 
     Example
     -------
-    >>> from optyx.optyx import Id
-    >>> from optyx.zw import Create
+    >>> from optyx.core.diagram import Id, Mode
+    >>> from optyx.core.zw import Create, ZBox
     >>> f = lambda x: [x[0]*0.1, x[0]*0.2, x[0]*0.3]
     >>> n = len(f([0]))
     >>> controlled_phase = (Create(2) @ Mode(n) >>
@@ -236,18 +238,18 @@ class ControlledPhaseShift(Box):
         self,
         function: Callable[[List[int]], List[int]],
         n_modes: int = 1,
-        n_control_bits: int = 1,
+        n_control_modes: int = 1,
         is_dagger: bool = False,
     ):
 
-        dom = Mode(n_modes) if is_dagger else Mode(n_modes + n_control_bits)
-        cod = Mode(n_modes + n_control_bits) if is_dagger else Mode(n_modes)
+        dom = diagram.Mode(n_modes) if is_dagger else diagram.Mode(n_modes + n_control_modes)
+        cod = diagram.Mode(n_modes + n_control_modes) if is_dagger else diagram.Mode(n_modes)
 
         super().__init__("ControlledPhase", dom, cod)
         self.n_modes = n_modes
         self.function = function
         self.is_dagger = is_dagger
-        self.n_control_bits = n_control_bits
+        self.n_control_modes = n_control_modes
 
     def truncation(
         self, input_dims: List[int], output_dims: List[int]
@@ -259,20 +261,20 @@ class ControlledPhaseShift(Box):
         array = np.zeros((*input_dims, *output_dims), dtype=complex)
 
         input_combinations = np.array(
-            np.meshgrid(*[range(i) for i in input_dims[:self.n_control_bits]]),
-        ).T.reshape(-1, len(input_dims[:self.n_control_bits]))
+            np.meshgrid(*[range(i) for i in input_dims[:self.n_control_modes]]),
+        ).T.reshape(-1, len(input_dims[:self.n_control_modes]))
 
         for i in input_combinations:
             fx = self.function(i)
-            zbox = Id(Mode(0))
+            zbox = diagram.Id(diagram.Mode(0))
             for y in fx:
-                zbox @= ZBox(
+                zbox @= zw.ZBox(
                     1, 1, lambda x, y=y: np.exp(2 * np.pi * 1j * y) ** x
                 )
 
-            zbox = zbox.to_tensor(input_dims[self.n_control_bits:])
+            zbox = zbox.to_tensor(input_dims[self.n_control_modes:])
             array[i, :] = (
-                (zbox >> truncation_tensor(zbox.cod.inside, output_dims))
+                (zbox >> diagram.truncation_tensor(zbox.cod.inside, output_dims))
                 .eval()
                 .array.reshape(array[i, :].shape)
             )
@@ -287,19 +289,166 @@ class ControlledPhaseShift(Box):
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
-            return [MAX_DIM]*self.n_control_bits + input_dims
-        return input_dims[self.n_control_bits:]
+            return [diagram.MAX_DIM]*self.n_control_modes + input_dims
+        return input_dims[self.n_control_modes:]
 
-    def to_zw(self):
-        return self
+
 
     def dagger(self):
         return ControlledPhaseShift(
             self.function, self.n_modes,
-            self.n_control_bits, not self.is_dagger
+            self.n_control_modes, not self.is_dagger
         )
 
     def conjugate(self):
         return ControlledPhaseShift(
-            self.function, self.n_modes, self.n_control_bits, self.is_dagger
+            self.function, self.n_modes, self.n_control_modes, self.is_dagger
         )
+
+
+class ClassicalFunctionBox(ClassicalBox):
+
+    def __init__(
+        self,
+        function: Callable[[List[int]], List[int]],
+        dom: diagram.Mode | diagram.Bit,
+        cod: diagram.Mode | diagram.Bit,
+        is_dagger: bool = False,
+    ):
+
+        assert all(
+            d == cod[0] for d in cod
+        ), "cod must be either all Mode(n) or all Bit(n)"
+        assert all(
+            d == dom[0] for d in dom
+        ), "dom must be either all Mode(n) or all Bit(n)"
+
+        super().__init__("F", dom, cod)
+
+        self.function = function
+        self.input_size = len(dom)
+        self.output_size = len(cod)
+        self.is_dagger = is_dagger
+
+
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+        input_ranges = [range(i) for i in input_dims]
+        input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
+            -1, len(input_dims)
+        )
+
+        outputs = [
+            (i, self.function(i))
+            for i in input_combinations
+            if self.function(i) != 0
+        ]
+
+        full_indices = np.array(
+            [tuple(input_) + tuple(output) for input_, output in outputs]
+        )
+        array[tuple(full_indices.T)] = 1
+
+        input_dims = [int(d) for d in input_dims]
+        output_dims = [int(d) for d in output_dims]
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.cod == diagram.Mode(self.output_size):
+            return [diagram.MAX_DIM] * self.output_size
+
+        elif self.cod == diagram.Bit(self.output_size):
+            return [2] * self.output_size
+
+        else:
+            return [int(max(input_dims))] * self.output_size
+
+    def dagger(self):
+        return ClassicalFunctionBox(
+            self.function, self.cod, self.dom, not self.is_dagger
+        )
+
+
+class BinaryMatrixBox(ClassicalBox):
+    """
+    Represents a linear transformation over
+    GF(2) using matrix multiplication.
+
+    Example
+    -------
+    >>> from optyx.core.zx import X
+    >>> from optyx.core.diagram import Scalar
+    >>> xor = X(2, 1) @ Scalar(np.sqrt(2))
+    >>> matrix = [[1, 1]]
+    >>> m_res = BinaryMatrixBox(matrix).to_tensor().eval().array
+    >>> xor_res = xor.to_tensor().eval().array
+    >>> assert np.allclose(m_res, xor_res)
+
+    """
+
+    def __init__(self, matrix: np.ndarray, is_dagger: bool = False):
+
+        matrix = np.array(matrix)
+        if len(matrix.shape) == 1:
+            matrix = matrix.reshape(1, -1)
+
+        cod = diagram.Bit(len(matrix[0])) if is_dagger else diagram.Bit(len(matrix))
+        dom = diagram.Bit(len(matrix)) if is_dagger else diagram.Bit(len(matrix[0]))
+
+        super().__init__("LogicalMatrix", dom, cod)
+
+        self.matrix = matrix
+        self.is_dagger = is_dagger
+
+
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        def f(x):
+            if not isinstance(x, np.ndarray):
+                x = np.array(x, dtype=np.uint8)
+            if len(x.shape) == 1:
+                x = x.reshape(-1, 1)
+            A = np.array(self.matrix, dtype=np.uint8)
+
+            return list(((A @ x) % 2).reshape(1, -1)[0])
+
+        classical_function = ClassicalFunctionBox(f, self.dom, self.cod)
+
+        if self.is_dagger:
+            return classical_function.truncation(
+                input_dims, output_dims
+            ).dagger()
+        return classical_function.truncation(input_dims, output_dims)
+
+    def determine_output_dimensions(self,
+                                    input_dims: List[int]) -> List[int]:
+        return ClassicalFunctionBox(
+            None, self.dom, self.cod
+        ).determine_output_dimensions(input_dims)
+
+    def dagger(self):
+        return BinaryMatrixBox(self.matrix, not self.is_dagger)
+
+    def conjugate(self):
+        return self

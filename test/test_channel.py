@@ -1,6 +1,7 @@
 import pytest
 
-from optyx.channel import *
+from optyx.core.channel import *
+from optyx.core import diagram
 import numpy as np
 
 bell_density_re = np.array([
@@ -20,13 +21,14 @@ bell_density = np.multiply(bell_density_re, bell_density_im)
 
 def test_CQMap():
     X = Channel("X", zx.X(1, 1, 0.5))
-    bell = optyx.Box(name="Bell", dom=optyx.bit ** 2, cod=optyx.bit ** 2, array=bell_density)
-    bell = optyx.Spider(0, 2, typ=optyx.bit) >> optyx.Id(optyx.bit) @ optyx.Spider(0, 2, typ=optyx.bit) @ optyx.Id(optyx.bit) >> optyx.Diagram.permutation([0,1,3,2], optyx.bit**4) >> optyx.Id(optyx.bit ** 2) @ bell >> optyx.Diagram.permutation([0,2,1,3], optyx.bit**4)
+    bell = diagram.Box(name="Bell", dom=diagram.bit ** 2, cod=diagram.bit ** 2, array=bell_density)
+    bell = diagram.Spider(0, 2, typ=diagram.bit) >> diagram.Id(diagram.bit) @ diagram.Spider(0, 2, typ=diagram.bit) @ diagram.Id(diagram.bit) >> diagram.Diagram.permutation([0,1,3,2], diagram.bit**4) >> diagram.Id(diagram.bit ** 2) @ bell >> diagram.Diagram.permutation([0,2,1,3], diagram.bit**4)
 
-    Noisy_bell = CQMap('Physical Bell', bell @ optyx.Scalar(1/0.999), dom=Ty(), cod=qubit ** 2)
-    Perfect_Bell_Effect = Channel("Perfect Bell Effect", optyx.Spider(2,0,typ=optyx.bit) @ optyx.Scalar(1 / np.sqrt(2)))
+    Noisy_bell = CQMap('Physical Bell', bell @ diagram.Scalar(1/0.999), dom=Ty(), cod=qubit ** 2)
+    Perfect_Bell_Effect = Channel("Perfect Bell Effect", diagram.Spider(2,0,typ=diagram.bit) @ diagram.Scalar(1 / np.sqrt(2)))
 
-    CALCULATED_FIDELITY = (Noisy_bell >> Circuit.id(qubit) @ X >> Perfect_Bell_Effect).double().to_tensor().eval().array.real
+    CALCULATED_FIDELITY = (Noisy_bell >> Diagram.id(qubit) @ X >> Perfect_Bell_Effect).double().to_tensor().eval().array.real
     REAL_FIDELITY = .96898
-
+    print(CALCULATED_FIDELITY)
+    print(REAL_FIDELITY)
     assert np.isclose(CALCULATED_FIDELITY, REAL_FIDELITY, rtol=1e-3)
