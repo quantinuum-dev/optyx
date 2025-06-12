@@ -382,6 +382,11 @@ class ZXBox(diagram.Box, ZXDiagram):
             and np.all(self.data == other.data)
         )
 
+    def inflate(self, d):
+        return self
+
+    def to_zw(self):
+        return self
 
 class Spider(diagram.Spider, ZXBox):
     """
@@ -430,6 +435,10 @@ class Spider(diagram.Spider, ZXBox):
         raise NotImplementedError(
             f"Truncation not implemented for {self}."
         )
+
+    def inflate(self, d):
+        return self
+
 
 class ZBox(Spider):
     """Z box."""

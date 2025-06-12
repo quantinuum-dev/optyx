@@ -299,6 +299,7 @@ class Diagram(frobenius.Diagram):
         self, input_dims: list = None, max_dim: int = None
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
+        from optyx.core import zw
 
         def list_to_dim(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
@@ -351,6 +352,13 @@ class Diagram(frobenius.Diagram):
                 diagram = diagram >> diagram_
             right_dim = cod_right_dim
             layer_dims = cod_layer_dims
+
+        zboxes = tensor.Id(Dim(1))
+        for c in diagram.cod:
+            zboxes @= zw.ZBox(1, 1, lambda i: 1).truncation(
+                input_dims=[int(c.inside[0])], output_dims=[int(c.inside[0])]
+            )
+        diagram >>= zboxes
         return diagram
 
     @classmethod
@@ -386,6 +394,27 @@ class Diagram(frobenius.Diagram):
             )
         return zx_diagram.to_pyzx()
 
+    def inflate(self, d):
+        r"""
+        Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
+        """
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
+
+        def ob(x):
+            return Ty.tensor(
+                *(o**d if o.name == "mode" else o for o in x)
+            )
+
+        return symmetric.Functor(
+            ob=ob,
+            ar=lambda f: f.inflate(d),
+            cod=symmetric.Category(Ty, Diagram),
+            dom=symmetric.Category(Ty, Diagram),
+        )(self)
+
 
 class Box(frobenius.Box, Diagram):
     """A box in an optyx diagram"""
@@ -395,6 +424,25 @@ class Box(frobenius.Box, Diagram):
     def __init__(self, name, dom, cod, array=None, **params):
         self._array = array
         super().__init__(name, dom, cod, **params)
+
+    @classmethod
+    def get_perm(self, n, d):
+        return sorted(sorted(list(range(n))), key=lambda i: i % d)
+
+    def inflate(self, d):
+        r"""
+        Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
+        """
+
+        return (
+            Diagram.permutation(self.get_perm(len(self.dom)*d, d),
+                                self.dom**d) >>
+            self**d >>
+            Diagram.permutation(self.get_perm(len(self.cod)*d, d),
+                                self.cod**d).dagger()
+        )
 
     def conjugate(self) -> Box:
         """Conjugate the box.
@@ -714,10 +762,13 @@ class DualRail(Box):
     A map from :code:`Bit` to :code:`Mode` using the dual rail encoding.
     """
 
-    def __init__(self, is_dagger=False):
+    def __init__(self,
+                 is_dagger=False,
+                 internal_state=None):
         dom = Mode(2) if is_dagger else Bit(1)
         cod = Bit(1) if is_dagger else Mode(2)
         super().__init__("2R", dom, cod)
+        self.internal_state = internal_state
         self.is_dagger = is_dagger
 
     def conjugate(self):
@@ -739,14 +790,35 @@ class DualRail(Box):
             ).dagger()
         return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 
-    def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
+    def determine_output_dimensions(self,
+                                    input_dims: list[int]) -> list[int]:
         """Determine the output dimensions"""
         if self.is_dagger:
             return [2]
         return [2, 2]
 
+    def inflate(self, d):
+        from optyx.core.zw import W, Endo
+
+        assert self.internal_state is not None, \
+            "Internal state must be provided"
+        assert len(self.internal_state) == d, \
+            "Internal state must be of len d"
+
+        diagram = DualRail() >> Diagram.tensor(
+            *[
+                (W(d) >>
+                 Diagram.tensor(*[Endo(d_i) for d_i in self.internal_state]))
+                for _ in range(2)
+            ]
+        )
+        if self.is_dagger:
+            return diagram.dagger()
+        return diagram
+
     def dagger(self) -> Diagram:
-        return DualRail(not self.is_dagger)
+        return DualRail(not self.is_dagger,
+                        internal_state=self.internal_state)
 
 
 class PhotonThresholdDetector(Box):
@@ -785,6 +857,12 @@ class PhotonThresholdDetector(Box):
     def dagger(self):
         return PhotonThresholdDetector(not self.is_dagger)
 
+    def inflate(self, d):
+        from optyx.core.zw import Add
+        diagram = Add(d) >> PhotonThresholdDetector()
+        if self.is_dagger:
+            return diagram.dagger()
+        return diagram
 
 ## tensor
 class EmbeddingTensor(tensor.Box):
@@ -811,6 +889,20 @@ class EmbeddingTensor(tensor.Box):
     def conjugate(self):
         return self
 
+    def truncation_tensor(
+        input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        assert len(input_dims) == len(
+            output_dims
+        ), "input_dims and output_dims must have the same length"
+
+        tensor = EmbeddingTensor(input_dims[0], output_dims[0])
+
+        for i in zip(input_dims[1:], output_dims[1:]):
+
+            tensor = tensor @ EmbeddingTensor(i[0], i[1])
+        return tensor
 
 def dual_rail(n):
     """

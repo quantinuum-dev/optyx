@@ -443,8 +443,25 @@ class Create(ZWBox):
     draw_as_spider = True
     color = "blue"
 
-    def __init__(self, *photons: int):
+    def __init__(self,
+                 *photons: int,
+                 internal_states: tuple[list[int]] = None):
         self.photons = photons or (1,)
+
+        if internal_states is not None:
+            # we define an internal state for each photon
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
+            assert all(p in (0, 1) for p in photons), \
+                "Only 0 or 1 photons per mode are allowed for internal states"
+            assert sum(photons) == len(internal_states), \
+                "The number of internal states must " \
+                "match the total number of photons"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
+
+        self.internal_states = internal_states
+
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
 
@@ -495,6 +512,35 @@ class Create(ZWBox):
     def dagger(self) -> diagram.Diagram:
         return Select(*self.photons)
 
+    def inflate(self, d):
+
+        if any(p == 1 for p in self.photons):
+            assert self.internal_states is not None, \
+                "Internal states in Create/Select must be " \
+                "provided if there is at least one photon being created"
+            assert all(len(state) == d for state in self.internal_states), \
+                "All internal states must be of length d"
+
+        diagram = Id(diagram.Mode(0))
+
+        photon_index = 0
+        for i, n_photons in enumerate(self.photons):
+
+            endo_layer = Id(diagram.Mode(0))
+            if n_photons == 1:
+                for j in self.internal_states[photon_index]:
+                    endo_layer @= Endo(j)
+                photon_index += 1
+            else:
+                endo_layer @= Id(diagram.Mode(d))
+
+            diagram @= (
+                Create(self.photons[i]) >>
+                W(d) >>
+                endo_layer
+            )
+
+        return diagram
 
 class Select(ZWBox):
     """
@@ -512,10 +558,35 @@ class Select(ZWBox):
     draw_as_spider = True
     color = "blue"
 
-    def __init__(self, *photons: int):
+    def __init__(self,
+                 *photons: int,
+                 internal_states: tuple[list[int]] = None):
+
+        if internal_states is not None:
+            # we define an internal state for each photon
+            if not isinstance(internal_states, tuple):
+                internal_states = (internal_states,)
+            assert all(p in (0, 1) for p in photons), \
+                "Only 0 or 1 photons per mode are allowed for internal states"
+            assert sum(photons) == len(internal_states), \
+                "The number of internal states must " \
+                "match the total number of photons"
+            assert len(set(len(i) for i in internal_states)) == 1, \
+                "All internal states must be of the same length"
+
+        self.internal_states = internal_states
         self.photons = photons or (1,)
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
+
+    def inflate(self, d):
+
+        diagram = Create(
+            *self.photons,
+            internal_states=self.internal_states
+        ).inflate(d).dagger()
+
+        return diagram
 
     def conjugate(self):
         return self
