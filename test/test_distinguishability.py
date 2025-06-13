@@ -6,11 +6,11 @@ from typing import Dict, Tuple
 
 import numpy as np
 import pytest
-from optyx.channel import Channel, qmode, Measure
-from optyx.lo import BS
-from optyx.zw import Create
-from optyx.optyx import DualRail, Scalar
-from optyx.zx import Z, X
+from optyx.core.channel import Channel, qmode, Measure
+from optyx.photonic import BS
+from optyx.core.zw import Create
+from optyx.core.diagram import DualRail, Scalar
+from optyx.core.zx import Z, X
 
 
 RNG = np.random.default_rng(seed=2025)
@@ -53,14 +53,13 @@ def test_beamsplitter_non_distinguishable(internal_state: np.ndarray) -> None:
     channel_bs = (
         Channel(
             "BS",
-            Create(1, 1, internal_states=(internal_state, internal_state)) >> BS,
+            Create(1, 1, internal_states=(internal_state, internal_state)) >> BS.get_kraus(),
         )
         >> Measure(qmode**2)
     ).inflate(len(internal_state))
 
     probs = (
         channel_bs.double()
-        .to_zw()
         .to_tensor(max_dim=3)
         .eval()
         .array
@@ -75,14 +74,13 @@ def test_beamsplitter_distinguishable(state1: np.ndarray, state2: np.ndarray) ->
     channel_bs = (
         Channel(
             "BS",
-            Create(1, 1, internal_states=(state1, state2)) >> BS,
+            Create(1, 1, internal_states=(state1, state2)) >> BS.get_kraus(),
         )
         >> Measure(qmode**2)
     ).inflate(len(state1))
 
     probs = (
         channel_bs.double()
-        .to_zw()
         .to_tensor(max_dim=3)
         .eval()
         .array
@@ -117,7 +115,7 @@ def test_encode_n_qubits() -> None:
     Test for Encode: three logical qubits in two photonic modes.
     Ensures the overall probability mass remains 1.
     """
-    from optyx.channel import CQMap, mode, Encode
+    from optyx.core.channel import CQMap, mode, Encode
 
     create = CQMap(
         "create",
@@ -133,14 +131,14 @@ def test_encode_n_qubits() -> None:
         >> Encode(mode ** 2, ([1 / np.sqrt(2), 1 / np.sqrt(2)], [1, 0]))
         @ Encode(qmode)
         >> Measure(qmode ** 3)
-    ).inflate(2).double().to_zw().to_tensor().eval().array
+    ).inflate(2).double().to_tensor().eval().array
 
     nz = non_zero_entries(np.round(result, 3))
     assert nz[(1, 1, 1)] == 1.0
 
 
 def test_photon_threshold_detector():
-    from optyx.optyx import PhotonThresholdDetector
+    from optyx.core.diagram import PhotonThresholdDetector
 
     d_1 = Create(1, internal_states=([1, 0])) >> PhotonThresholdDetector()
     d_2 = X(1, 0, 0.5) @ Scalar(0.5**0.5)

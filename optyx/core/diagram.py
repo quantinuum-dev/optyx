@@ -805,7 +805,7 @@ class DualRail(Box):
         assert len(self.internal_state) == d, \
             "Internal state must be of len d"
 
-        diagram = DualRail() >> Diagram.tensor(
+        dgrm = DualRail() >> Diagram.tensor(
             *[
                 (W(d) >>
                  Diagram.tensor(*[Endo(d_i) for d_i in self.internal_state]))
@@ -813,8 +813,8 @@ class DualRail(Box):
             ]
         )
         if self.is_dagger:
-            return diagram.dagger()
-        return diagram
+            return dgrm.dagger()
+        return dgrm
 
     def dagger(self) -> Diagram:
         return DualRail(not self.is_dagger,
@@ -859,10 +859,10 @@ class PhotonThresholdDetector(Box):
 
     def inflate(self, d):
         from optyx.core.zw import Add
-        diagram = Add(d) >> PhotonThresholdDetector()
+        dgrm = Add(d) >> PhotonThresholdDetector()
         if self.is_dagger:
-            return diagram.dagger()
-        return diagram
+            return dgrm.dagger()
+        return dgrm
 
 ## tensor
 class EmbeddingTensor(tensor.Box):

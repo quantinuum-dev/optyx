@@ -521,7 +521,7 @@ class Create(ZWBox):
             assert all(len(state) == d for state in self.internal_states), \
                 "All internal states must be of length d"
 
-        diagram = Id(diagram.Mode(0))
+        dgrm = Id(diagram.Mode(0))
 
         photon_index = 0
         for i, n_photons in enumerate(self.photons):
@@ -534,13 +534,13 @@ class Create(ZWBox):
             else:
                 endo_layer @= Id(diagram.Mode(d))
 
-            diagram @= (
+            dgrm @= (
                 Create(self.photons[i]) >>
                 W(d) >>
                 endo_layer
             )
 
-        return diagram
+        return dgrm
 
 class Select(ZWBox):
     """
@@ -581,12 +581,12 @@ class Select(ZWBox):
 
     def inflate(self, d):
 
-        diagram = Create(
+        dgrm = Create(
             *self.photons,
             internal_states=self.internal_states
         ).inflate(d).dagger()
 
-        return diagram
+        return dgrm
 
     def conjugate(self):
         return self

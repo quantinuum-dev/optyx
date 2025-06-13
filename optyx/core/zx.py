@@ -385,8 +385,6 @@ class ZXBox(diagram.Box, ZXDiagram):
     def inflate(self, d):
         return self
 
-    def to_zw(self):
-        return self
 
 class Spider(diagram.Spider, ZXBox):
     """
