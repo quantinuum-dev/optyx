@@ -243,7 +243,10 @@ class QubitChannel(channel.Channel, Circuit):
                 )
                 dgrm >>= EncodeBits(no_qubits) @ Id(channel.bit**no_qubits)
                 return dgrm
-
+        if isinstance(box, quantum_discopy.Encode):
+            raise NotImplementedError(
+                "Converting Encode to QubitChannel is not implemented."
+            )
         standard_gates = {
             quantum_discopy.H: H(),
             quantum_discopy.Z: Z(1, 1, 0.5),
@@ -314,7 +317,7 @@ class X(QubitChannel):
     draw_as_spider = True
 
     def __init__(self, n_legs_in, n_legs_out, phase=0):
-        kraus = zx.Z(n_legs_in, n_legs_out, phase)
+        kraus = zx.X(n_legs_in, n_legs_out, phase)
         super().__init__(
             f"X({phase})",
             kraus,

@@ -337,6 +337,21 @@ class ZXDiagram(diagram.Diagram):
             elif box == H:
                 node, hadamard = scan[offset]
                 scan[offset] = (node, not hadamard)
+            elif isinstance(box, diagram.Spider):
+                node = graph.add_vertex(
+                    VertexType.Z,
+                    phase=box.phase * 2 if box.phase else None,
+                )
+                graph.set_position(node, offset, row + 1)
+                for i, _ in enumerate(box.dom):
+                    source, hadamard = scan[offset + i]
+                    etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
+                    graph.add_edge((source, node), etype)
+                scan = (
+                    scan[:offset]
+                    + len(box.cod) * [(node, False)]
+                    + scan[offset + len(box.dom):]
+                )
             else:
                 raise NotImplementedError
         for i, _ in enumerate(self.cod):
@@ -615,6 +630,7 @@ H.draw_as_spider = False
 )
 H.array = np.array([[1, 1], [1, -1]]) / 2**0.5
 H.color, H.shape = "yellow", "rectangle"
+H.conjugate = lambda: H
 
 SWAP = diagram.Swap(diagram.bit, diagram.bit)
 SWAP.array = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
@@ -679,6 +695,9 @@ class And(ZXBox):
     def dagger(self):
         return And(not self.is_dagger)
 
+    def conjugate(self):
+        return And(n=self.dom.n, is_dagger=self.is_dagger)
+
 
 class Or(ZXBox):
     """
@@ -730,3 +749,6 @@ class Or(ZXBox):
 
     def dagger(self):
         return Or(n=self.dom.n, is_dagger=not self.is_dagger)
+
+    def conjugate(self):
+        return Or(n=self.dom.n, is_dagger=self.is_dagger)
