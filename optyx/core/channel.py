@@ -115,6 +115,9 @@ from discopy import tensor
 from discopy import symmetric, frobenius
 from discopy.cat import factory
 from optyx.core import zx, diagram
+from pytket.extensions.pyzx import pyzx_to_tk
+from pyzx import extract_circuit
+
 
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
@@ -297,40 +300,41 @@ class Diagram(frobenius.Diagram):
             cod=symmetric.Category(Ty, Diagram),
         )(self._decomp())
 
-    # def to_tket(self):
-    #     """
-    #     Convert to tket circuit. The circuit must be a pure circuit.
-    #     """
-    #     pass
-    #     # assert self.is_pure, "Diagram must be pure to convert to tket."
+    def to_tket(self):
+        """
+        Convert to tket circuit. The circuit must be a pure circuit.
+        """
 
-    #     # kraus_maps = []
-    #     # for layer in self:
-    #     #     left = layer.inside[0][0]
-    #     #     right = layer.inside[0][2]
-    #     #     generator = layer.inside[0][1]
+        assert self.is_pure, "Diagram must be pure to convert to tket."
 
-    #     #     kraus_maps.append(
-    #     #         diagram.Bit(len(left)) @ generator.kraus @ diagram.Bit(len(right))
-    #     #     )
+        kraus_maps = []
+        for layer in self:
+            left = layer.inside[0][0]
+            right = layer.inside[0][2]
+            generator = layer.inside[0][1]
 
-    #     # return pyzx_to_tk(
-    #     #     extract_circuit(
-    #     #         diagram.Diagram.then(
-    #     #             *kraus_maps
-    #     #         ).to_pyzx()
-    #     #     ).to_basic_gates()
-    #     # )
+            kraus_maps.append(
+                diagram.Bit(len(left)) @ generator.kraus @ diagram.Bit(len(right))
+            )
 
-    # def to_pyzx(self):
+        return pyzx_to_tk(
+            extract_circuit(
+                diagram.Diagram.then(
+                    *kraus_maps
+                ).to_pyzx()
+            ).to_basic_gates()
+        )
 
-    #     assert self.is_pure, "Diagram must be pure to convert to tket."
+    def to_pyzx(self):
 
-    #     return self.get_kraus().to_pyzx()
+        assert self.is_pure, "Diagram must be pure for conversion."
 
-    # def to_discopy(self):
-    #     pass
+        return self.get_kraus().to_pyzx()
 
+    def to_discopy(self):
+        raise NotImplementedError(
+            "Conversion to discopy is not implemented for optyx diagrams."
+        )
 
     @classmethod
     def from_tket(self, tket_circuit):
@@ -520,6 +524,10 @@ class CQMap(symmetric.Box, Diagram):
             cod=self.cod.inflate(d)
         )
 
+    def __pow__(self, n):
+        if n == 1:
+            return self
+        return self @ self ** (n - 1)
 
 class Swap(symmetric.Swap, Channel):
     def dagger(self):

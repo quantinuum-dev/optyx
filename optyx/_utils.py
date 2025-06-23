@@ -225,12 +225,12 @@ def explode_channel(
     channel_class=None,
     circuit_class=None,
 ):
-    from optyx.core.channel import Channel, Ty, Circuit
+    from optyx.core.channel import Channel, Ty, Diagram
 
     if channel_class is None:
         channel_class = Channel
     if circuit_class is None:
-        circuit_class = Circuit
+        circuit_class = Diagram
 
     arrows = []
     for layer in kraus:

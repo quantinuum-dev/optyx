@@ -54,7 +54,6 @@ class Circuit(channel.Diagram):
         """
         return self._to_optyx().is_pure
 
-    @property
     def get_kraus(self):
         """
         Get the kraus operators of the circuit.
@@ -74,8 +73,8 @@ class Circuit(channel.Diagram):
             )
         if self.type == "pyzx":
             return (
-                channel.qubit**len(self._underlying_circuit.inputs),
-                channel.qubit**len(self._underlying_circuit.outputs)
+                channel.qubit**len(self._underlying_circuit.inputs()),
+                channel.qubit**len(self._underlying_circuit.outputs())
             )
         if self.type == "zx":
             return (
@@ -124,10 +123,10 @@ class Circuit(channel.Diagram):
         """
         Convert a PyZX circuit to an optyx channel diagram.
         """
-        zx_diagram = diagram.Diagram.from_pyzx(self._underlying_circuit)
+        zx_diagram = zx.ZXDiagram.from_pyzx(self._underlying_circuit)
         return explode_channel(
             zx_diagram,
-            QubitChannel,
+            channel.Channel,
             channel.Diagram
         )
 
@@ -135,8 +134,15 @@ class Circuit(channel.Diagram):
         """
         Convert a discopy circuit to an optyx channel diagram.
         """
+
+        def ob(o):
+            if o.name == "qubit":
+                return channel.qubit**len(o)
+            if o.name == "bit":
+                return channel.bit**len(o)
+
         return symmetric.Functor(
-            ob=lambda o: channel.qubit**len(o),
+            ob=ob,
             ar=QubitChannel.from_discopy,
             dom=symmetric.Category(
                 quantum_discopy.circuit.Ty,
@@ -176,16 +182,20 @@ class QubitChannel(channel.Channel, Circuit):
     def from_discopy(cls, box):
         """Turns gates into ZX diagrams."""
         #pylint: disable=import-outside-toplevel
-        from discopy.quantum.gates import Bra, Ket, Rz, Rx, CX, CZ, Controlled
+        from discopy.quantum.gates import Bra, Ket, Rz, Rx, CX, CZ, Controlled, Digits
         from discopy.quantum.gates import Scalar as GatesScalar
+        from optyx import classical
+
+        def get_perm(n):
+            return sorted(sorted(list(range(n))), key=lambda i: i % 2)
+
         ##### need to add mixed gates
         Id = channel.Diagram.id
-        qubit = channel.qubit
         root2 = photonic.Scalar(2**0.5)
         if isinstance(box, (Bra, Ket)):
             dom, cod = (1, 0) if isinstance(box, Bra) else (0, 1)
             spiders = [X(dom, cod, phase=0.5 * bit) for bit in box.bitstring]
-            return Id(qubit**0).tensor(*spiders) @ photonic.Scalar(
+            return Id(channel.qubit**0).tensor(*spiders) @ photonic.Scalar(
                 pow(2, -len(box.bitstring) / 2)
             )
         if isinstance(box, (Rz, Rx)):
@@ -200,18 +210,40 @@ class QubitChannel(channel.Channel, Circuit):
                 X(1, 2) @ X(1, 2, box.phase / 2)
                 >> Id(1) @ (Z(2, 1) >> X(1, 0, -box.phase / 2)) @ Id(1) @ root2
             )
+        if isinstance(box, Digits):
+            dgrm = Id(channel.bit**0)
+            for d in box.digits:
+                if d > 1:
+                    raise ValueError(
+                        "Only qubits are supported. Digits must be 0 or 1, got {}".format(d)
+                    )
+                dgrm @= classical.X(0, 1, 0.5**d)
+            return dgrm
         if isinstance(box, quantum_discopy.CU1):
             return Z(1, 2, box.phase) @ Z(1, 2, box.phase) >> Id(1) @ (
                 X(2, 1) >> Z(1, 0, -box.phase)
             ) @ Id(1)
         if isinstance(box, GatesScalar):
-            if box.is_mixed:
-                raise NotImplementedError
             return photonic.Scalar(box.data)
         if isinstance(box, Controlled) and box.distance != 1:
             return Circuit._from_discopy(box._decompose())
         if isinstance(box, quantum_discopy.Discard):
             return DiscardQubits(len(box.dom))
+        if isinstance(box, quantum_discopy.Measure):
+            no_qubits = sum([1 if i.name=="qubit" else 0 for i in box.dom])
+            dgrm = MeasureQubits(no_qubits)
+            if box.override_bits == True:
+                dgrm @= channel.Discard(channel.bit**no_qubits)
+            if box.destructive == True:
+                return dgrm
+            else:
+                dgrm >>= classical.CopyBit(2)**no_qubits
+                dgrm >>= channel.Diagram.permutation(
+                    get_perm(2 * no_qubits), channel.bit**(2 * no_qubits)
+                )
+                dgrm >>= EncodeBits(no_qubits) @ Id(channel.bit**no_qubits)
+                return dgrm
+
         standard_gates = {
             quantum_discopy.H: H(),
             quantum_discopy.Z: Z(1, 1, 0.5),
@@ -219,8 +251,8 @@ class QubitChannel(channel.Channel, Circuit):
             quantum_discopy.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ photonic.Scalar(1j),
             quantum_discopy.S: Z(1, 1, 0.25),
             quantum_discopy.T: Z(1, 1, 0.125),
-            CZ: Z(1, 2) @ Id(qubit) >> Id(qubit) @ H() @ Id(qubit) >> Id(qubit) @ Z(2, 1) @ root2,
-            CX: Z(1, 2) @ Id(qubit) >> Id(qubit) @ X(2, 1) @ root2,
+            CZ: Z(1, 2) @ Id(channel.qubit) >> Id(channel.qubit) @ H() @ Id(channel.qubit) >> Id(channel.qubit) @ Z(2, 1) @ root2,
+            CX: Z(1, 2) @ Id(channel.qubit) >> Id(channel.qubit) @ X(2, 1) @ root2,
         }
         return standard_gates[box]
 
