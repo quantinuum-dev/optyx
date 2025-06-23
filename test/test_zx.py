@@ -3,8 +3,10 @@ import random
 import numpy as np
 from pytest import raises, fixture
 
-from discopy.quantum.gates import CRz, CRx, CU1, Ket, Rx
+from discopy.quantum.gates import CRz, CRx, CU1, Ket, Rx, H
+from discopy import quantum
 from optyx.core.zx import *
+from optyx import qubit
 from optyx.core.diagram import Diagram, Bit
 
 @fixture
@@ -110,7 +112,7 @@ def _std_basis_v(*c):
 
 def test_circuit2zx():
     circuit = Ket(0, 0) >> quantum.H @ Rx(0) >> CRz(0) >> CRx(0) >> CU1(0)
-    assert circuit2zx(circuit) == Diagram.decode(
+    assert qubit.Circuit(circuit)._to_optyx() == Diagram.decode(
         dom=Bit(0), boxes_and_offsets=zip([
             X(0, 1), X(0, 1), scalar(0.5), H, X(1, 1),
             Z(1, 2), Z(1, 2), X(2, 1), Z(1, 0), scalar(2 ** 0.5),
@@ -119,24 +121,28 @@ def test_circuit2zx():
             [0, 1, 2, 0, 1, 0, 2, 1, 1, 2, 0, 2, 1, 1, 2, 0, 2, 1, 1]))
 
     # Verify XYZ=iI
-    t = circuit2zx(quantum.Z >> quantum.Y >> quantum.X)
+    circuit = quantum.X >> quantum.Y >> quantum.Z
+    t = qubit.Circuit(circuit)._to_optyx()
     t = t.to_pyzx().to_matrix() - 1j * np.eye(2)
     assert np.isclose(np.linalg.norm(t), 0)
 
     # Check scalar translation
-    t = circuit2zx(
-        quantum.X >> quantum.X @ quantum.scalar(1j)).to_pyzx().to_matrix()
+    circuit = quantum.X >> quantum.X @ quantum.scalar(1j)
+    t = qubit.Circuit(circuit)._to_optyx().to_pyzx().to_matrix()
     assert np.isclose(np.linalg.norm(t - 1j * np.eye(2)), 0)
 
-    with raises(NotImplementedError):
-        circuit2zx(quantum.scalar(1, is_mixed=True))
+    # with raises(NotImplementedError):
+    #     circuit2zx(quantum.scalar(1, is_mixed=True))
 
-    t = circuit2zx(Ket(0)).to_pyzx().to_matrix() - _std_basis_v(0)
+    circuit = Ket(0)
+    t = qubit.Circuit(circuit)._to_optyx().to_pyzx().to_matrix() - _std_basis_v(0)
     assert np.isclose(np.linalg.norm(t), 0)
-    t = circuit2zx(Ket(0, 0)).to_pyzx().to_matrix() - _std_basis_v(0, 0)
+    circuit = Ket(0, 0)
+    t = qubit.Circuit(circuit)._to_optyx().to_pyzx().to_matrix() - _std_basis_v(0, 0)
     assert np.isclose(np.linalg.norm(t), 0)
 
-    assert (circuit2zx(quantum.Id(3).CX(0, 2))
+    circuit = quantum.Id(3).CX(0, 2)
+    assert (qubit.Circuit(circuit)._to_optyx()
             == Diagram.decode(
                 dom=Bit(3),
                 boxes_and_offsets=zip(

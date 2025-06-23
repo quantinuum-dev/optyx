@@ -131,7 +131,6 @@ from discopy import cat
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
-from discopy import quantum
 from optyx.core import diagram, zw
 
 

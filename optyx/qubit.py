@@ -1,9 +1,9 @@
 
 import numpy as np
-from pyzx import Graph
+from pyzx.graph.base import BaseGraph
 from discopy import quantum as quantum_discopy
+from discopy import symmetric
 from pytket import circuit as tket_circuit
-from discopy.cat import Category
 from optyx._utils import explode_channel
 from optyx.core import (
     channel,
@@ -24,6 +24,22 @@ class Circuit(channel.Diagram):
 
     def __init__(self, circuit):
         self._underlying_circuit = circuit
+        self.name = "Circuit"
+        self.type = self._detect_type()
+        dom, cod = self._get_dom_cod()
+        inside = channel.Channel(
+            "Circuit",
+            diagram.Box(
+                name="Circuit",
+                dom=dom.single(),
+                cod=cod.single()
+            )
+        )
+        super().__init__(
+            dom=dom,
+            cod=cod,
+            inside=inside.inside
+        )
 
     def double(self):
         """
@@ -45,28 +61,64 @@ class Circuit(channel.Diagram):
         """
         return self._to_optyx().get_kraus()
 
+    def _get_dom_cod(self):
+        if self.type == "tket":
+            self._underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
+                self._underlying_circuit
+            )
+            self.type = "discopy"
+        if self.type == "discopy":
+            return (
+                channel.qubit**len(self._underlying_circuit.dom),
+                channel.qubit**len(self._underlying_circuit.cod)
+            )
+        if self.type == "pyzx":
+            return (
+                channel.qubit**len(self._underlying_circuit.inputs),
+                channel.qubit**len(self._underlying_circuit.outputs)
+            )
+        if self.type == "zx":
+            return (
+                self._underlying_circuit.dom,
+                self._underlying_circuit.cod
+            )
+        raise TypeError("Unsupported circuit type")
+
+    def _detect_type(self):
+        """
+        Detect the type of the underlying circuit.
+        """
+        if isinstance(self._underlying_circuit, quantum_discopy.circuit.Circuit):
+            return "discopy"
+        if isinstance(self._underlying_circuit, BaseGraph):
+            return "pyzx"
+        if isinstance(self._underlying_circuit, tket_circuit.Circuit):
+            return "tket"
+        if isinstance(self._underlying_circuit, channel.Diagram):
+            return "zx"
+        raise TypeError("Unsupported circuit type")
+
     def _to_optyx(self):
         """
         Convert the circuit to an optyx channel diagram.
         """
-        if isinstance(self._underlying_circuit, quantum_discopy.circuit.Circuit):
+        if self.type == "discopy":
             return self._to_optyx_from_discopy()
-        if isinstance(self._underlying_circuit, Graph):
+        if self.type == "pyzx":
             return self._to_optyx_from_pyzx()
-        if isinstance(self._underlying_circuit, tket_circuit.Circuit):
+        if self.type == "tket":
             return self._to_optyx_from_tket()
-        if isinstance(self._underlying_circuit, channel.Diagram):
+        if self.type == "zx":
             return self._to_optyx_from_zx()
 
     def _to_optyx_from_tket(self):
         """
         Convert a tket circuit to an optyx channel diagram.
         """
-        self._to_optyx_from_discopy(
-            quantum_discopy.circuit.Circuit.from_tk(
-                self._underlying_circuit
-            )
+        self._underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
+            self._underlying_circuit
         )
+        return self._to_optyx_from_discopy()
 
     def _to_optyx_from_pyzx(self):
         """
@@ -83,16 +135,14 @@ class Circuit(channel.Diagram):
         """
         Convert a discopy circuit to an optyx channel diagram.
         """
-        return quantum_discopy.circuit.Functor(
-            ob={
-                quantum_discopy.circuit.qubit: channel.qubit
-            },
+        return symmetric.Functor(
+            ob=lambda o: channel.qubit**len(o),
             ar=QubitChannel.from_discopy,
-            dom=Category(
+            dom=symmetric.Category(
                 quantum_discopy.circuit.Ty,
                 quantum_discopy.circuit.Circuit
             ),
-            cod=Category(
+            cod=symmetric.Category(
                 channel.Ty,
                 channel.Diagram
             ),
@@ -102,7 +152,7 @@ class Circuit(channel.Diagram):
         return self._underlying_circuit
 
 
-class QubitChannel(channel.Channel):
+class QubitChannel(channel.Channel, Circuit):
     """Qubit channel."""
 
     def _decomp(self):
@@ -130,12 +180,12 @@ class QubitChannel(channel.Channel):
         from discopy.quantum.gates import Scalar as GatesScalar
         ##### need to add mixed gates
         Id = channel.Diagram.id
-        bit = channel.bit
+        qubit = channel.qubit
         root2 = photonic.Scalar(2**0.5)
         if isinstance(box, (Bra, Ket)):
             dom, cod = (1, 0) if isinstance(box, Bra) else (0, 1)
             spiders = [X(dom, cod, phase=0.5 * bit) for bit in box.bitstring]
-            return Id(bit**0).tensor(*spiders) @ photonic.Scalar(
+            return Id(qubit**0).tensor(*spiders) @ photonic.Scalar(
                 pow(2, -len(box.bitstring) / 2)
             )
         if isinstance(box, (Rz, Rx)):
@@ -160,15 +210,17 @@ class QubitChannel(channel.Channel):
             return photonic.Scalar(box.data)
         if isinstance(box, Controlled) and box.distance != 1:
             return Circuit._from_discopy(box._decompose())
+        if isinstance(box, quantum_discopy.Discard):
+            return DiscardQubits(len(box.dom))
         standard_gates = {
-            quantum_discopy.H: H,
+            quantum_discopy.H: H(),
             quantum_discopy.Z: Z(1, 1, 0.5),
             quantum_discopy.X: X(1, 1, 0.5),
             quantum_discopy.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ photonic.Scalar(1j),
             quantum_discopy.S: Z(1, 1, 0.25),
             quantum_discopy.T: Z(1, 1, 0.125),
-            CZ: Z(1, 2) @ Id(1) >> Id(1) @ H @ Id(1) >> Id(1) @ Z(2, 1) @ root2,
-            CX: Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1) @ root2,
+            CZ: Z(1, 2) @ Id(qubit) >> Id(qubit) @ H() @ Id(qubit) >> Id(qubit) @ Z(2, 1) @ root2,
+            CX: Z(1, 2) @ Id(qubit) >> Id(qubit) @ X(2, 1) @ root2,
         }
         return standard_gates[box]
 
@@ -248,7 +300,7 @@ class H(QubitChannel):
     def __init__(self):
         super().__init__(
             "H",
-            zx.H(),
+            zx.H,
             channel.qubit,
             channel.qubit,
         )

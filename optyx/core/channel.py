@@ -112,7 +112,7 @@ from typing import Literal
 
 import numpy as np
 from discopy import tensor
-from discopy import symmetric
+from discopy import symmetric, frobenius
 from discopy.cat import factory
 from optyx.core import zx, diagram
 
@@ -190,7 +190,7 @@ qmode = Ty("qmode")
 
 
 @factory
-class Diagram(symmetric.Diagram):
+class Diagram(frobenius.Diagram):
     """Classical-quantum circuits over qubits and optical modes"""
 
     ty_factory = Ty
