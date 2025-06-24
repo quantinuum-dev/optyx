@@ -256,9 +256,15 @@ class Diagram(frobenius.Diagram):
                                         for ty in layer.inside[0][2]])
             generator = layer.inside[0][1]
 
-            kraus_maps.append(
-                left @ generator.kraus @ right
-            )
+            if isinstance(generator, Swap):
+                kraus_maps.append(
+                    left @ diagram.Swap(generator.dom.single()[0],
+                                        generator.cod.single()[1]) @ right
+                )
+            else:
+                kraus_maps.append(
+                    left @ generator.kraus @ right
+                )
 
         if len(kraus_maps) == 1:
             return kraus_maps[0]
@@ -528,6 +534,7 @@ class CQMap(symmetric.Box, Diagram):
         if n == 1:
             return self
         return self @ self ** (n - 1)
+
 
 class Swap(symmetric.Swap, Channel):
     def dagger(self):

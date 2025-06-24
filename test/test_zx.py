@@ -112,7 +112,7 @@ def _std_basis_v(*c):
 
 def test_circuit2zx():
     circuit = Ket(0, 0) >> quantum.H @ Rx(0) >> CRz(0) >> CRx(0) >> CU1(0)
-    assert qubit.Circuit(circuit)._to_optyx() == Diagram.decode(
+    assert qubit.Circuit(circuit)._to_optyx().get_kraus() == Diagram.decode(
         dom=Bit(0), boxes_and_offsets=zip([
             X(0, 1), X(0, 1), scalar(0.5), H, X(1, 1),
             Z(1, 2), Z(1, 2), X(2, 1), Z(1, 0), scalar(2 ** 0.5),
@@ -121,8 +121,8 @@ def test_circuit2zx():
             [0, 1, 2, 0, 1, 0, 2, 1, 1, 2, 0, 2, 1, 1, 2, 0, 2, 1, 1]))
 
     # Verify XYZ=iI
-    circuit = quantum.X >> quantum.Y >> quantum.Z
-    t = qubit.Circuit(circuit)._to_optyx()
+    circuit = quantum.Z >> quantum.Y >> quantum.X
+    t = qubit.Circuit(circuit)._to_optyx().get_kraus()
     t = t.to_pyzx().to_matrix() - 1j * np.eye(2)
     assert np.isclose(np.linalg.norm(t), 0)
 
@@ -142,7 +142,7 @@ def test_circuit2zx():
     assert np.isclose(np.linalg.norm(t), 0)
 
     circuit = quantum.Id(3).CX(0, 2)
-    assert (qubit.Circuit(circuit)._to_optyx()
+    assert (qubit.Circuit(circuit)._to_optyx().get_kraus()
             == Diagram.decode(
                 dom=Bit(3),
                 boxes_and_offsets=zip(
