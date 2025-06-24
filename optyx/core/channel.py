@@ -118,6 +118,7 @@ from optyx.core import zx, diagram
 from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
 
+from optyx._utils import explode_channel
 
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
@@ -360,6 +361,14 @@ class Diagram(frobenius.Diagram):
         from optyx.qubit import Circuit
         return Circuit.from_discopy(discopy_circuit)._to_optyx()
 
+    @classmethod
+    def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+        return Channel(
+            "Bosonic operator",
+            diagram.Diagram.from_bosonic_operator(
+                n_modes, operators, scalar=scalar
+            )
+        )
 
 class Channel(symmetric.Box, Diagram):
     """
@@ -433,7 +442,13 @@ class Channel(symmetric.Box, Diagram):
         )
 
     def _decomp(self):
-        raise NotImplementedError("Only ZX channels can be decomposed.")
+        from optyx.qubit import QubitChannel
+        decomposed = zx.decomp(self.kraus)
+        return explode_channel(
+            decomposed,
+            QubitChannel,
+            Diagram
+        )
 
     def to_dual_rail(self):
         raise NotImplementedError("Only ZX channels can be converted to dual rail.")
@@ -649,43 +664,43 @@ class Encode(Channel):
         return Encode(ob)
 
 
-class BitFlipError(Channel):
+# class BitFlipError(Channel):
 
-    def __init__(self, prob):
-        x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
-            1, 1, np.sqrt((1 - prob) / prob)
-        ) @ zx.Scalar(np.sqrt(prob * 2))
-        super().__init__(
-            name=f"BitFlipError({prob})",
-            kraus=x_error,
-            dom=qubit,
-            cod=qubit,
-            env=diagram.bit,
-        )
+#     def __init__(self, prob):
+#         x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
+#             1, 1, np.sqrt((1 - prob) / prob)
+#         ) @ zx.Scalar(np.sqrt(prob * 2))
+#         super().__init__(
+#             name=f"BitFlipError({prob})",
+#             kraus=x_error,
+#             dom=qubit,
+#             cod=qubit,
+#             env=diagram.bit,
+#         )
 
-    def dagger(self):
-        return self
+#     def dagger(self):
+#         return self
 
 
-class DephasingError(Channel):
-    def __init__(self, prob):
-        z_error = (
-            zx.H
-            >> zx.X(1, 2)
-            >> zx.H
-            @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
-            @ zx.Scalar(np.sqrt(prob * 2))
-        )
-        super().__init__(
-            name=f"DephasingError({prob})",
-            kraus=z_error,
-            dom=qubit,
-            cod=qubit,
-            env=diagram.bit,
-        )
+# class DephasingError(Channel):
+#     def __init__(self, prob):
+#         z_error = (
+#             zx.H
+#             >> zx.X(1, 2)
+#             >> zx.H
+#             @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
+#             @ zx.Scalar(np.sqrt(prob * 2))
+#         )
+#         super().__init__(
+#             name=f"DephasingError({prob})",
+#             kraus=z_error,
+#             dom=qubit,
+#             cod=qubit,
+#             env=diagram.bit,
+#         )
 
-    def dagger(self):
-        return self
+#     def dagger(self):
+#         return self
 
 
 class Discard(Channel):
@@ -707,28 +722,28 @@ class Discard(Channel):
         """
         return Discard(self.dom.inflate(d))
 
-class Ket(Channel):
-    """Computational basis state for qubits"""
+# class Ket(Channel):
+#     """Computational basis state for qubits"""
 
-    def __init__(
-        self, value: Literal[0, 1, "+", "-"], cod: Ty = None
-    ) -> None:
-        spider = zx.X if value in (0, 1) else zx.Z
-        phase = 0 if value in (0, "+") else 0.5
-        kraus = spider(0, 1, phase) @ diagram.Scalar(1 / np.sqrt(2))
-        super().__init__(f"|{value}>", kraus, cod=cod)
+#     def __init__(
+#         self, value: Literal[0, 1, "+", "-"], cod: Ty = None
+#     ) -> None:
+#         spider = zx.X if value in (0, 1) else zx.Z
+#         phase = 0 if value in (0, "+") else 0.5
+#         kraus = spider(0, 1, phase) @ diagram.Scalar(1 / np.sqrt(2))
+#         super().__init__(f"|{value}>", kraus, cod=cod)
 
 
-class Bra(Channel):
-    """Post-selected measurement for qubits"""
+# class Bra(Channel):
+#     """Post-selected measurement for qubits"""
 
-    def __init__(
-        self, value: Literal[0, 1, "+", "-"], dom: Ty = None
-    ) -> None:
-        spider = zx.X if value in (0, 1) else zx.Z
-        phase = 0 if value in (0, "+") else 0.5
-        kraus = spider(1, 0, phase) @ diagram.Scalar(1 / np.sqrt(2))
-        super().__init__(f"<{value}|", kraus, dom=dom)
+#     def __init__(
+#         self, value: Literal[0, 1, "+", "-"], dom: Ty = None
+#     ) -> None:
+#         spider = zx.X if value in (0, 1) else zx.Z
+#         phase = 0 if value in (0, "+") else 0.5
+#         kraus = spider(1, 0, phase) @ diagram.Scalar(1 / np.sqrt(2))
+#         super().__init__(f"<{value}|", kraus, dom=dom)
 
 
 Diagram.braid_factory = Swap

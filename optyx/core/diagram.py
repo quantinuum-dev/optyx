@@ -904,13 +904,19 @@ class EmbeddingTensor(tensor.Box):
             tensor = tensor @ EmbeddingTensor(i[0], i[1])
         return tensor
 
-def dual_rail(n):
+def dual_rail(n, internal_states=None):
     """
     Encode n qubits into 2n modes via the dual-rail encoding.
     """
-    d = DualRail()
-    for i in range(n - 1):
-        d @= DualRail()
+
+    if internal_states is None:
+        d = DualRail()
+        for i in range(n - 1):
+            d @= DualRail()
+    else:
+        d = DualRail(internal_state=internal_states[0])
+        for i, state in enumerate(internal_states[1:]):
+            d @= DualRail(internal_state=state)
     return d
 
 

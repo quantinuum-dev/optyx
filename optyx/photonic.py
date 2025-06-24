@@ -94,11 +94,12 @@ class Create(channel.Channel):
     a specified number of photons
     in a specified number of channel.qmodes.
     """
-    def __init__(self, *photons: int):
+    def __init__(self, *photons: int,
+                 internal_states: tuple[list[int]] = None):
         self.photons = photons
         super().__init__(
             f"Create({photons})",
-            zw.Create(*photons)
+            zw.Create(*photons, internal_states=internal_states)
         )
 
 
@@ -544,10 +545,10 @@ class DualRail(channel.Channel):
     Represents a dual-rail quantum channel
     encoding a specified number of qubit registers.
     """
-    def __init__(self, n_qubits):
+    def __init__(self, n_qubits, internal_states=None):
         super().__init__(
             f"DualRail({n_qubits})",
-            diagram.dual_rail(n_qubits)
+            diagram.dual_rail(n_qubits, internal_states=internal_states)
         )
 
 
@@ -629,6 +630,11 @@ class FusionTypeI(channel.Diagram):
         )
 
 
+class Swap(channel.Swap):
+    def __init__(self, left, right):
+        super().__init__(channel.qmode**left, channel.qmode**right)
+
+
 class FusionTypeII(channel.Diagram):
     def __new__(cls):
         fusion_II = channel.Channel(
@@ -671,3 +677,7 @@ class FusionTypeII(channel.Diagram):
         )
 
 BS = BBS(0)
+
+def Id(n):
+    return channel.Diagram.id(n) if \
+          isinstance(n, channel.Ty) else channel.Diagram.id(channel.qmode**n)

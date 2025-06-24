@@ -470,3 +470,10 @@ class Select(channel.Channel):
         return path.Matrix[dtype](
             array, len(self.photons), 0, selections=self.photons
         )
+
+
+def Id(n):
+    if isinstance(n, channel.Ty):
+        return channel.Diagram.id(n)
+    else:
+        raise TypeError(f"Expected a channel.Ty, got {type(n)}")

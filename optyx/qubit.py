@@ -1,5 +1,6 @@
 
 import numpy as np
+from typing import Literal
 from pyzx.graph.base import BaseGraph
 from discopy import quantum as quantum_discopy
 from discopy import symmetric
@@ -130,6 +131,10 @@ class Circuit(channel.Diagram):
             channel.Diagram
         )
 
+    def to_dual_rail(self):
+        """Convert to dual-rail encoding."""
+        return self._to_optyx().to_dual_rail()
+
     def _to_optyx_from_discopy(self):
         """
         Convert a discopy circuit to an optyx channel diagram.
@@ -189,13 +194,12 @@ class QubitChannel(channel.Channel, Circuit):
         def get_perm(n):
             return sorted(sorted(list(range(n))), key=lambda i: i % 2)
 
-        ##### need to add mixed gates
         Id = channel.Diagram.id
-        root2 = photonic.Scalar(2**0.5)
+        root2 = Scalar(2**0.5)
         if isinstance(box, (Bra, Ket)):
             dom, cod = (1, 0) if isinstance(box, Bra) else (0, 1)
             spiders = [X(dom, cod, phase=0.5 * bit) for bit in box.bitstring]
-            return Id(channel.qubit**0).tensor(*spiders) @ photonic.Scalar(
+            return Id(channel.qubit**0).tensor(*spiders) @ Scalar(
                 pow(2, -len(box.bitstring) / 2)
             )
         if isinstance(box, (Rz, Rx)):
@@ -224,7 +228,7 @@ class QubitChannel(channel.Channel, Circuit):
                 X(2, 1) >> Z(1, 0, -box.phase)
             ) @ Id(channel.qubit)
         if isinstance(box, GatesScalar):
-            return photonic.Scalar(box.data)
+            return Scalar(box.data)
         if isinstance(box, Controlled) and box.distance != 1:
             return Circuit(box._decompose())._to_optyx()
         if isinstance(box, quantum_discopy.Discard):
@@ -251,7 +255,7 @@ class QubitChannel(channel.Channel, Circuit):
             quantum_discopy.H: H(),
             quantum_discopy.Z: Z(1, 1, 0.5),
             quantum_discopy.X: X(1, 1, 0.5),
-            quantum_discopy.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ photonic.Scalar(1j),
+            quantum_discopy.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ Scalar(1j),
             quantum_discopy.S: Z(1, 1, 0.25),
             quantum_discopy.T: Z(1, 1, 0.125),
             CZ: Z(1, 2) @ Id(channel.qubit) >> Id(channel.qubit) @ H() @ Id(channel.qubit) >> Id(channel.qubit) @ Z(2, 1) @ root2,
@@ -345,13 +349,13 @@ class Scalar(QubitChannel):
     def __init__(self, value: float):
         super().__init__(
             f"Scalar({value})",
-            zx.Scalar(value),
+            zx.scalar(value),
             channel.qubit**0,
             channel.qubit**0,
         )
 
 
-class BitFlipError(channel.Channel):
+class BitFlipError(QubitChannel):
     """
     Represents a bit-flip error channel.
     """
@@ -360,7 +364,7 @@ class BitFlipError(channel.Channel):
         from optyx.core import zx
         x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
             1, 1, np.sqrt((1 - prob) / prob)
-        ) @ zx.Scalar(np.sqrt(prob * 2))
+        ) @ zx.scalar(np.sqrt(prob * 2))
         super().__init__(
             name=f"BitFlipError({prob})",
             kraus=x_error,
@@ -373,7 +377,7 @@ class BitFlipError(channel.Channel):
         return self
 
 
-class DephasingError(channel.Channel):
+class DephasingError(QubitChannel):
     """
     Represents a quantum dephasing error channel.
     """
@@ -384,7 +388,7 @@ class DephasingError(channel.Channel):
             >> zx.X(1, 2)
             >> zx.H
             @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
-            @ zx.Scalar(np.sqrt(prob * 2))
+            @ zx.scalar(np.sqrt(prob * 2))
         )
         super().__init__(
             name=f"DephasingError({prob})",
@@ -396,3 +400,32 @@ class DephasingError(channel.Channel):
 
     def dagger(self):
         return self
+
+
+class Ket(QubitChannel):
+    """Computational basis state for qubits"""
+
+    def __init__(
+        self, value: Literal[0, 1, "+", "-"], cod: channel.Ty = channel.qubit
+    ) -> None:
+        spider = zx.X if value in (0, 1) else zx.Z
+        phase = 0 if value in (0, "+") else 0.5
+        kraus = spider(0, 1, phase) @ diagram.Scalar(1 / np.sqrt(2))
+        super().__init__(f"|{value}>", kraus, cod=cod)
+
+
+class Bra(QubitChannel):
+    """Post-selected measurement for qubits"""
+
+    def __init__(
+        self, value: Literal[0, 1, "+", "-"], dom: channel.Ty = channel.qubit
+    ) -> None:
+        spider = zx.X if value in (0, 1) else zx.Z
+        phase = 0 if value in (0, "+") else 0.5
+        kraus = spider(1, 0, phase) @ diagram.Scalar(1 / np.sqrt(2))
+        super().__init__(f"<{value}|", kraus, dom=dom)
+
+
+def Id(n):
+    return channel.Diagram.id(n) if \
+          isinstance(n, channel.Ty) else channel.Diagram.id(channel.qubit**n)
