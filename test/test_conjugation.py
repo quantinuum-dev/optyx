@@ -9,19 +9,19 @@ import numpy as np
 
 @pytest.mark.parametrize("box", [photonic.Phase, photonic.BBS, photonic.TBS])
 def test_conjugation_LO(box):
-    gate = box(0.27).get_kraus()
-    dom = Ty.from_optyx(gate.dom)
+    gate = box(0.27)
+    dom = gate.dom
     lhs = Discard(dom)
-    rhs = Channel("Gate", gate) >> Discard(dom)
+    rhs = gate >> Discard(dom)
     lhs_tensor = lhs.double().to_tensor().eval().array
     rhs_tensor = rhs.double().to_tensor().eval().array
     assert np.allclose(lhs_tensor, rhs_tensor)
 
 def test_conjugation_MZI():
-    gate = photonic.MZI(0.27, 0.76).get_kraus()
+    gate = photonic.MZI(0.27, 0.76)
     dom = qmode ** 2
     lhs = Discard(dom)
-    rhs = Channel("Gate", gate) >> Discard(dom)
+    rhs = gate >> Discard(dom)
     lhs_tensor = lhs.double().to_tensor().eval().array
     rhs_tensor = rhs.double().to_tensor().eval().array
     assert np.allclose(lhs_tensor, rhs_tensor)
