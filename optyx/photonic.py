@@ -655,15 +655,15 @@ class FusionTypeII(channel.Diagram):
         fusion_II = channel.Channel(
             "Fusion II",
             (
-                HadamardBS.get_kraus() @ HadamardBS.get_kraus() >>
+                HadamardBS().get_kraus() @ HadamardBS().get_kraus() >>
                 diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
                                            diagram.Mode(1)) @ diagram.Mode(1) >>
-                diagram.Mode(1) @ HadamardBS.get_kraus() @ diagram.Mode(1) >>
+                diagram.Mode(1) @ HadamardBS().get_kraus() @ diagram.Mode(1) >>
                 diagram.Mode(2) @ diagram.Swap(diagram.Mode(1),
                                            diagram.Mode(1)) >>
                 diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
                                            diagram.Mode(1)) @ diagram.Mode(1) >>
-                HadamardBS.get_kraus() @ diagram.Mode(2)
+                HadamardBS().get_kraus() @ diagram.Mode(2)
             )
         )
 
