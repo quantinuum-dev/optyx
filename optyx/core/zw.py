@@ -901,7 +901,7 @@ class Mod2(ZWBox):
     """
 
     def __init__(self, is_dagger: bool = False):
-        super().__init__("Mod2", diagram.Mode(1), diagram.Mode(1))
+        super().__init__("Mod2", diagram.Mode(1), diagram.Bit(1))
         self.is_dagger = is_dagger
 
     def truncation(

@@ -7,7 +7,10 @@ from optyx.core.zw import Create, W, ZBox
 from optyx.core.diagram import PhotonThresholdDetector, Mode, Swap, Bit, Id
 from optyx.photonic import Phase, BS, MZI
 from optyx._utils import matrix_to_zw
-
+from optyx.classical import BitControlledGate, BitControlledPhaseShift
+from optyx.core.channel import Channel, qmode
+from optyx import photonic
+from optyx import classical
 
 # Helper Functions and Data
 
@@ -146,6 +149,38 @@ class TestBinaryControlledBox:
             assert np.allclose(default_result, default_test)
 
     @pytest.mark.parametrize("action, default", CIRCUITS_TO_TEST)
+    def test_bit_controlled_gate(self, action, default):
+
+        action = Channel("action", action)
+        default = Channel("default", default) if default is not None else None
+
+        action_result = action.double().to_tensor().eval().array
+        default_result = default.double().to_tensor().eval().array if default is not None else None
+
+        if default is None:
+            action_test = (
+                (photonic.Create(1) >> photonic.PhotonThresholdMeasurement()) @ photonic.Id(len(action.cod))
+                >> BitControlledGate(action)
+            ).double().to_tensor().eval().array
+            default_test = (
+                (photonic.Create(0) >> photonic.PhotonThresholdMeasurement()) @ photonic.Id(len(action.cod))
+                >> BitControlledGate(action)
+            ).double().to_tensor().eval().array
+        else:
+            action_test = (
+                (photonic.Create(1) >> photonic.PhotonThresholdMeasurement()) @ photonic.Id(len(action.cod))
+                >> BitControlledGate(action, default)
+            ).double().to_tensor().eval().array
+            default_test = (
+                (photonic.Create(0) >> photonic.PhotonThresholdMeasurement()) @ photonic.Id(len(action.cod))
+                >> BitControlledGate(action, default)
+            ).double().to_tensor().eval().array
+
+        assert np.allclose(action_result, action_test)
+        if default is not None:
+            assert np.allclose(default_result, default_test)
+
+    @pytest.mark.parametrize("action, default", CIRCUITS_TO_TEST)
     def test_binary_controlled_box_dagger(self, action, default):
         res_1 = BitControlledBox(action, default).to_tensor().dagger().eval().array
         res_2 = BitControlledBox(action, default).dagger().to_tensor().eval().array
@@ -195,7 +230,7 @@ class TestControlledPhaseShift:
     @pytest.mark.parametrize("f", REAL_FUNCS)
     @pytest.mark.parametrize("diagram_creator", [
         lambda f: ControlledPhaseShift(f, len(f([0]))),
-        lambda f: Create(4) @ Mode(len(f([0]))) >> ControlledPhaseShift(f, len(f([0])))
+        lambda f: Mode(len(f([0]))) @ Create(4) >> ControlledPhaseShift(f, len(f([0])))
     ])
     def test_dagger_controlled_phase_shift(self, f, diagram_creator):
         """
@@ -205,6 +240,21 @@ class TestControlledPhaseShift:
         diagram = diagram_creator(f)
         res_1 = diagram.to_tensor().dagger().eval().array
         res_2 = diagram.dagger().to_tensor().eval().array
+        assert_allclose_with_shape_mismatch(res_1, res_2)
+
+    @pytest.mark.parametrize("f", REAL_FUNCS)
+    @pytest.mark.parametrize("diagram_creator", [
+        lambda f: BitControlledPhaseShift(f, len(f([0]))),
+        lambda f: qmode**len(f([0])) @ classical.Digit(4) >> BitControlledPhaseShift(f, len(f([0])))
+    ])
+    def test_dagger_controlled_phase_shift_channel(self, f, diagram_creator):
+        """
+        Confirm that taking the dagger at the diagram level is consistent
+        with converting the diagram to a tensor, then taking dagger.
+        """
+        diagram = diagram_creator(f)
+        res_1 = diagram.double().to_tensor().dagger().eval().array
+        res_2 = diagram.dagger().double().to_tensor().eval().array
         assert_allclose_with_shape_mismatch(res_1, res_2)
 
     diagrams_to_test_2 = [

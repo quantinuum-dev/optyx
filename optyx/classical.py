@@ -22,11 +22,11 @@ class BitControlledGate(channel.Channel):
                  default_gate=None):
         if isinstance(control_gate, (channel.Diagram, channel.Channel)):
             assert control_gate.is_pure, \
-                 "The input gates must be pure quantum channels"
+                 "The input gates must be pure quantum channels" # pragma: no cover
             control_gate_single = control_gate.get_kraus()
         if isinstance(default_gate, (channel.Diagram, channel.Channel)):
             assert default_gate.is_pure, \
-                 "The input gates must be pure quantum channels"
+                 "The input gates must be pure quantum channels" # pragma: no cover
             default_gate = default_gate.get_kraus()
         kraus = control.BitControlledBox(control_gate_single, default_gate)
         super().__init__(
@@ -52,7 +52,7 @@ class BitControlledPhaseShift(channel.Channel):
         super().__init__(
             "BitControlledPhaseShift",
             kraus,
-            channel.mode**n_control_modes @ channel.qmode**n_modes,
+            channel.qmode**n_modes @ channel.mode**n_control_modes,
             channel.mode**n_modes,
         )
 
@@ -101,9 +101,9 @@ class SubN(ClassicalBox):
         super().__init__(
             "SubInt",
             (
-                zw.Add(2).dagger() @ diagram.Mode(1) >>
-                diagram.Mode(1) @ diagram.Spider(2, 0, diagram.Mode(1))
-            ).
+                zw.Add(2).dagger() @ diagram.Id(diagram.Mode(1)) >>
+                diagram.Id(diagram.Mode(1)) @ diagram.Spider(2, 0, diagram.Mode(1))
+            ),
             channel.mode**2,
             channel.mode
         )
@@ -140,7 +140,7 @@ class DivideN(ClassicalBox):
         )
 
 
-class ModN(ClassicalBox):
+class Mod2(ClassicalBox):
     """
     Classical modulo 2.
     The domain of the map is a mode.
@@ -166,7 +166,7 @@ class CopyN(ClassicalBox):
     def __init__(self, n):
         super().__init__(
             f"CopyInt({n})",
-            lambda n: diagram.Spider(1, n, diagram.Mode(1)),
+            diagram.Spider(1, n, diagram.Mode(1)),
             channel.mode,
             channel.mode**n
         )
@@ -193,50 +193,62 @@ class PostselectBit(ClassicalBox):
     Postselect on a bit result.
     The domain of the map is a bit.
     """
-    def __init__(self, result):
+    def __init__(self, *bits):
 
-        if result not in (0, 1):
-            raise ValueError("Result must be 0 or 1.")
-        if result == 0:
-            super().__init__(
-                f"PostselectBit(0)",
-                zx.X(1, 0) @ diagram.Scalar(1 / np.sqrt(2)),
-                channel.bit,
-                channel.bit**0
-            )
-        else:
-            super().__init__(
-                f"PostselectBit(1)",
-                zx.X(1, 0, 0.5) @ diagram.Scalar(1 / np.sqrt(2)),
-                channel.bit,
-                channel.bit**0
-            )
+        if not all(bit in (0, 1) for bit in bits):
+            raise ValueError("Bits must be a list of 0s and 1s.")
+        kraus = zx.X(1, 0, 0.5**bits[0])
+        for bit in bits[1:]:
+            kraus = kraus @ zx.X(1, 0, 0.5**bit)
+        kraus = kraus @ diagram.Scalar(1 / np.sqrt(2**len(bits)))
+        super().__init__(
+            f"PostselectBit(0)",
+            kraus,
+            channel.bit**len(bits),
+            channel.bit**0
+        )
 
 
-class InitBit(ClassicalBox):
+class PostselectDigit(ClassicalBox):
     """
-    Initialize a bit to 0 or 1.
-    The domain of the map is a bit.
-    The codomain of the map is a bit.
-    The map will perform initialization on the basis states.
+    Postselect on a digit result.
+    The domain of the map is a digit.
     """
-    def __init__(self, value):
-        if value not in (0, 1):
-            raise ValueError("Value must be 0 or 1.")
-        if value == 0:
-            super().__init__(
-                f"InitBit(0)",
-                zx.X(0, 1) @ diagram.Scalar(1 / np.sqrt(2)),
-                channel.bit**0,
-                channel.bit
-            )
-        else:
-            super().__init__(
-                f"InitBit(1)",
-                zx.X(0, 1, 0.5) @ diagram.Scalar(1 / np.sqrt(2)),
-                channel.bit**0,
-                channel.bit
-            )
+    def __init__(self, *digits):
+        if not all(isinstance(digit, int) for digit in digits):
+            raise ValueError("Digits must be a list of integers.")
+        super().__init__(
+            f"PostselectDigit({digits})",
+            zw.Select(*digits),
+            channel.mode**len(digits),
+            channel.mode**0
+        )
+
+
+# class InitBit(ClassicalBox):
+#     """
+#     Initialize a bit to 0 or 1.
+#     The domain of the map is a bit.
+#     The codomain of the map is a bit.
+#     The map will perform initialization on the basis states.
+#     """
+#     def __init__(self, value):
+#         if value not in (0, 1):
+#             raise ValueError("Value must be 0 or 1.")
+#         if value == 0:
+#             super().__init__(
+#                 f"InitBit(0)",
+#                 zx.X(0, 1) @ diagram.Scalar(1 / np.sqrt(2)),
+#                 channel.bit**0,
+#                 channel.bit
+#             )
+#         else:
+#             super().__init__(
+#                 f"InitBit(1)",
+#                 zx.X(0, 1, 0.5) @ diagram.Scalar(1 / np.sqrt(2)),
+#                 channel.bit**0,
+#                 channel.bit
+#             )
 
 
 class NotBit(ClassicalBox):
@@ -374,7 +386,7 @@ class H(ClassicalBox):
     draw_as_spider = True
 
     def __init__(self):
-        kraus = zx.H()
+        kraus = zx.H
         super().__init__(
             f"H",
             kraus,
@@ -470,6 +482,20 @@ class Select(channel.Channel):
         return path.Matrix[dtype](
             array, len(self.photons), 0, selections=self.photons
         )
+
+
+class Digit(ClassicalBox):
+    def __init__(self, *photons: int):
+        self.photons = photons
+        super().__init__(
+            f"Digit({photons})",
+            zw.Create(*photons),
+            channel.mode**0,
+            channel.mode**len(photons)
+        )
+
+
+Bit = lambda *bits: PostselectBit(*bits).dagger()
 
 
 def Id(n):
