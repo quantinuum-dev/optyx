@@ -36,7 +36,6 @@ dependencies = [
   "pytket-pyzx >= 0.35.0",
   "pytket-qiskit >= 0.68.3"
 ]
-
 [project.optional-dependencies]
 test = [
     "black",
