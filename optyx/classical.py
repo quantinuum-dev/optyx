@@ -225,32 +225,6 @@ class PostselectDigit(ClassicalBox):
         )
 
 
-# class InitBit(ClassicalBox):
-#     """
-#     Initialize a bit to 0 or 1.
-#     The domain of the map is a bit.
-#     The codomain of the map is a bit.
-#     The map will perform initialization on the basis states.
-#     """
-#     def __init__(self, value):
-#         if value not in (0, 1):
-#             raise ValueError("Value must be 0 or 1.")
-#         if value == 0:
-#             super().__init__(
-#                 f"InitBit(0)",
-#                 zx.X(0, 1) @ diagram.Scalar(1 / np.sqrt(2)),
-#                 channel.bit**0,
-#                 channel.bit
-#             )
-#         else:
-#             super().__init__(
-#                 f"InitBit(1)",
-#                 zx.X(0, 1, 0.5) @ diagram.Scalar(1 / np.sqrt(2)),
-#                 channel.bit**0,
-#                 channel.bit
-#             )
-
-
 class NotBit(ClassicalBox):
     """
     Classical NOT gate.
