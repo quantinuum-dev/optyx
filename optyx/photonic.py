@@ -61,7 +61,7 @@ class DiscardPhotonic(channel.Discard):
     """
 
     def __init__(self, n):
-        super().__init__(channel.qmode**n)
+        super().__init__(channel.qmode**n) # pragma: no cover
 
 
 class PhotonThresholdMeasurement(channel.Channel):
@@ -85,7 +85,7 @@ class NumberResolvingMeasurement(channel.Measure):
     """
 
     def __init__(self, n):
-        super().__init__(channel.qmode**n)
+        super().__init__(channel.qmode**n) # pragma: no cover
 
 
 class Create(channel.Channel):
@@ -299,8 +299,9 @@ class BBS(AbstractGate):
 
     """
 
-    def __init__(self, bias):
+    def __init__(self, bias, is_conj=False):
         self.bias = bias
+        self.is_conj = is_conj
         super().__init__(
             2, 2,
             f"BBS({bias})",
@@ -311,7 +312,10 @@ class BBS(AbstractGate):
         backend = sp if self.dtype is Expr else np
         sin = backend.sin((0.25 + self.bias) * np.pi)
         cos = backend.cos((0.25 + self.bias) * np.pi)
-        array = [1j * cos, sin, sin, 1j * cos]
+        if self.is_conj:
+            array = [-1j * cos, sin, sin, -1j * cos]
+        else:
+            array = [1j * cos, sin, sin, 1j * cos]
         return np.array(array)
 
     def lambdify(self, *symbols, **kwargs):
@@ -323,7 +327,7 @@ class BBS(AbstractGate):
         return BBS(0.5 - self.bias)
 
     def conjugate(self):
-        return BBS(self.bias)
+        return BBS(self.bias, not self.is_conj)
 
 
 class TBS(AbstractGate):
@@ -356,9 +360,13 @@ class TBS(AbstractGate):
 
     """
 
-    def __init__(self, theta, is_dagger=False):
+    def __init__(self,
+                 theta,
+                 is_dagger=False,
+                 is_conj=False):
         self.theta = theta
         self.is_dagger = is_dagger
+        self.is_conj = is_conj
         super().__init__(
             2, 2,
             f"TBS({theta})",
@@ -380,7 +388,8 @@ class TBS(AbstractGate):
         sin = backend.sin(self.theta * backend.pi)
         cos = backend.cos(self.theta * backend.pi)
         array = np.array([sin, cos, cos, -sin])
-        return array * self.global_phase
+        return np.conjugate(array * self.global_phase) if \
+            self.is_conj else array * self.global_phase
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
@@ -399,7 +408,7 @@ class TBS(AbstractGate):
         return self._decomp().grad(var)
 
     def conjugate(self):
-        return TBS(self.theta, self.is_dagger)
+        return TBS(self.theta, self.is_dagger, not self.is_conj)
 
     def dagger(self):
         return TBS(self.theta, is_dagger=not self.is_dagger)
@@ -444,9 +453,14 @@ class MZI(AbstractGate):
 
     """
 
-    def __init__(self, theta, phi, is_dagger=False):
+    def __init__(self,
+                 theta,
+                 phi,
+                 is_dagger=False,
+                 is_conj=False):
         self.theta, self.phi = theta, phi
         self.is_dagger = is_dagger
+        self.is_conj = is_conj
         super().__init__(
             2, 2,
             f"MZI({theta}, {phi})",
@@ -469,7 +483,8 @@ class MZI(AbstractGate):
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
         array = np.array([exp * sin, cos, exp * cos, -sin])
-        return array * self.global_phase
+        return np.conjugate(array * self.global_phase) if \
+            self.is_conj else array * self.global_phase
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
@@ -492,7 +507,7 @@ class MZI(AbstractGate):
         return MZI(self.theta, self.phi, is_dagger=not self.is_dagger)
 
     def conjugate(self):
-        return MZI(self.theta, -self.phi, self.is_dagger)
+        return MZI(self.theta, self.phi, self.is_dagger, not self.is_conj)
 
 
 def ansatz(width, depth):

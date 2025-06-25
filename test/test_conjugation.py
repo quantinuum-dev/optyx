@@ -33,6 +33,20 @@ def test_conjugation_LO_Gate():
     assert np.allclose(gate.conjugate().to_path().array,
                        hbs_array.conjugate())
 
+@pytest.mark.parametrize("box", [photonic.Phase, photonic.BBS, photonic.TBS])
+def test_conjugation_LO_channel(box):
+    gate = box(0.27)
+    hbs_array = gate.array
+    assert np.allclose(gate.conjugate().to_path().array.flatten(),
+                       hbs_array.conjugate())
+
+
+def test_conjugation_MZI_channel():
+    gate = photonic.MZI(0.27, 0.76)
+    hbs_array = gate.array
+    assert np.allclose(gate.conjugate().to_path().array.flatten(),
+                       hbs_array.conjugate())
+
 
 @pytest.mark.parametrize("box", [zx.Z, zx.X])
 def test_conjugation_ZX(box):
