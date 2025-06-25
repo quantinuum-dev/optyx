@@ -1,8 +1,9 @@
 import optyx.core.zw as zw
-from optyx import photonic
+from optyx import photonic, classical
 from optyx._utils import tensor_2_amplitudes, calculate_num_creations_selections
 import itertools
 import pytest
+import perceval as pcvl
 import numpy as np
 
 pairs = [(1, 2), (2, 1)]
@@ -107,8 +108,93 @@ circs = [
     (zw.Create(1, 1) >> photonic.MZI(0.3, 0.5).get_kraus() >> photonic.BBS(0.5).get_kraus(), 0)
 ]
 
+
 @pytest.mark.parametrize("circ, n_extra_photons", circs)
 def test_eval_tensor_and_perceval_tensor(circ, n_extra_photons):
     ts = [i for i in circ.to_path().eval(n_extra_photons, as_tensor=True).array.flatten()[::-1] if i > 1e-10]
     amps = [i for i in circ.to_path().eval(n_extra_photons).array.flatten() if i > 1e-10]
     assert np.allclose(ts, amps)
+
+
+@pytest.mark.parametrize("photons_1, photons_2", pairs)
+def test_BS_channel(photons_1, photons_2):
+    BS = photonic.BBS(0)
+
+    diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
+    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    tensor = diagram_zw.double().to_tensor()
+
+    n_photons_out = calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
+
+    prob_zw = tensor.eval().array
+    M = pcvl.Matrix(diagram_qpath.to_path().array)
+    c1 = pcvl.components.Unitary(U=M)
+    backend = pcvl.BackendFactory.get_backend("SLOS")
+    backend.set_circuit(c1)
+    backend.set_input_state(pcvl.BasicState([photons_1, photons_2]))
+    prob_perceval = backend.probability(pcvl.BasicState([photons_1, photons_2]))
+    assert np.allclose(prob_zw, prob_perceval)
+
+
+@pytest.mark.parametrize("photons_1, photons_2, bias", pairs_bias)
+def test_BBS_channel(photons_1, photons_2, bias):
+    BS = photonic.BBS(bias)
+
+    diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
+    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    tensor = diagram_zw.double().to_tensor()
+
+    n_photons_out = calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
+
+    prob_zw = tensor.eval().array
+    M = pcvl.Matrix(diagram_qpath.to_path().array)
+    c1 = pcvl.components.Unitary(U=M)
+    backend = pcvl.BackendFactory.get_backend("SLOS")
+    backend.set_circuit(c1)
+    backend.set_input_state(pcvl.BasicState([photons_1, photons_2]))
+    prob_perceval = backend.probability(pcvl.BasicState([photons_1, photons_2]))
+    assert np.allclose(prob_zw, prob_perceval)
+
+
+@pytest.mark.parametrize("photons_1, photons_2, theta", pairs_bias)
+def test_TBS_channel(photons_1, photons_2, theta):
+    BS = photonic.TBS(theta)
+
+    diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
+    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    tensor = diagram_zw.double().to_tensor()
+
+    n_photons_out = calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
+
+    prob_zw = tensor.eval().array
+    M = pcvl.Matrix(diagram_qpath.to_path().array)
+    c1 = pcvl.components.Unitary(U=M)
+    backend = pcvl.BackendFactory.get_backend("SLOS")
+    backend.set_circuit(c1)
+    backend.set_input_state(pcvl.BasicState([photons_1, photons_2]))
+    prob_perceval = backend.probability(pcvl.BasicState([photons_1, photons_2]))
+    assert np.allclose(prob_zw, prob_perceval)
+
+
+@pytest.mark.parametrize("photons_1, photons_2, theta, phi", pairs_theta_phi)
+def test_MZI_channel(photons_1, photons_2, theta, phi):
+    BS = photonic.MZI(theta, phi)
+
+    diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
+    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    tensor = diagram_zw.double().to_tensor()
+
+    n_photons_out = calculate_num_creations_selections(diagram_zw)
+    n_photons_out = n_photons_out[1] - n_photons_out[0]
+
+    prob_zw = tensor.eval().array
+    M = pcvl.Matrix(diagram_qpath.to_path().array)
+    c1 = pcvl.components.Unitary(U=M)
+    backend = pcvl.BackendFactory.get_backend("SLOS")
+    backend.set_circuit(c1)
+    backend.set_input_state(pcvl.BasicState([photons_1, photons_2]))
+    prob_perceval = backend.probability(pcvl.BasicState([photons_1, photons_2]))
+    assert np.allclose(prob_zw, prob_perceval)

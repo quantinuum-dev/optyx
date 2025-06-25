@@ -52,7 +52,7 @@ class EncodePhotonic(channel.Encode):
     Encode :math:`n` modes into :math:`n` qmodes.
     """
     def __init__(self, n):
-        super().__init__(channel.mode**n)
+        super().__init__(channel.mode**n) # pragma: no cover
 
 
 class DiscardPhotonic(channel.Discard):
@@ -129,7 +129,7 @@ class AbstractGate(channel.Channel, ABC):
 
     @abstractmethod
     def _compute_array(self):
-        pass
+        pass # pragma: no cover
 
     def _contains_expr(self, obj):
         if isinstance(obj, Expr):
@@ -189,7 +189,7 @@ class Gate(AbstractGate):
             len(self.dom),
             len(self.cod),
             self.name
-        )
+        ) # pragma: no cover
 
 
 class Phase(AbstractGate):
