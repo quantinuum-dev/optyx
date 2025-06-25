@@ -82,7 +82,7 @@ class Circuit(channel.Diagram):
                 self._underlying_circuit.dom,
                 self._underlying_circuit.cod
             )
-        raise TypeError("Unsupported circuit type")
+        raise TypeError("Unsupported circuit type") # pragma: no cover
 
     def _detect_type(self):
         """
@@ -96,7 +96,7 @@ class Circuit(channel.Diagram):
             return "tket"
         if isinstance(self._underlying_circuit, channel.Diagram):
             return "zx"
-        raise TypeError("Unsupported circuit type")
+        raise TypeError("Unsupported circuit type") # pragma: no cover
 
     def _to_optyx(self):
         """
@@ -296,7 +296,7 @@ class EncodeBits(channel.Encode):
             channel.bit**n
         )
 
-class Z(QubitChannel):
+class Z(channel.Channel):
     """Z spider."""
 
     tikzstyle_name = "Z"
@@ -313,7 +313,7 @@ class Z(QubitChannel):
         )
 
 
-class X(QubitChannel):
+class X(channel.Channel):
     """X spider."""
 
     tikzstyle_name = "X"
@@ -330,7 +330,7 @@ class X(QubitChannel):
         )
 
 
-class H(QubitChannel):
+class H(channel.Channel):
     """Hadamard gate."""
 
     tikzstyle_name = "H"
@@ -345,7 +345,7 @@ class H(QubitChannel):
         )
 
 
-class Scalar(QubitChannel):
+class Scalar(channel.Channel):
     def __init__(self, value: float):
         super().__init__(
             f"Scalar({value})",
@@ -355,7 +355,7 @@ class Scalar(QubitChannel):
         )
 
 
-class BitFlipError(QubitChannel):
+class BitFlipError(channel.Channel):
     """
     Represents a bit-flip error channel.
     """
@@ -377,7 +377,7 @@ class BitFlipError(QubitChannel):
         return self
 
 
-class DephasingError(QubitChannel):
+class DephasingError(channel.Channel):
     """
     Represents a quantum dephasing error channel.
     """
@@ -402,7 +402,7 @@ class DephasingError(QubitChannel):
         return self
 
 
-class Ket(QubitChannel):
+class Ket(channel.Channel):
     """Computational basis state for qubits"""
 
     def __init__(
@@ -414,7 +414,7 @@ class Ket(QubitChannel):
         super().__init__(f"|{value}>", kraus, cod=cod)
 
 
-class Bra(QubitChannel):
+class Bra(channel.Channel):
     """Post-selected measurement for qubits"""
 
     def __init__(
