@@ -1,3 +1,194 @@
+"""
+Overview
+--------
+
+A collection of operators acting on photonic modes.
+This includes: measurements, states, linear optical gates,
+dual rail encoded gates, and fusion measurements.
+
+Measurements
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    DiscardPhotonic
+    PhotonThresholdMeasurement
+    NumberResolvingMeasurement
+
+Linear optical gates
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    Gate
+    Phase
+    HadamardBS
+    BBS
+    TBS
+    MZI
+    ansatz
+
+Dual rail encoded operators
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    DualRail
+    PhaseShiftDR
+    ZMeasurementDR
+    XMeasurementDR
+    FusionTypeI
+    FusionTypeII
+
+States
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    EncodePhotonic
+    Create
+
+Other
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    NumOp
+    Scalar
+
+
+Examples of usage
+------------------
+
+Let us check if a beam splitter showcases a valid Hang-Ou-Mandel effect:
+
+>>> from optyx.classical import Select
+>>> BS = BBS(0)
+>>> diagram = Create(1, 1) >> BS
+>>> assert np.isclose((diagram >> Select(0, 2)).to_path().prob().array, 0.5)
+>>> diagram.draw(path='docs/_static/BS.png')
+
+.. image:: /_static/BS.png
+    :align: center
+
+The function :code:`ansatz` generates a universal interferometer:
+
+>>> ansatz(6, 4).draw(path='docs/_static/ansatz6_4.png')
+
+.. image:: /_static/ansatz6_4.png
+    :align: center
+
+Some diagrams of the module can be converted to a :class:`zw` diagram:
+
+>>> from discopy.drawing import Equation
+>>> BS = BBS(0)
+>>> double_BS = BS.get_kraus()
+>>> Equation(BS, double_BS, symbol="$\\mapsto$").draw(\\
+... path="docs/_static/double_BS.png")
+
+.. image:: /_static/double_BS.png
+    :align: center
+
+**Evaluating linear optical circuits**
+
+:class:`lo` generators correspond to physical linear
+optical devices. We can use them to build photonic "chips"
+to simulate quantum photonics experiments.
+
+As an example, let us consider a beam splitter and the
+Hong-Ou-Mandel effect.
+
+First, let's create a beam splitter:
+
+>>> BS = BBS(0)
+>>> BS.draw(path='docs/_static/BS_hom.png', figsize=(2, 2))
+
+.. image:: /_static/BS_hom.png
+    :align: center
+
+If we want to evaluate the effect of
+inputting two photons using :code:`quimb`,
+we need to feed the circuit with two photons.
+Finally, let's check the effect of having both
+photons on two output modes.
+
+>>> diagram_qpath = Create(1, 1) >> BS >> Select(1, 1)
+>>> diagram_qpath.draw(path='docs/_static/BS_hom_2.png', figsize=(3, 3))
+
+.. image:: /_static/BS_hom_2.png
+    :align: center
+
+>>> float(np.round(diagram_qpath.double().to_tensor().to_quimb()^..., 1))
+0.0
+
+We can also do the same using :code:`Perceval`:
+
+>>> diagram_qpath.to_path().prob_with_perceval().array[0, 0]
+0j
+
+**Differentiation**
+
+We can also differentiate the expectation values of optical circuits.
+
+>>> from sympy.abc import psi
+>>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
+>>> state = Create(2, 0) >> circuit
+>>> observable = NumOp() @ Id(1)
+>>> expectation = state >> observable >> state.dagger()
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/2)).to_path().eval().array, np.array([0.]))
+>>> assert np.allclose(
+...     expectation.subs((psi, 1/4)).to_path().eval().array, np.array([1.]))
+>>> exp = expectation.grad(psi).subs((psi, 1/2))
+>>> assert np.allclose(
+...     sum([exp.terms[i].to_path().eval().array[0] \\
+...      for i in range(len(exp.terms))]), 0.)
+>>> exp = expectation.grad(psi).subs((psi, 1/4))
+>>> assert np.allclose(
+...     sum([exp.terms[i].to_path().eval().array[0] \\
+...      for i in range(len(exp.terms))]),
+...     -2*np.pi)
+>>> exp = expectation.grad(psi).grad(psi).subs((psi, 1/4))
+>>> assert np.allclose(
+...     sum([exp.terms[i].to_path().eval().array[0] \\
+...      for i in range(len(exp.terms))]),
+...     np.array([0.]))
+
+References
+----------
+.. [FC23] de Felice, G., & Coecke, B. (2023). Quantum Linear Optics \
+    via String Diagrams. In Proceedings 19th International \
+    Conference on Quantum Physics and Logic, Wolfson College, \
+    Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). \
+        Open Publishing Association.
+.. [FSP+23] de Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., \
+    & Coecke, B. (2023). Light-Matter Interaction in the \
+    ZXW Calculus. In  Proceedings of the Twentieth \
+    International Conference on Quantum Physics and Logic,  \
+    Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
+"""
+
+
 import numpy as np
 import sympy as sp
 from sympy import Expr, lambdify, Symbol, Mul
@@ -17,6 +208,9 @@ from optyx._utils import matrix_to_zw
 
 
 class Scalar(channel.Channel):
+    """
+    Scalar with a complex value.
+    """
     def __init__(self, value):
         if not isinstance(value, (Symbol, Mul)):
             self.scalar = complex(value)
@@ -555,6 +749,11 @@ def ansatz(width, depth):
 
 
 class HadamardBS(Gate):
+    """
+    An alternative version of the beam splitter
+    which implements a Hadamard gate in dual rail
+    encoding.
+    """
     def __init__(self):
         matrix = np.sqrt(1 / 2) * np.array([[1, 1], [1, -1]])
         super().__init__(
@@ -613,6 +812,41 @@ class XMeasurementDR(channel.Diagram):
 
 
 class FusionTypeI(channel.Diagram):
+    r"""
+    Type-I fusion measurement on two dual-rail photonic qubits.
+
+    This probabilistic operation interferes one rail of
+    each qubit on a 50/50 beam-splitter, performs
+    number-resolving detection on the ancillary modes, and—conditional
+    on the outcome—fuses the qubits into a *single* dual-rail qubit.
+
+    **Domain**
+        ``channel.qmode ** 4``
+        (four photonic modes encoding two qubits).
+
+    **Codomain**
+        ``channel.qmode ** 2 @ channel.bit ** 2``
+        – the surviving dual-rail qubit followed by two classical bits
+        ``[s, k]`` where
+
+        * ``s`` is the parity (success) bit
+        * ``k`` is the Pauli-correction bit for feed-forward.
+
+    Notes
+    -----
+    * Succeeds with probability 0.5.
+    * When ``s = 1`` the fusion succeeds; the required Pauli-Z
+      correction on the output qubit is ``Z^k``.
+
+    Examples
+    --------
+    >>> from optyx.photonic import Create, FusionTypeI
+    >>> circuit = Create(1, 0, 1, 0) >> FusionTypeI()
+    >>> circuit.draw(path="docs/_static/fusioni.svg")
+
+    .. image:: /_static/fusioni.svg
+        :align: center
+    """
     def __new__(cls):
         kraus_map_fusion_I = (
             diagram.Mode(1) @ diagram.Swap(
@@ -664,6 +898,42 @@ class Swap(channel.Swap):
 
 
 class FusionTypeII(channel.Diagram):
+    r"""
+    Type-II fusion measurement for dual-rail photonic qubits.
+
+    A scheme that **consumes both
+    qubits**.  After a network of four 50/50 beam-splitters and mode
+    swaps, all four output modes are measured with
+    number-resolving detectors.  No photonic modes remain; the
+    classical outcome determines whether an entanglement link has been
+    created between the neighbouring cluster-state nodes.
+
+    **Domain**
+        ``channel.qmode ** 4``
+        (two dual-rail qubits).
+
+    **Codomain**
+        ``channel.bit ** 2``
+        containing
+
+        * ``s`` – success / parity bit
+        * ``k`` – Pauli-correction bit (applied to neighbouring nodes).
+
+    Notes
+    -----
+    * Success probability is 0.5.
+    * On success (``s = 1``) the measurement produces a Bell-type
+      entanglement; on failure the qubits are lost.
+
+    Examples
+    --------
+    >>> from optyx.photonic import Create, FusionTypeII
+    >>> circuit = Create(1, 0, 1, 0) >> FusionTypeII()
+    >>> circuit.draw(path="docs/_static/fusionii.svg")
+
+    .. image:: /_static/fusionii.svg
+        :align: center
+    """
     def __new__(cls):
         fusion_II = channel.Channel(
             "Fusion II",

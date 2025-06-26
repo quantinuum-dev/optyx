@@ -1,3 +1,151 @@
+"""
+Overview
+--------
+
+A collection of operators acting on photonic modes.
+This includes: measurements, states, linear optical gates,
+dual rail encoded gates, and fusion measurements.
+
+
+Circuits (from tket, discopy, or PyZX)
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    Circuit
+    QubitChannel
+
+Measurement
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    MeasureQubits
+    DiscardQubits
+    Bra
+
+States
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    EncodeBits
+    Ket
+
+ZX
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    Z
+    X
+    H
+    Scalar
+
+Errors
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+
+    BitFlipError
+    DephasingError
+
+
+Examples of usage
+------------------
+
+**ZX diagrams**
+
+We can create a graph state as follows
+(where we omit the labels):
+
+>>> from discopy.drawing import Equation
+>>> from optyx.photonic import DualRail
+>>> graph = (Z(0, 2) >> Id(1) @ H() >> Id(1) @ Z(1, 2) >> \\
+... Id(2) @ H() >> Id(2) @ Z(1, 2))
+>>> Equation(graph >> DualRail(4), graph.to_dual_rail(), \\
+... symbol="$\\mapsto$").draw(figsize=(15, 20), \\
+... path="docs/_static/graph_dr_qubit.svg", draw_type_labels=False, \\
+... draw_box_labels=False)
+
+.. image:: /_static/graph_dr_qubit.svg
+    :align: center
+
+
+**Converting from tket**
+
+>>> import pytket
+>>> import matplotlib.pyplot as plt
+>>> from pytket.extensions.qiskit import tk_to_qiskit
+>>> from qiskit.visualization import circuit_drawer
+>>> ghz_circ = pytket.Circuit(3).H(0).CX(0, 1).CX(1, 2).measure_all()
+>>> fig = circuit_drawer(tk_to_qiskit(ghz_circ), output="mpl",
+...   interactive=False)
+>>> fig.savefig("docs/_static/ghz_circuit_qiskit.png")
+>>> plt.close(fig)
+
+.. image:: /_static/ghz_circuit_qiskit.png
+    :align: center
+
+The circuit appears as a black box operator.
+It is only converted to optyx when we evaluate it.
+
+>>> Circuit(ghz_circ).draw(path="docs/_static/ghz_circuit.svg")
+
+.. image:: /_static/ghz_circuit.svg
+    :align: center
+
+We can explicitly convert it to optyx though. The resulting circuit involves
+explicit manipulation of classical data.
+
+>>> Circuit(ghz_circ)._to_optyx().draw(path="docs/_static/ghz_circuit_exp.svg")
+
+.. image:: /_static/ghz_circuit_exp.svg
+    :align: center
+
+First, evaluate with tket:
+
+>>> from pytket.extensions.qiskit import AerBackend
+>>> from pytket.utils import probs_from_counts
+>>> backend = AerBackend()
+>>> compiled_circ = backend.get_compiled_circuit(ghz_circ)
+>>> handle = backend.process_circuit(compiled_circ, n_shots=200000)
+>>> counts = backend.get_result(handle).get_counts()
+>>> tket_probs = probs_from_counts({key: np.round(v, 2) \\
+... for key, v in probs_from_counts(counts).items()})
+
+Then, evaluate with Optyx:
+
+>>> res = (Circuit(ghz_circ).double().to_tensor().to_quimb()^...).data
+>>> rounded_result = np.round(res, 6)
+>>> non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+
+They agree:
+
+>>> assert tket_probs == non_zero_dict
+
+"""
+
 import numpy as np
 from typing import Literal
 from pyzx.graph.base import BaseGraph
