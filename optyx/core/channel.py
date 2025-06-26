@@ -353,13 +353,13 @@ class Diagram(frobenius.Diagram):
     def from_pyzx(self, pyzx_circuit):
         """Convert from PyZX circuit."""
         from optyx.qubit import Circuit
-        return Circuit.from_pyzx(pyzx_circuit)._to_optyx()
+        return Circuit(pyzx_circuit)._to_optyx()
 
     @classmethod
     def from_discopy(self, discopy_circuit):
         """Convert from discopy circuit."""
         from optyx.qubit import Circuit
-        return Circuit.from_discopy(discopy_circuit)._to_optyx()
+        return Circuit(discopy_circuit)._to_optyx()
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
@@ -482,10 +482,7 @@ class Sum(symmetric.Sum, Diagram):
     __ambiguous_inheritance__ = (symmetric.Sum,)
 
     def double(self):
-        terms = diagram.Diagram.id(diagram.Mode(0))
-        for term in [t for t in self]:
-            terms += term.double()
-        return terms
+        return diagram.Diagram.sum_factory([t.double() for t in self])
 
     def grad(self, var, **params):
         """Gradient with respect to :code:`var`."""
@@ -721,30 +718,6 @@ class Discard(Channel):
         Distinguishable setting for the Discard channel.
         """
         return Discard(self.dom.inflate(d))
-
-# class Ket(Channel):
-#     """Computational basis state for qubits"""
-
-#     def __init__(
-#         self, value: Literal[0, 1, "+", "-"], cod: Ty = None
-#     ) -> None:
-#         spider = zx.X if value in (0, 1) else zx.Z
-#         phase = 0 if value in (0, "+") else 0.5
-#         kraus = spider(0, 1, phase) @ diagram.Scalar(1 / np.sqrt(2))
-#         super().__init__(f"|{value}>", kraus, cod=cod)
-
-
-# class Bra(Channel):
-#     """Post-selected measurement for qubits"""
-
-#     def __init__(
-#         self, value: Literal[0, 1, "+", "-"], dom: Ty = None
-#     ) -> None:
-#         spider = zx.X if value in (0, 1) else zx.Z
-#         phase = 0 if value in (0, "+") else 0.5
-#         kraus = spider(1, 0, phase) @ diagram.Scalar(1 / np.sqrt(2))
-#         super().__init__(f"<{value}|", kraus, dom=dom)
-
 
 Diagram.braid_factory = Swap
 Diagram.sum_factory = Sum

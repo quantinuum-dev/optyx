@@ -3,6 +3,8 @@ from optyx import qubit
 from pytket import Circuit
 from pytket.extensions.qiskit import AerBackend
 from pytket.utils import probs_from_counts
+from optyx.core import channel
+from optyx.core import zx
 import numpy as np
 
 def test_pyzx():
@@ -11,6 +13,10 @@ def test_pyzx():
     g = c.to_basic_gates().to_graph()
     c1 = pyzx.extract_circuit(g.copy())
     c2 = pyzx.extract_circuit(qubit.Circuit(g)._to_optyx().to_pyzx().copy())
+    assert c1.verify_equality(c2)
+
+    c1 = pyzx.extract_circuit(g.copy())
+    c2 = pyzx.extract_circuit(channel.Diagram.from_pyzx(g).to_pyzx().copy())
     assert c1.verify_equality(c2)
 
 def test_tket_discopy():
@@ -34,6 +40,14 @@ def test_tket_discopy():
 
     assert tket_probs == non_zero_dict
 
+    res = (channel.Diagram.from_tket(ghz_circ).double().to_tensor().to_quimb()^...).data
+
+    rounded_result = np.round(res, 6)
+
+    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+
+    assert tket_probs == non_zero_dict
+
 def test_zx():
     circuit = qubit.Z(1, 2) >> qubit.H() @ qubit.H()
     assert qubit.Circuit(circuit)._to_optyx() == circuit
@@ -49,7 +63,6 @@ def test_pure_double_kraus():
     assert qubit.Circuit(g)._to_optyx().get_kraus() == qubit.Circuit(g).get_kraus()
 
 def test_to_dual_rail():
-    from optyx.core import zx
     circuit = qubit.Z(1, 2) >> qubit.H() @ qubit.H()
     dr_1 = qubit.Circuit(circuit).to_dual_rail().get_kraus()
     dr_2 = zx.zx2path(circuit.get_kraus())
@@ -61,7 +74,6 @@ def test_discard_qubits():
     assert np.allclose(a, b)
 
 def test_bit_flip_error():
-    from optyx.core import zx
     prob = 0.43
     a = (qubit.BitFlipError(prob).get_kraus().to_tensor().to_quimb() ^ ...).data
     b = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
@@ -72,7 +84,6 @@ def test_bit_flip_error():
     assert np.allclose(a, b)
 
 def test_dephasingerror():
-    from optyx.core import zx
     prob = 0.43
     a = (qubit.DephasingError(prob).get_kraus().to_tensor().to_quimb() ^ ...).data
     b = (
@@ -87,7 +98,7 @@ def test_dephasingerror():
     assert np.allclose(a, b)
 
 def test_ket():
-    from optyx.core import zx, diagram
+    from optyx.core import diagram
     a = (qubit.Ket(1).get_kraus().to_tensor().to_quimb() ^ ...).data
     b = zx.X(0, 1, 0.5) @ diagram.Scalar(1 / np.sqrt(2))
 
@@ -95,8 +106,29 @@ def test_ket():
     assert np.allclose(a, b)
 
 def test_bra():
-    from optyx.core import zx, diagram
+    from optyx.core import diagram
     a = (qubit.Bra(1).get_kraus().to_tensor().to_quimb() ^ ...).data
     b = zx.X(1, 0, 0.5) @ diagram.Scalar(1 / np.sqrt(2))
     b = (b.to_tensor().to_quimb() ^ ...).data
     assert np.allclose(a, b)
+
+def test_to_tket():
+    circ = qubit.X(1, 2) @ channel.qubit >> channel.qubit @ qubit.Z(2, 1) @ qubit.Scalar(2**0.5)
+
+    tket_circ = circ.to_tket()
+    tket_circ.measure_all()
+    backend = AerBackend()
+    compiled_circ = backend.get_compiled_circuit(tket_circ)
+    handle = backend.process_circuit(compiled_circ, n_shots=200000)
+    counts = backend.get_result(handle).get_counts()
+    tket_probs = probs_from_counts({key: np.round(v, 2) for key, v in probs_from_counts(counts).items()})
+
+    circ_meas_prep = qubit.Ket(0) @ qubit.Ket(0) >> circ >> qubit.MeasureQubits(2)
+
+    res = ((circ_meas_prep.double().to_tensor().to_quimb()^...).data)
+
+    rounded_result = np.round(res, 6)
+
+    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+
+    assert tket_probs == non_zero_dict

@@ -32,3 +32,35 @@ def test_CQMap():
     print(CALCULATED_FIDELITY)
     print(REAL_FIDELITY)
     assert np.isclose(CALCULATED_FIDELITY, REAL_FIDELITY, rtol=1e-3)
+
+
+def test_from_bosonic_op():
+    from optyx.core.channel import Diagram
+
+    matrix = [
+        [0, 1],
+        [1, 0]
+    ]
+
+    n = len(matrix)
+    assert len(matrix[0]) == n
+
+    terms = []
+
+    for i in range(n):
+        for j in range(n):
+            term = Diagram.from_bosonic_operator(
+                n_modes=n,
+                operators=[(i, False), (j, True)],
+                scalar=matrix[i][j]
+            )
+            terms.append(term)
+
+    hamiltonian = Diagram.sum_factory(terms)
+    sum_1 = np.sum([(term.double().to_tensor(input_dims = [3,3,3,3], max_dim=3).to_quimb()^...).data for term in terms])
+
+    terms_2 = hamiltonian.double().terms
+
+    sum = np.sum([(term_2.to_tensor(input_dims = [3,3,3,3], max_dim=3).to_quimb()^...).data for term_2 in terms_2])
+
+    assert np.allclose(sum, sum_1)
