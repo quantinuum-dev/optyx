@@ -10,6 +10,7 @@ from optyx.core import (
     path
 )
 
+
 class BitControlledGate(channel.Channel):
     """
     Represents a gate that is
@@ -22,11 +23,11 @@ class BitControlledGate(channel.Channel):
                  default_gate=None):
         if isinstance(control_gate, (channel.Diagram, channel.Channel)):
             assert control_gate.is_pure, \
-                 "The input gates must be pure quantum channels" # pragma: no cover
+                 "The input gates must be pure quantum channels"
             control_gate_single = control_gate.get_kraus()
         if isinstance(default_gate, (channel.Diagram, channel.Channel)):
             assert default_gate.is_pure, \
-                 "The input gates must be pure quantum channels" # pragma: no cover
+                 "The input gates must be pure quantum channels"
             default_gate = default_gate.get_kraus()
         kraus = control.BitControlledBox(control_gate_single, default_gate)
         super().__init__(
@@ -48,7 +49,9 @@ class BitControlledPhaseShift(channel.Channel):
                  function: Callable[[List[int]], List[int]],
                  n_modes: int = 1,
                  n_control_modes: int = 1):
-        kraus = control.ControlledPhaseShift(function, n_modes, n_control_modes)
+        kraus = control.ControlledPhaseShift(function,
+                                             n_modes,
+                                             n_control_modes)
         super().__init__(
             "BitControlledPhaseShift",
             kraus,
@@ -57,8 +60,8 @@ class BitControlledPhaseShift(channel.Channel):
         )
 
 
-DiscardBit = lambda n: channel.Discard(channel.bit**n)
-DiscardMode = lambda n: channel.Discard(channel.mode**n)
+DiscardBit = lambda n: channel.Discard(channel.bit**n)  # noqa: E731
+DiscardMode = lambda n: channel.Discard(channel.mode**n)  # noqa: E731
 
 
 class ClassicalBox(channel.CQMap):
@@ -102,7 +105,8 @@ class SubN(ClassicalBox):
             "SubInt",
             (
                 zw.Add(2).dagger() @ diagram.Id(diagram.Mode(1)) >>
-                diagram.Id(diagram.Mode(1)) @ diagram.Spider(2, 0, diagram.Mode(1))
+                diagram.Id(diagram.Mode(1)) @ diagram.Spider(2, 0,
+                                                             diagram.Mode(1))
             ),
             channel.mode**2,
             channel.mode
@@ -202,7 +206,7 @@ class PostselectBit(ClassicalBox):
             kraus = kraus @ zx.X(1, 0, 0.5**bit)
         kraus = kraus @ diagram.Scalar(1 / np.sqrt(2**len(bits)))
         super().__init__(
-            f"PostselectBit(0)",
+            f"PostselectBit({bits})",
             kraus,
             channel.bit**len(bits),
             channel.bit**0
@@ -362,11 +366,12 @@ class H(ClassicalBox):
     def __init__(self):
         kraus = zx.H
         super().__init__(
-            f"H",
+            "H",
             kraus,
             channel.bit,
             channel.bit,
         )
+
 
 class ControlChannel(ClassicalBox):
     """
@@ -469,7 +474,7 @@ class Digit(ClassicalBox):
         )
 
 
-Bit = lambda *bits: PostselectBit(*bits).dagger()
+Bit = lambda *bits: PostselectBit(*bits).dagger()  # noqa: E731
 
 
 def Id(n):

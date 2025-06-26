@@ -230,14 +230,6 @@ from typing import List
 MAX_DIM = 10
 
 
-"""
-Each class (especially classes from which other boxes inherit: ZXBox, ZWBox etc):
-should have a well-defined role -- the boxes which inherit should have the least
-number of attributes and methods.
-
-Simply try to move as many methods and attributes up the inheritance tree.
-"""
-
 class Ob(frobenius.Ob):
     """Basic object in an optyx Diagram: bit or mode"""
 
@@ -499,8 +491,9 @@ class Box(frobenius.Box, Diagram):
         Otherwise it is defined by the array."""
         if self._array is not None:
             return input_dims
+        str = "does not support determine_output_dimensions"
         raise NotImplementedError(
-            f"{self.__class__.__name__} does not support determine_output_dimensions"
+            f"{self.__class__.__name__} {str}"
         )
 
     def to_path(self, dtype=complex):
@@ -536,7 +529,8 @@ class Box(frobenius.Box, Diagram):
         which will inform :code:`Box.truncation()`, :code:`Box.dagger()`,
         :code:`Box.conjugate()` and :code:`Box.determine_output_dimensions()`.
         The box need to have fixed dom and cod. The tensor should also have
-        fixed dimensions. Usually used for zx boxes (Bit) with tensor with dims of 2.
+        fixed dimensions. Usually used for zx boxes
+        (Bit) with tensor with dims of 2.
         """
         self._array = value
 
@@ -700,8 +694,10 @@ class Scalar(Box):
     >>> from optyx.photonic import BS
     >>> assert Scalar(0.45).to_path() == Matrix(
     ...     [], dom=0, cod=0,
-    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS.get_kraus() >> Select(2, 0)
+    ...     creations=(), selections=(),
+    ...     normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> \\
+    ...     BS.get_kraus() >> Select(2, 0)
     >>> assert np.isclose(s.to_path().eval().array[0], 1)
     """
 
@@ -864,7 +860,7 @@ class PhotonThresholdDetector(Box):
             return dgrm.dagger()
         return dgrm
 
-## tensor
+
 class EmbeddingTensor(tensor.Box):
     """
     Embedding tensor for fixing the dimensions of the output tensor.
@@ -903,6 +899,7 @@ class EmbeddingTensor(tensor.Box):
 
             tensor = tensor @ EmbeddingTensor(i[0], i[1])
         return tensor
+
 
 def dual_rail(n, internal_states=None):
     """

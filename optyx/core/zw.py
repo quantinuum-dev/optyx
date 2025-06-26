@@ -162,6 +162,7 @@ from optyx.core.path import Matrix
 class ZWDiagram(diagram.Diagram):
     pass
 
+
 class ZWBox(diagram.Box, ZWDiagram):
     """Box in a :class:`Diagram`"""
 
@@ -193,7 +194,7 @@ class IndexableAmplitudes:
         return np.conj(self.func(i))
 
     def __str__(self) -> str:
-        return "function" # pragma: no cover
+        return "function"  # pragma: no cover
 
     def conjugate(self):
         """Conjugate the amplitudes"""
@@ -203,7 +204,7 @@ class IndexableAmplitudes:
 
     def __eq__(self, other: "IndexableAmplitudes") -> bool:
         if not isinstance(other, IndexableAmplitudes):
-            return False # pragma: no cover
+            return False  # pragma: no cover
         return self.func.__code__.co_code == other.func.__code__.co_code
 
 
@@ -543,6 +544,7 @@ class Create(ZWBox):
 
         return dgrm
 
+
 class Select(ZWBox):
     """
     Post-selection of photons given a list of occupation numbers.
@@ -797,11 +799,15 @@ class Multiply(ZWBox):
 
         for i in range(input_dims[0]):
             if i > 0:
-                def multiply_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
-                                                 Add(n))
+                def multiply_diagram(n): return (
+                            diagram.Spider(1, n, diagram.Mode(1)) >>
+                            Add(n)
+                            )
             else:
-                def multiply_diagram(n): return (diagram.Spider(1, 0, diagram.Mode(1)) >>
-                                                 Create(0))
+                def multiply_diagram(n): return (
+                            diagram.Spider(1, 0, diagram.Mode(1)) >>
+                            Create(0)
+                            )
 
             d = multiply_diagram(i).to_tensor([input_dims[1]])
             d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
@@ -860,8 +866,10 @@ class Divide(ZWBox):
 
         for i in range(input_dims[1]):
             if i > 0:
-                def divide_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
-                                               Add(n)).dagger()
+                def divide_diagram(n): return (
+                            diagram.Spider(1, n, diagram.Mode(1)) >>
+                            Add(n)
+                            ).dagger()
 
                 d = divide_diagram(i).to_tensor([input_dims[0]])
                 d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)

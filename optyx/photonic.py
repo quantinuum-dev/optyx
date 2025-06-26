@@ -2,7 +2,6 @@ import numpy as np
 import sympy as sp
 from sympy import Expr, lambdify, Symbol, Mul
 from discopy.cat import rsubs
-from typing import Set
 from functools import cached_property
 from abc import abstractmethod, ABC
 from collections.abc import Iterable
@@ -52,7 +51,7 @@ class EncodePhotonic(channel.Encode):
     Encode :math:`n` modes into :math:`n` qmodes.
     """
     def __init__(self, n):
-        super().__init__(channel.mode**n) # pragma: no cover
+        super().__init__(channel.mode**n)  # pragma: no cover
 
 
 class DiscardPhotonic(channel.Discard):
@@ -61,7 +60,7 @@ class DiscardPhotonic(channel.Discard):
     """
 
     def __init__(self, n):
-        super().__init__(channel.qmode**n) # pragma: no cover
+        super().__init__(channel.qmode**n)  # pragma: no cover
 
 
 class PhotonThresholdMeasurement(channel.Channel):
@@ -85,7 +84,7 @@ class NumberResolvingMeasurement(channel.Measure):
     """
 
     def __init__(self, n):
-        super().__init__(channel.qmode**n) # pragma: no cover
+        super().__init__(channel.qmode**n)  # pragma: no cover
 
 
 class Create(channel.Channel):
@@ -129,7 +128,7 @@ class AbstractGate(channel.Channel, ABC):
 
     @abstractmethod
     def _compute_array(self):
-        pass # pragma: no cover
+        pass  # pragma: no cover
 
     def _contains_expr(self, obj):
         if isinstance(obj, Expr):
@@ -189,7 +188,7 @@ class Gate(AbstractGate):
             len(self.dom),
             len(self.cod),
             self.name
-        ) # pragma: no cover
+        )  # pragma: no cover
 
 
 class Phase(AbstractGate):
@@ -252,6 +251,7 @@ class NumOp(channel.Channel):
             )
         )
 
+
 class BBS(AbstractGate):
     """
     Beam splitter with a bias.
@@ -292,10 +292,12 @@ class BBS(AbstractGate):
     >>> assert np.allclose((
     ...     y >> y.dagger()).to_path().eval(2).array,
     ...             diagram.Id(diagram.Mode(2)).to_path().eval(2).array)
-    >>> comp = (x @ x >> diagram.Id(diagram.Mode(1)) @ x @ diagram.Id(diagram.Mode(1))) >> \\
-    ...             (x @ x >> diagram.Id(diagram.Mode(1)) @ x @ diagram.Id(diagram.Mode(1))).dagger()
+    >>> comp = (x @ x >> diagram.Id(diagram.Mode(1)) @ x @ \\
+    ...             diagram.Id(diagram.Mode(1))) >> \\
+    ...             (x @ x >> diagram.Id(diagram.Mode(1)) @ x @ \\
+    ...             diagram.Id(diagram.Mode(1))).dagger()
     >>> assert np.allclose(comp.to_path().eval(2).array,
-    ...                     diagram.Id(diagram.Mode(4)).to_path().eval(2).array)
+    ...           diagram.Id(diagram.Mode(4)).to_path().eval(2).array)
 
     """
 
@@ -349,7 +351,11 @@ class TBS(AbstractGate):
     Example
     -------
     >>> BS = BBS(0)
-    >>> tbs = lambda x: BS >> channel.Diagram.id(channel.qmode) @ Phase(x) >> BS
+    >>> tbs = lambda x: (
+    ...       BS >>
+    ...       channel.Diagram.id(channel.qmode) @ Phase(x) >>
+    ...       BS
+    ... )
     >>> assert np.allclose(
     ...     TBS(0.15).to_path().array, tbs(0.15).to_path().array)
     >>> assert np.allclose(
@@ -443,7 +449,8 @@ class MZI(AbstractGate):
     >>> assert np.isclose(
     ...     MZI(0.12, 0.3).global_phase.conjugate(),
     ...     MZI(0.12, 0.3).dagger().global_phase)
-    >>> mach = lambda x, y: TBS(x) >> Phase(y) @ channel.Diagram.id(channel.qmode)
+    >>> mach = lambda x, y: TBS(x) >> Phase(y) @ \\
+    ...          channel.Diagram.id(channel.qmode)
     >>> assert np.allclose(
     ...     MZI(0.28, 0.9).to_path().array,
     ...     mach(0.28, 0.9).to_path().array)
@@ -542,7 +549,8 @@ def ansatz(width, depth):
         n_mzi = (width - 1) // 2 if i % 2 else width // 2
         left = channel.qmode**(i % 2)
         right = channel.qmode**(width - (i % 2) - 2 * n_mzi)
-        d >>= left @ channel.Diagram.tensor(*[MZI(*p(i, j)) for j in range(n_mzi)]) @ right
+        d >>= left @ channel.Diagram.tensor(*[MZI(*p(i, j))
+                                              for j in range(n_mzi)]) @ right
 
     return d
 
@@ -608,13 +616,19 @@ class XMeasurementDR(channel.Diagram):
 class FusionTypeI(channel.Diagram):
     def __new__(cls):
         kraus_map_fusion_I = (
-            diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
-                                       diagram.Mode(1)) @ diagram.Mode(1) >>
+            diagram.Mode(1) @ diagram.Swap(
+                diagram.Mode(1),
+                diagram.Mode(1)
+                ) @ diagram.Mode(1) >>
             diagram.Mode(1) @ HadamardBS().get_kraus() @ diagram.Mode(1) >>
-            diagram.Mode(2) @ diagram.Swap(diagram.Mode(1),
-                                       diagram.Mode(1)) >>
-            diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
-                                       diagram.Mode(1)) @ diagram.Mode(1)
+            diagram.Mode(2) @ diagram.Swap(
+                diagram.Mode(1),
+                diagram.Mode(1)
+                ) >>
+            diagram.Mode(1) @ diagram.Swap(
+                diagram.Mode(1),
+                diagram.Mode(1)
+                ) @ diagram.Mode(1)
         )
 
         fusion_I = channel.Channel(
@@ -629,7 +643,7 @@ class FusionTypeI(channel.Diagram):
             a = x[0]
             b = x[1]
             s = (a % 2) ^ (b % 2)
-            k = int(s*b + (1-s)*(1 - (a + b)/2))%2
+            k = int(s*b + (1-s)*(1 - (a + b)/2)) % 2
             return [s, k]
 
         classical_function_I = ClassicalFunction(
@@ -656,13 +670,19 @@ class FusionTypeII(channel.Diagram):
             "Fusion II",
             (
                 HadamardBS().get_kraus() @ HadamardBS().get_kraus() >>
-                diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
-                                           diagram.Mode(1)) @ diagram.Mode(1) >>
+                diagram.Mode(1) @ diagram.Swap(
+                    diagram.Mode(1),
+                    diagram.Mode(1)
+                    ) @ diagram.Mode(1) >>
                 diagram.Mode(1) @ HadamardBS().get_kraus() @ diagram.Mode(1) >>
-                diagram.Mode(2) @ diagram.Swap(diagram.Mode(1),
-                                           diagram.Mode(1)) >>
-                diagram.Mode(1) @ diagram.Swap(diagram.Mode(1),
-                                           diagram.Mode(1)) @ diagram.Mode(1) >>
+                diagram.Mode(2) @ diagram.Swap(
+                    diagram.Mode(1),
+                    diagram.Mode(1)
+                    ) >>
+                diagram.Mode(1) @ diagram.Swap(
+                    diagram.Mode(1),
+                    diagram.Mode(1)
+                    ) @ diagram.Mode(1) >>
                 HadamardBS().get_kraus() @ diagram.Mode(2)
             )
         )
@@ -676,7 +696,7 @@ class FusionTypeII(channel.Diagram):
             b = x[1]
             d = x[3]
             s = (a % 2) ^ (b % 2)
-            k = int(s*(b + d) + (1-s)*(1 - (a + b)/2))%2
+            k = int(s*(b + d) + (1-s)*(1 - (a + b)/2)) % 2
             return [s, k]
 
         classical_function_II = ClassicalFunction(
@@ -691,7 +711,9 @@ class FusionTypeII(channel.Diagram):
             classical_function_II
         )
 
+
 BS = BBS(0)
+
 
 def Id(n):
     return channel.Diagram.id(n) if \

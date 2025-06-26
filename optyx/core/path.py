@@ -103,8 +103,9 @@ We can construct a Bell state in dual rail encoding:
 
 >>> plus = Create() >> Split(2)
 >>> state = plus >> Id(1) @ plus @ Id(1)
->>> bell = state @ state\\
-...     >> Id(2) @ (BS.get_kraus() @ BS.get_kraus().dagger() >> state.dagger()) @ Id(2)
+>>> bell = state @ state \\
+...     >> Id(2) @ (BS.get_kraus() @ \\
+...     BS.get_kraus().dagger() >> state.dagger()) @ Id(2)
 >>> H, V = Select(1, 0), Select(0, 1)
 >>> assert np.allclose(
 ...     (bell >> H @ H).to_path().eval().array,
@@ -423,7 +424,10 @@ class Matrix(underlying.Matrix):
         Example
         -------
         >>> import numpy as np
-        >>> from optyx.core.zw import Split, Select, Create, Merge, Id, Endo, SWAP
+        >>> from optyx.core.zw import (
+        ...   Split, Select, Create,
+        ...   Merge, Id, Endo, SWAP
+        ... )
         >>> theta, phi = np.pi / 4, 0
         >>> r = np.exp(1j * phi) * np.sin(theta)
         >>> t = np.cos(theta)

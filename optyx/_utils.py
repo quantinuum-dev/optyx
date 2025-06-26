@@ -10,6 +10,7 @@ Utility functions which are used in the package.
 
 import numpy as np
 
+
 def _build_w_layer(n_nonzero_counts, dagger=False):
     from optyx.core import zw
 
@@ -250,6 +251,7 @@ def explode_channel(
         return channel_class("Id", kraus)
 
     return channel_class.then(*arrows)
+
 
 def calculate_num_creations_selections(dgrm) -> tuple:
     """Calculate the number of creations and selections in the diagram"""

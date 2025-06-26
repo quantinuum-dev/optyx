@@ -52,6 +52,7 @@ import numpy as np
 
 from optyx.core import diagram, zw
 
+
 class ControlDiagram(diagram.Diagram):
     pass
 
@@ -195,7 +196,6 @@ class BitControlledBox(ControlBox):
             Dim(*[int(d) for d in output_dims]), array
         )
 
-
     def dagger(self):
         return BitControlledBox(
             self.action_box, self.default_box, not self.is_dagger
@@ -242,8 +242,12 @@ class ControlledPhaseShift(ControlBox):
         is_dagger: bool = False,
     ):
 
-        dom = diagram.Mode(n_modes) if is_dagger else diagram.Mode(n_modes + n_control_modes)
-        cod = diagram.Mode(n_modes + n_control_modes) if is_dagger else diagram.Mode(n_modes)
+        dom = diagram.Mode(n_modes) if is_dagger else diagram.Mode(
+            n_modes + n_control_modes
+            )
+        cod = diagram.Mode(
+            n_modes + n_control_modes
+            ) if is_dagger else diagram.Mode(n_modes)
 
         super().__init__("ControlledPhase", dom, cod)
         self.n_modes = n_modes
@@ -261,7 +265,8 @@ class ControlledPhaseShift(ControlBox):
         array = np.zeros((*input_dims, *output_dims), dtype=complex)
 
         input_combinations = np.array(
-            np.meshgrid(*[range(i) for i in input_dims[:self.n_control_modes]]),
+            np.meshgrid(*[range(i) for i
+                          in input_dims[:self.n_control_modes]]),
         ).T.reshape(-1, len(input_dims[:self.n_control_modes]))
 
         for i in input_combinations:
@@ -274,7 +279,8 @@ class ControlledPhaseShift(ControlBox):
 
             zbox = zbox.to_tensor(input_dims[self.n_control_modes:])
             array[i, :] = (
-                (zbox >> diagram.truncation_tensor(zbox.cod.inside, output_dims))
+                (zbox >> diagram.truncation_tensor(zbox.cod.inside,
+                                                   output_dims))
                 .eval()
                 .array.reshape(array[i, :].shape)
             )
@@ -291,8 +297,6 @@ class ControlledPhaseShift(ControlBox):
         if self.is_dagger:
             return [diagram.MAX_DIM]*self.n_control_modes + input_dims
         return input_dims[self.n_control_modes:]
-
-
 
     def dagger(self):
         return ControlledPhaseShift(
@@ -329,8 +333,6 @@ class ClassicalFunctionBox(ClassicalBox):
         self.input_size = len(dom)
         self.output_size = len(cod)
         self.is_dagger = is_dagger
-
-
 
     def truncation(
         self, input_dims: List[int], output_dims: List[int]
@@ -407,15 +409,17 @@ class BinaryMatrixBox(ClassicalBox):
         if len(matrix.shape) == 1:
             matrix = matrix.reshape(1, -1)
 
-        cod = diagram.Bit(len(matrix[0])) if is_dagger else diagram.Bit(len(matrix))
-        dom = diagram.Bit(len(matrix)) if is_dagger else diagram.Bit(len(matrix[0]))
+        cod = diagram.Bit(
+            len(matrix[0])
+            ) if is_dagger else diagram.Bit(len(matrix))
+        dom = diagram.Bit(
+            len(matrix)
+            ) if is_dagger else diagram.Bit(len(matrix[0]))
 
         super().__init__("LogicalMatrix", dom, cod)
 
         self.matrix = matrix
         self.is_dagger = is_dagger
-
-
 
     def truncation(
         self, input_dims: List[int], output_dims: List[int]

@@ -108,9 +108,6 @@ We can construct a lossy optical channel and compute its probabilities:
 
 from __future__ import annotations
 
-from typing import Literal
-
-import numpy as np
 from discopy import tensor
 from discopy import symmetric, frobenius
 from discopy.cat import factory
@@ -119,6 +116,7 @@ from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
 
 from optyx._utils import explode_channel
+
 
 class Ob(symmetric.Ob):
     """Basic object: bit, mode, qubit or qmode"""
@@ -187,6 +185,7 @@ class Ty(symmetric.Ty):
                 *(o**d if o.needs_inflation() else o for o in self)
         )
 
+
 bit = Ty("bit")
 mode = Ty("mode")
 qubit = Ty("qubit")
@@ -213,10 +212,12 @@ class Diagram(frobenius.Diagram):
         dom = symmetric.Category(Ty, Diagram)
         cod = symmetric.Category(Ty, Diagram)
 
-        return symmetric.Functor(lambda x: x.inflate(d),
-                                    lambda f: f.inflate(d),
-                                    dom,
-                                    cod)(self)
+        return symmetric.Functor(
+            lambda x: x.inflate(d),
+            lambda f: f.inflate(d),
+            dom,
+            cod
+        )(self)
 
     def double(self):
         """Returns the diagram.Diagram obtained by
@@ -228,8 +229,6 @@ class Diagram(frobenius.Diagram):
             lambda x: x.double(), lambda f: f.double(), dom, cod
         )(self)
 
-
-    ######## is the implementation of this correct???
     @property
     def is_pure(self):
         are_layers_pure = []
@@ -244,16 +243,14 @@ class Diagram(frobenius.Diagram):
 
         return not any(are_layers_pure)
 
-
-    ######## does this make sense???
     def get_kraus(self):
         assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
         id = diagram.Id(self.dom.single())
         kraus_maps = [id]
         for layer in self:
-            left = diagram.Ty().tensor(*[ty.single() \
+            left = diagram.Ty().tensor(*[ty.single()
                                        for ty in layer.inside[0][0]])
-            right = diagram.Ty().tensor(*[ty.single() \
+            right = diagram.Ty().tensor(*[ty.single()
                                         for ty in layer.inside[0][2]])
             generator = layer.inside[0][1]
 
@@ -321,7 +318,9 @@ class Diagram(frobenius.Diagram):
             generator = layer.inside[0][1]
 
             kraus_maps.append(
-                diagram.Bit(len(left)) @ generator.kraus @ diagram.Bit(len(right))
+                diagram.Bit(len(left)) @
+                generator.kraus @
+                diagram.Bit(len(right))
             )
 
         return pyzx_to_tk(
@@ -369,6 +368,7 @@ class Diagram(frobenius.Diagram):
                 n_modes, operators, scalar=scalar
             )
         )
+
 
 class Channel(symmetric.Box, Diagram):
     """
@@ -451,7 +451,9 @@ class Channel(symmetric.Box, Diagram):
         )
 
     def to_dual_rail(self):
-        raise NotImplementedError("Only ZX channels can be converted to dual rail.")
+        raise NotImplementedError(
+            "Only ZX channels can be converted to dual rail."
+            )
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
@@ -473,6 +475,7 @@ class Channel(symmetric.Box, Diagram):
             dom=self.dom.inflate(d),
             cod=self.cod.inflate(d),
         )
+
 
 class Sum(symmetric.Sum, Diagram):
     """
@@ -503,6 +506,7 @@ class Sum(symmetric.Sum, Diagram):
             for term in self.terms
         )
 
+
 class CQMap(symmetric.Box, Diagram):
     """
     Channel initialised by its Density matrix.
@@ -530,7 +534,8 @@ class CQMap(symmetric.Box, Diagram):
     def inflate(self, d):
         r"""
         Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`F(\mathbb{C}^d)`,Add commentMore actions
+        to a distinguishable one. For a map on
+        :math:`F(\mathbb{C}^d)`,
         obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
 
@@ -718,6 +723,7 @@ class Discard(Channel):
         Distinguishable setting for the Discard channel.
         """
         return Discard(self.dom.inflate(d))
+
 
 Diagram.braid_factory = Swap
 Diagram.sum_factory = Sum

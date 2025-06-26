@@ -116,10 +116,12 @@ Create(1) >> mode @ Create((0,))
 The array properties of Z and X spiders agree with PyZX.
 
 >>> z = Z(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
->>> assert np.allclose(z.to_tensor().eval().array.flatten(), z.to_pyzx().to_tensor().flatten())
+>>> assert np.allclose(z.to_tensor().eval().array.flatten(),
+...      z.to_pyzx().to_tensor().flatten())
 
 >>> x = X(n_legs_in = 2, n_legs_out = 2, phase = 0.5)
->>> assert np.allclose(x.to_tensor().eval().array.flatten(), x.to_pyzx().to_tensor().flatten())
+>>> assert np.allclose(x.to_tensor().eval().array.flatten(),
+...      x.to_pyzx().to_tensor().flatten())
 """
 
 from math import pi
@@ -132,7 +134,6 @@ from discopy.utils import factory_name
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.core import diagram, zw
-
 
 
 class ZXDiagram(diagram.Diagram):
@@ -161,7 +162,6 @@ class ZXDiagram(diagram.Diagram):
         * or :code:`set(graph.inputs()).intersection(graph.outputs())`.
         """
         from pyzx import VertexType, EdgeType
-        from optyx.core import zx
 
         def node2box(node, n_legs_in, n_legs_out):
             if graph.type(node) not in {VertexType.Z, VertexType.X}:
@@ -176,7 +176,8 @@ class ZXDiagram(diagram.Diagram):
             if target < source:
                 swaps = (
                     Id(diagram.Bit(target))
-                    @ diagram.Diagram.swap(diagram.Bit(source - target), diagram.Bit(1))
+                    @ diagram.Diagram.swap(diagram.Bit(source - target),
+                                           diagram.Bit(1))
                     @ Id(diagram.Bit(len(scan) - source - 1))
                 )
                 scan = (
@@ -188,7 +189,8 @@ class ZXDiagram(diagram.Diagram):
             elif target > source:
                 swaps = (
                     Id(diagram.Bit(source))
-                    @ diagram.Diagram.swap(diagram.Bit(1), diagram.Bit(target - source))
+                    @ diagram.Diagram.swap(diagram.Bit(1),
+                                           diagram.Bit(target - source))
                     @ Id(diagram.Bit(len(scan) - target - 1))
                 )
                 scan = (
@@ -275,7 +277,6 @@ class ZXDiagram(diagram.Diagram):
                 @ Id(diagram.Bit(len(scan) - target - 1))
             )
         return dgrm
-
 
     def to_pyzx(self):
         """
@@ -440,7 +441,7 @@ class Spider(diagram.Spider, ZXBox):
         del left
         return type(self)(len(self.cod), len(self.dom), self.phase)
 
-    def truncation(self, input_dims = None, output_dims = None):
+    def truncation(self, input_dims=None, output_dims=None):
         """
         All inheriting classes must implement this method.
         """
@@ -591,15 +592,26 @@ def ar_zx2path(box):
         if (n, m) == (1, 1):
             return Id(diagram.Mode(1)) @ Phase(phase).get_kraus()
         if (n, m, phase) == (2, 1, 0):
-            return Id(diagram.Mode(1)) @ (monoid >> annil) @ Id(diagram.Mode(1))
+            return (
+                Id(diagram.Mode(1)) @
+                (monoid >> annil) @
+                Id(diagram.Mode(1))
+                )
         if (n, m, phase) == (1, 2, 0):
             plus = create >> comonoid
-            bot = (plus >> Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1))) @ (
-                Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1))
+            bot = (
+                (plus >> Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1))) @
+                (Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1)))
             )
             mid = Id(diagram.Mode(2)) @ BS.dagger() @ BS @ Id(diagram.Mode(2))
-            fusion = Id(diagram.Mode(1)) @ plus.dagger() @ Id(diagram.Mode(1)) >> plus.dagger()
-            return bot >> mid >> (Id(diagram.Mode(2)) @ fusion @ Id(diagram.Mode(2)))
+            fusion = (
+                Id(diagram.Mode(1)) @ plus.dagger() @
+                Id(diagram.Mode(1)) >> plus.dagger()
+            )
+            return (
+                bot >> mid >> (Id(diagram.Mode(2)) @
+                               fusion @ Id(diagram.Mode(2)))
+                )
     if box == H:
         return HadamardBS().get_kraus()
     raise NotImplementedError(f"No translation of {box} in QPath.")
