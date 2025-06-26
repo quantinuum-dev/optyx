@@ -32,6 +32,7 @@ class Scalar(channel.Channel):
         data = rsubs(self.scalar, *args)
         return Scalar(data)
 
+    # pylint: disable=unused-argument
     def grad(self, var, **params):
         """Gradient with respect to :code:`var`."""
         if var not in self.free_symbols:
@@ -39,9 +40,6 @@ class Scalar(channel.Channel):
         return Scalar(self.scalar.diff(var))
 
     def lambdify(self, *symbols, **kwargs):
-        # pylint: disable=import-outside-toplevel
-        from sympy import lambdify
-
         return lambda *xs: type(self)(
             lambdify(symbols, self.scalar, **kwargs)(*xs)
         )

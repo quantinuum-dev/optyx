@@ -173,13 +173,16 @@ class Ty(symmetric.Ty):
         return diagram.Ty().tensor(*[ob.double for ob in self.inside])
 
     @staticmethod
+    # pylint: disable=invalid-name
     def from_optyx(ty):
         assert isinstance(ty, diagram.Ty)
+        # pylint: disable=protected-access
         return Ty(*[Ob._quantum[ob.name] for ob in ty.inside])
 
     def needs_inflation(self) -> bool:
         return "qmode" in self.name
 
+    # pylint: disable=invalid-name
     def inflate(self, d) -> Ty:
         return (mode**0).tensor(
                 *(o**d if o.needs_inflation() else o for o in self)
@@ -202,6 +205,7 @@ class Diagram(frobenius.Diagram):
     def needs_inflation(self) -> bool:
         return self.dom.needs_inflation() or self.cod.needs_inflation()
 
+    # pylint: disable=invalid-name
     def inflate(self, d):
         r"""Translates from an indistinguishable setting
         to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
@@ -245,8 +249,7 @@ class Diagram(frobenius.Diagram):
 
     def get_kraus(self):
         assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
-        id = diagram.Id(self.dom.single())
-        kraus_maps = [id]
+        kraus_maps = [diagram.Id(self.dom.single())]
         for layer in self:
             left = diagram.Ty().tensor(*[ty.single()
                                        for ty in layer.inside[0][0]])
@@ -288,6 +291,7 @@ class Diagram(frobenius.Diagram):
 
     def _decomp(self):
 
+        # pylint: disable=protected-access
         return symmetric.Functor(
             ob=lambda x: qubit**len(x),
             ar=lambda arr: arr._decomp(),
@@ -324,6 +328,7 @@ class Diagram(frobenius.Diagram):
                 diagram.Bit(len(right))
             )
 
+        # pylint: disable=no-value-for-parameter
         return pyzx_to_tk(
             extract_circuit(
                 diagram.Diagram.then(
@@ -344,24 +349,27 @@ class Diagram(frobenius.Diagram):
         )
 
     @classmethod
-    def from_tket(self, tket_circuit):
+    def from_tket(cls, tket_circuit):
         """Convert from tket circuit."""
         # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
+        # pylint: disable=protected-access
         return Circuit(tket_circuit)._to_optyx()
 
     @classmethod
-    def from_pyzx(self, pyzx_circuit):
+    def from_pyzx(cls, pyzx_circuit):
         """Convert from PyZX circuit."""
         # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
+        # pylint: disable=protected-access
         return Circuit(pyzx_circuit)._to_optyx()
 
     @classmethod
-    def from_discopy(self, discopy_circuit):
+    def from_discopy(cls, discopy_circuit):
         """Convert from discopy circuit."""
         # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
+        # pylint: disable=protected-access
         return Circuit(discopy_circuit)._to_optyx()
 
     @classmethod
@@ -399,6 +407,7 @@ class Channel(symmetric.Box, Diagram):
 
         def get_spiders(dom):
             spiders = diagram.Id()
+            # pylint: disable=invalid-name
             for ob in dom.inside:
                 if ob.is_classical:
                     box = diagram.Spider(1, 2, ob.single)
@@ -407,6 +416,7 @@ class Channel(symmetric.Box, Diagram):
                 spiders @= box
             return spiders
 
+        # pylint: disable=invalid-name
         def get_perm(n):
             return sorted(sorted(list(range(n))), key=lambda i: i % 2)
 
@@ -432,6 +442,7 @@ class Channel(symmetric.Box, Diagram):
         bot = swap_env >> discard >> bot_perm >> bot_spiders
         return top >> self.kraus @ self.kraus.conjugate() >> bot
 
+    # pylint: disable=invalid-name
     def __pow__(self, n):
         if n == 1:
             return self
@@ -553,6 +564,7 @@ class CQMap(symmetric.Box, Diagram):
             cod=self.cod.inflate(d)
         )
 
+    # pylint: disable=invalid-name
     def __pow__(self, n):
         if n == 1:
             return self
@@ -590,6 +602,8 @@ class Measure(Channel):
         diagrams = [self._measure_wire(ob, d) for ob in self.dom]
         return diagram.Diagram.tensor(*diagrams)
 
+    # pylint: disable=invalid-name
+    # pylint: disable=no-self-use
     def _measure_wire(self, ob, d):
         """Return the diagram that measures one `ob`."""
         # pylint: disable=import-outside-toplevel
@@ -620,8 +634,7 @@ class Encode(Channel):
                 internal_states = (internal_states,)
             assert len(internal_states) == sum(
                 [1 if ob.name == "mode" else 0 for ob in dom.inside]
-            ), "Number of internal states must "
-            "match the number of modes in dom"
+            ), "# of internal states must match the number of modes in dom"
             assert len(set(len(i) for i in internal_states)) == 1, \
                 "All internal states must be of the same length"
 

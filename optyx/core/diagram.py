@@ -244,6 +244,7 @@ class Ty(frobenius.Ty):
 class Mode(Ty):
     """Optical mode interpreted as the infinite space with countable basis"""
 
+    # pylint: disable=invalid-name
     def __init__(self, n=0):
         self.n = n
         super().__init__(*["mode" for _ in range(n)])
@@ -252,6 +253,7 @@ class Mode(Ty):
 class Bit(Ty):
     """Qubit type interpreted as the two dimensional complext vector space"""
 
+    # pylint: disable=invalid-name
     def __init__(self, n=0):
         self.n = n
         super().__init__(*["bit" for _ in range(n)])
@@ -288,6 +290,7 @@ class Diagram(frobenius.Diagram):
             cod=symmetric.Category(int, path.Matrix[dtype]),
         )(self)
 
+    # pylint: disable=too-many-locals
     def to_tensor(
         self, input_dims: list = None, max_dim: int = None
     ) -> tensor.Diagram:
@@ -348,6 +351,8 @@ class Diagram(frobenius.Diagram):
             layer_dims = cod_layer_dims
 
         zboxes = tensor.Id(Dim(1))
+
+        # pylint: disable=invalid-name
         for c in diagram.cod:
             zboxes @= zw.ZBox(1, 1, lambda i: 1).truncation(
                 input_dims=[int(c.inside[0])], output_dims=[int(c.inside[0])]
@@ -361,6 +366,7 @@ class Diagram(frobenius.Diagram):
         # pylint: disable=import-outside-toplevel
         from optyx.core import zw
 
+        # pylint: disable=invalid-name
         d = cls.id(Mode(n_modes))
         annil = zw.Split(2) >> zw.Select(1) @ zw.Id(1)
         create = annil.dagger()
@@ -371,6 +377,7 @@ class Diagram(frobenius.Diagram):
             d = d >> zw.Id(idx) @ box @ zw.Id(n_modes - idx - 1)
 
         if scalar != 1:
+            # pylint: disable=invalid-name
             d = Scalar(scalar) @ d
         return d
 
@@ -390,6 +397,7 @@ class Diagram(frobenius.Diagram):
             )
         return zx_diagram.to_pyzx()
 
+    # pylint: disable=invalid-name
     def inflate(self, d):
         r"""
         Translates from an indistinguishable setting
@@ -399,6 +407,7 @@ class Diagram(frobenius.Diagram):
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
+        # pylint: disable=invalid-name
         def ob(x):
             return Ty.tensor(
                 *(o**d if o.name == "mode" else o for o in x)

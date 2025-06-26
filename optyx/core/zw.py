@@ -690,6 +690,7 @@ class Endo(ZWBox):
         return d
 
     def lambdify(self, *symbols, **kwargs):
+        # pylint: disable=import-outside-toplevel
         from sympy import lambdify
 
         return lambda *xs: type(self)(
