@@ -379,6 +379,7 @@ class BitFlipError(channel.Channel):
     """
 
     def __init__(self, prob):
+        # pylint: disable=import-outside-toplevel
         from optyx.core import zx
         x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
             1, 1, np.sqrt((1 - prob) / prob)
@@ -400,6 +401,7 @@ class DephasingError(channel.Channel):
     Represents a quantum dephasing error channel.
     """
     def __init__(self, prob):
+        # pylint: disable=import-outside-toplevel
         from optyx.core import zx
         z_error = (
             zx.H

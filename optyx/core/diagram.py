@@ -279,6 +279,7 @@ class Diagram(frobenius.Diagram):
         of a :class:`Diagram`.
         In other words, it is the underlying matrix
         representation of a :class:`path` and :class:`lo` diagrams."""
+        # pylint: disable=import-outside-toplevel
         from optyx.core import path
 
         return symmetric.Functor(
@@ -291,6 +292,7 @@ class Diagram(frobenius.Diagram):
         self, input_dims: list = None, max_dim: int = None
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
+        # pylint: disable=import-outside-toplevel
         from optyx.core import zw
 
         def list_to_dim(dims: np.ndarray | list) -> Dim:
@@ -356,6 +358,7 @@ class Diagram(frobenius.Diagram):
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
         """Create a :class:`zw` diagram from a bosonic operator."""
+        # pylint: disable=import-outside-toplevel
         from optyx.core import zw
 
         d = cls.id(Mode(n_modes))
@@ -372,6 +375,7 @@ class Diagram(frobenius.Diagram):
         return d
 
     def to_pyzx(self):
+        # pylint: disable=import-outside-toplevel
         from optyx.core import zx
 
         try:
@@ -615,6 +619,7 @@ class Sum(symmetric.Sum, Box):
         # we need to implement the proper sums of qpath diagrams
         # this is only a temporary solution, so that the grad tests pass
         if permanent is None:
+            # pylint: disable=import-outside-toplevel
             from optyx.core.path import npperm
 
             permanent = npperm
@@ -667,6 +672,7 @@ class Swap(frobenius.Swap, Box):
         return self
 
     def to_path(self, dtype: type = complex):
+        # pylint: disable=import-outside-toplevel
         from optyx.core.path import Matrix
 
         return Matrix([0, 1, 1, 0], 2, 2)
@@ -717,6 +723,7 @@ class Scalar(Box):
         return f"scalar({format_number(self.data)})"
 
     def to_path(self, dtype: type = complex):
+        # pylint: disable=import-outside-toplevel
         from optyx.core.path import Matrix
 
         return Matrix[dtype]([], 0, 0, scalar=self.scalar)
@@ -735,6 +742,7 @@ class Scalar(Box):
         return Scalar(self.scalar.diff(var))
 
     def lambdify(self, *symbols, **kwargs):
+        # pylint: disable=import-outside-toplevel
         from sympy import lambdify
 
         return lambda *xs: type(self)(
@@ -794,6 +802,7 @@ class DualRail(Box):
         return [2, 2]
 
     def inflate(self, d):
+        # pylint: disable=import-outside-toplevel
         from optyx.core.zw import W, Endo
 
         assert self.internal_state is not None, \
@@ -854,6 +863,7 @@ class PhotonThresholdDetector(Box):
         return PhotonThresholdDetector(not self.is_dagger)
 
     def inflate(self, d):
+        # pylint: disable=import-outside-toplevel
         from optyx.core.zw import Add
         dgrm = Add(d) >> PhotonThresholdDetector()
         if self.is_dagger:

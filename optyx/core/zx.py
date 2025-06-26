@@ -161,6 +161,7 @@ class ZXDiagram(diagram.Diagram):
         * a boundary node is not in :code:`graph.inputs() + graph.outputs()`,
         * or :code:`set(graph.inputs()).intersection(graph.outputs())`.
         """
+        # pylint: disable=import-outside-toplevel
         from pyzx import VertexType, EdgeType
 
         def node2box(node, n_legs_in, n_legs_out):
@@ -303,6 +304,7 @@ class ZXDiagram(diagram.Diagram):
         ...     6: {4: 1},
         ...     7: {5: 1}}
         """
+        # pylint: disable=import-outside-toplevel
         from pyzx import Graph, VertexType, EdgeType
 
         graph, scan = Graph(), []
@@ -558,6 +560,7 @@ def ar_zx2path(box):
     >>> zx2path(decomp(X(0, 1) @ X(0, 1) >> Z(2, 1))).to_path().eval()
     Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
     """
+    # pylint: disable=import-outside-toplevel
     from optyx.photonic import HadamardBS, Phase, BS
 
     unit = zw.Create(0)

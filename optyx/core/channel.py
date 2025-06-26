@@ -275,6 +275,7 @@ class Diagram(frobenius.Diagram):
         of a :class:`Diagram`.
         In other words, it is the underlying matrix
         representation of a :class:`path` and :class:`photonic` diagrams."""
+        # pylint: disable=import-outside-toplevel
         from optyx.core import path
 
         assert self.is_pure, "Diagram must be pure to convert to path."
@@ -345,18 +346,21 @@ class Diagram(frobenius.Diagram):
     @classmethod
     def from_tket(self, tket_circuit):
         """Convert from tket circuit."""
+        # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
         return Circuit(tket_circuit)._to_optyx()
 
     @classmethod
     def from_pyzx(self, pyzx_circuit):
         """Convert from PyZX circuit."""
+        # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
         return Circuit(pyzx_circuit)._to_optyx()
 
     @classmethod
     def from_discopy(self, discopy_circuit):
         """Convert from discopy circuit."""
+        # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
         return Circuit(discopy_circuit)._to_optyx()
 
@@ -442,6 +446,7 @@ class Channel(symmetric.Box, Diagram):
         )
 
     def _decomp(self):
+        # pylint: disable=import-outside-toplevel
         from optyx.qubit import QubitChannel
         decomposed = zx.decomp(self.kraus)
         return explode_channel(
@@ -498,6 +503,7 @@ class Sum(symmetric.Sum, Diagram):
         # we need to implement the proper sums of qpath diagrams
         # this is only a temporary solution, so that the grad tests pass
         if permanent is None:
+            # pylint: disable=import-outside-toplevel
             from optyx.core.path import npperm
 
             permanent = npperm
@@ -586,6 +592,7 @@ class Measure(Channel):
 
     def _measure_wire(self, ob, d):
         """Return the diagram that measures one `ob`."""
+        # pylint: disable=import-outside-toplevel
         from optyx.core.zw import Add
         if ob.needs_inflation():
             return Measure(ob ** d) >> CQMap(
@@ -651,6 +658,7 @@ class Encode(Channel):
 
         `amps_iter` yields the internal‑state vectors for `mode` wires.
         """
+        # pylint: disable=import-outside-toplevel
         from optyx.core.zw import Add, Endo
 
         if ob == mode:

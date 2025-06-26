@@ -39,6 +39,7 @@ class Scalar(channel.Channel):
         return Scalar(self.scalar.diff(var))
 
     def lambdify(self, *symbols, **kwargs):
+        # pylint: disable=import-outside-toplevel
         from sympy import lambdify
 
         return lambda *xs: type(self)(
