@@ -193,7 +193,7 @@ class IndexableAmplitudes:
         return np.conj(self.func(i))
 
     def __str__(self) -> str:
-        return "function"
+        return "function" # pragma: no cover
 
     def conjugate(self):
         """Conjugate the amplitudes"""
@@ -203,7 +203,7 @@ class IndexableAmplitudes:
 
     def __eq__(self, other: "IndexableAmplitudes") -> bool:
         if not isinstance(other, IndexableAmplitudes):
-            return False
+            return False # pragma: no cover
         return self.func.__code__.co_code == other.func.__code__.co_code
 
 
@@ -286,7 +286,7 @@ class W(ZWBox):
     def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n_legs)
         if self.is_dagger:
-            return Matrix[dtype](array, self.n_legs, 1)
+            return Matrix[dtype](array, int(self.n_legs), 1)
         return Matrix[dtype](array, 1, int(self.n_legs))
 
     def dagger(self) -> diagram.Diagram:
@@ -510,7 +510,8 @@ class Create(ZWBox):
         ]
 
     def dagger(self) -> diagram.Diagram:
-        return Select(*self.photons)
+        return Select(*self.photons,
+                      internal_states=self.internal_states)
 
     def inflate(self, d):
 
@@ -633,7 +634,7 @@ class Select(ZWBox):
         return []
 
     def dagger(self) -> diagram.Diagram:
-        return Create(*self.photons)
+        return Create(*self.photons, internal_states=self.internal_states)
 
 
 class Endo(ZWBox):

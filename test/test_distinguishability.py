@@ -147,3 +147,12 @@ def test_photon_threshold_detector():
     arr_2 = d_2.to_tensor(max_dim=3).eval().array
 
     assert np.allclose(arr_1, arr_2)
+
+
+def test_select_distinguishable():
+    from optyx.core import zw
+    select = zw.Select(1, 1, internal_states=([1, 0], [1, 0]))
+
+    d = select.dagger() >> select
+
+    assert d.inflate(2).to_tensor().to_quimb() ^ ... == 1.0
