@@ -12,7 +12,7 @@ import numpy as np
 
 
 def _build_w_layer(n_nonzero_counts, dagger=False):
-    from optyx.core import zw
+    from optyx.core import zw  # noqa: C0415
 
     layer = zw.Id(0)
     for count in n_nonzero_counts:
@@ -26,8 +26,8 @@ def _build_w_layer(n_nonzero_counts, dagger=False):
 
 def matrix_to_zw(U):
 
-    from optyx.core import zw
-    from sympy import Expr
+    from optyx.core import zw  # noqa: C0415
+    from sympy import Expr  # noqa: C0415
 
     n = U.shape[0]
     diagram = zw.Id(0)
@@ -162,8 +162,8 @@ def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
 
 def amplitudes_2_tensor(perceval_result, input_occ, output_occ):
 
-    from discopy.tensor import Tensor
-    from discopy.frobenius import Dim
+    from discopy.tensor import Tensor  # noqa: C0415
+    from discopy.frobenius import Dim  # noqa: C0415
 
     dom_dims = [
         int(max(np.array(input_occ)[:, i]) + 1)
@@ -226,7 +226,7 @@ def explode_channel(
     channel_class=None,
     circuit_class=None,
 ):
-    from optyx.core.channel import Channel, Ty, Diagram
+    from optyx.core.channel import Channel, Ty, Diagram  # noqa: C0415
 
     if channel_class is None:
         channel_class = Channel
@@ -255,7 +255,7 @@ def explode_channel(
 
 def calculate_num_creations_selections(dgrm) -> tuple:
     """Calculate the number of creations and selections in the diagram"""
-    from optyx.core import diagram, zw
+    from optyx.core import diagram, zw  # noqa: C0415
 
     n_selections = 0
     n_creations = 0
