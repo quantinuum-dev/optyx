@@ -138,7 +138,8 @@ Then, evaluate with Optyx:
 
 >>> res = (Circuit(ghz_circ).double().to_tensor().to_quimb()^...).data
 >>> rounded_result = np.round(res, 6)
->>> non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+>>> non_zero_dict = {idx: val for idx, val
+...   in np.ndenumerate(rounded_result) if val != 0}
 
 They agree:
 

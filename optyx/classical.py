@@ -1,3 +1,130 @@
+"""
+Overview
+--------
+
+Classical operators acting on **bits** and
+**natural-number modes** that can be
+freely composed with quantum channels in *optyx*.
+The module covers
+
+* reversible and irreversible **logic gates** on bits,
+* **arithmetic** on modes (addition, multiplication, …),
+* **control boxes** that condition quantum sub-circuits
+on classical data,
+* helpers for **copying, swapping, post-selection**
+and **discarding**
+  classical wires,
+* syntax sugar such as :func:`Bit` and :func:`Id`.
+
+All boxes are subclasses of :class:`optyx.core.channel.Channel`
+(or its mixed-state analogue :class:`optyx.core.channel.CQMap`)
+so they can be
+placed anywhere a quantum channel could, allowing
+truly *hybrid* circuits.
+
+Logic gates
+-----------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    NotBit
+    XorBit
+    AndBit
+    OrBit
+    CopyBit
+    SwapBit
+    Z
+    X
+    H
+
+Arithmetic on modes
+-------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    AddN
+    SubN
+    MultiplyN
+    DivideN
+    Mod2
+    CopyN
+    SwapN
+
+Control & routing
+-----------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    BitControlledGate
+    BitControlledPhaseShift
+    ClassicalFunction
+    BinaryMatrix
+    ControlChannel
+
+Bit, digits, & selection
+------------------------
+
+.. autosummary::
+    :template: class.rst
+    :nosignatures:
+    :toctree:
+
+    PostselectBit
+    PostselectDigit
+    DiscardBit
+    DiscardMode
+    Select
+    Digit
+    Bit
+    Id
+    Scalar
+
+Examples of usage
+-----------------
+
+**1. Classical XOR implemented three ways**
+
+>>> xor_gate = XorBit(2)
+>>>
+>>> f = ClassicalFunction(lambda b: [b[0] ^ b[1]],
+...                       diagram.Bit(2), diagram.Bit(1))
+>>> m = BinaryMatrix([[1, 1]])   # (a,b) => a ⊕ b
+>>>
+>>> import numpy as np
+>>> target = xor_gate.double().to_tensor().eval().array
+>>> assert np.allclose(f.double().to_tensor().eval().array, target)
+>>> assert np.allclose(m.double().to_tensor().eval().array, target)
+
+**2. A bit-controlled Pauli-Z on a photonic dual-rail qubit**
+
+>>> from optyx.photonic import DualRail, PhaseShiftDR
+>>> ctrl  = Bit(1)           # 1 post-selection (classical control wire)
+>>> zgate = PhaseShiftDR(0.5)
+>>> cZ    = BitControlledGate(zgate)   # applies Z only when control bit = 1
+>>> hybrid = ctrl @ DualRail(1) >> cZ
+>>> hybrid.draw(path="docs/_static/controlled_Z.svg")
+
+**3. Arithmetic on natural-number modes**
+
+>>> num = Digit(3, 2)
+>>> add = AddN(2)                     # (x,y,z) => x+y+z
+>>> parity = add >> Mod2()            # outputs (x+y+z) mod 2 as a bit
+>>> post = PostselectBit(1)
+>>> assert np.allclose(
+...     (num >> parity >> post).double().to_tensor().eval().array, 1
+... )
+
+"""
+
 import numpy as np
 
 from typing import Callable, List
