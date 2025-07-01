@@ -353,24 +353,21 @@ class Diagram(frobenius.Diagram):
         """Convert from tket circuit."""
         # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
-        # pylint: disable=protected-access
-        return Circuit(tket_circuit)._to_optyx()
+        return Circuit(tket_circuit)
 
     @classmethod
     def from_pyzx(cls, pyzx_circuit):
         """Convert from PyZX circuit."""
         # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
-        # pylint: disable=protected-access
-        return Circuit(pyzx_circuit)._to_optyx()
+        return Circuit(pyzx_circuit)
 
     @classmethod
     def from_discopy(cls, discopy_circuit):
         """Convert from discopy circuit."""
         # pylint: disable=import-outside-toplevel
         from optyx.qubit import Circuit
-        # pylint: disable=protected-access
-        return Circuit(discopy_circuit)._to_optyx()
+        return Circuit(discopy_circuit)
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):

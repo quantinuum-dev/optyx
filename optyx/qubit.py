@@ -97,18 +97,10 @@ We can create a graph state as follows
 .. image:: /_static/ghz_circuit_qiskit.png
     :align: center
 
-The circuit appears as a black box operator.
-It is only converted to optyx when we evaluate it.
-
->>> Circuit(ghz_circ).draw(path="docs/_static/ghz_circuit.svg")
-
-.. image:: /_static/ghz_circuit.svg
-    :align: center
-
 We can explicitly convert it to optyx though. The resulting circuit involves
 explicit manipulation of classical data.
 
->>> Circuit(ghz_circ)._to_optyx().draw(path="docs/_static/ghz_circuit_exp.svg")
+>>> Circuit(ghz_circ).draw(path="docs/_static/ghz_circuit_exp.svg")
 
 .. image:: /_static/ghz_circuit_exp.svg
     :align: center
@@ -167,135 +159,123 @@ class Circuit(Diagram):
     until evaluated.
     """
 
-    def __init__(self, circuit):
-        self._underlying_circuit = circuit
-        self.name = "Circuit"
-        self.type = self._detect_type()
-        dom, cod = self._get_dom_cod()
-        inside = Channel(
-            "Circuit",
-            diagram.Box(
-                name="Circuit",
-                dom=dom.single(),
-                cod=cod.single()
-            ),
-            dom=dom,
-            cod=cod
-        )
-        super().__init__(
-            dom=dom,
-            cod=cod,
-            inside=inside.inside
-        )
+    def __new__(cls, circuit):
+        return cls._to_optyx(circuit)
 
-    def double(self):
-        """
-        Convert the circuit to a double circuit.
-        """
-        return self._to_optyx().double()
+    # def double(self):
+    #     """
+    #     Convert the circuit to a double circuit.
+    #     """
+    #     return self._to_optyx().double()
 
-    @property
-    def is_pure(self):
-        """
-        Check if the circuit is pure.
-        """
-        return self._to_optyx().is_pure
+    # @property
+    # def is_pure(self):
+    #     """
+    #     Check if the circuit is pure.
+    #     """
+    #     return self._to_optyx().is_pure
 
-    def get_kraus(self):
-        """
-        Get the kraus operators of the circuit.
-        """
-        return self._to_optyx().get_kraus()
+    # def get_kraus(self):
+    #     """
+    #     Get the kraus operators of the circuit.
+    #     """
+    #     return self._to_optyx().get_kraus()
 
-    def _get_dom_cod(self):
-        if self.type == "tket":
-            self._underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
-                self._underlying_circuit
-            )
-            self.type = "discopy"
-        if self.type == "discopy":
-            assert all(o.name in ("qubit", "bit") for o in
-                       self._underlying_circuit.dom), \
-                        "Only bit and qubit allowed"
-            assert all(o.name in ("qubit", "bit") for o in
-                       self._underlying_circuit.cod), \
-                        "Only bit and qubit allowed"
-            return (
-                channel.Ty().tensor(
-                    *[qubit if o.name == "qubit" else
-                      bit for o in self._underlying_circuit.dom]
-                ),
-                channel.Ty().tensor(
-                    *[qubit if o.name == "qubit" else
-                      bit for o in self._underlying_circuit.cod]
-                )
-            )
-        if self.type == "pyzx":
-            return (
-                qubit**len(self._underlying_circuit.inputs()),
-                qubit**len(self._underlying_circuit.outputs())
-            )
-        if self.type == "zx":
-            return (
-                self._underlying_circuit.dom,
-                self._underlying_circuit.cod
-            )
-        raise TypeError("Unsupported circuit type")  # pragma: no cover
+    # def _get_dom_cod(self):
+    #     if self.type == "tket":
+    #         self._underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
+    #             self._underlying_circuit
+    #         )
+    #         self.type = "discopy"
+    #     if self.type == "discopy":
+    #         assert all(o.name in ("qubit", "bit") for o in
+    #                    self._underlying_circuit.dom), \
+    #                     "Only bit and qubit allowed"
+    #         assert all(o.name in ("qubit", "bit") for o in
+    #                    self._underlying_circuit.cod), \
+    #                     "Only bit and qubit allowed"
+    #         return (
+    #             channel.Ty().tensor(
+    #                 *[qubit if o.name == "qubit" else
+    #                   bit for o in self._underlying_circuit.dom]
+    #             ),
+    #             channel.Ty().tensor(
+    #                 *[qubit if o.name == "qubit" else
+    #                   bit for o in self._underlying_circuit.cod]
+    #             )
+    #         )
+    #     if self.type == "pyzx":
+    #         return (
+    #             qubit**len(self._underlying_circuit.inputs()),
+    #             qubit**len(self._underlying_circuit.outputs())
+    #         )
+    #     if self.type == "zx":
+    #         return (
+    #             self._underlying_circuit.dom,
+    #             self._underlying_circuit.cod
+    #         )
+    #     raise TypeError("Unsupported circuit type")  # pragma: no cover
 
-    def _detect_type(self):
+    @classmethod
+    def _detect_type(cls, underlying_circuit):
         """
         Detect the type of the underlying circuit.
         """
-        if isinstance(self._underlying_circuit,
+        if isinstance(underlying_circuit,
                       quantum_discopy.circuit.Circuit):
             return "discopy"
-        if isinstance(self._underlying_circuit, BaseGraph):
+        if isinstance(underlying_circuit, BaseGraph):
             return "pyzx"
-        if isinstance(self._underlying_circuit, tket_circuit.Circuit):
+        if isinstance(underlying_circuit, tket_circuit.Circuit):
             return "tket"
-        if isinstance(self._underlying_circuit, Diagram):
+        if isinstance(underlying_circuit, Diagram):
             return "zx"
         raise TypeError("Unsupported circuit type")  # pragma: no cover
 
-    def _to_optyx(self):
+    @classmethod
+    def _to_optyx(cls, underlying_circuit):
         """
         Convert the circuit to an optyx channel diagram.
         """
-        if self.type == "discopy":
-            return self._to_optyx_from_discopy()
-        if self.type == "pyzx":
-            return self._to_optyx_from_pyzx()
-        if self.type == "tket":
-            return self._to_optyx_from_tket()
-        if self.type == "zx":
-            return self._to_optyx_from_zx()
+        type = cls._detect_type(underlying_circuit)
+        if type == "discopy":
+            return cls._to_optyx_from_discopy(underlying_circuit)
+        if type == "pyzx":
+            return cls._to_optyx_from_pyzx(underlying_circuit)
+        if type == "tket":
+            return cls._to_optyx_from_tket(underlying_circuit)
+        if type == "zx":
+            return cls._to_optyx_from_zx(underlying_circuit)
         raise TypeError("Unsupported circuit type")  # pragma: no cover
 
-    def _to_optyx_from_tket(self):
+    @classmethod
+    def _to_optyx_from_tket(cls, underlying_circuit):
         """
         Convert a tket circuit to an optyx channel diagram.
         """
-        self._underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
-            self._underlying_circuit
+        underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
+            underlying_circuit
         )
-        return self._to_optyx_from_discopy()
+        return cls._to_optyx_from_discopy(underlying_circuit)
 
-    def _to_optyx_from_pyzx(self):
+    @classmethod
+    def _to_optyx_from_pyzx(cls, underlying_circuit):
         """
         Convert a PyZX circuit to an optyx channel diagram.
         """
-        zx_diagram = zx.ZXDiagram.from_pyzx(self._underlying_circuit)
+        zx_diagram = zx.ZXDiagram.from_pyzx(underlying_circuit)
         return explode_channel(
             zx_diagram,
             Channel,
             Diagram
         )
 
-    def to_dual_rail(self):
-        """Convert to dual-rail encoding."""
-        return self._to_optyx().to_dual_rail()
+    # def to_dual_rail(self):
+    #     """Convert to dual-rail encoding."""
+    #     return self._to_optyx().to_dual_rail()
 
-    def _to_optyx_from_discopy(self):
+    @classmethod
+    def _to_optyx_from_discopy(cls, underlying_circuit):
         """
         Convert a discopy circuit to an optyx channel diagram.
         """
@@ -319,10 +299,11 @@ class Circuit(Diagram):
                 channel.Ty,
                 Diagram
             ),
-        )(self._underlying_circuit)
+        )(underlying_circuit)
 
-    def _to_optyx_from_zx(self):
-        return self._underlying_circuit
+    @classmethod
+    def _to_optyx_from_zx(cls, underlying_circuit):
+        return underlying_circuit
 
 
 class QubitChannel(Channel):
@@ -417,7 +398,7 @@ class QubitChannel(Channel):
         if isinstance(discopy_circuit,
                       Controlled) and discopy_circuit.distance != 1:
             # pylint: disable=protected-access
-            return Circuit(discopy_circuit._decompose())._to_optyx()
+            return Circuit(discopy_circuit._decompose())
         if isinstance(discopy_circuit, quantum_discopy.Discard):
             return Discard(len(discopy_circuit.dom))
         if isinstance(discopy_circuit, quantum_discopy.Measure):

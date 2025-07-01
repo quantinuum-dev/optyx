@@ -12,7 +12,7 @@ def test_pyzx():
     c.add_gate("TOF", 0, 1, 2)
     g = c.to_basic_gates().to_graph()
     c1 = pyzx.extract_circuit(g.copy())
-    c2 = pyzx.extract_circuit(qubit.Circuit(g)._to_optyx().to_pyzx().copy())
+    c2 = pyzx.extract_circuit(qubit.Circuit(g).to_pyzx().copy())
     assert c1.verify_equality(c2)
 
     c1 = pyzx.extract_circuit(g.copy())
@@ -32,7 +32,7 @@ def test_tket_discopy():
     counts = backend.get_result(handle).get_counts()
     tket_probs = probs_from_counts({key: np.round(v, 2) for key, v in probs_from_counts(counts).items()})
 
-    res = ((qubit.Circuit(ghz_circ)._to_optyx()).double().to_tensor().to_quimb()^...).data
+    res = ((qubit.Circuit(ghz_circ)).double().to_tensor().to_quimb()^...).data
 
     rounded_result = np.round(res, 6)
 
@@ -50,17 +50,17 @@ def test_tket_discopy():
 
 def test_zx():
     circuit = qubit.Z(1, 2) >> qubit.H() @ qubit.H()
-    assert qubit.Circuit(circuit)._to_optyx() == circuit
+    assert qubit.Circuit(circuit) == circuit
 
 def test_pure_double_kraus():
     c = pyzx.Circuit(3)
     c.add_gate("TOF", 0, 1, 2)
     g = c.to_basic_gates().to_graph()
-    assert qubit.Circuit(g)._to_optyx().double() == qubit.Circuit(g).double()
+    assert qubit.Circuit(g).double() == qubit.Circuit(g).double()
 
-    assert qubit.Circuit(g)._to_optyx().is_pure == qubit.Circuit(g).is_pure
+    assert qubit.Circuit(g).is_pure == qubit.Circuit(g).is_pure
 
-    assert qubit.Circuit(g)._to_optyx().get_kraus() == qubit.Circuit(g).get_kraus()
+    assert qubit.Circuit(g).get_kraus() == qubit.Circuit(g).get_kraus()
 
 def test_to_dual_rail():
     circuit = qubit.Z(1, 2) >> qubit.H() @ qubit.H()
