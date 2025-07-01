@@ -69,8 +69,8 @@ def test_to_dual_rail():
     assert dr_1 == dr_2
 
 def test_discard_qubits():
-    a = (qubit.DiscardQubits(2).double().to_tensor().to_quimb() ^ ...).data
-    b = ((qubit.Z(1, 1)**2 >> qubit.DiscardQubits(2)).double().to_tensor().to_quimb() ^ ...).data
+    a = (qubit.Discard(2).double().to_tensor().to_quimb() ^ ...).data
+    b = ((qubit.Z(1, 1)**2 >> qubit.Discard(2)).double().to_tensor().to_quimb() ^ ...).data
     assert np.allclose(a, b)
 
 def test_bit_flip_error():
@@ -123,7 +123,7 @@ def test_to_tket():
     counts = backend.get_result(handle).get_counts()
     tket_probs = probs_from_counts({key: np.round(v, 2) for key, v in probs_from_counts(counts).items()})
 
-    circ_meas_prep = qubit.Ket(0) @ qubit.Ket(0) >> circ >> qubit.MeasureQubits(2)
+    circ_meas_prep = qubit.Ket(0) @ qubit.Ket(0) >> circ >> qubit.Measure(2)
 
     res = ((circ_meas_prep.double().to_tensor().to_quimb()^...).data)
 

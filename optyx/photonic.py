@@ -15,7 +15,7 @@ Measurements
     :toctree:
 
 
-    DiscardPhotonic
+    Discard
     PhotonThresholdMeasurement
     NumberResolvingMeasurement
 
@@ -30,7 +30,6 @@ Linear optical gates
 
     Gate
     Phase
-    HadamardBS
     BBS
     TBS
     MZI
@@ -49,6 +48,7 @@ Dual rail encoded operators
     PhaseShiftDR
     ZMeasurementDR
     XMeasurementDR
+    HadamardBS
     FusionTypeI
     FusionTypeII
 
@@ -61,7 +61,7 @@ States
     :toctree:
 
 
-    EncodePhotonic
+    Encode
     Create
 
 Other
@@ -206,8 +206,18 @@ from optyx.core import (
 from optyx.classical import ClassicalFunction, DiscardMode
 from optyx._utils import matrix_to_zw
 
+from optyx import (
+    bit,
+    mode,
+    qmode,
+    Measure,
+    Discard as DiscardChannel,
+    Encode as EncodeChannel,
+    Channel,
+    Diagram
+)
 
-class Scalar(channel.Channel):
+class Scalar(Channel):
     """
     Scalar with a complex value.
     """
@@ -239,24 +249,24 @@ class Scalar(channel.Channel):
         )
 
 
-class EncodePhotonic(channel.Encode):
+class Encode(EncodeChannel):
     """
     Encode :math:`n` modes into :math:`n` qmodes.
     """
     def __init__(self, n):
-        super().__init__(channel.mode**n)  # pragma: no cover
+        super().__init__(mode**n)  # pragma: no cover
 
 
-class DiscardPhotonic(channel.Discard):
+class Discard(DiscardChannel):
     """
     Discard :math:`n` qmodes.
     """
 
     def __init__(self, n):
-        super().__init__(channel.qmode**n)  # pragma: no cover
+        super().__init__(qmode**n)  # pragma: no cover
 
 
-class PhotonThresholdMeasurement(channel.Channel):
+class PhotonThresholdMeasurement(Channel):
     """
     Ideal photon-number non-resolving detector
     from mode to bit from qmode to bit.
@@ -267,24 +277,22 @@ class PhotonThresholdMeasurement(channel.Channel):
         super().__init__(
             "PhotonThresholdMeasurement",
             diagram.PhotonThresholdDetector(),
-            cod=channel.bit
+            cod=bit
         )
 
 
-class NumberResolvingMeasurement(channel.Measure):
+class NumberResolvingMeasurement(Measure):
     """
     Number-resolving measurement of :math:`n` photons.
     """
 
     def __init__(self, n):
-        super().__init__(channel.qmode**n)  # pragma: no cover
+        super().__init__(qmode**n)  # pragma: no cover
 
 
-class Create(channel.Channel):
+class Create(Channel):
     """
-    Create a quantum channel that initializes
-    a specified number of photons
-    in a specified number of channel.qmodes.
+    Fock basis states (occupation numbers).
     """
     def __init__(self, *photons: int,
                  internal_states: tuple[list[int]] = None):
@@ -295,7 +303,7 @@ class Create(channel.Channel):
         )
 
 
-class AbstractGate(channel.Channel, ABC):
+class AbstractGate(Channel, ABC):
 
     def __init__(
         self,
@@ -433,7 +441,7 @@ class Phase(AbstractGate):
         return Phase(-self.angle)
 
 
-class NumOp(channel.Channel):
+class NumOp(Channel):
     def __init__(self):
         super().__init__(
             "NumOp",
@@ -546,14 +554,14 @@ class TBS(AbstractGate):
     >>> BS = BBS(0)
     >>> tbs = lambda x: (
     ...       BS >>
-    ...       channel.Diagram.id(channel.qmode) @ Phase(x) >>
+    ...       Diagram.id(qmode) @ Phase(x) >>
     ...       BS
     ... )
     >>> assert np.allclose(
     ...     TBS(0.15).to_path().array, tbs(0.15).to_path().array)
     >>> assert np.allclose(
     ...     (TBS(0.25) >> TBS(0.25).dagger()).to_path().array,
-    ...     channel.Diagram.id(channel.qmode**2).to_path().array)
+    ...     Diagram.id(qmode**2).to_path().array)
     >>> assert (TBS(0.25).dagger().global_phase ==\\
     ...         np.conjugate(TBS(0.25).global_phase))
 
@@ -597,7 +605,7 @@ class TBS(AbstractGate):
         )
 
     def _decomp(self):
-        d = BS >> channel.qmode @ Phase(self.theta) >> BS
+        d = BS >> qmode @ Phase(self.theta) >> BS
         return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
@@ -643,13 +651,13 @@ class MZI(AbstractGate):
     ...     MZI(0.12, 0.3).global_phase.conjugate(),
     ...     MZI(0.12, 0.3).dagger().global_phase)
     >>> mach = lambda x, y: TBS(x) >> Phase(y) @ \\
-    ...          channel.Diagram.id(channel.qmode)
+    ...          Diagram.id(qmode)
     >>> assert np.allclose(
     ...     MZI(0.28, 0.9).to_path().array,
     ...     mach(0.28, 0.9).to_path().array)
     >>> assert np.allclose(
     ...     (MZI(0.28, 0.34) >> MZI(0.28, 0.34).dagger()).to_path().array,
-    ...     channel.Diagram.id(channel.qmode**2).to_path().array)
+    ...     Diagram.id(qmode**2).to_path().array)
 
     """
 
@@ -694,7 +702,7 @@ class MZI(AbstractGate):
 
     def _decomp(self):
         x, y = self.theta, self.phi
-        d = BS >> channel.qmode @ Phase(x) >> BS >> Phase(y) @ channel.qmode
+        d = BS >> qmode @ Phase(x) >> BS >> Phase(y) @ qmode
         return d.dagger() if self.is_dagger else d
 
     def grad(self, var):
@@ -737,12 +745,12 @@ def ansatz(width, depth):
     def p(i, j):
         return sp.Symbol(f"a_{i}_{j}"), sp.Symbol(f"b_{i}_{j}")
 
-    d = channel.Diagram.id(channel.qmode**width)
+    d = Diagram.id(qmode**width)
     for i in range(depth):
         n_mzi = (width - 1) // 2 if i % 2 else width // 2
-        left = channel.qmode**(i % 2)
-        right = channel.qmode**(width - (i % 2) - 2 * n_mzi)
-        d >>= left @ channel.Diagram.tensor(*[MZI(*p(i, j))
+        left = qmode**(i % 2)
+        right = qmode**(width - (i % 2) - 2 * n_mzi)
+        d >>= left @ Diagram.tensor(*[MZI(*p(i, j))
                                               for j in range(n_mzi)]) @ right
 
     return d
@@ -761,7 +769,7 @@ class HadamardBS(Gate):
         )
 
 
-class DualRail(channel.Channel):
+class DualRail(Channel):
     """
     Represents a dual-rail quantum channel
     encoding a specified number of qubit registers.
@@ -773,7 +781,7 @@ class DualRail(channel.Channel):
         )
 
 
-class PhaseShiftDR(channel.Channel):
+class PhaseShiftDR(Channel):
     """
     Represents a phase shift operation in dual-rail encoding.
     """
@@ -785,21 +793,21 @@ class PhaseShiftDR(channel.Channel):
         )
 
 
-class ZMeasurementDR(channel.Diagram):
+class ZMeasurementDR(Diagram):
     def __new__(cls, alpha):
         """
         ZMeasurement circuit that performs a measurement in the Z basis
         after applying a phase shift of alpha.
         """
         return (
-            channel.qmode @ Phase(alpha) >>
+            qmode @ Phase(alpha) >>
             HadamardBS >>
             NumberResolvingMeasurement(2) >>
-            DiscardMode(1) @ channel.mode
+            DiscardMode(1) @ mode
         )
 
 
-class XMeasurementDR(channel.Diagram):
+class XMeasurementDR(Diagram):
     def __new__(cls, alpha):
         """
         XMeasurement circuit that performs a measurement in the X basis
@@ -811,7 +819,7 @@ class XMeasurementDR(channel.Diagram):
         )
 
 
-class FusionTypeI(channel.Diagram):
+class FusionTypeI(Diagram):
     r"""
     Type-I fusion measurement on two dual-rail photonic qubits.
 
@@ -821,11 +829,11 @@ class FusionTypeI(channel.Diagram):
     on the outcome—fuses the qubits into a *single* dual-rail qubit.
 
     **Domain**
-        ``channel.qmode ** 4``
+        ``qmode ** 4``
         (four photonic modes encoding two qubits).
 
     **Codomain**
-        ``channel.qmode ** 2 @ channel.bit ** 2``
+        ``qmode ** 2 @ bit ** 2``
         – the surviving dual-rail qubit followed by two classical bits
         ``[s, k]`` where
 
@@ -864,7 +872,7 @@ class FusionTypeI(channel.Diagram):
                 ) @ diagram.Mode(1)
         )
 
-        fusion_I = channel.Channel(
+        fusion_I = Channel(
             "Fusion I", kraus_map_fusion_I
         )
 
@@ -887,17 +895,17 @@ class FusionTypeI(channel.Diagram):
 
         return (
             fusion_I >>
-            channel.qmode**2 @ NumberResolvingMeasurement(2) >>
-            channel.qmode**2 @ classical_function_I
+            qmode**2 @ NumberResolvingMeasurement(2) >>
+            qmode**2 @ classical_function_I
         )
 
 
 class Swap(channel.Swap):
     def __init__(self, left, right):
-        super().__init__(channel.qmode**left, channel.qmode**right)
+        super().__init__(qmode**left, qmode**right)
 
 
-class FusionTypeII(channel.Diagram):
+class FusionTypeII(Diagram):
     r"""
     Type-II fusion measurement for dual-rail photonic qubits.
 
@@ -909,11 +917,11 @@ class FusionTypeII(channel.Diagram):
     created between the neighbouring cluster-state nodes.
 
     **Domain**
-        ``channel.qmode ** 4``
+        ``qmode ** 4``
         (two dual-rail qubits).
 
     **Codomain**
-        ``channel.bit ** 2``
+        ``bit ** 2``
         containing
 
         * ``s`` – success / parity bit
@@ -935,7 +943,7 @@ class FusionTypeII(channel.Diagram):
         :align: center
     """
     def __new__(cls):
-        fusion_II = channel.Channel(
+        fusion_II = Channel(
             "Fusion II",
             (
                 HadamardBS().get_kraus() @ HadamardBS().get_kraus() >>
@@ -985,5 +993,5 @@ BS = BBS(0)
 
 
 def Id(n):
-    return channel.Diagram.id(n) if \
-          isinstance(n, channel.Ty) else channel.Diagram.id(channel.qmode**n)
+    return Diagram.id(n) if \
+          isinstance(n, channel.Ty) else Diagram.id(qmode**n)

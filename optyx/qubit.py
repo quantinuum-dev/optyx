@@ -2,9 +2,8 @@
 Overview
 --------
 
-A collection of operators acting on photonic modes.
-This includes: measurements, states, linear optical gates,
-dual rail encoded gates, and fusion measurements.
+Operators on qubits. Intented to be defined
+via ZX-calculus or using tket or discopy circuits.
 
 
 Circuits (from tket, discopy, or PyZX)
@@ -19,7 +18,8 @@ Circuits (from tket, discopy, or PyZX)
     Circuit
     QubitChannel
 
-Measurement
+
+Classical-quantum
 ------------------------
 
 .. autosummary::
@@ -28,21 +28,9 @@ Measurement
     :toctree:
 
 
-    MeasureQubits
-    DiscardQubits
-    Bra
-
-States
-------------------------
-
-.. autosummary::
-    :template: class.rst
-    :nosignatures:
-    :toctree:
-
-
-    EncodeBits
-    Ket
+    Encode
+    Measure
+    Discard
 
 ZX
 ------------------------
@@ -57,6 +45,8 @@ ZX
     X
     H
     Scalar
+    Ket
+    Bra
 
 Errors
 ------------------------
@@ -159,9 +149,17 @@ from optyx.core import (
     diagram,
     zx
 )
+from optyx import (
+    bit,
+    qubit,
+    Measure as MeasureChannel,
+    Discard as DiscardChannel,
+    Encode as EncodeChannel,
+    Channel,
+    Diagram
+)
 
-
-class Circuit(channel.Diagram):
+class Circuit(Diagram):
     """
     A circuit that operates on qubits.
     It can be initialised from a ZX diagram, PyZX diagram,
@@ -174,13 +172,15 @@ class Circuit(channel.Diagram):
         self.name = "Circuit"
         self.type = self._detect_type()
         dom, cod = self._get_dom_cod()
-        inside = channel.Channel(
+        inside = Channel(
             "Circuit",
             diagram.Box(
                 name="Circuit",
                 dom=dom.single(),
                 cod=cod.single()
-            )
+            ),
+            dom=dom,
+            cod=cod
         )
         super().__init__(
             dom=dom,
@@ -214,14 +214,26 @@ class Circuit(channel.Diagram):
             )
             self.type = "discopy"
         if self.type == "discopy":
+            assert all(o.name in ("qubit", "bit") for o in
+                       self._underlying_circuit.dom), \
+                        "Only bit and qubit allowed"
+            assert all(o.name in ("qubit", "bit") for o in
+                       self._underlying_circuit.cod), \
+                        "Only bit and qubit allowed"
             return (
-                channel.qubit**len(self._underlying_circuit.dom),
-                channel.qubit**len(self._underlying_circuit.cod)
+                channel.Ty().tensor(
+                    *[qubit if o.name == "qubit" else
+                      bit for o in self._underlying_circuit.dom]
+                ),
+                channel.Ty().tensor(
+                    *[qubit if o.name == "qubit" else
+                      bit for o in self._underlying_circuit.cod]
+                )
             )
         if self.type == "pyzx":
             return (
-                channel.qubit**len(self._underlying_circuit.inputs()),
-                channel.qubit**len(self._underlying_circuit.outputs())
+                qubit**len(self._underlying_circuit.inputs()),
+                qubit**len(self._underlying_circuit.outputs())
             )
         if self.type == "zx":
             return (
@@ -241,7 +253,7 @@ class Circuit(channel.Diagram):
             return "pyzx"
         if isinstance(self._underlying_circuit, tket_circuit.Circuit):
             return "tket"
-        if isinstance(self._underlying_circuit, channel.Diagram):
+        if isinstance(self._underlying_circuit, Diagram):
             return "zx"
         raise TypeError("Unsupported circuit type")  # pragma: no cover
 
@@ -275,8 +287,8 @@ class Circuit(channel.Diagram):
         zx_diagram = zx.ZXDiagram.from_pyzx(self._underlying_circuit)
         return explode_channel(
             zx_diagram,
-            channel.Channel,
-            channel.Diagram
+            Channel,
+            Diagram
         )
 
     def to_dual_rail(self):
@@ -291,9 +303,9 @@ class Circuit(channel.Diagram):
         # pylint: disable=invalid-name
         def ob(o):
             if o.name == "qubit":
-                return channel.qubit**len(o)
+                return qubit**len(o)
             if o.name == "bit":
-                return channel.bit**len(o)
+                return bit**len(o)
             raise TypeError(f"Unsupported object type: {o.name}")
 
         return symmetric.Functor(
@@ -305,7 +317,7 @@ class Circuit(channel.Diagram):
             ),
             cod=symmetric.Category(
                 channel.Ty,
-                channel.Diagram
+                Diagram
             ),
         )(self._underlying_circuit)
 
@@ -313,7 +325,7 @@ class Circuit(channel.Diagram):
         return self._underlying_circuit
 
 
-class QubitChannel(channel.Channel, Circuit):
+class QubitChannel(Channel):
     """Qubit channel."""
 
     def _decomp(self):
@@ -321,7 +333,7 @@ class QubitChannel(channel.Channel, Circuit):
         return explode_channel(
             decomposed,
             QubitChannel,
-            channel.Diagram
+            Diagram
         )
 
     def to_dual_rail(self):
@@ -329,8 +341,8 @@ class QubitChannel(channel.Channel, Circuit):
         kraus_path = zx.zx2path(self.kraus)
         return explode_channel(
             kraus_path,
-            channel.Channel,
-            channel.Diagram
+            Channel,
+            Diagram
         )
 
     # pylint: disable=too-many-locals
@@ -383,7 +395,7 @@ class QubitChannel(channel.Channel, Circuit):
                 Id(1) @ root2
             )
         if isinstance(discopy_circuit, Digits):
-            dgrm = channel.Diagram.id(channel.bit**0)
+            dgrm = Diagram.id(bit**0)
             # pylint: disable=invalid-name
             for d in discopy_circuit.digits:
                 if d > 1:
@@ -407,22 +419,22 @@ class QubitChannel(channel.Channel, Circuit):
             # pylint: disable=protected-access
             return Circuit(discopy_circuit._decompose())._to_optyx()
         if isinstance(discopy_circuit, quantum_discopy.Discard):
-            return DiscardQubits(len(discopy_circuit.dom))
+            return Discard(len(discopy_circuit.dom))
         if isinstance(discopy_circuit, quantum_discopy.Measure):
             no_qubits = sum([1 if i.name == "qubit" else
                              0 for i in discopy_circuit.dom])
-            dgrm = MeasureQubits(no_qubits)
+            dgrm = Measure(no_qubits)
             if discopy_circuit.override_bits:
-                dgrm @= channel.Discard(channel.bit**no_qubits)
+                dgrm @= DiscardChannel(bit**no_qubits)
             if discopy_circuit.destructive:
                 return dgrm
             dgrm >>= classical.CopyBit(2)**no_qubits
-            dgrm >>= channel.Diagram.permutation(
-                get_perm(2 * no_qubits), channel.bit**(2 * no_qubits)
+            dgrm >>= Diagram.permutation(
+                get_perm(2 * no_qubits), bit**(2 * no_qubits)
             )
             dgrm >>= (
-                EncodeBits(no_qubits) @
-                channel.Diagram.id(channel.bit**no_qubits)
+                Encode(no_qubits) @
+                Diagram.id(bit**no_qubits)
             )
             return dgrm
         if isinstance(discopy_circuit, quantum_discopy.Encode):
@@ -449,7 +461,7 @@ class QubitChannel(channel.Channel, Circuit):
         return standard_gates[discopy_circuit]
 
 
-class MeasureQubits(channel.Measure):
+class Measure(MeasureChannel):
     """
     Ideal qubit measurement (in computational basis)
     from qubit to bit.
@@ -457,33 +469,33 @@ class MeasureQubits(channel.Measure):
 
     def __init__(self, n):
         super().__init__(
-            channel.qubit**n
+            qubit**n
         )
 
 
-class DiscardQubits(channel.Discard):
+class Discard(DiscardChannel):
     """
     Discard :math:`n` qubits.
     """
 
     def __init__(self, n):
         super().__init__(
-            channel.qubit**n
+            qubit**n
         )
 
 
-class EncodeBits(channel.Encode):
+class Encode(EncodeChannel):
     """
     Encode :math:`n` bits into :math:`n` qubits.
     """
 
     def __init__(self, n):
         super().__init__(
-            channel.bit**n
+            bit**n
         )
 
 
-class Z(channel.Channel):
+class Z(Channel):
     """Z spider."""
 
     tikzstyle_name = "Z"
@@ -495,12 +507,12 @@ class Z(channel.Channel):
         super().__init__(
             f"Z({phase})",
             kraus,
-            channel.qubit**n_legs_in,
-            channel.qubit**n_legs_out,
+            qubit**n_legs_in,
+            qubit**n_legs_out,
         )
 
 
-class X(channel.Channel):
+class X(Channel):
     """X spider."""
 
     tikzstyle_name = "X"
@@ -512,12 +524,12 @@ class X(channel.Channel):
         super().__init__(
             f"X({phase})",
             kraus,
-            channel.qubit**n_legs_in,
-            channel.qubit**n_legs_out,
+            qubit**n_legs_in,
+            qubit**n_legs_out,
         )
 
 
-class H(channel.Channel):
+class H(Channel):
     """Hadamard gate."""
 
     tikzstyle_name = "H"
@@ -527,22 +539,22 @@ class H(channel.Channel):
         super().__init__(
             "H",
             zx.H,
-            channel.qubit,
-            channel.qubit,
+            qubit,
+            qubit,
         )
 
 
-class Scalar(channel.Channel):
+class Scalar(Channel):
     def __init__(self, value: float):
         super().__init__(
             f"Scalar({value})",
             zx.scalar(value),
-            channel.qubit**0,
-            channel.qubit**0,
+            qubit**0,
+            qubit**0,
         )
 
 
-class BitFlipError(channel.Channel):
+class BitFlipError(Channel):
     """
     Represents a bit-flip error channel.
     """
@@ -556,8 +568,8 @@ class BitFlipError(channel.Channel):
         super().__init__(
             name=f"BitFlipError({prob})",
             kraus=x_error,
-            dom=channel.qubit,
-            cod=channel.qubit,
+            dom=qubit,
+            cod=qubit,
             env=diagram.Bit(1),
         )
 
@@ -565,7 +577,7 @@ class BitFlipError(channel.Channel):
         return self
 
 
-class DephasingError(channel.Channel):
+class DephasingError(Channel):
     """
     Represents a quantum dephasing error channel.
     """
@@ -582,8 +594,8 @@ class DephasingError(channel.Channel):
         super().__init__(
             name=f"DephasingError({prob})",
             kraus=z_error,
-            dom=channel.qubit,
-            cod=channel.qubit,
+            dom=qubit,
+            cod=qubit,
             env=diagram.Bit(1),
         )
 
@@ -591,11 +603,11 @@ class DephasingError(channel.Channel):
         return self
 
 
-class Ket(channel.Channel):
+class Ket(Channel):
     """Computational basis state for qubits"""
 
     def __init__(
-        self, value: Literal[0, 1, "+", "-"], cod: channel.Ty = channel.qubit
+        self, value: Literal[0, 1, "+", "-"], cod: channel.Ty = qubit
     ) -> None:
         spider = zx.X if value in (0, 1) else zx.Z
         phase = 0 if value in (0, "+") else 0.5
@@ -603,11 +615,11 @@ class Ket(channel.Channel):
         super().__init__(f"|{value}>", kraus, cod=cod)
 
 
-class Bra(channel.Channel):
+class Bra(Channel):
     """Post-selected measurement for qubits"""
 
     def __init__(
-        self, value: Literal[0, 1, "+", "-"], dom: channel.Ty = channel.qubit
+        self, value: Literal[0, 1, "+", "-"], dom: channel.Ty = qubit
     ) -> None:
         spider = zx.X if value in (0, 1) else zx.Z
         phase = 0 if value in (0, "+") else 0.5
@@ -616,5 +628,5 @@ class Bra(channel.Channel):
 
 
 def Id(n):
-    return channel.Diagram.id(n) if \
-          isinstance(n, channel.Ty) else channel.Diagram.id(channel.qubit**n)
+    return Diagram.id(n) if \
+          isinstance(n, channel.Ty) else Diagram.id(qubit**n)

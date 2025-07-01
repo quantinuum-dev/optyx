@@ -9,18 +9,14 @@ The module covers
 
 * reversible and irreversible **logic gates** on bits,
 * **arithmetic** on modes (addition, multiplication, …),
-* **control boxes** that condition quantum sub-circuits
-on classical data,
-* helpers for **copying, swapping, post-selection**
-and **discarding**
-  classical wires,
+* **control boxes** that condition quantum sub-circuits on classical data,
+* helpers for **copying, swapping, post-selection** and **discarding**
 * syntax sugar such as :func:`Bit` and :func:`Id`.
 
 All boxes are subclasses of :class:`optyx.core.channel.Channel`
 (or its mixed-state analogue :class:`optyx.core.channel.CQMap`)
 so they can be
-placed anywhere a quantum channel could, allowing
-truly *hybrid* circuits.
+placed anywhere a quantum channel could, allowing hybrid circuits.
 
 Logic gates
 -----------
@@ -68,7 +64,6 @@ Control & routing
     BitControlledPhaseShift
     ClassicalFunction
     BinaryMatrix
-    ControlChannel
 
 Bit, digits, & selection
 ------------------------
@@ -136,9 +131,18 @@ from optyx.core import (
     diagram,
     path
 )
+from optyx import (
+    bit,
+    mode,
+    qmode,
+    Discard,
+    CQMap,
+    Channel,
+    Diagram
+)
 
 
-class BitControlledGate(channel.Channel):
+class BitControlledGate(Channel):
     """
     Represents a gate that is
     controlled by a classical bit.
@@ -148,11 +152,11 @@ class BitControlledGate(channel.Channel):
     def __init__(self,
                  control_gate,
                  default_gate=None):
-        if isinstance(control_gate, (channel.Diagram, channel.Channel)):
+        if isinstance(control_gate, (Diagram, Channel)):
             assert control_gate.is_pure, \
                  "The input gates must be pure quantum channels"
             control_gate_single = control_gate.get_kraus()
-        if isinstance(default_gate, (channel.Diagram, channel.Channel)):
+        if isinstance(default_gate, (Diagram, Channel)):
             assert default_gate.is_pure, \
                  "The input gates must be pure quantum channels"
             default_gate = default_gate.get_kraus()
@@ -160,12 +164,12 @@ class BitControlledGate(channel.Channel):
         super().__init__(
             f"BitControlledGate({control_gate}, {default_gate})",
             kraus,
-            channel.bit @ control_gate.dom,
+            bit @ control_gate.dom,
             control_gate.cod
         )
 
 
-class BitControlledPhaseShift(channel.Channel):
+class BitControlledPhaseShift(Channel):
     """
     Represents a phase shift operation
     that is controlled by classical bits.
@@ -182,16 +186,16 @@ class BitControlledPhaseShift(channel.Channel):
         super().__init__(
             "BitControlledPhaseShift",
             kraus,
-            channel.qmode**n_modes @ channel.mode**n_control_modes,
-            channel.mode**n_modes,
+            qmode**n_modes @ mode**n_control_modes,
+            mode**n_modes,
         )
 
 
-DiscardBit = lambda n: channel.Discard(channel.bit**n)  # noqa: E731
-DiscardMode = lambda n: channel.Discard(channel.mode**n)  # noqa: E731
+DiscardBit = lambda n: Discard(bit**n)  # noqa: E731
+DiscardMode = lambda n: Discard(mode**n)  # noqa: E731
 
 
-class ClassicalBox(channel.CQMap):
+class ClassicalBox(CQMap):
     pass
 
 
@@ -200,8 +204,8 @@ class Scalar(ClassicalBox):
         super().__init__(
             f"{value}",
             diagram.Scalar(value),
-            channel.bit**0,
-            channel.bit**0
+            bit**0,
+            bit**0
         )
 
 
@@ -215,8 +219,8 @@ class AddN(ClassicalBox):
         super().__init__(
             f"AddInt({n})",
             zw.Add(n),
-            channel.mode**n,
-            channel.mode
+            mode**n,
+            mode
         )
 
 
@@ -235,8 +239,8 @@ class SubN(ClassicalBox):
                 diagram.Id(diagram.Mode(1)) @ diagram.Spider(2, 0,
                                                              diagram.Mode(1))
             ),
-            channel.mode**2,
-            channel.mode
+            mode**2,
+            mode
         )
 
 
@@ -250,8 +254,8 @@ class MultiplyN(ClassicalBox):
         super().__init__(
             "MultiplyInt",
             zw.Multiply(),
-            channel.mode**2,
-            channel.mode
+            mode**2,
+            mode
         )
 
 
@@ -266,8 +270,8 @@ class DivideN(ClassicalBox):
         super().__init__(
             "DivideInt",
             zw.Divide(),
-            channel.mode**2,
-            channel.mode
+            mode**2,
+            mode
         )
 
 
@@ -282,8 +286,8 @@ class Mod2(ClassicalBox):
         super().__init__(
             "ModInt",
             zw.Mod2(),
-            channel.mode,
-            channel.bit
+            mode,
+            bit
         )
 
 
@@ -298,8 +302,8 @@ class CopyN(ClassicalBox):
         super().__init__(
             f"CopyInt({n})",
             diagram.Spider(1, n, diagram.Mode(1)),
-            channel.mode,
-            channel.mode**n
+            mode,
+            mode**n
         )
 
 
@@ -314,8 +318,8 @@ class SwapN(ClassicalBox):
         super().__init__(
             "SwapInt",
             diagram.Swap(diagram.Mode(1), diagram.Mode(1)),
-            channel.mode**2,
-            channel.mode**2
+            mode**2,
+            mode**2
         )
 
 
@@ -329,14 +333,14 @@ class PostselectBit(ClassicalBox):
         if not all(bit in (0, 1) for bit in bits):
             raise ValueError("Bits must be a list of 0s and 1s.")
         kraus = zx.X(1, 0, 0.5**bits[0])
-        for bit in bits[1:]:
-            kraus = kraus @ zx.X(1, 0, 0.5**bit)
+        for b in bits[1:]:
+            kraus = kraus @ zx.X(1, 0, 0.5**b)
         kraus = kraus @ diagram.Scalar(1 / np.sqrt(2**len(bits)))
         super().__init__(
             f"PostselectBit({bits})",
             kraus,
-            channel.bit**len(bits),
-            channel.bit**0
+            bit**len(bits),
+            bit**0
         )
 
 
@@ -351,8 +355,8 @@ class PostselectDigit(ClassicalBox):
         super().__init__(
             f"PostselectDigit({digits})",
             zw.Select(*digits),
-            channel.mode**len(digits),
-            channel.mode**0
+            mode**len(digits),
+            mode**0
         )
 
 
@@ -367,8 +371,8 @@ class NotBit(ClassicalBox):
         super().__init__(
             "NotBit",
             zx.X(1, 1, 0.5),
-            channel.bit,
-            channel.bit
+            bit,
+            bit
         )
 
 
@@ -383,8 +387,8 @@ class XorBit(ClassicalBox):
         super().__init__(
             f"XorBit({n})",
             zx.X(n, 1) @ diagram.Scalar(np.sqrt(n)),
-            channel.bit**n,
-            channel.bit
+            bit**n,
+            bit
         )
 
 
@@ -399,8 +403,8 @@ class AndBit(ClassicalBox):
         super().__init__(
             "AndBit",
             zx.And(n),
-            channel.bit**2,
-            channel.bit
+            bit**2,
+            bit
         )
 
 
@@ -415,8 +419,8 @@ class CopyBit(ClassicalBox):
         super().__init__(
             f"CopyBit({n})",
             zx.Z(1, n),
-            channel.bit,
-            channel.bit**n
+            bit,
+            bit**n
         )
 
 
@@ -431,8 +435,8 @@ class SwapBit(ClassicalBox):
         super().__init__(
             "SwapBit",
             diagram.Swap(diagram.Bit(1), diagram.Bit(1)),
-            channel.bit**2,
-            channel.bit**2
+            bit**2,
+            bit**2
         )
 
 
@@ -447,8 +451,8 @@ class OrBit(ClassicalBox):
         super().__init__(
             f"OrBit({n})",
             zx.Or(n),
-            channel.bit**n,
-            channel.bit
+            bit**n,
+            bit
         )
 
 
@@ -463,8 +467,8 @@ class Z(ClassicalBox):
         super().__init__(
             f"Z({phase})",
             kraus,
-            channel.bit**n_legs_in,
-            channel.bit**n_legs_out,
+            bit**n_legs_in,
+            bit**n_legs_out,
         )
 
 
@@ -479,8 +483,8 @@ class X(ClassicalBox):
         super().__init__(
             f"X({phase})",
             kraus,
-            channel.bit**n_legs_in,
-            channel.bit**n_legs_out,
+            bit**n_legs_in,
+            bit**n_legs_out,
         )
 
 
@@ -495,8 +499,8 @@ class H(ClassicalBox):
         super().__init__(
             "H",
             kraus,
-            channel.bit,
-            channel.bit,
+            bit,
+            bit,
         )
 
 
@@ -575,7 +579,7 @@ class BinaryMatrix(ControlChannel):
         )
 
 
-class Select(channel.Channel):
+class Select(Channel):
     def __init__(self, *photons: int):
         self.photons = photons
         super().__init__(
@@ -596,8 +600,8 @@ class Digit(ClassicalBox):
         super().__init__(
             f"Digit({photons})",
             zw.Create(*photons),
-            channel.mode**0,
-            channel.mode**len(photons)
+            mode**0,
+            mode**len(photons)
         )
 
 
@@ -606,6 +610,6 @@ Bit = lambda *bits: PostselectBit(*bits).dagger()  # noqa: E731
 
 def Id(n):
     if isinstance(n, channel.Ty):
-        return channel.Diagram.id(n)
+        return Diagram.id(n)
     else:
         raise TypeError(f"Expected a channel.Ty, got {type(n)}")
