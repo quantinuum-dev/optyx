@@ -1,5 +1,5 @@
 from optyx.photonic import DualRail, FusionTypeI, FusionTypeII, Phase, HadamardBS
-from optyx.qubit import Z, Scalar
+from optyx.qubits import Z, Scalar
 from optyx.core.channel import qmode, bit
 from optyx.classical import PostselectBit, BitControlledGate
 from optyx.photonic import Id

@@ -352,21 +352,21 @@ class Diagram(frobenius.Diagram):
     def from_tket(cls, tket_circuit):
         """Convert from tket circuit."""
         # pylint: disable=import-outside-toplevel
-        from optyx.qubit import Circuit
+        from optyx.qubits import Circuit
         return Circuit(tket_circuit)
 
     @classmethod
     def from_pyzx(cls, pyzx_circuit):
         """Convert from PyZX circuit."""
         # pylint: disable=import-outside-toplevel
-        from optyx.qubit import Circuit
+        from optyx.qubits import Circuit
         return Circuit(pyzx_circuit)
 
     @classmethod
     def from_discopy(cls, discopy_circuit):
         """Convert from discopy circuit."""
         # pylint: disable=import-outside-toplevel
-        from optyx.qubit import Circuit
+        from optyx.qubits import Circuit
         return Circuit(discopy_circuit)
 
     @classmethod
@@ -455,7 +455,7 @@ class Channel(symmetric.Box, Diagram):
 
     def _decomp(self):
         # pylint: disable=import-outside-toplevel
-        from optyx.qubit import QubitChannel
+        from optyx.qubits import QubitChannel
         decomposed = zx.decomp(self.kraus)
         return explode_channel(
             decomposed,

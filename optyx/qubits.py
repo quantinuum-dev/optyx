@@ -118,7 +118,10 @@ First, evaluate with tket:
 
 Then, evaluate with Optyx:
 
->>> res = (Circuit(ghz_circ).double().to_tensor().to_quimb()^...).data
+>>> from optyx import classical
+>>> circ = Circuit(ghz_circ)
+>>> circ = Ket(0)**3 @ classical.Bit(0)**3 >> circ >> Discard(3) @ bit**3
+>>> res = (circ.double().to_tensor().to_quimb()^...).data
 >>> rounded_result = np.round(res, 6)
 >>> non_zero_dict = {idx: val for idx, val
 ...   in np.ndenumerate(rounded_result) if val != 0}
@@ -254,7 +257,7 @@ class Circuit(Diagram):
         Convert a tket circuit to an optyx channel diagram.
         """
         underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
-            underlying_circuit
+            underlying_circuit, init_and_discard=False
         )
         return cls._to_optyx_from_discopy(underlying_circuit)
 

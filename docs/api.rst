@@ -8,6 +8,6 @@ API
     optyx.core
     optyx.classical
     optyx.photonic
-    optyx.qubit
+    optyx.qubits
     optyx.compiler
 
