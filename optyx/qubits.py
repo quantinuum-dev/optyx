@@ -64,7 +64,189 @@ Errors
 Examples of usage
 ------------------
 
-**ZX diagrams**
+**Pure ZX diagrams**
+
+The main way of defining qubit maps in :code:`optyx` is using ZX diagrams.
+In particular, in the setting of photonic quantum computing, we are interested
+in using them to represent graph states for MBQC or fusion-based computing.
+The table below pairs common **single- and two-qubit gates** with a ZX
+diagrams. For example we have the following translation from common
+quantum gates to ZX diagrams:
+
+======================  ===========================================
+Gate                    ZX diagram
+======================  ===========================================
+Identity ``I``          ``Id(1)``
+Phase gate ``Rz(a)``    ``Z(1, 1, a)``
+Phase gate ``Rx(b)``    ``X(1, 1, b)``
+Hadamard ``H``          ``H()``
+CNOT (CX)               ``(Id(1) @ Z(1, 2)) >> (X(2, 1) @ Id(1))``
+Controlled-Z (CZ)       ``(Id(1) @ Z(1, 2)) >> Id(1) @ H() @ Id(1) >> (Z(2, 1) @ Id(1))``
+SWAP                    ``(X(1, 2) @ Id(1)) >> (Id(1) @ Z(2, 1)) >> (X(1, 2) @ Id(1))``
+======================  ===========================================
+
+
+A single-qubit phase gate:
+
+>>> rz = Z(1, 1, 0.5)      # Rz(pi)
+>>> rz.draw(path='docs/_static/rz.svg')
+
+.. image:: /_static/rz.svg
+   :align: center
+
+
+CNOT expressed in ZX:
+
+>>> cnot_zx = (Id(1) @ Z(1, 2)) >> (X(2, 1) @ Id(1))
+>>> cnot_zx.draw(path='docs/_static/cnot_zx.svg', figsize=(4, 2))
+
+.. image:: /_static/cnot_zx.svg
+   :align: center
+
+CZ gate expressed in ZX:
+
+>>> cz_zx = (Id(1) @ Z(1, 2)) >> Id(1) @ H() @ Id(1) >> (Z(2, 1) @ Id(1))
+>>> cz_zx.draw(path='docs/_static/cz_zx.svg', figsize=(4, 2))
+
+.. image:: /_static/cz_zx.svg
+    :align: center
+
+**Classical-quantum ZX diagrams**
+
+We now add new generators to the ZX-calculus to represent
+mixed channels with classical data:
+
+* :code:`Encode` (:code:`bit` -> :code:`qubit`) for encoding classical bits into qubits
+* :code:`Measure` (:code:`qubit` -> :code:`bit`) for measuring qubits and obtaining classical bits
+* :code:`Discard` (:code:`qubit` -> :code:`0`) for discarding qubits
+
+We can therefore measure a quantum register and perform classical
+operations on the results, such as copying or discarding bits.
+
+>>> from optyx.classical import (
+...    X as XClassical
+... )
+>>> quantum_state = Ket(0) >> H() >> Z(1, 1, 0.5)
+>>> classical_state = quantum_state >> Measure(1)
+>>> classical_state_operation = classical_state >> XClassical(1, 1, 0.5)
+
+:code:`XClassical(1, 1, 0.5)` acts as a NOT gate on the classical bit result.
+
+>>> classical_state_operation.draw(path='docs/_static/classical_state.svg',
+... figsize=(3, 5))
+
+.. image:: /_static/classical_state.svg
+    :align: center
+
+**Quantum teleportation**
+
+Quantum teleportation is the canonical example of
+a ZX diagram that uses classical data. In :code:`optyx`,
+we can make use of controlled boxes from :code:`optyx.classical`
+to correct the state of the qubit depending on the measurement result.
+
+>>> from optyx.classical import (
+...    BitControlledGate, Id as IdClassical
+... )
+>>> from optyx import bit
+>>> teleportation = (
+...     Id(1) @ Z(0, 2) @ Scalar(2**0.5)>>
+...     Z(1, 2) @ Id(2) >>
+...     Id(1) @ Z(2, 1) @ Id(1) >>
+...     Id(1) @ H() @ Id(1) >>
+...     Measure(1)**2 @ Id(1) >>
+...     IdClassical(bit) @ BitControlledGate(X(1, 1, 0.5)) >>
+...     BitControlledGate(Z(1, 1, 0.5))
+... )
+
+>>> teleportation.draw(path='docs/_static/teleportation_qubit.svg',
+... figsize=(4, 6))
+
+.. image:: /_static/teleportation_qubit.svg
+    :align: center
+
+This produces the same protocol as an identity operation:
+
+>>> assert np.allclose(
+...     (teleportation.double().to_tensor().to_quimb()^...).data,
+...     (Id(1).double().to_tensor().to_quimb()^...).data
+... )
+
+**Interfacing with external tools**
+
+In :code:`optyx`, we can convert circuits from
+:code:`tket`, :code:`discopy`, or :code:`pyzx` to ZX diagrams.
+
+Let us consider a simple :code:`tket` circuit that creates a
+GHZ state:
+
+>>> import pytket
+>>> import matplotlib.pyplot as plt
+>>> from pytket.extensions.qiskit import tk_to_qiskit
+>>> from qiskit.visualization import circuit_drawer
+>>> ghz_circ = pytket.Circuit(3).H(0).CX(0, 1).CX(1, 2).measure_all()
+>>> fig = circuit_drawer(tk_to_qiskit(ghz_circ), output="mpl",
+...   interactive=False)
+>>> fig.savefig("docs/_static/ghz_circuit_qiskit.png")
+>>> plt.close(fig)
+
+.. image:: /_static/ghz_circuit_qiskit.png
+    :align: center
+
+We can explicitly convert it to optyx. The resulting circuit involves
+explicit manipulation of classical data.
+
+>>> Circuit(ghz_circ).draw(path="docs/_static/ghz_circuit_exp.svg",
+... figsize=(6, 9))
+
+.. image:: /_static/ghz_circuit_exp.svg
+    :align: center
+
+We can evaluate these two curcuits.
+First, let's evaluate with tket:
+
+>>> from pytket.extensions.qiskit import AerBackend
+>>> from pytket.utils import probs_from_counts
+>>> backend = AerBackend()
+>>> compiled_circ = backend.get_compiled_circuit(ghz_circ)
+>>> handle = backend.process_circuit(compiled_circ, n_shots=200000)
+>>> counts = backend.get_result(handle).get_counts()
+>>> tket_probs = probs_from_counts({key: np.round(v, 2) \\
+... for key, v in probs_from_counts(counts).items()})
+
+Then, let us evaluate with Optyx:
+
+>>> from optyx import classical
+>>> circ = Circuit(ghz_circ)
+>>> circ = Ket(0)**3 @ classical.Bit(0)**3 >> circ >> Discard(3) @ bit**3
+>>> res = (circ.double().to_tensor().to_quimb()^...).data
+>>> rounded_result = np.round(res, 6)
+>>> non_zero_dict = {idx: val for idx, val
+...   in np.ndenumerate(rounded_result) if val != 0}
+
+They agree:
+
+>>> assert tket_probs == non_zero_dict
+
+**Interaction with photonic components**
+
+We can use a circuit from an external package to define a
+graph state, which can then be used for photonic quantum computing.
+Let us use the GHZ state from the example above.
+
+>>> from optyx.classical import DiscardBit, Z as ZClassical
+>>> circ = Circuit(ghz_circ)
+>>> circ = Ket(0)**3 @ classical.Bit(0)**3 >> circ >> qubit**3 @ ZClassical(1, 0)**3
+
+>>> from optyx.photonic import DualRail, HadamardBS, XMeasurementDR
+>>> circ_photonic = circ >> DualRail(3) >> HadamardBS() @ XMeasurementDR(0.5)**2
+>>> circ_photonic.draw(path="docs/_static/ghz_circ_photonic.svg",
+... figsize=(6, 12))
+
+.. image:: /_static/ghz_circ_photonic.svg
+    :align: center
+
+**Direct convertion to dual-rail encoding**
 
 We can create a graph state as follows
 (where we omit the labels):
@@ -80,55 +262,6 @@ We can create a graph state as follows
 
 .. image:: /_static/graph_dr_qubit.svg
     :align: center
-
-
-**Converting from tket**
-
->>> import pytket
->>> import matplotlib.pyplot as plt
->>> from pytket.extensions.qiskit import tk_to_qiskit
->>> from qiskit.visualization import circuit_drawer
->>> ghz_circ = pytket.Circuit(3).H(0).CX(0, 1).CX(1, 2).measure_all()
->>> fig = circuit_drawer(tk_to_qiskit(ghz_circ), output="mpl",
-...   interactive=False)
->>> fig.savefig("docs/_static/ghz_circuit_qiskit.png")
->>> plt.close(fig)
-
-.. image:: /_static/ghz_circuit_qiskit.png
-    :align: center
-
-We can explicitly convert it to optyx though. The resulting circuit involves
-explicit manipulation of classical data.
-
->>> Circuit(ghz_circ).draw(path="docs/_static/ghz_circuit_exp.svg")
-
-.. image:: /_static/ghz_circuit_exp.svg
-    :align: center
-
-First, evaluate with tket:
-
->>> from pytket.extensions.qiskit import AerBackend
->>> from pytket.utils import probs_from_counts
->>> backend = AerBackend()
->>> compiled_circ = backend.get_compiled_circuit(ghz_circ)
->>> handle = backend.process_circuit(compiled_circ, n_shots=200000)
->>> counts = backend.get_result(handle).get_counts()
->>> tket_probs = probs_from_counts({key: np.round(v, 2) \\
-... for key, v in probs_from_counts(counts).items()})
-
-Then, evaluate with Optyx:
-
->>> from optyx import classical
->>> circ = Circuit(ghz_circ)
->>> circ = Ket(0)**3 @ classical.Bit(0)**3 >> circ >> Discard(3) @ bit**3
->>> res = (circ.double().to_tensor().to_quimb()^...).data
->>> rounded_result = np.round(res, 6)
->>> non_zero_dict = {idx: val for idx, val
-...   in np.ndenumerate(rounded_result) if val != 0}
-
-They agree:
-
->>> assert tket_probs == non_zero_dict
 
 """
 
@@ -164,60 +297,6 @@ class Circuit(Diagram):
 
     def __new__(cls, circuit):
         return cls._to_optyx(circuit)
-
-    # def double(self):
-    #     """
-    #     Convert the circuit to a double circuit.
-    #     """
-    #     return self._to_optyx().double()
-
-    # @property
-    # def is_pure(self):
-    #     """
-    #     Check if the circuit is pure.
-    #     """
-    #     return self._to_optyx().is_pure
-
-    # def get_kraus(self):
-    #     """
-    #     Get the kraus operators of the circuit.
-    #     """
-    #     return self._to_optyx().get_kraus()
-
-    # def _get_dom_cod(self):
-    #     if self.type == "tket":
-    #         self._underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
-    #             self._underlying_circuit
-    #         )
-    #         self.type = "discopy"
-    #     if self.type == "discopy":
-    #         assert all(o.name in ("qubit", "bit") for o in
-    #                    self._underlying_circuit.dom), \
-    #                     "Only bit and qubit allowed"
-    #         assert all(o.name in ("qubit", "bit") for o in
-    #                    self._underlying_circuit.cod), \
-    #                     "Only bit and qubit allowed"
-    #         return (
-    #             channel.Ty().tensor(
-    #                 *[qubit if o.name == "qubit" else
-    #                   bit for o in self._underlying_circuit.dom]
-    #             ),
-    #             channel.Ty().tensor(
-    #                 *[qubit if o.name == "qubit" else
-    #                   bit for o in self._underlying_circuit.cod]
-    #             )
-    #         )
-    #     if self.type == "pyzx":
-    #         return (
-    #             qubit**len(self._underlying_circuit.inputs()),
-    #             qubit**len(self._underlying_circuit.outputs())
-    #         )
-    #     if self.type == "zx":
-    #         return (
-    #             self._underlying_circuit.dom,
-    #             self._underlying_circuit.cod
-    #         )
-    #     raise TypeError("Unsupported circuit type")  # pragma: no cover
 
     @classmethod
     def _detect_type(cls, underlying_circuit):
@@ -272,10 +351,6 @@ class Circuit(Diagram):
             Channel,
             Diagram
         )
-
-    # def to_dual_rail(self):
-    #     """Convert to dual-rail encoding."""
-    #     return self._to_optyx().to_dual_rail()
 
     @classmethod
     def _to_optyx_from_discopy(cls, underlying_circuit):

@@ -93,9 +93,9 @@ quantum interference forces them to exit together through
 the same output port, eliminating coincident detections.
 The depth of the resulting “HOM dip” is the usual test of photon
 indistinguishability — crucial for reliable entangling operations
-and scalable photonic circuits—so any deviation from a perfect
- dip directly exposes timing, spectral or polarization mismatches
- that would otherwise degrade gate fidelity.
+and scalable photonic circuits - so any deviation from a perfect
+dip directly exposes timing, spectral or polarization mismatches
+that would otherwise degrade gate fidelity.
 
 Let's use the beam-splitter to experiment with the Hong-Ou-Mandel effect.
 Beam-splitter is just a box in the diagram, which we can draw:
@@ -869,7 +869,7 @@ class ZMeasurementDR(Diagram):
         """
         return (
             qmode @ Phase(alpha) >>
-            HadamardBS >>
+            HadamardBS() >>
             NumberResolvingMeasurement(2) >>
             DiscardMode(1) @ mode
         )
@@ -882,7 +882,7 @@ class XMeasurementDR(Diagram):
         after applying a Hadamard beam splitter.
         """
         return (
-            HadamardBS >>
+            HadamardBS() >>
             ZMeasurementDR(alpha)
         )
 
@@ -987,7 +987,7 @@ class PhotonLoss(Channel):
     ...     (loss_double.double().to_tensor().to_quimb()^...).data
     ... )
 
-    Survival probability of 0.0 means, the photon is lost with certainty:
+    Survival probability of 0.0 means the photon is lost with certainty:
 
     >>> loss = Create(1) >> PhotonLoss(0.0)
     >>> zero_state = Create(0)
@@ -996,7 +996,7 @@ class PhotonLoss(Channel):
     ...     (zero_state.double().to_tensor().to_quimb()^...).data
     ... )
 
-    Survival probability of 1.0 means, the photon is never lost:
+    Survival probability of 1.0 means the photon is never lost:
 
     >>> loss = Create(1) >> PhotonLoss(1.0)
     >>> one_state = Create(1)

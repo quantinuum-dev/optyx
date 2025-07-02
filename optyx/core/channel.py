@@ -378,6 +378,12 @@ class Diagram(frobenius.Diagram):
             )
         )
 
+    # pylint: disable=invalid-name
+    def __pow__(self, n):
+        if n == 1:
+            return self
+        return self @ self ** (n - 1)
+
 
 class Channel(symmetric.Box, Diagram):
     """
@@ -438,12 +444,6 @@ class Channel(symmetric.Box, Diagram):
         top = top_spiders >> top_perm
         bot = swap_env >> discard >> bot_perm >> bot_spiders
         return top >> self.kraus @ self.kraus.conjugate() >> bot
-
-    # pylint: disable=invalid-name
-    def __pow__(self, n):
-        if n == 1:
-            return self
-        return self @ self ** (n - 1)
 
     def dagger(self):
         return Channel(
