@@ -75,30 +75,40 @@ Other
 
     NumOp
     Scalar
+    PhotonLoss
 
 
 Examples of usage
 ------------------
 
-Let us check if a beam splitter showcases a valid Hang-Ou-Mandel effect:
+**Hang-Ou-Mandel effect**
 
->>> from optyx.classical import Select
+We can use the linear optical generators to build photonic "chips"
+to simulate quantum photonics experiments.
+
+The Hong-Ou-Mandel (HOM) effect is a two-photon interference phenomenon:
+when two perfectly indistinguishable photons enter
+the two input ports of a 50:50 beam-splitter at the same time,
+quantum interference forces them to exit together through
+the same output port, eliminating coincident detections.
+The depth of the resulting “HOM dip” is the usual test of photon
+indistinguishability — crucial for reliable entangling operations
+and scalable photonic circuits—so any deviation from a perfect
+ dip directly exposes timing, spectral or polarization mismatches
+ that would otherwise degrade gate fidelity.
+
+Let's use the beam-splitter to experiment with the Hong-Ou-Mandel effect.
+Beam-splitter is just a box in the diagram, which we can draw:
+
 >>> BS = BBS(0)
->>> diagram = Create(1, 1) >> BS
->>> assert np.isclose((diagram >> Select(0, 2)).to_path().prob().array, 0.5)
->>> diagram.draw(path='docs/_static/BS.png')
+>>> BS.draw(path='docs/_static/BS.png')
 
 .. image:: /_static/BS.png
     :align: center
 
-The function :code:`ansatz` generates a universal interferometer:
-
->>> ansatz(6, 4).draw(path='docs/_static/ansatz6_4.png')
-
-.. image:: /_static/ansatz6_4.png
-    :align: center
-
-Some diagrams of the module can be converted to a :class:`zw` diagram:
+Some of the diagrams of the module can be converted to :class:`zw` diagrams.
+This includes the beam splitter. The :code:`zw` diagram is used to
+construct the tensor network for evaluation.
 
 >>> from discopy.drawing import Equation
 >>> BS = BBS(0)
@@ -109,29 +119,15 @@ Some diagrams of the module can be converted to a :class:`zw` diagram:
 .. image:: /_static/double_BS.png
     :align: center
 
-**Evaluating linear optical circuits**
-
-:class:`lo` generators correspond to physical linear
-optical devices. We can use them to build photonic "chips"
-to simulate quantum photonics experiments.
-
-As an example, let us consider a beam splitter and the
-Hong-Ou-Mandel effect.
-
-First, let's create a beam splitter:
-
->>> BS = BBS(0)
->>> BS.draw(path='docs/_static/BS_hom.png', figsize=(2, 2))
-
-.. image:: /_static/BS_hom.png
-    :align: center
+**Evaluating circuits with tensor networks**
 
 If we want to evaluate the effect of
 inputting two photons using :code:`quimb`,
 we need to feed the circuit with two photons.
 Finally, let's check the effect of having both
-photons on two output modes.
+photons on two output modes using postselection.
 
+>>> from optyx.classical import Select
 >>> diagram_qpath = Create(1, 1) >> BS >> Select(1, 1)
 >>> diagram_qpath.draw(path='docs/_static/BS_hom_2.png', figsize=(3, 3))
 
@@ -141,38 +137,110 @@ photons on two output modes.
 >>> float(np.round(diagram_qpath.double().to_tensor().to_quimb()^..., 1))
 0.0
 
-We can also do the same using :code:`Perceval`:
+It is an impossible event for an ideal beam splitter.
+
+**Evaluating circuits with using permanent-based methods**
+
+We can also evaluate the same experiment using :code:`Perceval`:
 
 >>> diagram_qpath.to_path().prob_with_perceval().array[0, 0]
 0j
 
-**Differentiation**
+**Photon loss**
 
-We can also differentiate the expectation values of optical circuits.
+Photon loss is the disappearance of a qubit-carrying photon—through absorption,
+scattering, imperfect coupling, or detector inefficiency—before it
+can participate in its intended operation. Because each photonic
+qubit exists in just one photon (in dual rail encoding),
+losing that photon erases the quantum
+state entirely, so circuit success probabilities plummet
+as systems grow and errors accumulate. As photon-loss is the
+leading source of error in current photonic systems, it is
+important to be able model it.
 
->>> from sympy.abc import psi
->>> circuit = BS >> Phase(psi) @ Id(1) >> BS.dagger()
->>> state = Create(2, 0) >> circuit
->>> observable = NumOp() @ Id(1)
->>> expectation = state >> observable >> state.dagger()
->>> assert np.allclose(
-...     expectation.subs((psi, 1/2)).to_path().eval().array, np.array([0.]))
->>> assert np.allclose(
-...     expectation.subs((psi, 1/4)).to_path().eval().array, np.array([1.]))
->>> exp = expectation.grad(psi).subs((psi, 1/2))
->>> assert np.allclose(
-...     sum([exp.terms[i].to_path().eval().array[0] \\
-...      for i in range(len(exp.terms))]), 0.)
->>> exp = expectation.grad(psi).subs((psi, 1/4))
->>> assert np.allclose(
-...     sum([exp.terms[i].to_path().eval().array[0] \\
-...      for i in range(len(exp.terms))]),
-...     -2*np.pi)
->>> exp = expectation.grad(psi).grad(psi).subs((psi, 1/4))
->>> assert np.allclose(
-...     sum([exp.terms[i].to_path().eval().array[0] \\
-...      for i in range(len(exp.terms))]),
-...     np.array([0.]))
+With photon loss, HOM effect does not hold anymore.
+We can actually observe one photon in one output mode with a non-zero
+probability.
+
+>>> diagram_qpath = (
+...     Create(1, 1) >>
+...     PhotonLoss(0.2) @ Id(1) >>
+...     BS >>
+...     Select(1, 0)
+... )
+>>> diagram_qpath.draw(path='docs/_static/BS_loss.png', figsize=(3, 3))
+
+.. image:: /_static/BS_loss.png
+    :align: center
+
+>>> np.round(diagram_qpath.double().to_tensor().to_quimb()^..., 1)
+0.4
+
+**Photon distinguishability**
+
+If two photons carry subtle features which allow for telling them apart —
+arriving a few nanoseconds apart, having different energies,
+or differing in polarisation — their paths can be told apart.
+In photonic quantum computing that is a serious
+drawback, because most logic operations rely on two
+or more photons behaving as
+perfectly identical “bosons” that merge, overlap
+and interfere. When the photons
+are distinguishable that interference is weakened,
+so the gates misfire more often
+and the computation accumulates errors long before
+it can finish. Keeping photons truly
+indistinguishable therefore sits alongside low loss
+and high detector efficiency as one
+of the core engineering targets for scalable photonic processors.
+
+Again, we can model photon distinguishability in :code:`optyx`.
+Let us try the Hong-Ou-Mandel effect with distinguishable photons.
+
+The two internal states are random:
+
+>>> internal_state_1 = np.random.rand(2) + 1j*np.random.rand(2)
+>>> internal_state_1 = internal_state_1 / np.linalg.norm(internal_state_1)
+>>> internal_state_2 = np.random.rand(2) + 1j*np.random.rand(2)
+>>> internal_state_2 = internal_state_2 / np.linalg.norm(internal_state_2)
+
+:code:`Create` accepts internal states of photons as an argument:
+
+>>> channel_HOM = (
+...     Create(1, 1, internal_states=(internal_state_1,
+...                                 internal_state_2)) >>
+...     BS >> NumberResolvingMeasurement(2)
+... )
+
+>>> channel_HOM.draw(path='docs/_static/BS_hom_distinguishable.png',
+... figsize=(3, 3))
+
+.. image:: /_static/BS_hom_distinguishable.png
+    :align: center
+
+Let's evaluate the circuit with distinguishable photons.
+:code:`Channel.inflate` is used to indicate
+evaluation of the channel taking into account the internal states:
+
+>>> channel_HOM = channel_HOM.inflate(len(internal_state_1))
+>>> result = (
+...     channel_HOM.double().to_tensor(max_dim=3).to_quimb()^...
+... ).data
+
+Let's get the probabilities of the outcomes:
+
+>>> rounded_result = np.round(result, 6)
+>>> non_zero_dict = {idx: val for idx, val in
+...     np.ndenumerate(rounded_result) if val != 0}
+
+The probability of detecting one photon in each output mode is
+:math:`\\frac{1}{2} - \\frac{1}{2} |\\langle s_1 | s_2 \\rangle|^2`.
+
+>>> assert np.isclose(
+...     non_zero_dict[(1, 1)],
+...     0.5 - 0.5*np.abs(np.array(internal_state_1) \\
+...         .dot(np.array(internal_state_2).conjugate()))**2, 3
+... )
 
 References
 ----------
@@ -903,6 +971,54 @@ class FusionTypeI(Diagram):
 class Swap(channel.Swap):
     def __init__(self, left, right):
         super().__init__(qmode**left, qmode**right)
+
+
+class PhotonLoss(Channel):
+    """
+    Photon loss channel that models the loss of a photon
+    with a given survival probability.
+
+    Examples
+    -------
+    >>> loss_single = PhotonLoss(0.25)
+    >>> loss_double = PhotonLoss(0.5) >> PhotonLoss(0.5)
+    >>> assert np.allclose(
+    ...     (loss_single.double().to_tensor().to_quimb()^...).data,
+    ...     (loss_double.double().to_tensor().to_quimb()^...).data
+    ... )
+
+    Survival probability of 0.0 means, the photon is lost with certainty:
+
+    >>> loss = Create(1) >> PhotonLoss(0.0)
+    >>> zero_state = Create(0)
+    >>> assert np.allclose(
+    ...     (loss.double().to_tensor().to_quimb()^...).data,
+    ...     (zero_state.double().to_tensor().to_quimb()^...).data
+    ... )
+
+    Survival probability of 1.0 means, the photon is never lost:
+
+    >>> loss = Create(1) >> PhotonLoss(1.0)
+    >>> one_state = Create(1)
+    >>> assert np.allclose(
+    ...     (loss.double().to_tensor().to_quimb()^...).data,
+    ...     (one_state.double().to_tensor().to_quimb()^...).data
+    ... )
+    """
+
+    def __init__(self, p_survive):
+        self.p_survive = p_survive
+        kraus = (
+            zw.W(2) >>
+            zw.Endo(p_survive**0.5) @ zw.Endo((1-p_survive)**0.5)
+        )
+        super().__init__(
+            f"Loss({p_survive})",
+            kraus,
+            qmode,
+            qmode @ channel.Ty(),
+            env = qmode.single()
+        )
 
 
 class FusionTypeII(Diagram):
