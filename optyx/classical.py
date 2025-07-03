@@ -8,7 +8,7 @@ freely composed with quantum channels in *optyx*.
 The module covers
 
 * **logic gates** on bits,
-* **arithmetic** on modes (:math:`\mathbb{N}`) (addition, multiplication, ...),
+* **arithmetic** on modes (:math:`\\mathbb{N}`),
 * **control boxes** that condition quantum sub-circuits on classical data,
 * **classical functions** defined by a Python function, or a binary matrix,
 * generators for **copying, swapping, post-selection** and **discarding**
@@ -103,8 +103,10 @@ We can implement classical functions:
 
 **2. A bit-controlled Pauli-Z on a photonic dual-rail qubit**
 
-The classical functions defined above can be used to control quantum operations.
-In particular, given classical measurement outcomes, we can perform postprocessing
+The classical functions defined above can be
+used to control quantum operations.
+In particular, given classical measurement outcomes,
+we can perform postprocessing
 and feed the result into a controlled quantum gate.
 
 >>> from optyx.photonic import DualRail, PhaseShiftDR
@@ -129,9 +131,8 @@ and feed the result into a controlled quantum gate.
 
 """
 
-import numpy as np
-
 from typing import Callable, List
+import numpy as np
 from optyx.core import (
     channel,
     control,
@@ -205,10 +206,16 @@ DiscardMode = lambda n: Discard(mode**n)  # noqa: E731
 
 
 class ClassicalBox(CQMap):
-    pass
+    """
+    Base class for classical boxes.
+    """
 
 
 class Scalar(ClassicalBox):
+    """
+    Scalar box in the classical circuit.
+    """
+
     def __init__(self, value):
         super().__init__(
             f"{value}",
@@ -342,6 +349,7 @@ class PostselectBit(ClassicalBox):
         if not all(bit in (0, 1) for bit in bits):
             raise ValueError("Bits must be a list of 0s and 1s.")
         kraus = zx.X(1, 0, 0.5**bits[0])
+        # pylint: disable=invalid-name
         for b in bits[1:]:
             kraus = kraus @ zx.X(1, 0, 0.5**b)
         kraus = kraus @ diagram.Scalar(1 / np.sqrt(2**len(bits)))
@@ -465,6 +473,7 @@ class OrBit(ClassicalBox):
         )
 
 
+# pylint: disable=invalid-name
 class Z(ClassicalBox):
     """Z spider."""
     tikzstyle_name = "Z"
@@ -481,6 +490,7 @@ class Z(ClassicalBox):
         )
 
 
+# pylint: disable=invalid-name
 class X(ClassicalBox):
     """X spider."""
     tikzstyle_name = "X"
@@ -497,6 +507,7 @@ class X(ClassicalBox):
         )
 
 
+# pylint: disable=invalid-name
 class H(ClassicalBox):
     """Hadamard spider."""
     tikzstyle_name = "H"
@@ -520,7 +531,6 @@ class ControlChannel(ClassicalBox):
     into a CQMap, allowing
     it to be used as a control channel in hybrid quantum-classical systems.
     """
-    pass
 
 
 class ClassicalFunction(ControlChannel):
@@ -547,7 +557,7 @@ class ClassicalFunction(ControlChannel):
             dom,
             cod
         )
-        return super().__init__(
+        super().__init__(
             box.name,
             box,
             channel.Ty(
@@ -576,7 +586,7 @@ class BinaryMatrix(ControlChannel):
 
     def __init__(self, matrix):
         box = control.BinaryMatrixBox(matrix)
-        return super().__init__(
+        super().__init__(
             box.name,
             box,
             channel.Ty(
@@ -589,6 +599,9 @@ class BinaryMatrix(ControlChannel):
 
 
 class Select(Channel):
+    """
+    Post-select on an occupation number.
+    """
     def __init__(self, *photons: int):
         self.photons = photons
         super().__init__(
@@ -604,6 +617,10 @@ class Select(Channel):
 
 
 class Digit(ClassicalBox):
+    """
+    Create a classical state with
+    a natural number.
+    """
     def __init__(self, *photons: int):
         self.photons = photons
         super().__init__(
@@ -618,7 +635,9 @@ Bit = lambda *bits: PostselectBit(*bits).dagger()  # noqa: E731
 
 
 def Id(n):
+    """
+    Classical identity wire.
+    """
     if isinstance(n, channel.Ty):
         return Diagram.id(n)
-    else:
-        raise TypeError(f"Expected a channel.Ty, got {type(n)}")
+    raise TypeError(f"Expected a channel.Ty, got {type(n)}")

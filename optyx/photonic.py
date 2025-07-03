@@ -285,6 +285,7 @@ from optyx import (
     Diagram
 )
 
+
 class Scalar(Channel):
     """
     Scalar with a complex value.
@@ -372,7 +373,9 @@ class Create(Channel):
 
 
 class AbstractGate(Channel, ABC):
-
+    """
+    Abstract class for linear optical gates.
+    """
     def __init__(
         self,
         dom: int,
@@ -819,7 +822,7 @@ def ansatz(width, depth):
         left = qmode**(i % 2)
         right = qmode**(width - (i % 2) - 2 * n_mzi)
         d >>= left @ Diagram.tensor(*[MZI(*p(i, j))
-                                              for j in range(n_mzi)]) @ right
+                                      for j in range(n_mzi)]) @ right
 
     return d
 
@@ -1017,7 +1020,7 @@ class PhotonLoss(Channel):
             kraus,
             qmode,
             qmode @ channel.Ty(),
-            env = qmode.single()
+            env=qmode.single()
         )
 
 

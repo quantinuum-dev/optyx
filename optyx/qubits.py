@@ -263,10 +263,10 @@ We can create a graph state as follows
 .. image:: /_static/graph_dr_qubit.svg
     :align: center
 
-"""
+"""  # noqa E501
 
-import numpy as np
 from typing import Literal
+import numpy as np
 from pyzx.graph.base import BaseGraph
 from discopy import quantum as quantum_discopy
 from discopy import symmetric
@@ -286,6 +286,7 @@ from optyx import (
     Channel,
     Diagram
 )
+
 
 class Circuit(Diagram):
     """
@@ -319,14 +320,14 @@ class Circuit(Diagram):
         """
         Convert the circuit to an optyx channel diagram.
         """
-        type = cls._detect_type(underlying_circuit)
-        if type == "discopy":
+        type_ = cls._detect_type(underlying_circuit)
+        if type_ == "discopy":
             return cls._to_optyx_from_discopy(underlying_circuit)
-        if type == "pyzx":
+        if type_ == "pyzx":
             return cls._to_optyx_from_pyzx(underlying_circuit)
-        if type == "tket":
+        if type_ == "tket":
             return cls._to_optyx_from_tket(underlying_circuit)
-        if type == "zx":
+        if type_ == "zx":
             return cls._to_optyx_from_zx(underlying_circuit)
         raise TypeError("Unsupported circuit type")  # pragma: no cover
 
@@ -554,6 +555,7 @@ class Encode(EncodeChannel):
         )
 
 
+# pylint: disable=invalid-name
 class Z(Channel):
     """Z spider."""
 
@@ -571,6 +573,7 @@ class Z(Channel):
         )
 
 
+# pylint: disable=invalid-name
 class X(Channel):
     """X spider."""
 
@@ -588,6 +591,7 @@ class X(Channel):
         )
 
 
+# pylint: disable=invalid-name
 class H(Channel):
     """Hadamard gate."""
 
@@ -604,6 +608,10 @@ class H(Channel):
 
 
 class Scalar(Channel):
+    """
+    Scalar.
+    """
+
     def __init__(self, value: float):
         super().__init__(
             f"Scalar({value})",
@@ -619,8 +627,6 @@ class BitFlipError(Channel):
     """
 
     def __init__(self, prob):
-        # pylint: disable=import-outside-toplevel
-        from optyx.core import zx
         x_error = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
             1, 1, np.sqrt((1 - prob) / prob)
         ) @ zx.scalar(np.sqrt(prob * 2))
@@ -641,8 +647,6 @@ class DephasingError(Channel):
     Represents a quantum dephasing error channel.
     """
     def __init__(self, prob):
-        # pylint: disable=import-outside-toplevel
-        from optyx.core import zx
         z_error = (
             zx.H
             >> zx.X(1, 2)
@@ -687,5 +691,8 @@ class Bra(Channel):
 
 
 def Id(n):
+    """
+    Qubit identity wire.
+    """
     return Diagram.id(n) if \
           isinstance(n, channel.Ty) else Diagram.id(qubit**n)

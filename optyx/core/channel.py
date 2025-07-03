@@ -343,11 +343,6 @@ class Diagram(frobenius.Diagram):
 
         return self.get_kraus().to_pyzx()
 
-    def to_discopy(self):
-        raise NotImplementedError(
-            "Conversion to discopy is not implemented for optyx diagrams."
-        )
-
     @classmethod
     def from_tket(cls, tket_circuit):
         """Convert from tket circuit."""
@@ -464,7 +459,7 @@ class Channel(symmetric.Box, Diagram):
         )
 
     def to_dual_rail(self):
-        raise NotImplementedError(
+        raise TypeError(
             "Only ZX channels can be converted to dual rail."
             )
 
