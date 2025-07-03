@@ -7,16 +7,12 @@ Classical operators acting on **bits** and
 freely composed with quantum channels in *optyx*.
 The module covers
 
-* reversible and irreversible **logic gates** on bits,
-* **arithmetic** on modes (addition, multiplication, …),
+* **logic gates** on bits,
+* **arithmetic** on modes (:math:`\mathbb{N}`) (addition, multiplication, ...),
 * **control boxes** that condition quantum sub-circuits on classical data,
-* helpers for **copying, swapping, post-selection** and **discarding**
-* syntax sugar such as :func:`Bit` and :func:`Id`.
-
-All boxes are subclasses of :class:`optyx.core.channel.Channel`
-(or its mixed-state analogue :class:`optyx.core.channel.CQMap`)
-so they can be
-placed anywhere a quantum channel could, allowing hybrid circuits.
+* **classical functions** defined by a Python function, or a binary matrix,
+* generators for **copying, swapping, post-selection** and **discarding**
+* bits, digits, & postselection such as :func:`Bit` and :func:`Digit`.
 
 Logic gates
 -----------
@@ -65,7 +61,7 @@ Control & routing
     ClassicalFunction
     BinaryMatrix
 
-Bit, digits, & selection
+Bits, digits, & selection
 ------------------------
 
 .. autosummary::
@@ -86,7 +82,13 @@ Bit, digits, & selection
 Examples of usage
 -----------------
 
-**1. Classical XOR implemented three ways**
+**1. Classical functions implemented in three ways**
+
+We can implement classical functions:
+
+1. Using a :code:`ClassicalFunction` with a Python function.
+2. Using a :code:`BinaryMatrix` to define the transformation.
+3. Using primitives such as :code:`XorBit`, :code:`AddN`, etc.
 
 >>> xor_gate = XorBit(2)
 >>>
@@ -101,12 +103,19 @@ Examples of usage
 
 **2. A bit-controlled Pauli-Z on a photonic dual-rail qubit**
 
+The classical functions defined above can be used to control quantum operations.
+In particular, given classical measurement outcomes, we can perform postprocessing
+and feed the result into a controlled quantum gate.
+
 >>> from optyx.photonic import DualRail, PhaseShiftDR
 >>> ctrl  = Bit(1)           # 1 post-selection (classical control wire)
 >>> zgate = PhaseShiftDR(0.5)
 >>> cZ    = BitControlledGate(zgate)   # applies Z only when control bit = 1
 >>> hybrid = ctrl @ DualRail(1) >> cZ
 >>> hybrid.draw(path="docs/_static/controlled_Z.svg")
+
+.. image:: /_static/controlled_Z.svg
+   :align: center
 
 **3. Arithmetic on natural-number modes**
 
