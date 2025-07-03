@@ -173,7 +173,7 @@ probability.
 .. image:: /_static/BS_loss.png
     :align: center
 
->>> np.round(diagram_qpath.double().to_tensor().to_quimb()^..., 1)
+>>> float(np.round(diagram_qpath.double().to_tensor().to_quimb()^..., 1))
 0.4
 
 **Photon distinguishability**

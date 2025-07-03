@@ -695,4 +695,4 @@ def Id(n):
     Qubit identity wire.
     """
     return Diagram.id(n) if \
-          isinstance(n, channel.Ty) else Diagram.id(qubit**n)
+        isinstance(n, channel.Ty) else Diagram.id(qubit**n)
