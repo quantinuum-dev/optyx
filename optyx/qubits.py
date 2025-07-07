@@ -454,16 +454,16 @@ class QubitChannel(Channel):
                 (Z(2, 1) >> X(1, 0, -discopy_circuit.phase / 2)) @
                 Id(1) @ root2
             )
-        if isinstance(discopy_circuit, Digits):
-            dgrm = Diagram.id(bit**0)
-            # pylint: disable=invalid-name
-            for d in discopy_circuit.digits:
-                if d > 1:
-                    raise ValueError(
-                        "Only qubits supported. Digits must be 0 or 1."
-                    )
-                dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
-            return dgrm
+        # if isinstance(discopy_circuit, Digits):
+        #     dgrm = Diagram.id(bit**0)
+        #     # pylint: disable=invalid-name
+        #     for d in discopy_circuit.digits:
+        #         if d > 1:
+        #             raise ValueError(
+        #                 "Only qubits supported. Digits must be 0 or 1."
+        #             )
+        #         dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
+        #     return dgrm
         if isinstance(discopy_circuit, quantum_discopy.CU1):
             return (
                 Z(1, 2, discopy_circuit.phase) @
@@ -478,25 +478,25 @@ class QubitChannel(Channel):
                       Controlled) and discopy_circuit.distance != 1:
             # pylint: disable=protected-access
             return Circuit(discopy_circuit._decompose())
-        if isinstance(discopy_circuit, quantum_discopy.Discard):
-            return Discard(len(discopy_circuit.dom))
-        if isinstance(discopy_circuit, quantum_discopy.Measure):
-            no_qubits = sum([1 if i.name == "qubit" else
-                             0 for i in discopy_circuit.dom])
-            dgrm = Measure(no_qubits)
-            if discopy_circuit.override_bits:
-                dgrm @= DiscardChannel(bit**no_qubits)
-            if discopy_circuit.destructive:
-                return dgrm
-            dgrm >>= classical.CopyBit(2)**no_qubits
-            dgrm >>= Diagram.permutation(
-                get_perm(2 * no_qubits), bit**(2 * no_qubits)
-            )
-            dgrm >>= (
-                Encode(no_qubits) @
-                Diagram.id(bit**no_qubits)
-            )
-            return dgrm
+        # if isinstance(discopy_circuit, quantum_discopy.Discard):
+        #     return Discard(len(discopy_circuit.dom))
+        # if isinstance(discopy_circuit, quantum_discopy.Measure):
+        #     no_qubits = sum([1 if i.name == "qubit" else
+        #                      0 for i in discopy_circuit.dom])
+        #     dgrm = Measure(no_qubits)
+        #     if discopy_circuit.override_bits:
+        #         dgrm @= DiscardChannel(bit**no_qubits)
+        #     if discopy_circuit.destructive:
+        #         return dgrm
+        #     dgrm >>= classical.CopyBit(2)**no_qubits
+        #     dgrm >>= Diagram.permutation(
+        #         get_perm(2 * no_qubits), bit**(2 * no_qubits)
+        #     )
+        #     dgrm >>= (
+        #         Encode(no_qubits) @
+        #         Diagram.id(bit**no_qubits)
+        #     )
+        #     return dgrm
         if isinstance(discopy_circuit, quantum_discopy.Encode):
             raise NotImplementedError(
                 "Converting Encode to QubitChannel is not implemented."
