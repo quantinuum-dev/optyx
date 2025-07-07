@@ -462,7 +462,7 @@ class QubitChannel(Channel):
         #             raise ValueError(
         #                 "Only qubits supported. Digits must be 0 or 1."
         #             )
-        #         dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
+        #      dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
         #     return dgrm
         if isinstance(discopy_circuit, quantum_discopy.CU1):
             return (
