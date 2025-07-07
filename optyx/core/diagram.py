@@ -904,21 +904,6 @@ class EmbeddingTensor(tensor.Box):
     def conjugate(self):
         return self
 
-    def truncation_tensor(
-        input_dims: List[int], output_dims: List[int]
-    ) -> tensor.Box:
-
-        assert len(input_dims) == len(
-            output_dims
-        ), "input_dims and output_dims must have the same length"
-
-        tensor = EmbeddingTensor(input_dims[0], output_dims[0])
-
-        for i in zip(input_dims[1:], output_dims[1:]):
-
-            tensor = tensor @ EmbeddingTensor(i[0], i[1])
-        return tensor
-
 
 def dual_rail(n, internal_states=None):
     """
