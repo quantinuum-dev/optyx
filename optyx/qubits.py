@@ -186,7 +186,7 @@ GHZ state:
 >>> #from qiskit.visualization import circuit_drawer
 >>> #ghz_circ = pytket.Circuit(3).H(0).CX(0, 1).CX(1, 2).measure_all()
 >>> #fig = circuit_drawer(tk_to_qiskit(ghz_circ), output="mpl",
-...   #interactive=False)
+>>>   #interactive=False)
 >>> #fig.savefig("docs/_static/ghz_circuit_qiskit.png")
 >>> #plt.close(fig)
 
@@ -197,7 +197,7 @@ We can explicitly convert it to optyx. The resulting circuit involves
 explicit manipulation of classical data.
 
 >>> #Circuit(ghz_circ).draw(path="docs/_static/ghz_circuit_exp.svg",
-... #figsize=(6, 9))
+>>> #figsize=(6, 9))
 
 .. image:: /_static/ghz_circuit_exp.svg
     :align: center
@@ -212,7 +212,7 @@ First, let's evaluate with tket:
 >>> #handle = backend.process_circuit(compiled_circ, n_shots=200000)
 >>> #counts = backend.get_result(handle).get_counts()
 >>> #tket_probs = probs_from_counts({key: np.round(v, 2) \\
-... #for key, v in probs_from_counts(counts).items()})
+>>> #for key, v in probs_from_counts(counts).items()})
 
 Then, let us evaluate with Optyx:
 
@@ -222,7 +222,7 @@ Then, let us evaluate with Optyx:
 >>> #res = (circ.double().to_tensor().to_quimb()^...).data
 >>> #rounded_result = np.round(res, 6)
 >>> #non_zero_dict = {idx: val for idx, val
-...   #in np.ndenumerate(rounded_result) if val != 0}
+>>>   #in np.ndenumerate(rounded_result) if val != 0}
 
 They agree:
 
@@ -241,7 +241,7 @@ Let us use the GHZ state from the example above.
 >>> #from optyx.photonic import DualRail, HadamardBS, XMeasurementDR
 >>> #circ_photonic = circ >> DualRail(3) >> HadamardBS() @ XMeasurementDR(0.5)**2
 >>> #circ_photonic.draw(path="docs/_static/ghz_circ_photonic.svg",
-... #figsize=(6, 12))
+>>> #figsize=(6, 12))
 
 .. image:: /_static/ghz_circ_photonic.svg
     :align: center
@@ -331,15 +331,15 @@ class Circuit(Diagram):
             return cls._to_optyx_from_zx(underlying_circuit)
         raise TypeError("Unsupported circuit type")  # pragma: no cover
 
-    @classmethod
-    def _to_optyx_from_tket(cls, underlying_circuit):
-        """
-        Convert a tket circuit to an optyx channel diagram.
-        """
-        underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
-            underlying_circuit, init_and_discard=False
-        )
-        return cls._to_optyx_from_discopy(underlying_circuit)
+    # @classmethod
+    # def _to_optyx_from_tket(cls, underlying_circuit):
+    #     """
+    #     Convert a tket circuit to an optyx channel diagram.
+    #     """
+    #     underlying_circuit = quantum_discopy.circuit.Circuit.from_tk(
+    #         underlying_circuit, init_and_discard=False
+    #     )
+    #     return cls._to_optyx_from_discopy(underlying_circuit)
 
     @classmethod
     def _to_optyx_from_pyzx(cls, underlying_circuit):
@@ -353,32 +353,32 @@ class Circuit(Diagram):
             Diagram
         )
 
-    @classmethod
-    def _to_optyx_from_discopy(cls, underlying_circuit):
-        """
-        Convert a discopy circuit to an optyx channel diagram.
-        """
+    # @classmethod
+    # def _to_optyx_from_discopy(cls, underlying_circuit):
+    #     """
+    #     Convert a discopy circuit to an optyx channel diagram.
+    #     """
 
-        # pylint: disable=invalid-name
-        def ob(o):
-            if o.name == "qubit":
-                return qubit**len(o)
-            if o.name == "bit":
-                return bit**len(o)
-            raise TypeError(f"Unsupported object type: {o.name}")
+    #     # pylint: disable=invalid-name
+    #     def ob(o):
+    #         if o.name == "qubit":
+    #             return qubit**len(o)
+    #         if o.name == "bit":
+    #             return bit**len(o)
+    #         raise TypeError(f"Unsupported object type: {o.name}")
 
-        return symmetric.Functor(
-            ob=ob,
-            ar=QubitChannel.from_discopy,
-            dom=symmetric.Category(
-                quantum_discopy.circuit.Ty,
-                quantum_discopy.circuit.Circuit
-            ),
-            cod=symmetric.Category(
-                channel.Ty,
-                Diagram
-            ),
-        )(underlying_circuit)
+    #     return symmetric.Functor(
+    #         ob=ob,
+    #         ar=QubitChannel.from_discopy,
+    #         dom=symmetric.Category(
+    #             quantum_discopy.circuit.Ty,
+    #             quantum_discopy.circuit.Circuit
+    #         ),
+    #         cod=symmetric.Category(
+    #             channel.Ty,
+    #             Diagram
+    #         ),
+    #     )(underlying_circuit)
 
     @classmethod
     def _to_optyx_from_zx(cls, underlying_circuit):
@@ -408,117 +408,117 @@ class QubitChannel(Channel):
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-return-statements
     # pylint: disable=too-many-branches
-    @classmethod
-    def from_discopy(cls, discopy_circuit):
-        """Turns gates into ZX diagrams."""
-        # pylint: disable=import-outside-toplevel
-        from discopy.quantum.gates import (
-            Rz, Rx,
-            CX, CZ, Controlled, Digits
-        )
-        from discopy.quantum.gates import (
-            Bra as Bra_,
-            Ket as Ket_
-        )
-        from discopy.quantum.gates import Scalar as GatesScalar
-        from optyx import classical
+    # @classmethod
+    # def from_discopy(cls, discopy_circuit):
+    #     """Turns gates into ZX diagrams."""
+    #     # pylint: disable=import-outside-toplevel
+    #     from discopy.quantum.gates import (
+    #         Rz, Rx,
+    #         CX, CZ, Controlled, Digits
+    #     )
+    #     from discopy.quantum.gates import (
+    #         Bra as Bra_,
+    #         Ket as Ket_
+    #     )
+    #     from discopy.quantum.gates import Scalar as GatesScalar
+    #     from optyx import classical
 
-        # pylint: disable=invalid-name
-        def get_perm(n):
-            return sorted(sorted(list(range(n))), key=lambda i: i % 2)
+    #     # pylint: disable=invalid-name
+    #     def get_perm(n):
+    #         return sorted(sorted(list(range(n))), key=lambda i: i % 2)
 
-        root2 = Scalar(2**0.5)
-        if isinstance(discopy_circuit, (Bra_, Ket_)):
-            dom, cod = (1, 0) if isinstance(discopy_circuit, Bra_) else (0, 1)
-            spiders = [X(dom, cod, phase=0.5 * bit)
-                       for bit in discopy_circuit.bitstring]
-            return Id(0).tensor(*spiders) @ Scalar(
-                pow(2, -len(discopy_circuit.bitstring) / 2)
-            )
-        if isinstance(discopy_circuit, (Rz, Rx)):
-            return (Z if isinstance(discopy_circuit, Rz)
-                    else X)(1, 1, discopy_circuit.phase)
-        if isinstance(discopy_circuit,
-                      Controlled) and discopy_circuit.name.startswith("CRz"):
-            return (
-                Z(1, 2) @ Z(1, 2, discopy_circuit.phase / 2)
-                >> Id(1) @
-                (X(2, 1) >> Z(1, 0, -discopy_circuit.phase / 2)) @
-                Id(1) @ root2
-            )
-        if isinstance(discopy_circuit,
-                      Controlled) and discopy_circuit.name.startswith("CRx"):
-            return (
-                X(1, 2) @ X(1, 2, discopy_circuit.phase / 2)
-                >> Id(1) @
-                (Z(2, 1) >> X(1, 0, -discopy_circuit.phase / 2)) @
-                Id(1) @ root2
-            )
-        if isinstance(discopy_circuit, Digits):
-            dgrm = Diagram.id(bit**0)
-            # pylint: disable=invalid-name
-            for d in discopy_circuit.digits:
-                if d > 1:
-                    raise ValueError(
-                        "Only qubits supported. Digits must be 0 or 1."
-                    )
-                dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
-            return dgrm
-        if isinstance(discopy_circuit, quantum_discopy.CU1):
-            return (
-                Z(1, 2, discopy_circuit.phase) @
-                Z(1, 2, discopy_circuit.phase) >>
-                Id(1) @
-                (X(2, 1) >> Z(1, 0, -discopy_circuit.phase)) @
-                Id(1)
-            )
-        if isinstance(discopy_circuit, GatesScalar):
-            return Scalar(discopy_circuit.data)
-        if isinstance(discopy_circuit,
-                      Controlled) and discopy_circuit.distance != 1:
-            # pylint: disable=protected-access
-            return Circuit(discopy_circuit._decompose())
-        if isinstance(discopy_circuit, quantum_discopy.Discard):
-            return Discard(len(discopy_circuit.dom))
-        if isinstance(discopy_circuit, quantum_discopy.Measure):
-            no_qubits = sum([1 if i.name == "qubit" else
-                             0 for i in discopy_circuit.dom])
-            dgrm = Measure(no_qubits)
-            if discopy_circuit.override_bits:
-                dgrm @= DiscardChannel(bit**no_qubits)
-            if discopy_circuit.destructive:
-                return dgrm
-            dgrm >>= classical.CopyBit(2)**no_qubits
-            dgrm >>= Diagram.permutation(
-                get_perm(2 * no_qubits), bit**(2 * no_qubits)
-            )
-            dgrm >>= (
-                Encode(no_qubits) @
-                Diagram.id(bit**no_qubits)
-            )
-            return dgrm
-        if isinstance(discopy_circuit, quantum_discopy.Encode):
-            raise NotImplementedError(
-                "Converting Encode to QubitChannel is not implemented."
-            )
-        standard_gates = {
-            quantum_discopy.H: H(),
-            quantum_discopy.Z: Z(1, 1, 0.5),
-            quantum_discopy.X: X(1, 1, 0.5),
-            quantum_discopy.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ Scalar(1j),
-            quantum_discopy.S: Z(1, 1, 0.25),
-            quantum_discopy.T: Z(1, 1, 0.125),
-            CZ: (
-                Z(1, 2) @ Id(1) >>
-                Id(1) @ H() @ Id(1) >>
-                Id(1) @ Z(2, 1) @ root2
-                ),
-            CX: (
-                Z(1, 2) @ Id(1) >>
-                Id(1) @ X(2, 1) @ root2
-                ),
-        }
-        return standard_gates[discopy_circuit]
+    #     root2 = Scalar(2**0.5)
+    #     if isinstance(discopy_circuit, (Bra_, Ket_)):
+    #         dom, cod = (1, 0) if isinstance(discopy_circuit, Bra_) else (0, 1)
+    #         spiders = [X(dom, cod, phase=0.5 * bit)
+    #                    for bit in discopy_circuit.bitstring]
+    #         return Id(0).tensor(*spiders) @ Scalar(
+    #             pow(2, -len(discopy_circuit.bitstring) / 2)
+    #         )
+    #     if isinstance(discopy_circuit, (Rz, Rx)):
+    #         return (Z if isinstance(discopy_circuit, Rz)
+    #                 else X)(1, 1, discopy_circuit.phase)
+    #     if isinstance(discopy_circuit,
+    #                   Controlled) and discopy_circuit.name.startswith("CRz"):
+    #         return (
+    #             Z(1, 2) @ Z(1, 2, discopy_circuit.phase / 2)
+    #             >> Id(1) @
+    #             (X(2, 1) >> Z(1, 0, -discopy_circuit.phase / 2)) @
+    #             Id(1) @ root2
+    #         )
+    #     if isinstance(discopy_circuit,
+    #                   Controlled) and discopy_circuit.name.startswith("CRx"):
+    #         return (
+    #             X(1, 2) @ X(1, 2, discopy_circuit.phase / 2)
+    #             >> Id(1) @
+    #             (Z(2, 1) >> X(1, 0, -discopy_circuit.phase / 2)) @
+    #             Id(1) @ root2
+    #         )
+    #     if isinstance(discopy_circuit, Digits):
+    #         dgrm = Diagram.id(bit**0)
+    #         # pylint: disable=invalid-name
+    #         for d in discopy_circuit.digits:
+    #             if d > 1:
+    #                 raise ValueError(
+    #                     "Only qubits supported. Digits must be 0 or 1."
+    #                 )
+    #             dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
+    #         return dgrm
+    #     if isinstance(discopy_circuit, quantum_discopy.CU1):
+    #         return (
+    #             Z(1, 2, discopy_circuit.phase) @
+    #             Z(1, 2, discopy_circuit.phase) >>
+    #             Id(1) @
+    #             (X(2, 1) >> Z(1, 0, -discopy_circuit.phase)) @
+    #             Id(1)
+    #         )
+    #     if isinstance(discopy_circuit, GatesScalar):
+    #         return Scalar(discopy_circuit.data)
+    #     if isinstance(discopy_circuit,
+    #                   Controlled) and discopy_circuit.distance != 1:
+    #         # pylint: disable=protected-access
+    #         return Circuit(discopy_circuit._decompose())
+    #     if isinstance(discopy_circuit, quantum_discopy.Discard):
+    #         return Discard(len(discopy_circuit.dom))
+    #     if isinstance(discopy_circuit, quantum_discopy.Measure):
+    #         no_qubits = sum([1 if i.name == "qubit" else
+    #                          0 for i in discopy_circuit.dom])
+    #         dgrm = Measure(no_qubits)
+    #         if discopy_circuit.override_bits:
+    #             dgrm @= DiscardChannel(bit**no_qubits)
+    #         if discopy_circuit.destructive:
+    #             return dgrm
+    #         dgrm >>= classical.CopyBit(2)**no_qubits
+    #         dgrm >>= Diagram.permutation(
+    #             get_perm(2 * no_qubits), bit**(2 * no_qubits)
+    #         )
+    #         dgrm >>= (
+    #             Encode(no_qubits) @
+    #             Diagram.id(bit**no_qubits)
+    #         )
+    #         return dgrm
+    #     if isinstance(discopy_circuit, quantum_discopy.Encode):
+    #         raise NotImplementedError(
+    #             "Converting Encode to QubitChannel is not implemented."
+    #         )
+    #     standard_gates = {
+    #         quantum_discopy.H: H(),
+    #         quantum_discopy.Z: Z(1, 1, 0.5),
+    #         quantum_discopy.X: X(1, 1, 0.5),
+    #         quantum_discopy.Y: Z(1, 1, 0.5) >> X(1, 1, 0.5) @ Scalar(1j),
+    #         quantum_discopy.S: Z(1, 1, 0.25),
+    #         quantum_discopy.T: Z(1, 1, 0.125),
+    #         CZ: (
+    #             Z(1, 2) @ Id(1) >>
+    #             Id(1) @ H() @ Id(1) >>
+    #             Id(1) @ Z(2, 1) @ root2
+    #             ),
+    #         CX: (
+    #             Z(1, 2) @ Id(1) >>
+    #             Id(1) @ X(2, 1) @ root2
+    #             ),
+    #     }
+    #     return standard_gates[discopy_circuit]
 
 
 class Measure(MeasureChannel):
