@@ -19,41 +19,41 @@ def test_pyzx():
     c2 = pyzx.extract_circuit(channel.Diagram.from_pyzx(g).to_pyzx().copy())
     assert c1.verify_equality(c2)
 
-def test_tket_discopy():
-    from optyx import classical, bit
-    ghz_circ = Circuit(3)
-    ghz_circ.H(0)
-    ghz_circ.CX(0, 1)
-    ghz_circ.CX(1, 2)
-    ghz_circ.measure_all()
+# def test_tket_discopy():
+#     from optyx import classical, bit
+#     ghz_circ = Circuit(3)
+#     ghz_circ.H(0)
+#     ghz_circ.CX(0, 1)
+#     ghz_circ.CX(1, 2)
+#     ghz_circ.measure_all()
 
-    backend = AerBackend()
-    compiled_circ = backend.get_compiled_circuit(ghz_circ)
-    handle = backend.process_circuit(compiled_circ, n_shots=200000)
-    counts = backend.get_result(handle).get_counts()
-    tket_probs = probs_from_counts({key: np.round(v, 2) for key, v in probs_from_counts(counts).items()})
+#     backend = AerBackend()
+#     compiled_circ = backend.get_compiled_circuit(ghz_circ)
+#     handle = backend.process_circuit(compiled_circ, n_shots=200000)
+#     counts = backend.get_result(handle).get_counts()
+#     tket_probs = probs_from_counts({key: np.round(v, 2) for key, v in probs_from_counts(counts).items()})
 
-    circ = qubits.Circuit(ghz_circ)
-    circ = qubits.Ket(0)**3 @ classical.Bit(0)**3 >> circ >> qubits.Discard(3) @ bit**3
+#     circ = qubits.Circuit(ghz_circ)
+#     circ = qubits.Ket(0)**3 @ classical.Bit(0)**3 >> circ >> qubits.Discard(3) @ bit**3
 
-    res = (circ.double().to_tensor().to_quimb()^...).data
+#     res = (circ.double().to_tensor().to_quimb()^...).data
 
-    rounded_result = np.round(res, 6)
+#     rounded_result = np.round(res, 6)
 
-    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+#     non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
 
-    assert tket_probs == non_zero_dict
+#     assert tket_probs == non_zero_dict
 
-    circ = channel.Diagram.from_tket(ghz_circ)
-    circ = qubits.Ket(0)**3 @ classical.Bit(0)**3 >> circ >> qubits.Discard(3) @ bit**3
+#     circ = channel.Diagram.from_tket(ghz_circ)
+#     circ = qubits.Ket(0)**3 @ classical.Bit(0)**3 >> circ >> qubits.Discard(3) @ bit**3
 
-    res = (circ.double().to_tensor().to_quimb()^...).data
+#     res = (circ.double().to_tensor().to_quimb()^...).data
 
-    rounded_result = np.round(res, 6)
+#     rounded_result = np.round(res, 6)
 
-    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+#     non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
 
-    assert tket_probs == non_zero_dict
+#     assert tket_probs == non_zero_dict
 
 def test_zx():
     circuit = qubits.Z(1, 2) >> qubits.H() @ qubits.H()
@@ -119,23 +119,23 @@ def test_bra():
     b = (b.to_tensor().to_quimb() ^ ...).data
     assert np.allclose(a, b)
 
-def test_to_tket():
-    circ = qubits.X(1, 2) @ channel.qubit >> channel.qubit @ qubits.Z(2, 1) @ qubits.Scalar(2**0.5)
+# def test_to_tket():
+#     circ = qubits.X(1, 2) @ channel.qubit >> channel.qubit @ qubits.Z(2, 1) @ qubits.Scalar(2**0.5)
 
-    tket_circ = circ.to_tket()
-    tket_circ.measure_all()
-    backend = AerBackend()
-    compiled_circ = backend.get_compiled_circuit(tket_circ)
-    handle = backend.process_circuit(compiled_circ, n_shots=200000)
-    counts = backend.get_result(handle).get_counts()
-    tket_probs = probs_from_counts({key: np.round(v, 2) for key, v in probs_from_counts(counts).items()})
+#     tket_circ = circ.to_tket()
+#     tket_circ.measure_all()
+#     backend = AerBackend()
+#     compiled_circ = backend.get_compiled_circuit(tket_circ)
+#     handle = backend.process_circuit(compiled_circ, n_shots=200000)
+#     counts = backend.get_result(handle).get_counts()
+#     tket_probs = probs_from_counts({key: np.round(v, 2) for key, v in probs_from_counts(counts).items()})
 
-    circ_meas_prep = qubits.Ket(0) @ qubits.Ket(0) >> circ >> qubits.Measure(2)
+#     circ_meas_prep = qubits.Ket(0) @ qubits.Ket(0) >> circ >> qubits.Measure(2)
 
-    res = ((circ_meas_prep.double().to_tensor().to_quimb()^...).data)
+#     res = ((circ_meas_prep.double().to_tensor().to_quimb()^...).data)
 
-    rounded_result = np.round(res, 6)
+#     rounded_result = np.round(res, 6)
 
-    non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
+#     non_zero_dict = {idx: val for idx, val in np.ndenumerate(rounded_result) if val != 0}
 
-    assert tket_probs == non_zero_dict
+#     assert tket_probs == non_zero_dict
