@@ -269,7 +269,7 @@ from typing import Literal
 import numpy as np
 from pyzx.graph.base import BaseGraph
 from discopy import quantum as quantum_discopy
-from discopy import symmetric
+#from discopy import symmetric
 from pytket import circuit as tket_circuit
 from optyx._utils import explode_channel
 from optyx.core import (
@@ -429,7 +429,7 @@ class QubitChannel(Channel):
 
     #     root2 = Scalar(2**0.5)
     #     if isinstance(discopy_circuit, (Bra_, Ket_)):
-    #         dom, cod = (1, 0) if isinstance(discopy_circuit, Bra_) else (0, 1)
+    #       dom, cod = (1, 0) if isinstance(discopy_circuit, Bra_) else (0, 1)
     #         spiders = [X(dom, cod, phase=0.5 * bit)
     #                    for bit in discopy_circuit.bitstring]
     #         return Id(0).tensor(*spiders) @ Scalar(
@@ -439,7 +439,7 @@ class QubitChannel(Channel):
     #         return (Z if isinstance(discopy_circuit, Rz)
     #                 else X)(1, 1, discopy_circuit.phase)
     #     if isinstance(discopy_circuit,
-    #                   Controlled) and discopy_circuit.name.startswith("CRz"):
+    #                 Controlled) and discopy_circuit.name.startswith("CRz"):
     #         return (
     #             Z(1, 2) @ Z(1, 2, discopy_circuit.phase / 2)
     #             >> Id(1) @
@@ -447,7 +447,7 @@ class QubitChannel(Channel):
     #             Id(1) @ root2
     #         )
     #     if isinstance(discopy_circuit,
-    #                   Controlled) and discopy_circuit.name.startswith("CRx"):
+    #                 Controlled) and discopy_circuit.name.startswith("CRx"):
     #         return (
     #             X(1, 2) @ X(1, 2, discopy_circuit.phase / 2)
     #             >> Id(1) @
@@ -462,7 +462,7 @@ class QubitChannel(Channel):
     #                 raise ValueError(
     #                     "Only qubits supported. Digits must be 0 or 1."
     #                 )
-    #             dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
+    #           dgrm @= classical.X(0, 1, 0.5**d) @ classical.Scalar(0.5**0.5)
     #         return dgrm
     #     if isinstance(discopy_circuit, quantum_discopy.CU1):
     #         return (
