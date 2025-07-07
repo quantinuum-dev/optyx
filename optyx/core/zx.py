@@ -340,21 +340,21 @@ class ZXDiagram(diagram.Diagram):
             elif box == H:
                 node, hadamard = scan[offset]
                 scan[offset] = (node, not hadamard)
-            elif isinstance(box, diagram.Spider):
-                node = graph.add_vertex(
-                    VertexType.Z,
-                    phase=box.phase * 2 if box.phase else None,
-                )
-                graph.set_position(node, offset, row + 1)
-                for i, _ in enumerate(box.dom):
-                    source, hadamard = scan[offset + i]
-                    etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
-                    graph.add_edge((source, node), etype)
-                scan = (
-                    scan[:offset]
-                    + len(box.cod) * [(node, False)]
-                    + scan[offset + len(box.dom):]
-                )
+            # elif isinstance(box, diagram.Spider):
+            #     node = graph.add_vertex(
+            #         VertexType.Z,
+            #         phase=box.phase * 2 if box.phase else None,
+            #     )
+            #     graph.set_position(node, offset, row + 1)
+            #     for i, _ in enumerate(box.dom):
+            #         source, hadamard = scan[offset + i]
+            #       etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
+            #         graph.add_edge((source, node), etype)
+            #     scan = (
+            #         scan[:offset]
+            #         + len(box.cod) * [(node, False)]
+            #         + scan[offset + len(box.dom):]
+            #     )
             else:
                 raise NotImplementedError
         for i, _ in enumerate(self.cod):

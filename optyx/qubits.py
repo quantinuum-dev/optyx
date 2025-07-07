@@ -414,14 +414,14 @@ class QubitChannel(Channel):
         # pylint: disable=import-outside-toplevel
         from discopy.quantum.gates import (
             Rz, Rx,
-            CX, CZ, Controlled, Digits
+            CX, CZ, Controlled  # , Digits
         )
         from discopy.quantum.gates import (
             Bra as Bra_,
             Ket as Ket_
         )
         from discopy.quantum.gates import Scalar as GatesScalar
-        from optyx import classical
+        # from optyx import classical
 
         # pylint: disable=invalid-name
         def get_perm(n):
