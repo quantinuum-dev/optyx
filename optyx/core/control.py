@@ -374,42 +374,6 @@ class ClassicalFunctionBox(ClassicalBox):
         self.output_size = len(cod)
         self.is_dagger = is_dagger
 
-    # def truncation(
-    #     self, input_dims: List[int], output_dims: List[int]
-    # ) -> tensor.Box:
-
-    #     if self.is_dagger:
-    #         input_dims, output_dims = output_dims, input_dims
-
-    #     array = np.zeros((*input_dims, *output_dims), dtype=complex)
-    #     input_ranges = [range(i) for i in input_dims]
-    #     input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
-    #         -1, len(input_dims)
-    #     )
-
-    #     outputs = [
-    #         (i, self.function(i))
-    #         for i in input_combinations
-    #         if self.function(i) != 0
-    #     ]
-
-    #     full_indices = np.array(
-    #         [tuple(input_) + tuple(output) for input_, output in outputs]
-    #     )
-    #     array[tuple(full_indices.T)] = 1
-
-    #     input_dims = [int(d) for d in input_dims]
-    #     output_dims = [int(d) for d in output_dims]
-
-    #     if self.is_dagger:
-    #         return tensor.Box(
-    #             self.name, Dim(*input_dims), Dim(*output_dims), array
-    #         ).dagger()
-
-    #     return tensor.Box(
-    #         self.name, Dim(*input_dims), Dim(*output_dims), array
-    #     )
-
     def truncation_specificaton(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ):
@@ -476,30 +440,6 @@ class BinaryMatrixBox(ClassicalBox):
 
         self.matrix = matrix
         self.is_dagger = is_dagger
-
-    # def truncation(
-    #     self, input_dims: List[int], output_dims: List[int]
-    # ) -> tensor.Box:
-
-    #     if self.is_dagger:
-    #         input_dims, output_dims = output_dims, input_dims
-
-    #     def f(x):
-    #         if not isinstance(x, np.ndarray):
-    #             x = np.array(x, dtype=np.uint8)
-    #         if len(x.shape) == 1:
-    #             x = x.reshape(-1, 1)
-    #         A = np.array(self.matrix, dtype=np.uint8)
-
-    #         return list(((A @ x) % 2).reshape(1, -1)[0])
-
-    #     classical_function = ClassicalFunctionBox(f, self.dom, self.cod)
-
-    #     if self.is_dagger:
-    #         return classical_function.truncation(
-    #             input_dims, output_dims
-    #         ).dagger()
-    #     return classical_function.truncation(input_dims, output_dims)
 
     def truncation_specificaton(
         self, input_dims: list[int] = None, output_dims: list[int] = None

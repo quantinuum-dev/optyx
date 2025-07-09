@@ -243,56 +243,6 @@ class W(ZWBox):
                 results.append((tuple(list(config) + [i]), coeff))
         return results
 
-    # def truncation(
-    #     self, input_dims: list[int] = None, output_dims: list[int] = None
-    # ) -> tensor.Box:
-    #     """Create a truncated array like in 2306.02114."""
-    #     if input_dims is None:
-    #         raise ValueError("Input dimensions must be provided.")
-
-    #     if output_dims is None:
-    #         output_dims = self.determine_output_dimensions(input_dims)
-
-    #     max_dim = output_dims[0] if self.is_dagger else input_dims[0]
-    #     shape = (
-    #         (np.prod(input_dims), output_dims[0])
-    #         if self.is_dagger
-    #         else (np.prod(output_dims), input_dims[0])
-    #     )
-    #     result_matrix = np.zeros(shape, dtype=complex)
-
-    #     for n in range(max_dim):
-    #         allowed_configs = occupation_numbers(n, self.n_legs)
-    #         if self.is_dagger:
-    #             allowed_configs = filter_occupation_numbers(
-    #                 allowed_configs, np.array(input_dims) - 1
-    #             )
-
-    #         for config in allowed_configs:
-    #             coef = np.sqrt(multinomial(config))
-
-    #             if self.is_dagger:
-    #                 row_idx = sum(
-    #                     s * np.prod(input_dims[i + 1:], dtype=int)
-    #                     for i, s in enumerate(config)
-    #                 )
-    #             else:
-    #                 row_idx = sum(
-    #                     s * np.prod(output_dims[i + 1:], dtype=int)
-    #                     for i, s in enumerate(config)
-    #                 )
-
-    #             result_matrix[row_idx, n] += coef
-
-    #     out_dims = Dim(*[int(i) for i in output_dims])
-    #     in_dims = Dim(*[int(i) for i in input_dims])
-
-    #     if self.is_dagger:
-    #         return tensor.Box(self.name, in_dims, out_dims, result_matrix)
-    #     return tensor.Box(
-    #         self.name, in_dims, out_dims, result_matrix.conj().T
-    #     )
-
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         if self.is_dagger:
@@ -510,31 +460,6 @@ class Create(ZWBox):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    # def truncation(
-    #     self, input_dims: list[int] = None, output_dims: list[int] = None
-    # ) -> tensor.Box:
-    #     """Create an array like in 2306.02114"""
-
-    #     if output_dims is None:
-    #         output_dims = self.determine_output_dimensions()
-
-    #     index = 0
-    #     factor = 1
-    #     for max_dim, occ_num in zip(
-    #         reversed(output_dims), reversed(self.photons)
-    #     ):
-    #         index += occ_num * factor
-    #         factor *= max_dim
-
-    #     # Create the composite state vector with a 1 at the calculated index
-    #     result_matrix = np.zeros((np.prod(output_dims), 1))
-    #     result_matrix[index, 0] = 1
-
-    #     out_dims = Dim(*[int(i) for i in output_dims])
-    #     in_dims = Dim(1)
-
-    #     return tensor.Box(self.name, in_dims, out_dims, result_matrix)
-
     def truncation_specificaton(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ):
@@ -639,37 +564,6 @@ class Select(ZWBox):
         return Matrix[dtype](
             array, len(self.photons), 0, selections=self.photons
         )
-
-    # def truncation(
-    #     self, input_dims: list[int] = None, output_dims: list[int] = None
-    # ) -> tensor.Box:
-    #     """Create an array like in 2306.02114"""
-
-    #     if input_dims is None:
-    #         raise ValueError("Input dimensions must be provided.")
-
-    #     result_matrix = np.zeros((1, np.prod(input_dims)), dtype=complex)
-    #     index = 0
-    #     factor = 1
-    #     for max_dim, occ_num in zip(
-    #         reversed(input_dims), reversed(self.photons)
-    #     ):
-    #         index += occ_num * factor
-    #         factor *= max_dim
-
-    #     out_dims = Dim(1)
-    #     in_dims = Dim(*[int(i) for i in input_dims])
-
-    #     # if the occupation number on which we
-    #     # are postselecting is larger than the
-    #     # maximum dimension of the input, then we
-    #     # return the zero matrix because
-    #     # the inner product is zero anyway
-    #     if index < np.prod(input_dims):
-    #         result_matrix[0, index] = 1.0
-    #         return tensor.Box(self.name, in_dims, out_dims, result_matrix)
-
-    #     return tensor.Box(self.name, in_dims, out_dims, result_matrix)
 
     def truncation_specificaton(
         self, input_dims: list[int] = None, output_dims: list[int] = None
@@ -793,29 +687,6 @@ class Add(ZWBox):
             )
         return results
 
-    # def truncation(
-    #     self, input_dims: List[int], output_dims: List[int]
-    # ) -> tensor.Box:
-
-    #     input_dims = [int(i) for i in input_dims]
-    #     output_dims = [int(i) for i in output_dims]
-
-    #     if self.is_dagger:
-    #         input_dims, output_dims = output_dims, input_dims
-
-    #     diag = W(self.n).dagger().to_tensor(input_dims)
-    #     array = np.sign(
-    #         (diag >> diagram.truncation_tensor(diag.cod.inside, output_dims))
-    #         .eval()
-    #         .array
-    #     )
-    #     if self.is_dagger:
-    #         return tensor.Box(
-    #             "Add", Dim(*input_dims), Dim(*output_dims), array
-    #         ).dagger()
-
-    #     return tensor.Box("Add", Dim(*input_dims), Dim(*output_dims), array)
-
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
             return [int(input_dims[0])] * self.n
@@ -863,36 +734,6 @@ class Multiply(ZWBox):
                 (tuple([np.prod(possible_input)] + possible_input), 1.0)
             )
         return results
-
-    # def truncation(
-    #     self, input_dims: List[int], output_dims: List[int]
-    # ) -> tensor.Box:
-
-    #     if self.is_dagger:
-    #         input_dims, output_dims = output_dims, input_dims
-
-    #     array = np.zeros((*input_dims, *output_dims), dtype=complex)
-
-    #     for i in range(input_dims[0]):
-    #         if i > 0:
-    #             def multiply_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
-    #                                              Add(n))
-    #         else:
-    #             def multiply_diagram(n): return (diagram.Spider(1, 0, diagram.Mode(1)) >>
-    #                                              Create(0))
-
-    #         d = multiply_diagram(i).to_tensor([input_dims[1]])
-    #         d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
-
-    #         array[i, :] = d.eval().array.reshape(array[i, :].shape)
-
-    #     if self.is_dagger:
-    #         return tensor.Box(
-    #             self.name, Dim(*input_dims), Dim(*output_dims), array
-    #         ).dagger()
-    #     return tensor.Box(
-    #         self.name, Dim(*input_dims), Dim(*output_dims), array
-    #     )
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
@@ -944,33 +785,6 @@ class Divide(ZWBox):
                 )
         return results
 
-    # def truncation(
-    #     self, input_dims: List[int], output_dims: List[int]
-    # ) -> tensor.Box:
-
-    #     if self.is_dagger:
-    #         input_dims, output_dims = output_dims, input_dims
-
-    #     array = np.zeros((*input_dims, *output_dims), dtype=complex)
-
-    #     for i in range(input_dims[1]):
-    #         if i > 0:
-    #             def divide_diagram(n): return (diagram.Spider(1, n, diagram.Mode(1)) >>
-    #                                            Add(n)).dagger()
-
-    #             d = divide_diagram(i).to_tensor([input_dims[0]])
-    #             d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
-
-    #             array[:, i, :] = d.eval().array.reshape(array[:, i, :].shape)
-
-    #     if self.is_dagger:
-    #         return tensor.Box(
-    #             self.name, Dim(*input_dims), Dim(*output_dims), array
-    #         ).dagger()
-    #     return tensor.Box(
-    #         self.name, Dim(*input_dims), Dim(*output_dims), array
-    #     )
-
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
             return [int(input_dims[0])]
@@ -1008,26 +822,6 @@ class Mod2(ZWBox):
             parity = i % 2
             results.append(((parity, i), 1.0))
         return results
-
-    # def truncation(
-    #     self, input_dims: List[int], output_dims: List[int]
-    # ) -> tensor.Box:
-
-    #     if self.is_dagger:
-    #         input_dims, output_dims = output_dims, input_dims
-
-    #     array = np.zeros((*input_dims, *output_dims), dtype=complex)
-
-    #     for i in range(input_dims[0]):
-    #         array[i, i % 2] = 1
-
-    #     if self.is_dagger:
-    #         return tensor.Box(
-    #             self.name, Dim(*input_dims), Dim(*output_dims), array
-    #         ).dagger()
-    #     return tensor.Box(
-    #         self.name, Dim(*input_dims), Dim(*output_dims), array
-    #     )
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:

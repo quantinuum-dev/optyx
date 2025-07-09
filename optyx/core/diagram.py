@@ -828,22 +828,6 @@ class DualRail(Box):
             ((0, 1, 1), 1.0)
         ]
 
-    # def truncation(
-    #     self, input_dims: list[int] = None, output_dims: list[int] = None
-    # ) -> tensor.Box:
-    #     if self.is_dagger:
-    #         array = np.zeros((2, input_dims[0], input_dims[1]), dtype=complex)
-    #     else:
-    #         array = np.zeros((2, 2, 2), dtype=complex)
-    #     array[0, 1, 0] = 1
-    #     array[1, 0, 1] = 1
-    #     if self.is_dagger:
-    #         return tensor.Box(
-    #             self.name + ".dagger()", Dim(2),
-    #             Dim(*[int(i) for i in input_dims]), array
-    #         ).dagger()
-    #     return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
-
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:
         """Determine the output dimensions"""
@@ -888,18 +872,6 @@ class PhotonThresholdDetector(Box):
         else:
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
-
-    # def truncation(self, input_dims=None, output_dims=None):
-    #     if self.is_dagger:
-    #         array = np.zeros((2, 2), dtype=complex)
-    #     else:
-    #         array = np.zeros((input_dims[0], 2), dtype=complex)
-    #     array[0, 0] = 1
-    #     array[1: input_dims[0], 1] = 1
-    #     if self.is_dagger:
-    #         return tensor.Box(self.name, Dim(2), Dim(2), array).dagger()
-
-    #     return tensor.Box(self.name, Dim(int(input_dims[0])), Dim(2), array)
 
     def truncation_specificaton(self, input_dims = None, output_dims = None):
         return [(tuple([1, i]), 1) for i in range(1, input_dims[0])] + [((0, 0), 1.0)]
