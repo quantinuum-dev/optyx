@@ -70,6 +70,46 @@ class ClassicalBox(diagram.Box, ClassicalDiagram):
         return self
 
 
+class _BitControlledBox(ControlBox):
+    def __new__(cls, diag, default_box=None, is_dagger=False):
+        if default_box is not None:
+            return _BitControlledBox(
+                diag, default_box, is_dagger
+            )
+        from optyx.core import diagram
+        from optyx.core.zx import Z
+
+        boxes = []
+        for i in range(len(diag)):
+            layer = diag[i]
+            box = layer.inside[0][1]
+            if box.cod == box.dom:# and not isinstance(box, diagram.Swap):
+                left = layer.inside[0][0]
+                right = layer.inside[0][2]
+                copy = Z(1, 2)
+
+                layers = [
+                    copy @ left @ box.dom @ right,
+                    diagram.Diagram.permutation(
+                        [
+                            0, *range(2, 2+len(left)), 1,
+                            *range(2+len(left), 2+len(left)+len(box.dom))
+                        ], diagram.Bit(2) @ left @ box.dom
+                    ) @ right,
+                    diagram.Bit(1) @ left @ _BitControlledBox(box, ) @ right
+                ]
+
+                l = diagram.Diagram.then(*layers)
+                boxes.append(l)
+            else:
+                l = diagram.Bit(1) @ layer
+                boxes.append(l)
+
+        boxes.append(Z(1, 0) @ layer.cod)
+        if is_dagger:
+            return diagram.Diagram.then(*boxes).dagger()
+        return diagram.Diagram.then(*boxes)
+
 class BitControlledBox(ControlBox):
     """
     A box controlled by a bit that switches between two boxes:
@@ -334,15 +374,46 @@ class ClassicalFunctionBox(ClassicalBox):
         self.output_size = len(cod)
         self.is_dagger = is_dagger
 
-    def truncation(
-        self, input_dims: List[int], output_dims: List[int]
-    ) -> tensor.Box:
+    # def truncation(
+    #     self, input_dims: List[int], output_dims: List[int]
+    # ) -> tensor.Box:
 
-        if self.is_dagger:
-            input_dims, output_dims = output_dims, input_dims
+    #     if self.is_dagger:
+    #         input_dims, output_dims = output_dims, input_dims
 
-        array = np.zeros((*input_dims, *output_dims), dtype=complex)
-        input_ranges = [range(i) for i in input_dims]
+    #     array = np.zeros((*input_dims, *output_dims), dtype=complex)
+    #     input_ranges = [range(i) for i in input_dims]
+    #     input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
+    #         -1, len(input_dims)
+    #     )
+
+    #     outputs = [
+    #         (i, self.function(i))
+    #         for i in input_combinations
+    #         if self.function(i) != 0
+    #     ]
+
+    #     full_indices = np.array(
+    #         [tuple(input_) + tuple(output) for input_, output in outputs]
+    #     )
+    #     array[tuple(full_indices.T)] = 1
+
+    #     input_dims = [int(d) for d in input_dims]
+    #     output_dims = [int(d) for d in output_dims]
+
+    #     if self.is_dagger:
+    #         return tensor.Box(
+    #             self.name, Dim(*input_dims), Dim(*output_dims), array
+    #         ).dagger()
+
+    #     return tensor.Box(
+    #         self.name, Dim(*input_dims), Dim(*output_dims), array
+    #     )
+
+    def truncation_specificaton(
+        self, input_dims: list[int] = None, output_dims: list[int] = None
+    ):
+        input_ranges = [range(d) for d in input_dims]
         input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
             -1, len(input_dims)
         )
@@ -353,22 +424,7 @@ class ClassicalFunctionBox(ClassicalBox):
             if self.function(i) != 0
         ]
 
-        full_indices = np.array(
-            [tuple(input_) + tuple(output) for input_, output in outputs]
-        )
-        array[tuple(full_indices.T)] = 1
-
-        input_dims = [int(d) for d in input_dims]
-        output_dims = [int(d) for d in output_dims]
-
-        if self.is_dagger:
-            return tensor.Box(
-                self.name, Dim(*input_dims), Dim(*output_dims), array
-            ).dagger()
-
-        return tensor.Box(
-            self.name, Dim(*input_dims), Dim(*output_dims), array
-        )
+        return [(tuple(tuple(output) + tuple(input_)), 1.0) for input_, output in outputs]
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.cod == diagram.Mode(self.output_size):
@@ -421,13 +477,33 @@ class BinaryMatrixBox(ClassicalBox):
         self.matrix = matrix
         self.is_dagger = is_dagger
 
-    def truncation(
-        self, input_dims: List[int], output_dims: List[int]
-    ) -> tensor.Box:
+    # def truncation(
+    #     self, input_dims: List[int], output_dims: List[int]
+    # ) -> tensor.Box:
 
-        if self.is_dagger:
-            input_dims, output_dims = output_dims, input_dims
+    #     if self.is_dagger:
+    #         input_dims, output_dims = output_dims, input_dims
 
+    #     def f(x):
+    #         if not isinstance(x, np.ndarray):
+    #             x = np.array(x, dtype=np.uint8)
+    #         if len(x.shape) == 1:
+    #             x = x.reshape(-1, 1)
+    #         A = np.array(self.matrix, dtype=np.uint8)
+
+    #         return list(((A @ x) % 2).reshape(1, -1)[0])
+
+    #     classical_function = ClassicalFunctionBox(f, self.dom, self.cod)
+
+    #     if self.is_dagger:
+    #         return classical_function.truncation(
+    #             input_dims, output_dims
+    #         ).dagger()
+    #     return classical_function.truncation(input_dims, output_dims)
+
+    def truncation_specificaton(
+        self, input_dims: list[int] = None, output_dims: list[int] = None
+    ):
         def f(x):
             if not isinstance(x, np.ndarray):
                 x = np.array(x, dtype=np.uint8)
@@ -437,13 +513,9 @@ class BinaryMatrixBox(ClassicalBox):
 
             return list(((A @ x) % 2).reshape(1, -1)[0])
 
-        classical_function = ClassicalFunctionBox(f, self.dom, self.cod)
-
-        if self.is_dagger:
-            return classical_function.truncation(
-                input_dims, output_dims
-            ).dagger()
-        return classical_function.truncation(input_dims, output_dims)
+        return ClassicalFunctionBox(
+            f, self.dom, self.cod
+        ).truncation_specificaton(input_dims, output_dims)
 
     def determine_output_dimensions(self,
                                     input_dims: List[int]) -> List[int]:
