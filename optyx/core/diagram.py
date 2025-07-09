@@ -219,13 +219,14 @@ preprint arXiv:2409.13541.
 from __future__ import annotations
 
 import numpy as np
+from abc import abstractmethod
 from sympy.core import Symbol, Mul
 from discopy import symmetric, frobenius, tensor
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx._utils import modify_io_dims_against_max_dim
-from typing import List
+from typing import List, Tuple
 
 MAX_DIM = 10
 
@@ -492,9 +493,37 @@ class Box(frobenius.Box, Diagram):
                 cod=tensor.Dim(2) ** len(self.cod),
                 data=self._array,
             )
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not support dagger"
+
+        if input_dims is None:
+            raise ValueError("Input dimensions must be provided.")
+
+        if output_dims is None:
+            output_dims = self.determine_output_dimensions(input_dims)
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        shape = (
+            *[int(i) for i in output_dims],
+            *[int(i) for i in input_dims]
         )
+        result_matrix = np.zeros(shape, dtype=complex)
+
+        non_zero_indices = self.truncation_specificaton(
+            input_dims, output_dims
+        )
+
+        for config, coeff in non_zero_indices:
+            result_matrix[tuple(config)] = coeff
+
+        out_dims = Dim(*[int(i) for i in output_dims])
+        in_dims = Dim(*[int(i) for i in input_dims])
+
+        if self.is_dagger:
+            return tensor.Box(self.name, out_dims, in_dims, result_matrix)
+        return tensor.Box(
+            self.name, out_dims, in_dims, result_matrix
+        ).dagger()
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions.
@@ -546,6 +575,12 @@ class Box(frobenius.Box, Diagram):
         (Bit) with tensor with dims of 2.
         """
         self._array = value
+
+    #@abstractmethod
+    def truncation_specificaton(
+        self, input_dims: list[int] = None, output_dims: list[int] = None
+    ) -> List[Tuple[Tuple[int], float]]:
+        pass
 
     def __pow__(self, n):
         if n == 1:
@@ -787,21 +822,27 @@ class DualRail(Box):
     def conjugate(self):
         return self
 
-    def truncation(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
-    ) -> tensor.Box:
-        if self.is_dagger:
-            array = np.zeros((2, input_dims[0], input_dims[1]), dtype=complex)
-        else:
-            array = np.zeros((2, 2, 2), dtype=complex)
-        array[0, 1, 0] = 1
-        array[1, 0, 1] = 1
-        if self.is_dagger:
-            return tensor.Box(
-                self.name + ".dagger()", Dim(2),
-                Dim(*[int(i) for i in input_dims]), array
-            ).dagger()
-        return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
+    def truncation_specificaton(self, input_dims = None, output_dims = None):
+        return [
+            ((1, 0, 0), 1.0),
+            ((0, 1, 1), 1.0)
+        ]
+
+    # def truncation(
+    #     self, input_dims: list[int] = None, output_dims: list[int] = None
+    # ) -> tensor.Box:
+    #     if self.is_dagger:
+    #         array = np.zeros((2, input_dims[0], input_dims[1]), dtype=complex)
+    #     else:
+    #         array = np.zeros((2, 2, 2), dtype=complex)
+    #     array[0, 1, 0] = 1
+    #     array[1, 0, 1] = 1
+    #     if self.is_dagger:
+    #         return tensor.Box(
+    #             self.name + ".dagger()", Dim(2),
+    #             Dim(*[int(i) for i in input_dims]), array
+    #         ).dagger()
+    #     return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
 
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:
@@ -848,17 +889,20 @@ class PhotonThresholdDetector(Box):
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
 
-    def truncation(self, input_dims=None, output_dims=None):
-        if self.is_dagger:
-            array = np.zeros((2, 2), dtype=complex)
-        else:
-            array = np.zeros((input_dims[0], 2), dtype=complex)
-        array[0, 0] = 1
-        array[1: input_dims[0], 1] = 1
-        if self.is_dagger:
-            return tensor.Box(self.name, Dim(2), Dim(2), array).dagger()
+    # def truncation(self, input_dims=None, output_dims=None):
+    #     if self.is_dagger:
+    #         array = np.zeros((2, 2), dtype=complex)
+    #     else:
+    #         array = np.zeros((input_dims[0], 2), dtype=complex)
+    #     array[0, 0] = 1
+    #     array[1: input_dims[0], 1] = 1
+    #     if self.is_dagger:
+    #         return tensor.Box(self.name, Dim(2), Dim(2), array).dagger()
 
-        return tensor.Box(self.name, Dim(int(input_dims[0])), Dim(2), array)
+    #     return tensor.Box(self.name, Dim(int(input_dims[0])), Dim(2), array)
+
+    def truncation_specificaton(self, input_dims = None, output_dims = None):
+        return [(tuple([1, i]), 1) for i in range(1, input_dims[0])] + [((0, 0), 1.0)]
 
     def determine_output_dimensions(self, input_dims):
         if self.is_dagger:
