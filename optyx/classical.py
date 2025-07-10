@@ -159,24 +159,62 @@ class BitControlledGate(Channel):
     It uses a `BitControlledBox` to define
     the Kraus operators for the gate.
     """
-    def __init__(self,
-                 control_gate,
-                 default_gate=None):
-        if isinstance(control_gate, (Diagram, Channel)):
-            assert control_gate.is_pure, \
-                 "The input gates must be pure quantum channels"
-            control_gate_single = control_gate.get_kraus()
-        if isinstance(default_gate, (Diagram, Channel)):
-            assert default_gate.is_pure, \
-                 "The input gates must be pure quantum channels"
-            default_gate = default_gate.get_kraus()
-        kraus = control.BitControlledBox(control_gate_single, default_gate)
-        super().__init__(
-            f"BitControlledGate({control_gate}, {default_gate})",
-            kraus,
-            bit @ control_gate.dom,
-            control_gate.cod
-        )
+    class _BitControlledSingleBox(Channel):
+        def __init__(self,
+                    control_gate,
+                    default_gate=None):
+            if isinstance(control_gate, (Diagram, Channel)):
+                assert control_gate.is_pure, \
+                    "The input gates must be pure quantum channels"
+                control_gate_single = control_gate.get_kraus()
+            if isinstance(default_gate, (Diagram, Channel)):
+                assert default_gate.is_pure, \
+                    "The input gates must be pure quantum channels"
+                default_gate = default_gate.get_kraus()
+            kraus = control.BitControlledBox(control_gate_single, default_gate)
+            super().__init__(
+                f"BitControlledGate({control_gate}, {default_gate})",
+                kraus,
+                bit @ control_gate.dom,
+                control_gate.cod
+            )
+
+    def __new__(cls, diag, default_box=None, is_dagger=False):
+        if default_box is not None:
+            return cls._BitControlledSingleBox(
+                diag, default_box
+            ).dagger() if is_dagger else cls._BitControlledSingleBox(diag, default_box)
+
+        boxes = []
+        for i in range(len(diag)):
+            layer = diag[i]
+            box = layer.inside[0][1]
+            if box.cod == box.dom:
+                left = layer.inside[0][0]
+                right = layer.inside[0][2]
+                copy = Z(1, 2)
+
+                layers = [
+                    copy @ left @ box.dom @ right,
+                    channel.Diagram.permutation(
+                        [
+                            0, *range(2, 2+len(left)), 1,
+                            *range(2+len(left), 2+len(left)+len(box.dom))
+                        ], bit**2 @ left @ box.dom
+                    ) @ right,
+                    bit @ left @ cls._BitControlledSingleBox(box, ) @ right
+                ]
+
+                l = channel.Diagram.then(*layers)
+                boxes.append(l)
+            else:
+                l = bit @ layer
+                boxes.append(l)
+
+        boxes.append(Z(1, 0) @ layer.cod)
+        if is_dagger:
+            return channel.Diagram.then(*boxes).dagger()
+        return channel.Diagram.then(*boxes)
 
 
 class BitControlledPhaseShift(Channel):

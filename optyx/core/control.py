@@ -70,46 +70,6 @@ class ClassicalBox(diagram.Box, ClassicalDiagram):
         return self
 
 
-class _BitControlledBox(ControlBox):
-    def __new__(cls, diag, default_box=None, is_dagger=False):
-        if default_box is not None:
-            return _BitControlledBox(
-                diag, default_box, is_dagger
-            )
-        from optyx.core import diagram
-        from optyx.core.zx import Z
-
-        boxes = []
-        for i in range(len(diag)):
-            layer = diag[i]
-            box = layer.inside[0][1]
-            if box.cod == box.dom:# and not isinstance(box, diagram.Swap):
-                left = layer.inside[0][0]
-                right = layer.inside[0][2]
-                copy = Z(1, 2)
-
-                layers = [
-                    copy @ left @ box.dom @ right,
-                    diagram.Diagram.permutation(
-                        [
-                            0, *range(2, 2+len(left)), 1,
-                            *range(2+len(left), 2+len(left)+len(box.dom))
-                        ], diagram.Bit(2) @ left @ box.dom
-                    ) @ right,
-                    diagram.Bit(1) @ left @ _BitControlledBox(box, ) @ right
-                ]
-
-                l = diagram.Diagram.then(*layers)
-                boxes.append(l)
-            else:
-                l = diagram.Bit(1) @ layer
-                boxes.append(l)
-
-        boxes.append(Z(1, 0) @ layer.cod)
-        if is_dagger:
-            return diagram.Diagram.then(*boxes).dagger()
-        return diagram.Diagram.then(*boxes)
-
 class BitControlledBox(ControlBox):
     """
     A box controlled by a bit that switches between two boxes:
@@ -206,24 +166,24 @@ class BitControlledBox(ControlBox):
 
         array[0, :, :] = (
             (
-                default_box_tensor
-                >> diagram.truncation_tensor(
-                    default_box_tensor.cod.inside, output_dims
-                )
-            )
-            .eval()
-            .array.reshape(array[0, :, :].shape)
+                (
+                    default_box_tensor
+                    >> diagram.truncation_tensor(
+                        default_box_tensor.cod.inside, output_dims
+                    )
+                ).to_quimb()^...
+            ).data.reshape(array[0, :, :].shape)
         )
 
         array[1, :, :] = (
             (
-                action_box_tensor
-                >> diagram.truncation_tensor(
-                    action_box_tensor.cod.inside, output_dims
-                )
-            )
-            .eval()
-            .array.reshape(array[1, :, :].shape)
+                (
+                    action_box_tensor
+                    >> diagram.truncation_tensor(
+                        action_box_tensor.cod.inside, output_dims
+                   )
+                ).to_quimb()^...
+            ).data.reshape(array[1, :, :].shape)
         )
 
         if self.is_dagger:

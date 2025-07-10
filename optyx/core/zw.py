@@ -233,14 +233,12 @@ class W(ZWBox):
 
         results = []
         for i in range(input_dims[0]):
-            configs = occupation_numbers(i, wires_out)
-
-            configs = [config for config in configs if
+            configs = [config for config in occupation_numbers(i, wires_out) if
                         all(config[i] < output_dims[i] for i in range(wires_out))]
 
-            for config in configs:
-                coeff = multinomial(config)**0.5
-                results.append((tuple(list(config) + [i]), coeff))
+            results.extend(
+                (tuple(list(config) + [i]), multinomial(config)**0.5) for config in configs
+            )
         return results
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
@@ -362,25 +360,6 @@ class ZBox(diagram.Spider, ZWBox):
         )
 
         return full_subdiagram
-
-    def truncation_specification(
-        self,
-        input_dims: List[int],
-        output_dims: List[int],
-    ):
-
-        max_dim = max(input_dims)
-        wires_in = len(input_dims)
-        wires_out = len(output_dims)
-
-        bases = [tuple([i]*(wires_in + wires_out)) for i in range(max_dim)]
-
-        results = []
-        for i, base in enumerate(bases):
-            coeff = self.amplitudes[i]
-            results.append((tuple(base), coeff))
-
-        return results
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -817,11 +796,7 @@ class Mod2(ZWBox):
     def truncation_specificaton(
             self, input_dims: List[int] = None, output_dims: List[int] = None
     ) -> tensor.Box:
-        results = []
-        for i in range(input_dims[0]):
-            parity = i % 2
-            results.append(((parity, i), 1.0))
-        return results
+        return [((i % 2, i), 1.0) for i in range(input_dims[0])]
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
