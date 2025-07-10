@@ -513,8 +513,10 @@ class Box(frobenius.Box, Diagram):
             input_dims, output_dims
         )
 
-        for config, coeff in non_zero_indices:
-            result_matrix[tuple(config)] = coeff
+        if non_zero_indices:
+            configs, coeffs = map(np.array, zip(*non_zero_indices))
+            idx = tuple(configs.T)
+            result_matrix[idx] = coeffs
 
         out_dims = Dim(*[int(i) for i in output_dims])
         in_dims = Dim(*[int(i) for i in input_dims])
