@@ -711,7 +711,7 @@ class Discard(Channel):
         return Discard(self.dom.inflate(d))
 
 
-class Category(frobenius.Category):
+class Category(frobenius.Category):  # pragma: no cover
     """
     A hypergraph category is a compact category with a method :code:`spiders`.
     Parameters:
@@ -721,7 +721,7 @@ class Category(frobenius.Category):
     ob, ar = Ty, Diagram
 
 
-class Functor(frobenius.Functor):
+class Functor(frobenius.Functor):  # pragma: no cover
     """
     A hypergraph functor is a compact functor that preserves spiders.
     Parameters:
@@ -735,7 +735,7 @@ class Functor(frobenius.Functor):
         return frobenius.Functor.__call__(self, other)
 
 
-class Hypergraph(hypergraph.Hypergraph):
+class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
     category, functor = Category, Functor
 
 
