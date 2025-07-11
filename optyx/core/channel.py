@@ -485,7 +485,7 @@ class Channel(symmetric.Box, Diagram):
         )
 
 
-class Spider(frobenius.Spider, Channel):
+class Spider(frobenius.Spider, Channel):  # pragma: no cover
     def __init__(self, n_legs_in: int, n_legs_out: int, typ: Ty, data=None,
                  **params):
         super().__init__(
