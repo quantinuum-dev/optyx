@@ -93,7 +93,7 @@ We can implement classical functions:
 >>> xor_gate = XorBit(2)
 >>>
 >>> f = ClassicalFunction(lambda b: [b[0] ^ b[1]],
-...                       diagram.Bit(2), diagram.Bit(1))
+...                       bit**2, bit)
 >>> m = BinaryMatrix([[1, 1]])   # (a,b) => a ⊕ b
 >>>
 >>> import numpy as np
@@ -583,8 +583,8 @@ class ClassicalFunction(ControlChannel):
     >>> from optyx.classical import X, Scalar
     >>> xor = X(2, 1) @ Scalar(2**0.5)
     >>> f_res = (ClassicalFunction(lambda x: [x[0] ^ x[1]],
-    ...         diagram.Bit(2),
-    ...         diagram.Bit(1))).double().to_tensor().eval().array
+    ...         bit**2,
+    ...         bit)).double().to_tensor().eval().array
     >>> xor_res = xor.double().to_tensor().eval().array
     >>> assert np.allclose(f_res, xor_res)
     """
@@ -592,8 +592,8 @@ class ClassicalFunction(ControlChannel):
     def __init__(self, function, dom, cod):
         box = control.ClassicalFunctionBox(
             function,
-            dom,
-            cod
+            dom.single(),
+            cod.single()
         )
         super().__init__(
             box.name,

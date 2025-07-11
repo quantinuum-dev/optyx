@@ -960,8 +960,8 @@ class FusionTypeI(Diagram):
 
         classical_function_I = ClassicalFunction(
             fusion_I_function,
-            diagram.Mode(2),
-            diagram.Bit(2)
+            mode**2,
+            bit**2
         )
 
         return (
@@ -1097,8 +1097,8 @@ class FusionTypeII(Diagram):
 
         classical_function_II = ClassicalFunction(
             fusion_II_function,
-            diagram.Mode(4),
-            diagram.Bit(2)
+            mode**4,
+            bit**2
         )
 
         return (
