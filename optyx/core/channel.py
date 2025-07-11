@@ -494,7 +494,7 @@ class Spider(frobenius.Spider, Channel):
         self.kraus = diagram.Spider(
             n_legs_in, n_legs_out, typ.single()
         )
-        self.env=diagram.Ty()
+        self.env = diagram.Ty()
 
 
 class Sum(symmetric.Sum, Diagram):
@@ -730,6 +730,7 @@ class Functor(frobenius.Functor):
         cod (Category) : The codomain of the functor.
     """
     dom = cod = Category()
+
     def __call__(self, other):
         return frobenius.Functor.__call__(self, other)
 

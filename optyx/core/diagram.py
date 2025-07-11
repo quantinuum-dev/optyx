@@ -968,6 +968,7 @@ class Functor(frobenius.Functor):
         cod (Category) : The codomain of the functor.
     """
     dom = cod = Category()
+
     def __call__(self, other):
         return frobenius.Functor.__call__(self, other)
 
