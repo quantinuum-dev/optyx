@@ -109,7 +109,7 @@ We can construct a lossy optical channel and compute its probabilities:
 from __future__ import annotations
 
 from discopy import tensor
-from discopy import symmetric, frobenius
+from discopy import symmetric, frobenius, hypergraph
 from discopy.cat import factory
 from optyx.core import zx, diagram
 from pytket.extensions.pyzx import pyzx_to_tk
@@ -485,6 +485,18 @@ class Channel(symmetric.Box, Diagram):
         )
 
 
+class Spider(frobenius.Spider, Channel):  # pragma: no cover
+    def __init__(self, n_legs_in: int, n_legs_out: int, typ: Ty, data=None,
+                 **params):
+        super().__init__(
+            n_legs_in, n_legs_out, typ, data=data, **params
+        )
+        self.kraus = diagram.Spider(
+            n_legs_in, n_legs_out, typ.single()
+        )
+        self.env = diagram.Ty()
+
+
 class Sum(symmetric.Sum, Diagram):
     """
     Formal sum of optyx channel diagrams
@@ -699,5 +711,35 @@ class Discard(Channel):
         return Discard(self.dom.inflate(d))
 
 
+class Category(frobenius.Category):  # pragma: no cover
+    """
+    A hypergraph category is a compact category with a method :code:`spiders`.
+    Parameters:
+        ob : The objects of the category, default is :class:`Ty`.
+        ar : The arrows of the category, default is :class:`Diagram`.
+    """
+    ob, ar = Ty, Diagram
+
+
+class Functor(frobenius.Functor):  # pragma: no cover
+    """
+    A hypergraph functor is a compact functor that preserves spiders.
+    Parameters:
+        ob (Mapping[Ty, Ty]) : Map from atomic :class:`Ty` to :code:`cod.ob`.
+        ar (Mapping[Box, Diagram]) : Map from :class:`Box` to :code:`cod.ar`.
+        cod (Category) : The codomain of the functor.
+    """
+    dom = cod = Category()
+
+    def __call__(self, other):
+        return frobenius.Functor.__call__(self, other)
+
+
+class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
+    category, functor = Category, Functor
+
+
+Diagram.spider_factory = Spider
+Diagram.hypergraph_factory = Hypergraph
 Diagram.braid_factory = Swap
 Diagram.sum_factory = Sum
