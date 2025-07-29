@@ -8,6 +8,9 @@ from cotengra import (
 )
 import numpy as np
 
+# contraction returns a channel box which then in then has
+# methods to get probs etc...
+
 class AbstractBackend(ABC):
     """
     Abstract base class for backend implementations.
@@ -136,4 +139,5 @@ class PercevalBackend(AbstractBackend):
 
         # Placeholder for Perceval evaluation logic
         pass  # Implement Perceval-specific evaluation logic here
+
 
