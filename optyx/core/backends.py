@@ -39,7 +39,36 @@ class EvalResult:
         assert len(self.result_tensor.dom) == 0, "Result tensor must represent a state without inputs."
         assert any(t in {bit, mode} for t in self.types), "Types must contain at least one 'bit' or 'mode'."
 
-        return self._convert_array_to_prob_dist(self.result_tensor.array)
+        values = self._convert_array_to_dict(self.result_tensor.array)
+
+        # for all measured wires, get all the occupation configurations
+        # for each of the above get the values for the unmeasured wires
+        # for each of the above, sum up the values if the occs agree on doubled wires
+
+        mask = [1 if t in {bit, mode} else [0, 0] for t in self.types]
+        mask_flat = np.concatenate([np.atleast_1d(m) for m in mask])
+
+        occs_measured_wires = set()
+        for key, _ in values.items():
+            occ = tuple(
+                i for i, m in zip(key, mask_flat) if m != 0
+            )
+            occs_measured_wires.add(occ)
+
+        values_aggregated = {key: [] for key in occs_measured_wires}
+        for key, _ in values.items():
+            occ_measured = tuple(
+                i for i, m in zip(key, mask_flat) if m != 0
+            )
+            occs_unmeasured = tuple(
+                i for i, m in zip(key, mask_flat) if m == 0
+            )
+            if all(occs_unmeasured[i] == occs_unmeasured[i + 1] for i in range(0, len(occs_unmeasured) - 1, 2)):
+                values_aggregated[occ_measured].append(values[key])
+
+        prob_dist = {key: sum(values) for key, values in values_aggregated.items()}
+
+        return prob_dist
 
     def prob(self, occupation: tuple):
         """
@@ -54,7 +83,7 @@ class EvalResult:
         prob_dist = self.prob_dist()
         return prob_dist.get(occupation, 0.0)
 
-    def _convert_array_to_prob_dist(self):
+    def _convert_array_to_dict(self):
         """
         Convert a result array to a probability distribution.
 
@@ -64,12 +93,8 @@ class EvalResult:
         Returns:
             A list of tuples of the form (occupation configuration, probability).
         """
-        dictionary = {idx: val for idx, val in np.ndenumerate(self.result_tensor.array) if val != 0}
 
-        # need to calculate a marginal prob_dist
-
-
-        return
+        return {idx: val for idx, val in np.ndenumerate(self.result_tensor.array) if val != 0}
 
 
 class AbstractBackend(ABC):
