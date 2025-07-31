@@ -39,7 +39,7 @@ class EvalResult:
         assert len(self.result_tensor.dom) == 0, "Result tensor must represent a state without inputs."
         assert any(t in {bit, mode} for t in self.types), "Types must contain at least one 'bit' or 'mode'."
 
-        values = self._convert_array_to_prob_dist(self.result_tensor.array)
+        values = self._convert_array_to_dict(self.result_tensor.array)
 
         # for all measured wires, get all the occupation configurations
         # for each of the above get the values for the unmeasured wires
@@ -83,7 +83,7 @@ class EvalResult:
         prob_dist = self.prob_dist()
         return prob_dist.get(occupation, 0.0)
 
-    def _convert_array_to_prob_dist(self):
+    def _convert_array_to_dict(self):
         """
         Convert a result array to a probability distribution.
 
@@ -93,12 +93,8 @@ class EvalResult:
         Returns:
             A list of tuples of the form (occupation configuration, probability).
         """
-        dictionary = {idx: val for idx, val in np.ndenumerate(self.result_tensor.array) if val != 0}
 
-        # need to calculate a marginal prob_dist
-
-
-        return
+        return {idx: val for idx, val in np.ndenumerate(self.result_tensor.array) if val != 0}
 
 
 class AbstractBackend(ABC):
