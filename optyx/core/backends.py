@@ -10,7 +10,7 @@ from discopy.tensor import Tensor
 import numpy as np
 import perceval as pcvl
 from dataclasses import dataclass
-
+from optyx.core.channel import Ty, mode, bit
 
 @dataclass(frozen=True)
 class EvalResult:
@@ -18,6 +18,7 @@ class EvalResult:
     Class to encapsulate the result of an evaluation.
     """
     result_tensor: Tensor
+    types: Ty
 
     def get_tensor(self):
         """
@@ -36,6 +37,7 @@ class EvalResult:
             dict: A dictionary mapping occupation configurations to probabilities.
         """
         assert len(self.result_tensor.dom) == 0, "Result tensor must represent a state without inputs."
+        assert any(t in {bit, mode} for t in self.types), "Types must contain at least one 'bit' or 'mode'."
 
         return self._convert_array_to_prob_dist(self.result_tensor.array)
 
@@ -62,7 +64,12 @@ class EvalResult:
         Returns:
             A list of tuples of the form (occupation configuration, probability).
         """
-        return {idx: val for idx, val in np.ndenumerate(self.result_tensor.array) if val != 0}
+        dictionary = {idx: val for idx, val in np.ndenumerate(self.result_tensor.array) if val != 0}
+
+        # need to calculate a marginal prob_dist
+
+
+        return
 
 
 class AbstractBackend(ABC):
@@ -212,7 +219,8 @@ class QuimbBackend(AbstractBackend):
                 dom=self._discopy_tensor.dom,
                 cod=self._discopy_tensor.cod,
                 array=results
-            )
+            ),
+            types=diagram.cod
         )
 
 
