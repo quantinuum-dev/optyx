@@ -6,7 +6,7 @@ from cotengra import (
     HyperCompressedOptimizer,
     ReusableHyperCompressedOptimizer
 )
-from discopy.tensor import Tensor
+from discopy import tensor
 import numpy as np
 import perceval as pcvl
 from dataclasses import dataclass
@@ -17,17 +17,32 @@ class EvalResult:
     """
     Class to encapsulate the result of an evaluation.
     """
-    result_tensor: Tensor
+    result_tensor: tensor.Box
     types: Ty
+    pure: bool
 
     def get_tensor(self):
         """
-        Get the result tensor.
+        Get the resulting tensor.
 
         Returns:
-            Tensor: The result tensor.
+            tensor.Box: The result tensor.
         """
         return self.result_tensor
+
+    def get_density_matrix(self):
+        assert len(self.result_tensor.dom) == 0, "Result tensor must represent a state without inputs."
+        if self.pure:
+            # does tensor dagger do T conj?
+            # should instead do conj? and then wire permuation?
+
+            density_matrix = self.result_tensor.dagger() >> self.result_tensor
+            return density_matrix
+        return self.result_tensor
+
+    def amplitudes(self):
+        assert self.pure, "Amplitudes are not defined for mixed states."
+        return self._convert_array_to_dict(self.result_tensor.array)
 
     def prob_dist(self):
         """
@@ -37,6 +52,49 @@ class EvalResult:
             dict: A dictionary mapping occupation configurations to probabilities.
         """
         assert len(self.result_tensor.dom) == 0, "Result tensor must represent a state without inputs."
+        if self.pure:
+            return self._prob_dist_pure()
+        else:
+            return self._prob_dist_mixed()
+
+    def prob(self, occupation: tuple):
+        """
+        Get the probability of a specific occupation configuration.
+
+        Args:
+            occupation: The occupation configuration to query.
+
+        Returns:
+            float: The probability of the specified occupation configuration.
+        """
+        prob_dist = self.prob_dist()
+        return prob_dist.get(occupation, 0.0)
+
+    def _convert_array_to_dict(self, array):
+        """
+        Convert a result array to a probability distribution.
+
+        Args:
+            result: The array to convert.
+
+        Returns:
+            A list of tuples of the form (occupation configuration, probability).
+        """
+
+        return {idx: val for idx, val in np.ndenumerate(array) if val != 0}
+
+    def _prob_dist_pure(self):
+        """
+        Get the probability distribution for a pure state.
+
+        Returns:
+            dict: A dictionary mapping occupation configurations to probabilities.
+        """
+
+        values = self._convert_array_to_dict(self.result_tensor.array)
+        return {key: abs(value) ** 2 for key, value in values.items()}
+
+    def _prob_dist_mixed(self):
         assert any(t in {bit, mode} for t in self.types), "Types must contain at least one 'bit' or 'mode'."
 
         values = self._convert_array_to_dict(self.result_tensor.array)
@@ -69,33 +127,6 @@ class EvalResult:
         prob_dist = {key: sum(values) for key, values in values_aggregated.items()}
 
         return prob_dist
-
-    def prob(self, occupation: tuple):
-        """
-        Get the probability of a specific occupation configuration.
-
-        Args:
-            occupation: The occupation configuration to query.
-
-        Returns:
-            float: The probability of the specified occupation configuration.
-        """
-        prob_dist = self.prob_dist()
-        return prob_dist.get(occupation, 0.0)
-
-    def _convert_array_to_dict(self):
-        """
-        Convert a result array to a probability distribution.
-
-        Args:
-            result: The array to convert.
-
-        Returns:
-            A list of tuples of the form (occupation configuration, probability).
-        """
-
-        return {idx: val for idx, val in np.ndenumerate(self.result_tensor.array) if val != 0}
-
 
 class AbstractBackend(ABC):
     """
@@ -157,10 +188,10 @@ class AbstractBackend(ABC):
         diagram: Diagram,
         cache: bool = True
     ):
-        if diagram.is_pure():
+        if diagram.is_pure:
             discopy_tensor = diagram.get_kraus().to_tensor()
         else:
-            discopy_tensor = diagram.to_tensor()
+            discopy_tensor = diagram.double().to_tensor()
         if cache:
             self._discopy_tensor = discopy_tensor
 
@@ -211,41 +242,43 @@ class QuimbBackend(AbstractBackend):
         """
         quimb_tn = self._get_quimb_tensor(diagram)
 
+        is_approx = isinstance(
+            self.hyperoptimiser,
+            (ReusableHyperCompressedOptimizer, HyperCompressedOptimizer)
+        )
+
+        is_exact = isinstance(
+            self.hyperoptimiser,
+            (ReusableHyperOptimizer, HyperOptimizer)
+        )
+
         if self.hyperoptimiser is None:
             results=quimb_tn^...
         else:
-            if isinstance(
-                self.hyperoptimiser,
-                (ReusableHyperOptimizer, HyperOptimizer)
-            ):
-                results = quimb_tn.contract(
-                    optimize=self.hyperoptimiser,
-                    **self.contraction_params
-                )
-            elif isinstance(
-                self.hyperoptimiser,
-                (ReusableHyperCompressedOptimizer, HyperCompressedOptimizer)
-            ):
-                results = quimb_tn.contract_compressed(
-                    optimize=self.hyperoptimiser,
-                    **self.contraction_params
-                )
-            else:
+            if not is_approx and not is_exact:
                 raise ValueError(
                     "Unsupported hyperoptimiser type. Use ReusableHyperOptimizer, HyperOptimizer, ReusableHyperCompressedOptimizer, or HyperCompressedOptimizer."
                 )
+
+            contract = quimb_tn.contract_compressed if is_approx else quimb_tn.contract
+            results = contract(
+                optimize=self.hyperoptimiser,
+                output_inds=sorted(quimb_tn.outer_inds()),
+                **self.contraction_params
+            )
 
         if not isinstance(results, (complex, float, int)):
             results = results.data
 
         return EvalResult(
-            Tensor(
+            tensor.Box(
                 "Result",
-                dom=self._discopy_tensor.dom,
-                cod=self._discopy_tensor.cod,
-                array=results
+                self._discopy_tensor.dom,
+                self._discopy_tensor.cod,
+                results
             ),
-            types=diagram.cod
+            types=diagram.cod,
+            pure=diagram.is_pure,
         )
 
 
@@ -265,7 +298,7 @@ class DiscopyBackend(AbstractBackend):
             The result of the evaluation.
         """
         discopy_tensor = self._get_discopy_tensor(diagram).eval()
-        return EvalResult(discopy_tensor)
+        return EvalResult(discopy_tensor, types=diagram.cod, eval_from=diagram.is_pure)
 
 
 class PercevalBackend(AbstractBackend):
@@ -307,7 +340,7 @@ class PercevalBackend(AbstractBackend):
 
         perceval_circuit = self._umatrix_to_perceval_circuit(matrix)
         sim.set_circuit(perceval_circuit)
-        result = sim.probs(perceval_state)
+        result = sim.prob_amplitude(perceval_state)
         result = {tuple(k): v for k, v in result.items()}
 
         array = np.zeros(
@@ -320,10 +353,12 @@ class PercevalBackend(AbstractBackend):
         array[idx] = coeffs
 
         return EvalResult(
-            Tensor(
+            tensor.Box(
                 "Result",
-                dom=self._discopy_tensor.dom,
-                cod=self._discopy_tensor.cod,
-                array=array
-            )
+                self._discopy_tensor.dom,
+                self._discopy_tensor.cod,
+                array
+            ),
+            types=diagram.cod,
+            pure=True
         )
