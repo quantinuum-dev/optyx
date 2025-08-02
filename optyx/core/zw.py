@@ -40,7 +40,7 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 
 **W commutativity**
 
->>> from optyx.utils import compare_arrays_of_different_sizes
+>>> from optyx._utils import compare_arrays_of_different_sizes
 >>> from discopy.drawing import Equation
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> SWAP
@@ -146,39 +146,32 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
     :align: center
 """
 
-from typing import Union
+from typing import List, Union
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
-from typing import List
-from optyx.optyx import (
-    Diagram, Mode, Swap, Scalar, Spider, truncation_tensor
+from optyx.core import diagram
+from optyx._utils import (
+    occupation_numbers,
+    multinomial,
+    filter_occupation_numbers
 )
-from optyx.utils import occupation_numbers, multinomial
-from optyx.path import Matrix
-from optyx import optyx
+from optyx.core.path import Matrix
 
 
-class Box(optyx.Box):
+class ZWDiagram(diagram.Diagram):
+    pass
+
+
+class ZWBox(diagram.Box, ZWDiagram):
     """Box in a :class:`Diagram`"""
 
     def __init__(self, name, dom, cod, **params):
         if isinstance(dom, int):
-            dom = Mode(dom)
+            dom = diagram.Mode(dom)
         if isinstance(cod, int):
-            cod = Mode(cod)
+            cod = diagram.Mode(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
-
-    def to_zw(self):
-        return self
-
-    def to_path(self, dtype=complex):
-        if isinstance(self.data, Matrix):
-            return self.data
-        raise NotImplementedError
-
-    def conjugate(self):
-        raise NotImplementedError
 
 
 class IndexableAmplitudes:
@@ -201,7 +194,7 @@ class IndexableAmplitudes:
         return np.conj(self.func(i))
 
     def __str__(self) -> str:
-        return "function"
+        return "function"  # pragma: no cover
 
     def conjugate(self):
         """Conjugate the amplitudes"""
@@ -211,11 +204,11 @@ class IndexableAmplitudes:
 
     def __eq__(self, other: "IndexableAmplitudes") -> bool:
         if not isinstance(other, IndexableAmplitudes):
-            return False
+            return False  # pragma: no cover
         return self.func.__code__.co_code == other.func.__code__.co_code
 
 
-class W(Box):
+class W(ZWBox):
     """
     W node from the infinite ZW calculus - one input and n outputs
     """
@@ -224,8 +217,8 @@ class W(Box):
     color = "white"
 
     def __init__(self, n_legs: int, is_dagger: bool = False):
-        dom = Mode(n_legs) if is_dagger else Mode(1)
-        cod = Mode(1) if is_dagger else Mode(n_legs)
+        dom = diagram.Mode(n_legs) if is_dagger else diagram.Mode(1)
+        cod = diagram.Mode(1) if is_dagger else diagram.Mode(n_legs)
         super().__init__("W", dom, cod)
         self.n_legs = n_legs
         self.is_dagger = is_dagger
@@ -294,10 +287,10 @@ class W(Box):
     def to_path(self, dtype=complex) -> Matrix:
         array = np.ones(self.n_legs)
         if self.is_dagger:
-            return Matrix[dtype](array, self.n_legs, 1)
-        return Matrix[dtype](array, 1, self.n_legs)
+            return Matrix[dtype](array, int(self.n_legs), 1)
+        return Matrix[dtype](array, 1, int(self.n_legs))
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return W(self.n_legs, not self.is_dagger)
 
     def __repr__(self):
@@ -313,7 +306,7 @@ class W(Box):
         )
 
 
-class ZBox(Spider, Box):
+class ZBox(diagram.Spider, ZWBox):
     """
     Z spider from the ZW calculus.
     """
@@ -331,7 +324,7 @@ class ZBox(Spider, Box):
             self.amplitudes = IndexableAmplitudes(amplitudes)
         else:
             self.amplitudes = amplitudes
-        super().__init__(legs_in, legs_out, Mode(1))
+        super().__init__(legs_in, legs_out, diagram.Mode(1))
         self.legs_in = legs_in
         self.legs_out = legs_out
 
@@ -354,8 +347,6 @@ class ZBox(Spider, Box):
             )
             return tensor.Box(self.name, Dim(1), Dim(1), amplitudes)
 
-        from optyx.optyx import EmbeddingTensor
-
         spider_dim = min(input_dims) if self.legs_in > 0 else 2
 
         # create the array
@@ -374,7 +365,7 @@ class ZBox(Spider, Box):
         idx_leg_zbox = 0
         for i, input_dim in enumerate(input_dims):
             embedding_layer @= (
-                EmbeddingTensor(input_dim, spider_dim)
+                diagram.EmbeddingTensor(input_dim, spider_dim)
                 if input_dim > spider_dim
                 else tensor.Id(Dim(int(input_dim)))
             )
@@ -432,11 +423,11 @@ class ZBox(Spider, Box):
             return self.amplitudes == other.amplitudes
         return np.allclose(self.amplitudes, other.amplitudes)
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return ZBox(self.legs_out, self.legs_in, np.conj(self.amplitudes))
 
 
-class Create(Box):
+class Create(ZWBox):
     """
     Creation of photons on modes given a list of occupation numbers.
 
@@ -484,36 +475,6 @@ class Create(Box):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def inflate(self, d):
-
-        if any(p == 1 for p in self.photons):
-            assert self.internal_states is not None, \
-                "Internal states in Create/Select must be " \
-                "provided if there is at least one photon being created"
-            assert all(len(state) == d for state in self.internal_states), \
-                "All internal states must be of length d"
-
-        diagram = Id(Mode(0))
-
-        photon_index = 0
-        for i, n_photons in enumerate(self.photons):
-
-            endo_layer = Id(Mode(0))
-            if n_photons == 1:
-                for j in self.internal_states[photon_index]:
-                    endo_layer @= Endo(j)
-                photon_index += 1
-            else:
-                endo_layer @= Id(Mode(d))
-
-            diagram @= (
-                Create(self.photons[i]) >>
-                W(d) >>
-                endo_layer
-            )
-
-        return diagram
-
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
@@ -549,11 +510,42 @@ class Create(Box):
             for i in range(len(self.cod))
         ]
 
-    def dagger(self) -> Diagram:
-        return Select(*self.photons)
+    def dagger(self) -> diagram.Diagram:
+        return Select(*self.photons,
+                      internal_states=self.internal_states)
+
+    def inflate(self, d):
+
+        if any(p == 1 for p in self.photons):
+            assert self.internal_states is not None, \
+                "Internal states in Create/Select must be " \
+                "provided if there is at least one photon being created"
+            assert all(len(state) == d for state in self.internal_states), \
+                "All internal states must be of length d"
+
+        dgrm = Id(diagram.Mode(0))
+
+        photon_index = 0
+        for i, n_photons in enumerate(self.photons):
+
+            endo_layer = Id(diagram.Mode(0))
+            if n_photons == 1:
+                for j in self.internal_states[photon_index]:
+                    endo_layer @= Endo(j)
+                photon_index += 1
+            else:
+                endo_layer @= Id(diagram.Mode(d))
+
+            dgrm @= (
+                Create(self.photons[i]) >>
+                W(d) >>
+                endo_layer
+            )
+
+        return dgrm
 
 
-class Select(Box):
+class Select(ZWBox):
     """
     Post-selection of photons given a list of occupation numbers.
 
@@ -590,17 +582,17 @@ class Select(Box):
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
 
-    def conjugate(self):
-        return self
-
     def inflate(self, d):
 
-        diagram = Create(
+        dgrm = Create(
             *self.photons,
             internal_states=self.internal_states
         ).inflate(d).dagger()
 
-        return diagram
+        return dgrm
+
+    def conjugate(self):
+        return self
 
     def to_path(self, dtype=complex) -> Matrix:
         array = np.eye(len(self.photons))
@@ -643,11 +635,11 @@ class Select(Box):
         """Determine the output dimensions based on the input dimensions."""
         return []
 
-    def dagger(self) -> Diagram:
-        return Create(*self.photons)
+    def dagger(self) -> diagram.Diagram:
+        return Create(*self.photons, internal_states=self.internal_states)
 
 
-class Endo(Box):
+class Endo(ZWBox):
     """
     Endomorphism with one input and one output.
 
@@ -685,7 +677,7 @@ class Endo(Box):
         """Returns an equivalent :class:`Matrix` object"""
         return Matrix[dtype]([self.scalar], 1, 1)
 
-    def dagger(self) -> Diagram:
+    def dagger(self) -> diagram.Diagram:
         return Endo(self.scalar.conjugate())
 
     def grad(self, var):
@@ -694,10 +686,11 @@ class Endo(Box):
             return self.sum_factory((), self.dom, self.cod)
         s = self.scalar.diff(var) / self.scalar
         num_op = Split(2) >> Id(1) @ (Select() >> Create()) >> Merge(2)
-        d = Scalar(s) @ (self >> num_op)
+        d = diagram.Scalar(s) @ (self >> num_op)
         return d
 
     def lambdify(self, *symbols, **kwargs):
+        # pylint: disable=import-outside-toplevel
         from sympy import lambdify
 
         return lambda *xs: type(self)(
@@ -715,61 +708,25 @@ class Endo(Box):
         return input_dims
 
 
-def calculate_num_creations_selections(diagram: Diagram) -> tuple:
-    """Calculate the number of creations and selections in the diagram"""
-
-    n_selections = 0
-    n_creations = 0
-
-    if not isinstance(diagram, optyx.Sum):
-        for box, _ in zip(diagram.boxes, diagram.offsets):
-            if isinstance(box, Create):
-                n_creations += sum(box.photons)
-            elif isinstance(box, Select):
-                n_selections += sum(box.photons)
-    else:
-        arr_selections_creations = []
-        for term in diagram:
-            arr_selections_creations.append(
-                calculate_num_creations_selections(term)
-            )
-        n_selections = max(i[0] for i in arr_selections_creations)
-        n_creations = max(i[1] for i in arr_selections_creations)
-    return n_selections, n_creations
-
-
-def filter_occupation_numbers(
-    allowed_occupation_configurations: list[list[int]],
-    input_dims: list[int],
-) -> list[list[int]]:
-    """Filter the occupation numbers based on the input dimensions"""
-    return [
-        config
-        for config in allowed_occupation_configurations
-        if all(
-            list(config[i] <= input_dims[i] for i in range(len(input_dims)))
-        )
-    ]
-
-
-class Add(Box):
+class Add(ZWBox):
     """
-    Acts as addition on basis states.
-    Like the W-dagger operation but without the binomial coefficients.
+    Adds multiple classical values using a W-dagger operation.
+    Acts by adding the basis vectors without the binomial coefficient.
+    Takes `n` mode inputs and returns a single summed mode output
+    (or vice versa if daggered).
 
     Example
     -------
-    >>> from optyx.zw import Add
     >>> add_box = Add(2)
-    >>> tensor = add_box.to_zw().to_tensor(input_dims=[2, 2]).eval().array
+    >>> tensor = add_box.to_tensor(input_dims=[2, 2]).eval().array
     >>> import numpy as np
     >>> # Expect 4 one-hot outputs for all input combinations
     >>> assert np.allclose(tensor.sum(), 4)
     """
 
     def __init__(self, n: int, is_dagger: bool = False):
-        dom = Mode(1) if is_dagger else Mode(n)
-        cod = Mode(n) if is_dagger else Mode(1)
+        dom = diagram.Mode(1) if is_dagger else diagram.Mode(n)
+        cod = diagram.Mode(n) if is_dagger else diagram.Mode(1)
 
         super().__init__("Add", dom, cod)
         self.n = n
@@ -787,7 +744,7 @@ class Add(Box):
 
         diag = W(self.n).dagger().to_tensor(input_dims)
         array = np.sign(
-            (diag >> truncation_tensor(diag.cod.inside, output_dims))
+            (diag >> diagram.truncation_tensor(diag.cod.inside, output_dims))
             .eval()
             .array
         )
@@ -803,17 +760,193 @@ class Add(Box):
             return [int(input_dims[0])] * self.n
         return [int(sum(input_dims))]
 
-    def to_zw(self):
-        return self
-
     def dagger(self):
         return Add(self.n, not self.is_dagger)
 
     def conjugate(self):
-        return Add(self.n, self.is_dagger)
+        return self
 
 
-SWAP = Swap(Mode(1), Mode(1))
+class Multiply(ZWBox):
+    """
+    Multiplies two classical integers.
+
+    Example
+    -------
+    >>> mbox = Multiply()
+    >>> result = mbox.to_tensor(input_dims=[3, 3]).eval().array
+    >>> import numpy as np
+    >>> assert result.shape == (3, 3, 9)
+    >>> nonzero = np.nonzero(result)
+    >>> assert len(nonzero[0]) > 0
+    """
+
+    def __init__(self, is_dagger: bool = False):
+        dom = diagram.Mode(1) if is_dagger else diagram.Mode(2)
+        cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
+
+        super().__init__("Multiply", dom, cod)
+
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        for i in range(input_dims[0]):
+            if i > 0:
+                def multiply_diagram(n): return (
+                            diagram.Spider(1, n, diagram.Mode(1)) >>
+                            Add(n)
+                            )
+            else:
+                def multiply_diagram(n): return (
+                            diagram.Spider(1, 0, diagram.Mode(1)) >>
+                            Create(0)
+                            )
+
+            d = multiply_diagram(i).to_tensor([input_dims[1]])
+            d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
+
+            array[i, :] = d.eval().array.reshape(array[i, :].shape)
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [int(input_dims[0])]
+        return [int(np.prod(input_dims))]
+
+    def conjugate(self):
+        return self
+
+    def dagger(self):
+        return Multiply(not self.is_dagger)
+
+
+class Divide(ZWBox):
+    """
+    Inverse of multiplication: decomposes a product into factors if possible.
+
+    Example
+    -------
+    >>> dbox = Divide()
+    >>> result = dbox.to_tensor(input_dims=[3, 3]).eval().array
+    >>> import numpy as np
+    >>> assert result.shape == (3, 3, 9)
+    >>> assert np.all(result >= 0)
+    """
+
+    def __init__(self, is_dagger: bool = False):
+        dom = diagram.Mode(1) if is_dagger else diagram.Mode(2)
+        cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
+
+        super().__init__("Divide", dom, cod)
+
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        for i in range(input_dims[1]):
+            if i > 0:
+                def divide_diagram(n): return (
+                            diagram.Spider(1, n, diagram.Mode(1)) >>
+                            Add(n)
+                            ).dagger()
+
+                d = divide_diagram(i).to_tensor([input_dims[0]])
+                d = d >> diagram.truncation_tensor(d.cod.inside, output_dims)
+
+                array[:, i, :] = d.eval().array.reshape(array[:, i, :].shape)
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [int(input_dims[0])]
+        return [int(np.prod(input_dims))]
+
+    def conjugate(self):
+        return self
+
+    def dagger(self):
+        return Divide(not self.is_dagger)
+
+
+class Mod2(ZWBox):
+    """
+    Reduces a classical mode to its parity (even/odd), i.e., modulo 2.
+
+    Example
+    -------
+    >>> m2 = Mod2()
+    >>> array = m2.to_tensor(input_dims=[5]).eval().array
+    >>> import numpy as np
+    >>> assert np.allclose([np.argmax(array[i]) for i in range(5)],
+    ...    [i % 2 for i in range(5)])
+    """
+
+    def __init__(self, is_dagger: bool = False):
+        super().__init__("Mod2", diagram.Mode(1), diagram.Bit(1))
+        self.is_dagger = is_dagger
+
+    def truncation(
+        self, input_dims: List[int], output_dims: List[int]
+    ) -> tensor.Box:
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        array = np.zeros((*input_dims, *output_dims), dtype=complex)
+
+        for i in range(input_dims[0]):
+            array[i, i % 2] = 1
+
+        if self.is_dagger:
+            return tensor.Box(
+                self.name, Dim(*input_dims), Dim(*output_dims), array
+            ).dagger()
+        return tensor.Box(
+            self.name, Dim(*input_dims), Dim(*output_dims), array
+        )
+
+    def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
+        if self.is_dagger:
+            return [input_dims[0]]
+        return [2]
+
+    def conjugate(self):
+        return self
+
+    def dagger(self):
+        return Mod2(not self.is_dagger)
+
+
+SWAP = diagram.Swap(diagram.Mode(1), diagram.Mode(1))
 
 
 def Split(n):
@@ -825,4 +958,5 @@ def Merge(n):
 
 
 def Id(n):
-    return Diagram.id(n) if isinstance(n, optyx.Ty) else Diagram.id(Mode(n))
+    return diagram.Diagram.id(n) if \
+          isinstance(n, diagram.Ty) else diagram.Diagram.id(diagram.Mode(n))

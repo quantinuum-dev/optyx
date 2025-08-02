@@ -13,7 +13,7 @@ with generators :class:`zw.Z`, :class:`zw.W`, creations and selections.
 :class:`zx.Z` and :class:`zx.X`.
 
 Mode and Bit types can moreover be combined using :class:`DualRail`
-or other instances of :class:`optyx.Box`.
+or other instances of :class:`diagram.core.Box`.
 Note that the permanent method is only defined for a subclass
 of :class:`zw` diagrams, including :class:`lo` circuits.
 These are also known as QPath diagrams [FC23]_,
@@ -85,7 +85,7 @@ We can create and draw Optyx diagrams using the syntax of
 the Discopy package [FTC21]_. Sequential composition of
 boxes is done using the :code:`<<` operator:
 
->>> from optyx.zw import Create, W
+>>> from optyx.core.zw import Create, W
 >>> split_photon = Create(1) >> W(2)
 >>> split_photon.draw(path="docs/_static/seq_comp_example.png")
 
@@ -94,18 +94,18 @@ boxes is done using the :code:`<<` operator:
 
 We can also compose boxes in parallel (tensor) using the :code:`@` operator :
 
->>> from optyx.lo import BS, Phase
->>> beam_splitter_phase = BS @ Phase(0.5)
+>>> from optyx.photonic import BS, Phase
+>>> beam_splitter_phase = (BS @ Phase(0.5)).get_kraus()
 >>> beam_splitter_phase.draw(path="docs/_static/parallel_comp_example.png")
 
 .. image:: /_static/parallel_comp_example.png
     :align: center
 
-A beam-splitter from the :class:`lo` calculus can be
+A beam-splitter from the :class:`photonic` calculus can be
 expressed using the :class:`zw` calculus:
 
->>> from optyx.lo import BS
->>> beam_splitter = BS.to_zw()
+>>> from optyx.photonic import BS
+>>> beam_splitter = BS.get_kraus()
 >>> beam_splitter.draw(path="docs/_static/bs_zw.png")
 
 .. image:: /_static/bs_zw.png
@@ -113,15 +113,15 @@ expressed using the :class:`zw` calculus:
 
 Optyx diagrams can combine the generators from
 :class:`zw` (Mode type),
-:class:`lo` (Mode type) and :class:`zx` calculi (Bit type).
+:class:`photonic` (Mode type) and :class:`zx` calculi (Bit type).
 We can check their equivalence as tensors.
 
 **Branching Law**
 
 Let's check the branching law from [FC23]_.
 
->>> from optyx.zw import Create, W
->>> from optyx.utils import compare_arrays_of_different_sizes
+>>> from optyx.core.zw import Create, W
+>>> from optyx._utils import compare_arrays_of_different_sizes
 >>> branching_l = Create(1) >> W(2)
 >>> branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
@@ -135,7 +135,7 @@ Let's check the branching law from [FC23]_.
 The :code:`to_tensor` method supports evaluation of
 diagrams like the Hong-Ou-Mandel effect:
 
->>> from optyx.zw import ZBox, SWAP, W, Select, Id
+>>> from optyx.core.zw import ZBox, SWAP, W, Select, Id
 >>> Zb_i = ZBox(1,1,np.array([1, 1j/(np.sqrt(2))]))
 >>> Zb_1 = ZBox(1,1,np.array([1, 1/(np.sqrt(2))]))
 >>> beam_splitter = W(2) @ W(2) >> \\
@@ -154,7 +154,7 @@ diagrams like the Hong-Ou-Mandel effect:
 The :code:`from_bosonic_operator` method
 supports creating :class:`path` diagrams:
 
->>> from optyx.zw import Split, Select, Id, Mode, Scalar
+>>> from optyx.core.zw import Split, Select, Id
 >>> d1 = Diagram.from_bosonic_operator(
 ...     n_modes= 2,
 ...     operators=((0, False), (1, False), (0, True)),
@@ -174,7 +174,7 @@ supports creating :class:`path` diagrams:
 The :code:`to_path` method supports evaluation by
 calculating a permanent of an underlying matrix:
 
->>> from optyx.zw import Create, W
+>>> from optyx.core.zw import Create, W
 >>> counit_l = W(2) >> Select(0) @ Id(Mode(1))
 >>> counit_r = W(2) >> Id(Mode(1)) @ Select(0)
 >>> assert counit_l.to_path().eval(2) == counit_r.to_path().eval(2)
@@ -219,13 +219,15 @@ preprint arXiv:2409.13541.
 from __future__ import annotations
 
 import numpy as np
-from typing import List
 from sympy.core import Symbol, Mul
-from discopy import symmetric, frobenius, tensor
+from discopy import (
+    symmetric, frobenius, tensor, hypergraph
+)
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
-from optyx.utils import modify_io_dims_against_max_dim
+from optyx._utils import modify_io_dims_against_max_dim
+from typing import List
 
 MAX_DIM = 10
 
@@ -244,6 +246,7 @@ class Ty(frobenius.Ty):
 class Mode(Ty):
     """Optical mode interpreted as the infinite space with countable basis"""
 
+    # pylint: disable=invalid-name
     def __init__(self, n=0):
         self.n = n
         super().__init__(*["mode" for _ in range(n)])
@@ -252,6 +255,7 @@ class Mode(Ty):
 class Bit(Ty):
     """Qubit type interpreted as the two dimensional complext vector space"""
 
+    # pylint: disable=invalid-name
     def __init__(self, n=0):
         self.n = n
         super().__init__(*["bit" for _ in range(n)])
@@ -274,23 +278,13 @@ class Diagram(frobenius.Diagram):
             dom=symmetric.Category(Ty, Diagram),
         )(self)
 
-    def to_zw(self) -> Diagram:
-        """To be used with :class:`lo` diagrams which can
-        be decomposed into the underlying
-        :class:`zw` generators."""
-        return symmetric.Functor(
-            ob=lambda x: x,
-            ar=lambda f: f.to_zw(),
-            cod=symmetric.Category(Ty, Diagram),
-            dom=symmetric.Category(Ty, Diagram),
-        )(self)
-
     def to_path(self, dtype: type = complex):
         """Returns the :class:`Matrix` normal form
         of a :class:`Diagram`.
         In other words, it is the underlying matrix
         representation of a :class:`path` and :class:`lo` diagrams."""
-        from optyx import path
+        # pylint: disable=import-outside-toplevel
+        from optyx.core import path
 
         return symmetric.Functor(
             ob=len,
@@ -298,32 +292,13 @@ class Diagram(frobenius.Diagram):
             cod=symmetric.Category(int, path.Matrix[dtype]),
         )(self)
 
-    def inflate(self, d):
-        r"""
-        Translates from an indistinguishable setting
-        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
-        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
-        """
-        assert isinstance(d, int), "Dimension must be an integer"
-        assert d > 0, "Dimension must be positive"
-
-        def ob(x):
-            return Ty.tensor(
-                *(o**d if o.name == "mode" else o for o in x)
-            )
-
-        return symmetric.Functor(
-            ob=ob,
-            ar=lambda f: f.inflate(d),
-            cod=symmetric.Category(Ty, Diagram),
-            dom=symmetric.Category(Ty, Diagram),
-        )(self)
-
+    # pylint: disable=too-many-locals
     def to_tensor(
         self, input_dims: list = None, max_dim: int = None
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
-        from optyx import zw
+        # pylint: disable=import-outside-toplevel
+        from optyx.core import zw
 
         def list_to_dim(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
@@ -376,7 +351,10 @@ class Diagram(frobenius.Diagram):
                 diagram = diagram >> diagram_
             right_dim = cod_right_dim
             layer_dims = cod_layer_dims
+
         zboxes = tensor.Id(Dim(1))
+
+        # pylint: disable=invalid-name
         for c in diagram.cod:
             zboxes @= zw.ZBox(1, 1, lambda i: 1).truncation(
                 input_dims=[int(c.inside[0])], output_dims=[int(c.inside[0])]
@@ -387,10 +365,12 @@ class Diagram(frobenius.Diagram):
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
         """Create a :class:`zw` diagram from a bosonic operator."""
-        from optyx import zw
+        # pylint: disable=import-outside-toplevel
+        from optyx.core import zw
 
+        # pylint: disable=invalid-name
         d = cls.id(Mode(n_modes))
-        annil = zw.Split(2) >> zw.Select(1) @ zw.Id(Mode(1))
+        annil = zw.Split(2) >> zw.Select(1) @ zw.Id(1)
         create = annil.dagger()
         for idx, dagger in operators:
             if not 0 <= idx < n_modes:
@@ -399,218 +379,48 @@ class Diagram(frobenius.Diagram):
             d = d >> zw.Id(idx) @ box @ zw.Id(n_modes - idx - 1)
 
         if scalar != 1:
-            d = zw.Scalar(scalar) @ d
+            # pylint: disable=invalid-name
+            d = Scalar(scalar) @ d
         return d
 
     def to_pyzx(self):
+        # pylint: disable=import-outside-toplevel
+        from optyx.core import zx
+
+        try:
+            zx_diagram = zx.ZXDiagram(
+                dom=self.dom,
+                cod=self.cod,
+                inside=self.inside,
+            )
+        except TypeError:
+            raise NotImplementedError(
+                "Conversion to PyZX is not implemented for this diagram."
+            )
+        return zx_diagram.to_pyzx()
+
+    # pylint: disable=invalid-name
+    def inflate(self, d):
+        r"""
+        Translates from an indistinguishable setting
+        to a distinguishable one. For a map on :math:`F(\mathbb{C})`,
+        obtain a map on :math:`F(\mathbb{C})^{\widetilde{\otimes} d}`.
         """
-        Returns a :class:`pyzx.Graph`.
+        assert isinstance(d, int), "Dimension must be an integer"
+        assert d > 0, "Dimension must be positive"
 
-        >>> import optyx.zx as zx
-        >>> bialgebra = zx.Z(1, 2, .25) @ zx.Z(1, 2, .75) >> Id(Bit(1)) @ \\
-        ...   zx.SWAP @ Id(Bit(1)) >> zx.X(2, 1, .5) @ zx.X(2, 1, .5)
-        >>> graph = bialgebra.to_pyzx()
-        >>> assert len(graph.vertices()) == 8
-        >>> assert (graph.inputs(), graph.outputs()) == ((0, 1), (6, 7))
-        >>> from pyzx import VertexType
-        >>> assert graph.type(2) == graph.type(3) == VertexType.Z
-        >>> assert graph.phase(2) == 2 * .25 and graph.phase(3) == 2 * .75
-        >>> assert graph.type(4) == graph.type(5) == VertexType.X
-        >>> assert graph.phase(4) == graph.phase(5) == 2 * .5
-        >>> assert graph.graph == {
-        ...     0: {2: 1},
-        ...     1: {3: 1},
-        ...     2: {0: 1, 4: 1, 5: 1},
-        ...     3: {1: 1, 4: 1, 5: 1},
-        ...     4: {2: 1, 3: 1, 6: 1},
-        ...     5: {2: 1, 3: 1, 7: 1},
-        ...     6: {4: 1},
-        ...     7: {5: 1}}
-        """
-        from pyzx import Graph, VertexType, EdgeType
-        from optyx import zx
-
-        graph, scan = Graph(), []
-        for i, _ in enumerate(self.dom):
-            node, hadamard = graph.add_vertex(VertexType.BOUNDARY), False
-            scan.append((node, hadamard))
-            graph.set_inputs(graph.inputs() + (node,))
-            graph.set_position(node, i, 0)
-        for row, (box, offset) in enumerate(zip(self.boxes, self.offsets)):
-            if isinstance(box, zx.Spider):
-                node = graph.add_vertex(
-                    (VertexType.Z if isinstance(box, zx.Z) else VertexType.X),
-                    phase=box.phase * 2 if box.phase else None,
-                )
-                graph.set_position(node, offset, row + 1)
-                for i, _ in enumerate(box.dom):
-                    source, hadamard = scan[offset + i]
-                    etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
-                    graph.add_edge((source, node), etype)
-                scan = (
-                    scan[:offset]
-                    + len(box.cod) * [(node, False)]
-                    + scan[offset + len(box.dom):]
-                )
-            elif isinstance(box, Swap):
-                scan = (
-                    scan[:offset]
-                    + [scan[offset + 1], scan[offset]]
-                    + scan[offset + 2:]
-                )
-            elif isinstance(box, zx.Scalar):
-                graph.scalar.add_float(box.data)
-            elif box == zx.H:
-                node, hadamard = scan[offset]
-                scan[offset] = (node, not hadamard)
-            else:
-                raise NotImplementedError
-        for i, _ in enumerate(self.cod):
-            target = graph.add_vertex(VertexType.BOUNDARY)
-            source, hadamard = scan[i]
-            etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
-            graph.add_edge((source, target), etype)
-            graph.set_position(target, i, len(self) + 1)
-            graph.set_outputs(graph.outputs() + (target,))
-        return graph
-
-    @staticmethod
-    def from_pyzx(graph):
-        """
-        Takes a :class:`pyzx.Graph` returns a :class:`zx.Diagram`.
-
-        Examples
-        --------
-
-        >>> import optyx.zx as zx
-        >>> bialgebra = zx.Z(1, 2, .25) @ zx.Z(1, 2, .75) >> \\
-        ...    zx.Id(Bit(1)) @ zx.SWAP @ zx.Id(Bit(1)) >> \\
-        ...    zx.X(2, 1, .5) @ zx.X(2, 1, .5)
-        >>> graph = bialgebra.to_pyzx()
-        >>> assert Diagram.from_pyzx(graph) == bialgebra
-
-        Note
-        ----
-
-        Raises :code:`ValueError` if either:
-        * a boundary node is not in :code:`graph.inputs() + graph.outputs()`,
-        * or :code:`set(graph.inputs()).intersection(graph.outputs())`.
-        """
-        from pyzx import VertexType, EdgeType
-        from optyx import zx
-
-        def node2box(node, n_legs_in, n_legs_out):
-            if graph.type(node) not in {VertexType.Z, VertexType.X}:
-                raise NotImplementedError  # pragma: no cover
-            return (
-                zx.Z if graph.type(node) is VertexType.Z else zx.X
-            )(  # noqa: E721
-                n_legs_in, n_legs_out, graph.phase(node) * 0.5
+        # pylint: disable=invalid-name
+        def ob(x):
+            return Ty.tensor(
+                *(o**d if o.name == "mode" else o for o in x)
             )
 
-        def move(scan, source, target):
-            if target < source:
-                swaps = (
-                    Id(Bit(target))
-                    @ Diagram.swap(Bit(source - target), Bit(1))
-                    @ Id(Bit(len(scan) - source - 1))
-                )
-                scan = (
-                    scan[:target]
-                    + (scan[source],)
-                    + scan[target:source]
-                    + scan[source + 1:]
-                )
-            elif target > source:
-                swaps = (
-                    Id(Bit(source))
-                    @ Diagram.swap(Bit(1), Bit(target - source))
-                    @ Id(Bit(len(scan) - target - 1))
-                )
-                scan = (
-                    scan[:source]
-                    + scan[source + 1: target]
-                    + (scan[source],)
-                    + scan[target:]
-                )
-            else:
-                swaps = Id(Bit(len(scan)))
-            return scan, swaps
-
-        def make_wires_adjacent(scan, diagram, inputs):
-            if not inputs:
-                return scan, diagram, len(scan)
-            offset = scan.index(inputs[0])
-            for i, _ in enumerate(inputs[1:]):
-                source, target = scan.index(inputs[i + 1]), offset + i + 1
-                scan, swaps = move(scan, source, target)
-                diagram = diagram >> swaps
-            return scan, diagram, offset
-
-        missing_boundary = any(
-            graph.type(node) == VertexType.BOUNDARY  # noqa: E721
-            and node not in graph.inputs() + graph.outputs()
-            for node in graph.vertices()
-        )
-        if missing_boundary:
-            raise ValueError
-        duplicate_boundary = set(graph.inputs()).intersection(graph.outputs())
-        if duplicate_boundary:
-            raise ValueError
-        diagram, scan = Id(Bit(len(graph.inputs()))), graph.inputs()
-        for node in [
-            v
-            for v in graph.vertices()
-            if v not in graph.inputs() + graph.outputs()
-        ]:
-            inputs = [
-                v
-                for v in graph.neighbors(node)
-                if v < node
-                and v not in graph.outputs()
-                or v in graph.inputs()
-            ]
-            inputs.sort(key=scan.index)
-            outputs = [
-                v
-                for v in graph.neighbors(node)
-                if v > node
-                and v not in graph.inputs()
-                or v in graph.outputs()
-            ]
-            scan, diagram, offset = make_wires_adjacent(scan, diagram, inputs)
-            hadamards = Id(Bit(0)).tensor(
-                *[
-                    (
-                        zx.H
-                        if graph.edge_type((i, node)) == EdgeType.HADAMARD
-                        else Id(Bit(1))
-                    )
-                    for i in scan[offset: offset + len(inputs)]
-                ]
-            )
-            box = node2box(node, len(inputs), len(outputs))
-            diagram = diagram >> Id(Bit(offset)) @ (hadamards >> box) @ Id(
-                Bit(len(diagram.cod) - offset - len(inputs))
-            )
-            scan = (
-                scan[:offset]
-                + len(outputs) * (node,)
-                + scan[offset + len(inputs):]
-            )
-        for target, output in enumerate(graph.outputs()):
-            (node,) = graph.neighbors(output)
-            etype = graph.edge_type((node, output))
-            hadamard = zx.H if etype == EdgeType.HADAMARD else Id(Bit(1))
-            scan, swaps = move(scan, scan.index(node), target)
-            diagram = (
-                diagram
-                >> swaps
-                >> Id(Bit(target))
-                @ hadamard
-                @ Id(Bit(len(scan) - target - 1))
-            )
-        return diagram
+        return symmetric.Functor(
+            ob=ob,
+            ar=lambda f: f.inflate(d),
+            cod=symmetric.Category(Ty, Diagram),
+            dom=symmetric.Category(Ty, Diagram),
+        )(self)
 
 
 class Box(frobenius.Box, Diagram):
@@ -621,12 +431,6 @@ class Box(frobenius.Box, Diagram):
     def __init__(self, name, dom, cod, array=None, **params):
         self._array = array
         super().__init__(name, dom, cod, **params)
-
-    def conjugate(self):
-        raise NotImplementedError
-
-    def to_zw(self):
-        raise NotImplementedError
 
     @classmethod
     def get_perm(self, n, d):
@@ -647,13 +451,42 @@ class Box(frobenius.Box, Diagram):
                                 self.cod**d).dagger()
         )
 
-    def to_path(self, dtype: type = complex):
-        raise NotImplementedError
+    def conjugate(self) -> Box:
+        """Conjugate the box.
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
+        if self._array is not None:
+            return type(self)(
+                self.name + ".dagger()",
+                dom=self.cod,
+                cod=self.dom,
+                array=self._array.conjugate(),
+            )
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support conjugation"
+        )
+
+    def dagger(self) -> Box:
+        """Return the dagger of the box.
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
+        if self._array is not None:
+            return type(self)(
+                self.name + ".dagger()",
+                dom=self.cod,
+                cod=self.dom,
+                array=self._array.T.conjugate(),
+            )
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support dagger"
+        )
 
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
-        """Create a tensor in the semantics of a ZW diagram"""
+        """Create a tensor in the semantics of a ZW diagram.
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
         if self._array is not None:
             return tensor.Box(
                 self.name,
@@ -661,27 +494,36 @@ class Box(frobenius.Box, Diagram):
                 cod=tensor.Dim(2) ** len(self.cod),
                 data=self._array,
             )
-        raise NotImplementedError
-
-    @property
-    def array(self):
-        raise NotImplementedError
-
-    @array.setter
-    def array(self, value):
-        self._array = value
-
-    @array.getter
-    def array(self):
-        return self._array
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support dagger"
+        )
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions.
         The generators of ZW affect the dimensions
-        of the output tensor diagrams."""
+        of the output tensor diagrams.
+        Inheriting boxes should implement this method.
+        Otherwise it is defined by the array."""
         if self._array is not None:
             return input_dims
-        raise NotImplementedError
+        str = "does not support determine_output_dimensions"
+        raise NotImplementedError(
+            f"{self.__class__.__name__} {str}"
+        )
+
+    def to_path(self, dtype=complex):
+        """Convert the box to a (Q)path representation.
+        It can only be defined for zw boxes which are also part of
+        the QPath graphical language
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support to_path"
+        )
+
+    def grad(self, var):
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support grad"
+        )
 
     def lambdify(self, *symbols, **kwargs):
         # Non-symbolic gates can be returned directly
@@ -691,6 +533,22 @@ class Box(frobenius.Box, Diagram):
         syms, exprs = zip(*args)
         return self.lambdify(*syms)(*exprs)
 
+    @property
+    def array(self):
+        return self._array
+
+    @array.setter
+    def array(self, value):
+        """
+        A :code:`diagram.Box` can be defined through an array
+        which will inform :code:`Box.truncation()`, :code:`Box.dagger()`,
+        :code:`Box.conjugate()` and :code:`Box.determine_output_dimensions()`.
+        The box need to have fixed dom and cod. The tensor should also have
+        fixed dimensions. Usually used for zx boxes
+        (Bit) with tensor with dims of 2.
+        """
+        self._array = value
+
     def __pow__(self, n):
         if n == 1:
             return self
@@ -698,15 +556,17 @@ class Box(frobenius.Box, Diagram):
 
 
 class Spider(frobenius.Spider, Box):
-    """Abstract spider (dagger-SCFA)"""
+    """Abstract spider (dagger-SCFA)
+
+    No amplitudes, or no phases.
+    """
 
     draw_as_spider = True
     color = "green"
 
-    def conjugate(self):
-        return self
+    # dagger - inherited?
 
-    def to_zw(self):
+    def conjugate(self):
         return self
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
@@ -722,7 +582,11 @@ class Spider(frobenius.Spider, Box):
     ) -> tensor.Box:
         """
         Create a tensor in the semantics of a ZW/ZX diagram depending
-        on the domain and codomain type
+        on the domain and codomain type.
+
+        The truncation is defined as a tensor.Spider with
+        EmbeddingTensor layers to fix the dimensions of the spider to
+        the lowest dimension of the input wires.
         """
         if isinstance(self.cod, Bit) and isinstance(self.dom, Bit):
             return tensor.Spider(len(self.dom), len(self.cod), Dim(2))
@@ -751,6 +615,8 @@ class Sum(symmetric.Sum, Box):
     Formal sum of optyx diagrams
     """
 
+    # dagger - inherited?
+
     __ambiguous_inheritance__ = (symmetric.Sum,)
 
     def conjugate(self):
@@ -764,7 +630,8 @@ class Sum(symmetric.Sum, Box):
         # we need to implement the proper sums of qpath diagrams
         # this is only a temporary solution, so that the grad tests pass
         if permanent is None:
-            from optyx.path import npperm
+            # pylint: disable=import-outside-toplevel
+            from optyx.core.path import npperm
 
             permanent = npperm
         return sum(
@@ -816,12 +683,12 @@ class Swap(frobenius.Swap, Box):
         return self
 
     def to_path(self, dtype: type = complex):
-        from optyx.path import Matrix
+        # pylint: disable=import-outside-toplevel
+        from optyx.core.path import Matrix
 
         return Matrix([0, 1, 1, 0], 2, 2)
 
-    def to_zw(self):
-        return self
+    # dagger - inherited?
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -839,13 +706,15 @@ class Scalar(Box):
 
     Example
     -------
-    >>> from optyx.path import Matrix
-    >>> from optyx.zw import Create, Select
-    >>> from optyx.lo import BS
+    >>> from optyx.core.path import Matrix
+    >>> from optyx.core.zw import Create, Select
+    >>> from optyx.photonic import BS
     >>> assert Scalar(0.45).to_path() == Matrix(
     ...     [], dom=0, cod=0,
-    ...     creations=(), selections=(), normalisation=1, scalar=0.45)
-    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> BS >> Select(2, 0)
+    ...     creations=(), selections=(),
+    ...     normalisation=1, scalar=0.45)
+    >>> s = Scalar(- 1j * 2 ** (1/2)) @ Create(1, 1) >> \\
+    ...     BS.get_kraus() >> Select(2, 0)
     >>> assert np.isclose(s.to_path().eval().array[0], 1)
     """
 
@@ -861,25 +730,17 @@ class Scalar(Box):
     def conjugate(self):
         return Scalar(self.scalar.conjugate())
 
-    @property
-    def array(self):
-        return np.array([self.scalar], dtype=complex)
-
     def __str__(self):
         return f"scalar({format_number(self.data)})"
 
     def to_path(self, dtype: type = complex):
-        from optyx.path import Matrix
+        # pylint: disable=import-outside-toplevel
+        from optyx.core.path import Matrix
 
         return Matrix[dtype]([], 0, 0, scalar=self.scalar)
 
     def dagger(self) -> Diagram:
         return Scalar(self.scalar.conjugate())
-
-    def to_zw(self):
-        from optyx.zw import ZBox
-
-        return ZBox(0, 0, self.array)
 
     def subs(self, *args):
         data = rsubs(self.scalar, *args)
@@ -892,6 +753,7 @@ class Scalar(Box):
         return Scalar(self.scalar.diff(var))
 
     def lambdify(self, *symbols, **kwargs):
+        # pylint: disable=import-outside-toplevel
         from sympy import lambdify
 
         return lambda *xs: type(self)(
@@ -901,10 +763,7 @@ class Scalar(Box):
     def truncation(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
-        return tensor.Box(self.name, Dim(1), Dim(1), self.array)
-
-    def inflate(self, d):
-        return self
+        return tensor.Box(self.name, Dim(1), Dim(1), [self.scalar])
 
     def determine_output_dimensions(
         self, input_dims: list[int] = None
@@ -925,7 +784,6 @@ class DualRail(Box):
         cod = Bit(1) if is_dagger else Mode(2)
         super().__init__("2R", dom, cod)
         self.internal_state = internal_state
-        self.is_dagger = is_dagger
         self.is_dagger = is_dagger
 
     def conjugate(self):
@@ -954,18 +812,16 @@ class DualRail(Box):
             return [2]
         return [2, 2]
 
-    def to_zw(self):
-        return self
-
     def inflate(self, d):
-        from optyx.zw import W, Endo
+        # pylint: disable=import-outside-toplevel
+        from optyx.core.zw import W, Endo
 
         assert self.internal_state is not None, \
             "Internal state must be provided"
         assert len(self.internal_state) == d, \
             "Internal state must be of len d"
 
-        diagram = DualRail() >> Diagram.tensor(
+        dgrm = DualRail() >> Diagram.tensor(
             *[
                 (W(d) >>
                  Diagram.tensor(*[Endo(d_i) for d_i in self.internal_state]))
@@ -973,8 +829,8 @@ class DualRail(Box):
             ]
         )
         if self.is_dagger:
-            return diagram.dagger()
-        return diagram
+            return dgrm.dagger()
+        return dgrm
 
     def dagger(self) -> Diagram:
         return DualRail(not self.is_dagger,
@@ -993,9 +849,6 @@ class PhotonThresholdDetector(Box):
         else:
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
-
-    def to_zw(self):
-        return self
 
     def truncation(self, input_dims=None, output_dims=None):
         if self.is_dagger:
@@ -1021,11 +874,12 @@ class PhotonThresholdDetector(Box):
         return PhotonThresholdDetector(not self.is_dagger)
 
     def inflate(self, d):
-        from optyx.zw import Add
-        diagram = Add(d) >> PhotonThresholdDetector()
+        # pylint: disable=import-outside-toplevel
+        from optyx.core.zw import Add
+        dgrm = Add(d) >> PhotonThresholdDetector()
         if self.is_dagger:
-            return diagram.dagger()
-        return diagram
+            return dgrm.dagger()
+        return dgrm
 
 
 class EmbeddingTensor(tensor.Box):
@@ -1053,13 +907,19 @@ class EmbeddingTensor(tensor.Box):
         return self
 
 
-def dual_rail(n):
+def dual_rail(n, internal_states=None):
     """
     Encode n qubits into 2n modes via the dual-rail encoding.
     """
-    d = DualRail()
-    for i in range(n - 1):
-        d @= DualRail()
+
+    if internal_states is None:
+        d = DualRail()
+        for i in range(n - 1):
+            d @= DualRail()
+    else:
+        d = DualRail(internal_state=internal_states[0])
+        for i, state in enumerate(internal_states[1:]):
+            d @= DualRail(internal_state=state)
     return d
 
 
@@ -1089,9 +949,38 @@ def truncation_tensor(
     return tensor
 
 
+class Category(frobenius.Category):  # pragma: no cover
+    """
+    A hypergraph category is a compact category with a method :code:`spiders`.
+    Parameters:
+        ob : The objects of the category, default is :class:`Ty`.
+        ar : The arrows of the category, default is :class:`Diagram`.
+    """
+    ob, ar = Ty, Diagram
+
+
+class Functor(frobenius.Functor):  # pragma: no cover
+    """
+    A hypergraph functor is a compact functor that preserves spiders.
+    Parameters:
+        ob (Mapping[Ty, Ty]) : Map from atomic :class:`Ty` to :code:`cod.ob`.
+        ar (Mapping[Box, Diagram]) : Map from :class:`Box` to :code:`cod.ar`.
+        cod (Category) : The codomain of the functor.
+    """
+    dom = cod = Category()
+
+    def __call__(self, other):
+        return frobenius.Functor.__call__(self, other)
+
+
+class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
+    category, functor = Category, Functor
+
+
 bit = Bit(1)
 mode = Mode(1)
 
+Diagram.hypergraph_factory = Hypergraph
 Diagram.braid_factory, Diagram.spider_factory = Swap, Spider
 Diagram.ty_factory = Ty
 Diagram.sum_factory = Sum

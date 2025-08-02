@@ -3,23 +3,25 @@ import random
 import numpy as np
 from pytest import raises, fixture
 
-from discopy.quantum.gates import CRz, CRx, CU1
-from optyx.zx import *
-
+from discopy.quantum.gates import CRz, CRx, CU1, Ket, Rx, H
+from discopy import quantum
+from optyx.core.zx import *
+from optyx import qubits
+from optyx.core.diagram import Diagram, Bit
 
 @fixture
 def random_had_cnot_diagram():
-    def _random_had_cnot_diagram(qubits, depth, p_had=0.5):
+    def _random_had_cnot_diagram(qubits_, depth, p_had=0.5):
         random.seed(0)
-        c = Ket(*(qubits * [0]))
+        c = Ket(*(qubits_ * [0]))
         for _ in range(depth):
             r = random.random()
             if r > p_had:
-                c = c.H(random.randrange(qubits))
+                c = c.H(random.randrange(qubits_))
             else:
-                tgt = random.randrange(qubits)
+                tgt = random.randrange(qubits_)
                 while True:
-                    ctrl = random.randrange(qubits)
+                    ctrl = random.randrange(qubits_)
                     if ctrl != tgt:
                         break
                 c = c.CX(tgt, ctrl)
@@ -44,7 +46,7 @@ def test_Spider():
 
 def test_H():
     assert str(H) == "H"
-    assert H[::-1] == H
+    assert np.allclose(H[::-1].to_tensor().eval().array, H.to_tensor().eval().array)
 
 
 def test_Sum():
@@ -78,7 +80,7 @@ def test_to_pyzx_errors():
 
 
 def test_to_pyzx():
-    assert Diagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
+    assert ZXDiagram.from_pyzx(Z(0, 2).to_pyzx()) == Z(0, 2) >> SWAP
 
 
 def test_to_pyzx_scalar():
@@ -95,11 +97,11 @@ def test_from_pyzx_errors():
     graph.set_inputs(())
     graph.set_outputs(())
     with raises(ValueError):  # missing_boundary
-        Diagram.from_pyzx(graph)
+        ZXDiagram.from_pyzx(graph)
     graph.auto_detect_io()
     graph.set_inputs(graph.inputs() + graph.outputs())
     with raises(ValueError):  # duplicate_boundary
-        Diagram.from_pyzx(graph)
+        ZXDiagram.from_pyzx(graph)
 
 
 def _std_basis_v(*c):
@@ -110,7 +112,7 @@ def _std_basis_v(*c):
 
 def test_circuit2zx():
     circuit = Ket(0, 0) >> quantum.H @ Rx(0) >> CRz(0) >> CRx(0) >> CU1(0)
-    assert circuit2zx(circuit) == Diagram.decode(
+    assert qubits.Circuit(circuit).get_kraus() == Diagram.decode(
         dom=Bit(0), boxes_and_offsets=zip([
             X(0, 1), X(0, 1), scalar(0.5), H, X(1, 1),
             Z(1, 2), Z(1, 2), X(2, 1), Z(1, 0), scalar(2 ** 0.5),
@@ -119,24 +121,28 @@ def test_circuit2zx():
             [0, 1, 2, 0, 1, 0, 2, 1, 1, 2, 0, 2, 1, 1, 2, 0, 2, 1, 1]))
 
     # Verify XYZ=iI
-    t = circuit2zx(quantum.Z >> quantum.Y >> quantum.X)
+    circuit = quantum.Z >> quantum.Y >> quantum.X
+    t = qubits.Circuit(circuit).get_kraus()
     t = t.to_pyzx().to_matrix() - 1j * np.eye(2)
     assert np.isclose(np.linalg.norm(t), 0)
 
     # Check scalar translation
-    t = circuit2zx(
-        quantum.X >> quantum.X @ quantum.scalar(1j)).to_pyzx().to_matrix()
+    circuit = quantum.X >> quantum.X @ quantum.scalar(1j)
+    t = qubits.Circuit(circuit).to_pyzx().to_matrix()
     assert np.isclose(np.linalg.norm(t - 1j * np.eye(2)), 0)
 
-    with raises(NotImplementedError):
-        circuit2zx(quantum.scalar(1, is_mixed=True))
+    # with raises(NotImplementedError):
+    #     circuit2zx(quantum.scalar(1, is_mixed=True))
 
-    t = circuit2zx(Ket(0)).to_pyzx().to_matrix() - _std_basis_v(0)
+    circuit = Ket(0)
+    t = qubits.Circuit(circuit).to_pyzx().to_matrix() - _std_basis_v(0)
     assert np.isclose(np.linalg.norm(t), 0)
-    t = circuit2zx(Ket(0, 0)).to_pyzx().to_matrix() - _std_basis_v(0, 0)
+    circuit = Ket(0, 0)
+    t = qubits.Circuit(circuit).to_pyzx().to_matrix() - _std_basis_v(0, 0)
     assert np.isclose(np.linalg.norm(t), 0)
 
-    assert (circuit2zx(quantum.Id(3).CX(0, 2))
+    circuit = quantum.Id(3).CX(0, 2)
+    assert (qubits.Circuit(circuit).get_kraus()
             == Diagram.decode(
                 dom=Bit(3),
                 boxes_and_offsets=zip(

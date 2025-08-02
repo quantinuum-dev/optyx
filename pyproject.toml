@@ -32,8 +32,11 @@ dependencies = [
   "perceval-quandela >= 0.10.2",
   "networkx >= 3.2",
   "graphix == 0.2.16",
+  "pytket >= 2.6.0",
+  "pytket-pyzx >= 0.35.0",
+  "pytket-qiskit >= 0.68.3",
+  "pylatexenc >= 2.10",
 ]
-
 [project.optional-dependencies]
 test = [
     "black",
