@@ -4,13 +4,14 @@ from cotengra import (
     ReusableHyperOptimizer,
     HyperOptimizer,
     HyperCompressedOptimizer,
-    ReusableHyperCompressedOptimizer
+    ReusableHyperCompressedOptimizer,
 )
 from discopy import tensor
 import numpy as np
 import perceval as pcvl
 from dataclasses import dataclass
 from optyx.core.channel import Ty, mode, bit
+from quimb.tensor import TensorNetwork
 
 @dataclass(frozen=True)
 class EvalResult:
@@ -18,10 +19,11 @@ class EvalResult:
     Class to encapsulate the result of an evaluation.
     """
     result_tensor: tensor.Box
-    types: Ty
-    pure: bool
+    output_types: Ty
+    state_type: str # "amps" for amplitudes, "dm" for density matrix, "prob" for probability distribution
 
-    def get_tensor(self):
+    @property
+    def tensor(self) -> tensor.Box:
         """
         Get the resulting tensor.
 
@@ -30,34 +32,42 @@ class EvalResult:
         """
         return self.result_tensor
 
-    def get_density_matrix(self):
-        assert len(self.result_tensor.dom) == 0, "Result tensor must represent a state without inputs."
-        if self.pure:
-            # does tensor dagger do T conj?
-            # should instead do conj? and then wire permuation?
-
+    @property
+    def density_matrix(self) -> tensor.Box:
+        if len(self.result_tensor.dom) != 0:
+            raise ValueError("Result tensor must represent a state without inputs.")
+        if self.state_type not in ["dm", "amps"]:
+            raise TypeError("Cannot get density matrix from probability distribution.")
+        if self.state_type == "amps":
             density_matrix = self.result_tensor.dagger() >> self.result_tensor
             return density_matrix
         return self.result_tensor
 
-    def amplitudes(self):
-        assert self.pure, "Amplitudes are not defined for mixed states."
+    @property
+    def amplitudes(self) -> dict:
+        if self.state_type != "amps":
+            raise TypeError("Cannot get amplitudes from density matrix or probability distribution.")
         return self._convert_array_to_dict(self.result_tensor.array)
 
-    def prob_dist(self):
+    def prob_dist(self, round_digits: int = None) -> dict:
         """
         Get the probability distribution from the result tensor.
 
         Returns:
             dict: A dictionary mapping occupation configurations to probabilities.
         """
-        assert len(self.result_tensor.dom) == 0, "Result tensor must represent a state without inputs."
-        if self.pure:
-            return self._prob_dist_pure()
+        if len(self.result_tensor.dom) != 0:
+            raise ValueError("Result tensor must represent a state without inputs.")
+        if self.state_type == "amps":
+            return self._prob_dist_pure(round_digits)
+        elif self.state_type == "dm":
+            return self._prob_dist_mixed(round_digits)
+        elif self.state_type == "prob":
+            return self._convert_array_to_dict(self.result_tensor.array, round_digits=round_digits)
         else:
-            return self._prob_dist_mixed()
+            raise ValueError("Unsupported state_type type. Must be 'amps', 'dm', or 'prob'.")
 
-    def prob(self, occupation: tuple):
+    def prob(self, occupation: tuple) -> float:
         """
         Get the probability of a specific occupation configuration.
 
@@ -70,7 +80,11 @@ class EvalResult:
         prob_dist = self.prob_dist()
         return prob_dist.get(occupation, 0.0)
 
-    def _convert_array_to_dict(self, array):
+    def _convert_array_to_dict(
+            self,
+            array,
+            round_digits: int = None
+        ) -> dict:
         """
         Convert a result array to a probability distribution.
 
@@ -80,10 +94,11 @@ class EvalResult:
         Returns:
             A list of tuples of the form (occupation configuration, probability).
         """
-
+        if round_digits is not None:
+            array = np.round(array, decimals=round_digits)
         return {idx: val for idx, val in np.ndenumerate(array) if val != 0}
 
-    def _prob_dist_pure(self):
+    def _prob_dist_pure(self, round_digits: int = None) -> dict:
         """
         Get the probability distribution for a pure state.
 
@@ -91,19 +106,20 @@ class EvalResult:
             dict: A dictionary mapping occupation configurations to probabilities.
         """
 
-        values = self._convert_array_to_dict(self.result_tensor.array)
+        values = self._convert_array_to_dict(self.result_tensor.array, round_digits=round_digits)
         return {key: abs(value) ** 2 for key, value in values.items()}
 
-    def _prob_dist_mixed(self):
-        assert any(t in {bit, mode} for t in self.types), "Types must contain at least one 'bit' or 'mode'."
+    def _prob_dist_mixed(self, round_digits: int = None) -> dict:
+        if not any(t in {bit, mode} for t in self.output_types):
+            raise ValueError("Types must contain at least one 'bit' or 'mode'.")
 
-        values = self._convert_array_to_dict(self.result_tensor.array)
+        values = self._convert_array_to_dict(self.result_tensor.array, round_digits=round_digits)
 
         # for all measured wires, get all the occupation configurations
         # for each of the above get the values for the unmeasured wires
         # for each of the above, sum up the values if the occs agree on doubled wires
 
-        mask = [1 if t in {bit, mode} else [0, 0] for t in self.types]
+        mask = [[1] if t in {bit, mode} else [0, 0] for t in self.output_types]
         mask_flat = np.concatenate([np.atleast_1d(m) for m in mask])
 
         occs_measured_wires = set()
@@ -128,6 +144,7 @@ class EvalResult:
 
         return prob_dist
 
+
 class AbstractBackend(ABC):
     """
     Abstract base class for backend implementations.
@@ -139,30 +156,22 @@ class AbstractBackend(ABC):
         Initialize the backend.
         This method can be overridden by subclasses to set up specific configurations.
         """
-        self._quimb_tensor = None
-        self._discopy_tensor = None
-        self._matrix = None
 
     def _get_matrix(
         self,
-        diagram: Diagram,
-        cache: bool = True
-    ):
+        diagram: Diagram
+    ) -> np.ndarray:
         """
         Get the matrix representation of the diagram.
 
         Args:
             diagram (Diagram): The diagram to convert.
-            cache (bool): Whether to cache the result.
 
         Returns:
             np.ndarray: The matrix representation of the diagram.
         """
         try:
-            matrix = diagram.to_path().array
-            if cache:
-                self._matrix = matrix
-            return matrix
+            return diagram.to_path().array
         except NotImplementedError as e:
             raise NotImplementedError(
                 "The diagram cannot be converted to a matrix. It is not linear optical."
@@ -170,14 +179,9 @@ class AbstractBackend(ABC):
 
     def _get_quimb_tensor(
         self,
-        diagram: Diagram,
-        cache: bool = True
-    ):
-        quimb_tensor = self._get_discopy_tensor(diagram, cache).to_quimb()
-        if cache:
-            self._quimb_tensor = quimb_tensor
-
-        return quimb_tensor
+        diagram: Diagram
+    ) -> TensorNetwork:
+        return self._get_discopy_tensor(diagram).to_quimb()
 
     def _umatrix_to_perceval_circuit(self, matrix) -> pcvl.Circuit:
         m = pcvl.Matrix(matrix.T)
@@ -185,17 +189,12 @@ class AbstractBackend(ABC):
 
     def _get_discopy_tensor(
         self,
-        diagram: Diagram,
-        cache: bool = True
-    ):
+        diagram: Diagram
+    ) -> tensor.Diagram:
         if diagram.is_pure:
-            discopy_tensor = diagram.get_kraus().to_tensor()
+            return diagram.get_kraus().to_tensor()
         else:
-            discopy_tensor = diagram.double().to_tensor()
-        if cache:
-            self._discopy_tensor = discopy_tensor
-
-        return discopy_tensor
+            return diagram.double().to_tensor()
 
     @abstractmethod
     def eval(self, *args, **kwargs) -> EvalResult:
@@ -217,7 +216,11 @@ class QuimbBackend(AbstractBackend):
     Backend implementation using Quimb.
     """
 
-    def __init__(self, hyperoptimiser=None, contraction_params=None):
+    def __init__(
+            self,
+            hyperoptimiser: HyperOptimizer = None,
+            contraction_params: dict = None
+        ):
         """
         Initialize the Quimb backend.
 
@@ -227,10 +230,8 @@ class QuimbBackend(AbstractBackend):
         """
         self.hyperoptimiser = hyperoptimiser
         self.contraction_params = contraction_params or {}
-        self._quimb_tensor = None
-        self._discopy_tensor = None
 
-    def eval(self, diagram):
+    def eval(self, diagram : Diagram) -> EvalResult:
         """
         Evaluate the diagram using Quimb.
 
@@ -241,6 +242,7 @@ class QuimbBackend(AbstractBackend):
             The result of the evaluation.
         """
         quimb_tn = self._get_quimb_tensor(diagram)
+        discopy_tensor = self._get_discopy_tensor(diagram)
 
         is_approx = isinstance(
             self.hyperoptimiser,
@@ -270,15 +272,20 @@ class QuimbBackend(AbstractBackend):
         if not isinstance(results, (complex, float, int)):
             results = results.data
 
+        if diagram.is_pure:
+            state_type = "amps"
+        else:
+            state_type = "dm"
+
         return EvalResult(
             tensor.Box(
                 "Result",
-                self._discopy_tensor.dom,
-                self._discopy_tensor.cod,
+                discopy_tensor.dom,
+                discopy_tensor.cod,
                 results
             ),
-            types=diagram.cod,
-            pure=diagram.is_pure,
+            output_types=diagram.cod,
+            state_type=state_type
         )
 
 
@@ -287,7 +294,7 @@ class DiscopyBackend(AbstractBackend):
     Backend implementation using Discopy.
     """
 
-    def eval(self, diagram):
+    def eval(self, diagram: Diagram) -> EvalResult:
         """
         Evaluate the diagram using Discopy.
 
@@ -298,7 +305,17 @@ class DiscopyBackend(AbstractBackend):
             The result of the evaluation.
         """
         discopy_tensor = self._get_discopy_tensor(diagram).eval()
-        return EvalResult(discopy_tensor, types=diagram.cod, eval_from=diagram.is_pure)
+
+        if diagram.is_pure:
+            state_type = "amps"
+        else:
+            state_type = "dm"
+
+        return EvalResult(
+            discopy_tensor,
+            output_types=diagram.cod,
+            state_type=state_type,
+        )
 
 
 class PercevalBackend(AbstractBackend):
@@ -306,7 +323,7 @@ class PercevalBackend(AbstractBackend):
     Backend implementation using Perceval.
     """
 
-    def __init__(self, perceval_backend=None):
+    def __init__(self, perceval_backend : pcvl.ABackend = None):
         """
         Initialize the Perceval backend.
 
@@ -318,7 +335,7 @@ class PercevalBackend(AbstractBackend):
         else:
             self.perceval_backend = perceval_backend
 
-    def eval(self, diagram, perceval_state):
+    def eval(self, diagram: Diagram, perceval_state: pcvl.StateVector) -> EvalResult:
         """
         Evaluate the diagram using Perceval. Works only for unitary operations.
 
@@ -328,6 +345,8 @@ class PercevalBackend(AbstractBackend):
         Returns:
             The result of the evaluation.
         """
+
+        discopy_tensor = self._get_discopy_tensor(diagram)
 
         sim = pcvl.Simulator(self.perceval_backend)
         matrix = self._get_matrix(diagram)
@@ -340,25 +359,29 @@ class PercevalBackend(AbstractBackend):
 
         perceval_circuit = self._umatrix_to_perceval_circuit(matrix)
         sim.set_circuit(perceval_circuit)
-        result = sim.prob_amplitude(perceval_state)
+        result = sim.probs(perceval_state)
         result = {tuple(k): v for k, v in result.items()}
 
-        array = np.zeros(
-            *[int(i) for i in self._discopy_tensor.dom],
-            *[int(i) for i in self._discopy_tensor.cod]
-        )
+        array = np.zeros(discopy_tensor.cod.inside)
 
-        configs, coeffs = map(np.array, zip(*result))
-        idx = tuple(configs.T)
-        array[idx] = coeffs
+        if result:
+            configs = np.fromiter(
+                (i for key in result for i in key),
+                dtype=int,
+                count=len(result) * array.ndim
+            ).reshape(len(result), array.ndim)
+
+            coeffs  = np.fromiter(result.values(), dtype=float, count=len(result))
+
+            array[tuple(configs.T)] = coeffs
 
         return EvalResult(
             tensor.Box(
                 "Result",
-                self._discopy_tensor.dom,
-                self._discopy_tensor.cod,
+                discopy_tensor.dom**0,
+                discopy_tensor.cod,
                 array
             ),
-            types=diagram.cod,
-            pure=True
+            output_types=diagram.cod,
+            state_type="prob"
         )
