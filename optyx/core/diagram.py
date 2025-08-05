@@ -488,6 +488,7 @@ class Box(frobenius.Box, Diagram):
         """Create a tensor in the semantics of a ZW diagram.
         Inheriting boxes should implement this method.
         Otherwise it is defined by the array."""
+
         if self._array is not None:
             return tensor.Box(
                 self.name,
@@ -511,9 +512,21 @@ class Box(frobenius.Box, Diagram):
         )
         result_matrix = np.zeros(shape, dtype=complex)
 
-        non_zero_indices = self.truncation_specificaton(
-            input_dims, output_dims
-        )
+        input_ranges = [range(d) for d in input_dims]
+        if not input_ranges:
+            input_combinations = np.array([[]])
+        else:
+            input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
+                -1, len(input_dims)
+            )
+
+        #temp for Create
+        if input_combinations.size == 0:
+            input_combinations = np.array([[]])
+
+        non_zero_indices = [
+            idx for inp in input_combinations for idx in self._truncation_specificaton(inp, output_dims)
+        ]
 
         if non_zero_indices:
             configs, coeffs = map(np.array, zip(*non_zero_indices))
@@ -580,8 +593,7 @@ class Box(frobenius.Box, Diagram):
         """
         self._array = value
 
-    #@abstractmethod
-    def truncation_specificaton(
+    def _truncation_specificaton(
         self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> List[Tuple[Tuple[int], float]]:
         pass
@@ -725,8 +737,6 @@ class Swap(frobenius.Swap, Box):
 
         return Matrix([0, 1, 1, 0], 2, 2)
 
-    # dagger - inherited?
-
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         return input_dims[::-1]
@@ -826,11 +836,10 @@ class DualRail(Box):
     def conjugate(self):
         return self
 
-    def truncation_specificaton(self, input_dims = None, output_dims = None):
-        return [
-            ((1, 0, 0), 1.0),
-            ((0, 1, 1), 1.0)
-        ]
+    def _truncation_specificaton(self, inp = None, max_output_dims = None):
+        m = [0, 0]
+        m[inp[0]] = 1
+        return [(tuple(m + list(inp)), 1.0)]
 
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:
@@ -877,8 +886,10 @@ class PhotonThresholdDetector(Box):
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
 
-    def truncation_specificaton(self, input_dims = None, output_dims = None):
-        return [(tuple([1, i]), 1) for i in range(1, input_dims[0])] + [((0, 0), 1.0)]
+    def _truncation_specificaton(self, inp = None, max_output_dims = None):
+        if inp[0] == 0:
+            return [((0, 0), 1.0)]
+        return [(tuple([1, inp[0]]), 1)]
 
     def determine_output_dimensions(self, input_dims):
         if self.is_dagger:

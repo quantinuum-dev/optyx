@@ -334,21 +334,14 @@ class ClassicalFunctionBox(ClassicalBox):
         self.output_size = len(cod)
         self.is_dagger = is_dagger
 
-    def truncation_specificaton(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
+    def _truncation_specificaton(
+        self, inp: list[int] = None, max_output_dims: list[int] = None
     ):
-        input_ranges = [range(d) for d in input_dims]
-        input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
-            -1, len(input_dims)
-        )
-
-        outputs = [
-            (i, self.function(i))
-            for i in input_combinations
-            if self.function(i) != 0
-        ]
-
-        return [(tuple(tuple(output) + tuple(input_)), 1.0) for input_, output in outputs]
+        f_val = self.function(inp)
+        if f_val != 0:
+            return [(tuple(list(f_val) + list(inp)), 1.0)]
+        else:
+            return []
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.cod == diagram.Mode(self.output_size):
@@ -401,8 +394,8 @@ class BinaryMatrixBox(ClassicalBox):
         self.matrix = matrix
         self.is_dagger = is_dagger
 
-    def truncation_specificaton(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
+    def _truncation_specificaton(
+        self, inp: list[int] = None, max_output_dims: list[int] = None
     ):
         def f(x):
             if not isinstance(x, np.ndarray):
@@ -415,7 +408,7 @@ class BinaryMatrixBox(ClassicalBox):
 
         return ClassicalFunctionBox(
             f, self.dom, self.cod
-        ).truncation_specificaton(input_dims, output_dims)
+        )._truncation_specificaton(inp, max_output_dims)
 
     def determine_output_dimensions(self,
                                     input_dims: List[int]) -> List[int]:
