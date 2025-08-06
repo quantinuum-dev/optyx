@@ -228,18 +228,24 @@ class W(ZWBox):
     def conjugate(self):
         return self
 
-    def truncation_specificaton(self, input_dims = None, output_dims = None):
-        wires_out = len(output_dims)
-
+    def _trunc(self, input_dims: list[int], output_dims: list[int] = None):
         results = []
         for i in range(input_dims[0]):
-            configs = [config for config in occupation_numbers(i, wires_out) if
-                        all(config[i] < output_dims[i] for i in range(wires_out))]
+            configs = [config for config in occupation_numbers(i, len(self.cod)) if
+                        all(config[i] < output_dims[i] for i in range(len(self.cod)))]
 
             results.extend(
                 (tuple(list(config) + [i]), multinomial(config)**0.5) for config in configs
             )
         return results
+
+    def _truncation_specificaton(self, inp, max_output_dims: list[int]) -> List[tuple]:
+        configs = [config for config in occupation_numbers(inp[0], self.n_legs) if
+                    all(config[i] < max_output_dims[i] for i in range(self.n_legs))]
+
+        return [
+            (tuple(list(config) + [inp[0]]), multinomial(config)**0.5) for config in configs
+        ]
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -439,9 +445,7 @@ class Create(ZWBox):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def truncation_specificaton(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
-    ):
+    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
         return [(tuple(self.photons), 1.0)]
 
     def determine_output_dimensions(
@@ -544,12 +548,11 @@ class Select(ZWBox):
             array, len(self.photons), 0, selections=self.photons
         )
 
-    def truncation_specificaton(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
-    ):
-        if any(p >= o for p, o in zip(self.photons, input_dims)):
+    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
+        if all(i == p for i, p in zip(inp, self.photons)):
+            return [(tuple(self.photons), 1.0)]
+        else:
             return []
-        return [(tuple(self.photons), 1.0)]
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -652,19 +655,10 @@ class Add(ZWBox):
         self.n = n
         self.is_dagger = is_dagger
 
-    def truncation_specificaton(self, input_dims = None, output_dims = None):
-        ranges = [range(d) for d in input_dims]
-        possible_inputs = [list(coords) for coords in product(*ranges)]
-
-        results = []
-        for possible_input in possible_inputs:
-            if ((self.is_dagger and sum(possible_input) >= input_dims[0]) or
-                (not self.is_dagger and sum(possible_input) >= output_dims[0])):
-                continue
-            results.append(
-                (tuple([sum(possible_input)] + possible_input), 1.0)
-            )
-        return results
+    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
+        if sum(inp) >= max_output_dims[0]:
+            return []
+        return [(tuple([sum(inp)] + list(inp)), 1.0)]
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
@@ -700,19 +694,10 @@ class Multiply(ZWBox):
 
         self.is_dagger = is_dagger
 
-    def truncation_specificaton(self, input_dims = None, output_dims = None):
-        ranges = [range(d) for d in input_dims]
-        possible_inputs = [list(coords) for coords in product(*ranges)]
-
-        results = []
-        for possible_input in possible_inputs:
-            if ((self.is_dagger and np.prod(possible_input) >= input_dims[0]) or
-                (not self.is_dagger and np.prod(possible_input) >= output_dims[0])):
-                continue
-            results.append(
-                (tuple([np.prod(possible_input)] + possible_input), 1.0)
-            )
-        return results
+    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
+        if np.prod(inp) >= max_output_dims[0]:
+            return []
+        return [(tuple([np.prod(inp)] + list(inp)), 1.0)]
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
@@ -747,22 +732,13 @@ class Divide(ZWBox):
 
         self.is_dagger = is_dagger
 
-    def truncation_specificaton(
-        self, input_dims: List[int] = None, output_dims: List[int] = None
-    ) -> tensor.Box:
-        ranges = [range(d) for d in input_dims]
-        possible_inputs = [list(coords) for coords in product(*ranges) if coords[1] != 0]
-
-        results = []
-        for possible_input in possible_inputs:
-            if possible_input[0] % possible_input[1] == 0:
-                if ((self.is_dagger and possible_input[0] // possible_input[1] >= input_dims[0]) or
-                    (not self.is_dagger and possible_input[0] // possible_input[1] >= output_dims[0])):
-                    continue
-                results.append(
-                    (tuple([possible_input[0] // possible_input[1]] + possible_input), 1.0)
-                )
-        return results
+    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
+        if inp[1] == 0 or inp[0] % inp[1] != 0:
+            return []
+        quotient = inp[0] // inp[1]
+        if quotient >= max_output_dims[0]:
+            return []
+        return [(tuple([quotient] + list(inp)), 1.0)]
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
@@ -793,10 +769,8 @@ class Mod2(ZWBox):
         super().__init__("Mod2", diagram.Mode(1), diagram.Bit(1))
         self.is_dagger = is_dagger
 
-    def truncation_specificaton(
-            self, input_dims: List[int] = None, output_dims: List[int] = None
-    ) -> tensor.Box:
-        return [((i % 2, i), 1.0) for i in range(input_dims[0])]
+    def _truncation_specificaton(self, inp: int, max_output_dims: List[int]) -> List[tuple]:
+        return [((inp[0] % 2, inp[0]), 1.0)]
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
