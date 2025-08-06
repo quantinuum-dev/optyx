@@ -228,17 +228,6 @@ class W(ZWBox):
     def conjugate(self):
         return self
 
-    def _trunc(self, input_dims: list[int], output_dims: list[int] = None):
-        results = []
-        for i in range(input_dims[0]):
-            configs = [config for config in occupation_numbers(i, len(self.cod)) if
-                        all(config[i] < output_dims[i] for i in range(len(self.cod)))]
-
-            results.extend(
-                (tuple(list(config) + [i]), multinomial(config)**0.5) for config in configs
-            )
-        return results
-
     def _truncation_specificaton(self, inp, max_output_dims: list[int]) -> List[tuple]:
         configs = [config for config in occupation_numbers(inp[0], self.n_legs) if
                     all(config[i] < max_output_dims[i] for i in range(self.n_legs))]
