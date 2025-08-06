@@ -488,7 +488,6 @@ class Box(frobenius.Box, Diagram):
         """Create a tensor in the semantics of a ZW diagram.
         Inheriting boxes should implement this method.
         Otherwise it is defined by the array."""
-
         if self._array is not None:
             return tensor.Box(
                 self.name,
