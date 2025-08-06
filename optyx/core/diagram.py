@@ -227,8 +227,11 @@ from discopy import (
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
-from optyx._utils import modify_io_dims_against_max_dim
-from typing import List, Tuple
+from optyx._utils import (
+    modify_io_dims_against_max_dim,
+    BasisTransition
+)
+from typing import List, Tuple, Iterable
 
 MAX_DIM = 10
 
@@ -511,21 +514,15 @@ class Box(frobenius.Box, Diagram):
         )
         result_matrix = np.zeros(shape, dtype=complex)
 
-        input_ranges = [range(d) for d in input_dims]
-        if not input_ranges:
-            input_combinations = np.array([[]])
-        else:
-            input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
-                -1, len(input_dims)
-            )
+        input_ranges = [range(int(d)) for d in input_dims]
+        input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(-1, len(input_dims)) \
+                    if input_ranges else np.array([[]])
 
-        #temp for Create
-        if input_combinations.size == 0:
-            input_combinations = np.array([[]])
-
-        non_zero_indices = [
-            idx for inp in input_combinations for idx in self._truncation_specificaton(inp, output_dims)
-        ]
+        non_zero_indices = []
+        for inp in map(tuple, input_combinations):
+            for trans in self.truncation_specification(inp, tuple(output_dims)):
+                idx = tuple(trans.out + inp)
+                non_zero_indices.append((idx, trans.amp))
 
         if non_zero_indices:
             configs, coeffs = map(np.array, zip(*non_zero_indices))
@@ -592,9 +589,11 @@ class Box(frobenius.Box, Diagram):
         """
         self._array = value
 
-    def _truncation_specificaton(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
-    ) -> List[Tuple[Tuple[int], float]]:
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
         pass
 
     def __pow__(self, n):
@@ -611,8 +610,6 @@ class Spider(frobenius.Spider, Box):
 
     draw_as_spider = True
     color = "green"
-
-    # dagger - inherited?
 
     def conjugate(self):
         return self
@@ -662,8 +659,6 @@ class Sum(symmetric.Sum, Box):
     """
     Formal sum of optyx diagrams
     """
-
-    # dagger - inherited?
 
     __ambiguous_inheritance__ = (symmetric.Sum,)
 
@@ -835,10 +830,16 @@ class DualRail(Box):
     def conjugate(self):
         return self
 
-    def _truncation_specificaton(self, inp = None, max_output_dims = None):
-        m = [0, 0]
-        m[inp[0]] = 1
-        return [(tuple(m + list(inp)), 1.0)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        out = (1, 0) if inp[0] == 0 else (0, 1)
+        yield BasisTransition(
+            out = out,
+            amp = 1.0
+        )
 
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:
@@ -885,10 +886,15 @@ class PhotonThresholdDetector(Box):
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
 
-    def _truncation_specificaton(self, inp = None, max_output_dims = None):
-        if inp[0] == 0:
-            return [((0, 0), 1.0)]
-        return [(tuple([1, inp[0]]), 1)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        yield BasisTransition(
+            out=(0,) if inp[0] == 0 else (1,),
+            amp=1.0
+        )
 
     def determine_output_dimensions(self, input_dims):
         if self.is_dagger:

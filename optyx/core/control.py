@@ -45,10 +45,11 @@ A bit-controlled gate can be composed as:
 >>> control.draw(path='docs/_static/binary_control.svg')
 """
 
-from typing import Callable, List
+from typing import Callable, List, Tuple, Iterable
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
+from optyx._utils import BasisTransition
 
 from optyx.core import diagram, zw
 
@@ -334,14 +335,24 @@ class ClassicalFunctionBox(ClassicalBox):
         self.output_size = len(cod)
         self.is_dagger = is_dagger
 
-    def _truncation_specificaton(
-        self, inp: list[int] = None, max_output_dims: list[int] = None
-    ):
-        f_val = self.function(inp)
-        if f_val != 0:
-            return [(tuple(list(f_val) + list(inp)), 1.0)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        out = self.function(inp)
+        if out is None:
+            return
+
+        if isinstance(out, (list, tuple)):
+            out = tuple(int(x) for x in out)
         else:
-            return []
+            out = (int(out),)
+
+        if any(x < 0 or x >= int(max_output_dims[i]) for i, x in enumerate(out)):
+            return
+
+        yield BasisTransition(out=out, amp=1.0)
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.cod == diagram.Mode(self.output_size):
@@ -394,9 +405,11 @@ class BinaryMatrixBox(ClassicalBox):
         self.matrix = matrix
         self.is_dagger = is_dagger
 
-    def _truncation_specificaton(
-        self, inp: list[int] = None, max_output_dims: list[int] = None
-    ):
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
         def f(x):
             if not isinstance(x, np.ndarray):
                 x = np.array(x, dtype=np.uint8)
@@ -406,9 +419,9 @@ class BinaryMatrixBox(ClassicalBox):
 
             return list(((A @ x) % 2).reshape(1, -1)[0])
 
-        return ClassicalFunctionBox(
+        yield from ClassicalFunctionBox(
             f, self.dom, self.cod
-        )._truncation_specificaton(inp, max_output_dims)
+        ).truncation_specification(inp, max_output_dims)
 
     def determine_output_dimensions(self,
                                     input_dims: List[int]) -> List[int]:
