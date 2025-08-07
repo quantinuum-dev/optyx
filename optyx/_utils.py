@@ -9,6 +9,8 @@ Utility functions which are used in the package.
 """
 
 import numpy as np
+from typing import NamedTuple, Tuple
+from numbers import Number
 
 
 def _build_w_layer(n_nonzero_counts, dagger=False):
@@ -292,3 +294,25 @@ def filter_occupation_numbers(
             list(config[i] <= input_dims[i] for i in range(len(input_dims)))
         )
     ]
+
+
+class BasisTransition(NamedTuple):
+    """
+    A single non-zero transition emitted by `truncation_specification`.
+
+    For a fixed input basis index `input_index`, a box yields zero or more
+    `Transition` objects, each describing one reachable output index and its
+    amplitude. The caller (`Box.truncation`) writes `amp` into the result
+    tensor at index `out + input_index` (output indices first, then input).
+
+    Attributes
+    ----------
+    out : Tuple[int, ...]
+        Output multi-index in the box's codomain for this transition.
+        Must satisfy: len(out) == len(self.cod) and
+        0 <= out[i] < output_dims[i] for all i.
+    amp : Union[complex, float, int, sympy.Expr]
+        The complex (or symbolic) amplitude associated with this output.
+    """
+    out: Tuple[int, ...]
+    amp: Number

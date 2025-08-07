@@ -146,8 +146,7 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
     :align: center
 """
 
-from typing import List, Union
-from itertools import product
+from typing import List, Union, Tuple, Iterable
 import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
@@ -155,7 +154,7 @@ from optyx.core import diagram
 from optyx._utils import (
     occupation_numbers,
     multinomial,
-    filter_occupation_numbers
+    BasisTransition
 )
 from optyx.core.path import Matrix
 
@@ -228,24 +227,20 @@ class W(ZWBox):
     def conjugate(self):
         return self
 
-    def _trunc(self, input_dims: list[int], output_dims: list[int] = None):
-        results = []
-        for i in range(input_dims[0]):
-            configs = [config for config in occupation_numbers(i, len(self.cod)) if
-                        all(config[i] < output_dims[i] for i in range(len(self.cod)))]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
 
-            results.extend(
-                (tuple(list(config) + [i]), multinomial(config)**0.5) for config in configs
-            )
-        return results
-
-    def _truncation_specificaton(self, inp, max_output_dims: list[int]) -> List[tuple]:
-        configs = [config for config in occupation_numbers(inp[0], self.n_legs) if
-                    all(config[i] < max_output_dims[i] for i in range(self.n_legs))]
-
-        return [
-            (tuple(list(config) + [inp[0]]), multinomial(config)**0.5) for config in configs
-        ]
+        for config in occupation_numbers(inp[0], self.n_legs):
+            if all(
+                config[i] < max_output_dims[i] for i in range(self.n_legs)
+            ):
+                yield BasisTransition(
+                    out=tuple(config),
+                    amp=multinomial(config) ** 0.5
+                )
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -445,8 +440,17 @@ class Create(ZWBox):
             array, 0, len(self.photons), creations=self.photons
         )
 
-    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
-        return [(tuple(self.photons), 1.0)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        assert len(inp) == 0
+        if all(
+            self.photons[i] < max_output_dims[i]
+            for i in range(len(self.photons))
+        ):
+            yield BasisTransition(out=tuple(self.photons), amp=1.0)
 
     def determine_output_dimensions(
         self, input_dims: list[int] = None
@@ -548,11 +552,13 @@ class Select(ZWBox):
             array, len(self.photons), 0, selections=self.photons
         )
 
-    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
-        if all(i == p for i, p in zip(inp, self.photons)):
-            return [(tuple(self.photons), 1.0)]
-        else:
-            return []
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        if tuple(inp) == tuple(self.photons):
+            yield BasisTransition(out=(), amp=1.0)
 
     def determine_output_dimensions(self, _=None) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -655,10 +661,14 @@ class Add(ZWBox):
         self.n = n
         self.is_dagger = is_dagger
 
-    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
-        if sum(inp) >= max_output_dims[0]:
-            return []
-        return [(tuple([sum(inp)] + list(inp)), 1.0)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        n = sum(inp)
+        if n < int(max_output_dims[0]):
+            yield BasisTransition(out=(n,), amp=1.0)
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
@@ -694,10 +704,14 @@ class Multiply(ZWBox):
 
         self.is_dagger = is_dagger
 
-    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
-        if np.prod(inp) >= max_output_dims[0]:
-            return []
-        return [(tuple([np.prod(inp)] + list(inp)), 1.0)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        n = np.prod(inp)
+        if n < int(max_output_dims[0]):
+            yield BasisTransition(out=(n,), amp=1.0)
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
@@ -732,13 +746,16 @@ class Divide(ZWBox):
 
         self.is_dagger = is_dagger
 
-    def _truncation_specificaton(self, inp: int, max_output_dims: list[int]) -> List[tuple]:
-        if inp[1] == 0 or inp[0] % inp[1] != 0:
-            return []
-        quotient = inp[0] // inp[1]
-        if quotient >= max_output_dims[0]:
-            return []
-        return [(tuple([quotient] + list(inp)), 1.0)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        a, b = inp
+        if b != 0:
+            q, r = divmod(a, b)
+            if r == 0 and q < int(max_output_dims[0]):
+                yield BasisTransition(out=(int(q),), amp=1.0)
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
@@ -769,8 +786,14 @@ class Mod2(ZWBox):
         super().__init__("Mod2", diagram.Mode(1), diagram.Bit(1))
         self.is_dagger = is_dagger
 
-    def _truncation_specificaton(self, inp: int, max_output_dims: List[int]) -> List[tuple]:
-        return [((inp[0] % 2, inp[0]), 1.0)]
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        yield BasisTransition(
+            out=(inp[0] % 2,), amp=1.0
+        )
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
