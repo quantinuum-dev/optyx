@@ -12,6 +12,7 @@ import numpy as np
 from typing import NamedTuple, Tuple
 from numbers import Number
 
+
 def _build_w_layer(n_nonzero_counts, dagger=False):
     # pylint: disable=import-outside-toplevel
     from optyx.core import zw

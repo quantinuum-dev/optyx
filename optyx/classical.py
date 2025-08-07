@@ -160,9 +160,11 @@ class BitControlledGate(Channel):
     the Kraus operators for the gate.
     """
     class _BitControlledSingleBox(Channel):
-        def __init__(self,
-                    control_gate,
-                    default_gate=None):
+        def __init__(
+            self,
+            control_gate,
+            default_gate=None
+        ):
             if isinstance(control_gate, (Diagram, Channel)):
                 assert control_gate.is_pure, \
                     "The input gates must be pure quantum channels"
@@ -183,7 +185,8 @@ class BitControlledGate(Channel):
         if default_box is not None:
             return cls._BitControlledSingleBox(
                 diag, default_box
-            ).dagger() if is_dagger else cls._BitControlledSingleBox(diag, default_box)
+            ).dagger() if is_dagger else \
+                 cls._BitControlledSingleBox(diag, default_box)
 
         boxes = []
         for i in range(len(diag)):
@@ -205,11 +208,9 @@ class BitControlledGate(Channel):
                     bit @ left @ cls._BitControlledSingleBox(box, ) @ right
                 ]
 
-                l = channel.Diagram.then(*layers)
-                boxes.append(l)
+                boxes.append(channel.Diagram.then(*layers))
             else:
-                l = bit @ layer
-                boxes.append(l)
+                boxes.append(bit @ layer)
 
         boxes.append(Z(1, 0) @ layer.cod)
         if is_dagger:
