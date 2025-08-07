@@ -145,6 +145,10 @@ class EvalResult:
                 ("Cannot get amplitudes from density " +
                  "matrix or probability distribution.")
             )
+        if len(self.tensor.dom) != 0:
+            raise ValueError(
+                "Result tensor must represent a state without inputs."
+            )
         return self._convert_array_to_dict(self.tensor.array)
 
     def prob_dist(self, round_digits: int = None) -> dict:
