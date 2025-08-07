@@ -38,30 +38,30 @@ Examples of usage
 
 **Exact tensor-network contraction with Quimb**
 
->>> from optyx.core.zw import Create, W
+>>> from optyx.photonic import Create, BS
 >>> from optyx.core.backends import QuimbBackend
->>> diag = Create(1) >> W(2)
+>>> diag = Create(1, 1) >> BS
 >>> backend = QuimbBackend()
->>> result = backend.eval(diag)
->>> result.amplitudes
->>> result.prob((1, 0))
+>>> result = diag.eval(backend)
+>>> np.round(result.prob((2, 0)), 1)
+0.5
 
 **Compressed contraction (hyper-optimiser reused across calls)**
 
 >>> from cotengra import ReusableHyperCompressedOptimizer
 >>> opt = ReusableHyperCompressedOptimizer(max_repeats=32)
->>> backend = QuimbBackend(hyperoptimiser=opt,
-...                        contraction_params={'chi': 64})
->>> result = backend.eval(diag)
+>>> backend = QuimbBackend(hyperoptimiser=opt)
+>>> result = diag.eval(backend)
+>>> np.round(result.prob((2, 0)), 1)
+0.5
 
 **Unitary circuit simulation with Perceval**
 
->>> from optyx.photonic import BS, Phase
->>> circ = (BS @ Phase(0.25)).get_kraus()
 >>> from optyx.core.backends import PercevalBackend
 >>> backend = PercevalBackend()
->>> result = backend.eval(circ, perceval_state=[1, 0])
->>> result.prob((1, 0)) + result.prob((0, 1))
+>>> result = BS.eval(backend)
+>>> np.round(result.prob((2, 0)), 1)
+0.5
 """
 
 from abc import ABC, abstractmethod
@@ -190,17 +190,11 @@ class EvalResult:
             self,
             array: np.ndarray,
             round_digits: int = None) -> dict:
-
         """
         Return a dict that maps multi-indices - values for all non-zero
         entries of an array.
-
-        Example
-        -------
-        >>> a = np.array([[0, 1.2], [3.4, 0]])
-        >>> _convert_array_to_dict(a)
-        {(0, 1): 1.2, (1, 0): 3.4}
         """
+
         if round_digits is not None:
             array = np.round(array, round_digits)
 
