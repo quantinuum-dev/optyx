@@ -219,7 +219,6 @@ preprint arXiv:2409.13541.
 from __future__ import annotations
 
 import numpy as np
-from abc import abstractmethod
 from sympy.core import Symbol, Mul
 from discopy import (
     symmetric, frobenius, tensor, hypergraph
@@ -515,12 +514,15 @@ class Box(frobenius.Box, Diagram):
         result_matrix = np.zeros(shape, dtype=complex)
 
         input_ranges = [range(int(d)) for d in input_dims]
-        input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(-1, len(input_dims)) \
-                    if input_ranges else np.array([[]])
+        input_combinations = np.array(
+            np.meshgrid(*input_ranges)).T.reshape(-1, len(input_dims)) \
+            if input_ranges else np.array([[]])
 
         non_zero_indices = []
         for inp in map(tuple, input_combinations):
-            for trans in self.truncation_specification(inp, tuple(output_dims)):
+            for trans in self.truncation_specification(
+                inp, tuple(output_dims)
+            ):
                 idx = tuple(trans.out + inp)
                 non_zero_indices.append((idx, trans.amp))
 
@@ -837,8 +839,8 @@ class DualRail(Box):
     ) -> Iterable[BasisTransition]:
         out = (1, 0) if inp[0] == 0 else (0, 1)
         yield BasisTransition(
-            out = out,
-            amp = 1.0
+            out=out,
+            amp=1.0
         )
 
     def determine_output_dimensions(self,

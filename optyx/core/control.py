@@ -172,7 +172,7 @@ class BitControlledBox(ControlBox):
                     >> diagram.truncation_tensor(
                         default_box_tensor.cod.inside, output_dims
                     )
-                ).to_quimb()^...
+                ).to_quimb() ^ ...
             ).data.reshape(array[0, :, :].shape)
         )
 
@@ -182,8 +182,8 @@ class BitControlledBox(ControlBox):
                     action_box_tensor
                     >> diagram.truncation_tensor(
                         action_box_tensor.cod.inside, output_dims
-                   )
-                ).to_quimb()^...
+                    )
+                ).to_quimb() ^ ...
             ).data.reshape(array[1, :, :].shape)
         )
 
@@ -349,7 +349,10 @@ class ClassicalFunctionBox(ClassicalBox):
         else:
             out = (int(out),)
 
-        if any(x < 0 or x >= int(max_output_dims[i]) for i, x in enumerate(out)):
+        if any(
+            x < 0 or x >= int(max_output_dims[i])
+            for i, x in enumerate(out)
+        ):
             return
 
         yield BasisTransition(out=out, amp=1.0)

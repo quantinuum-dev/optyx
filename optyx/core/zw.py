@@ -242,7 +242,6 @@ class W(ZWBox):
                     amp=multinomial(config) ** 0.5
                 )
 
-
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
         if self.is_dagger:
@@ -447,7 +446,10 @@ class Create(ZWBox):
         max_output_dims: Tuple[int, ...] = None
     ) -> Iterable[BasisTransition]:
         assert len(inp) == 0
-        if all(self.photons[i] < max_output_dims[i] for i in range(len(self.photons))):
+        if all(
+            self.photons[i] < max_output_dims[i]
+            for i in range(len(self.photons))
+        ):
             yield BasisTransition(out=tuple(self.photons), amp=1.0)
 
     def determine_output_dimensions(
