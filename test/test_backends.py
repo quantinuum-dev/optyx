@@ -72,8 +72,8 @@ class TestQuimbBackend:
         )
 
         assert dict_allclose(
-            result_exact.amplitudes,
-            result_approx.amplitudes,
+            result_exact.amplitudes(),
+            result_approx.amplitudes(),
         )
 
         assert np.allclose(
@@ -198,7 +198,7 @@ class TestEvalResult:
         result = diagram.eval()
 
         prob_dist = result.prob_dist()
-        amps = result.amplitudes
+        amps = result.amplitudes()
 
         for key, amp in amps.items():
             assert math.isclose(prob_dist.get(key, 0.0), abs(amp)**2)
@@ -256,7 +256,7 @@ class TestExceptions:
             diagram = state >> circuit >> measure
             result = diagram.eval()
 
-            amps = result.amplitudes
+            amps = result.amplitudes()
 
     # AbstractBackend
         # not a LO trying to get matrix
