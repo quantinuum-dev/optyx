@@ -380,6 +380,13 @@ class Diagram(frobenius.Diagram):
         )
 
     @classmethod
+    def from_graphix(cls, measurement_pattern):
+        """Convert from Graphix measurement pattern."""
+        # pylint: disable=import-outside-toplevel
+        from optyx.qubits import Circuit
+        return Circuit(measurement_pattern)
+
+    @classmethod
     def from_perceval(cls, p):
         """
         Convert pcvl.Circuit or pcvl.Processor
