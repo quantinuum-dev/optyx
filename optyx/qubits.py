@@ -266,8 +266,10 @@ We can create a graph state as follows
 """  # noqa E501
 
 from typing import Literal
+from enum import Enum
 import numpy as np
 from pyzx.graph.base import BaseGraph
+import graphix
 from discopy import quantum as quantum_discopy
 from discopy import symmetric
 # from pytket import circuit as tket_circuit
@@ -288,6 +290,16 @@ from optyx import (
 )
 
 
+class ImportObjectType(Enum):
+    """
+    Type of object that can be imported.
+    """
+    ZX = "zx"
+    PYZX = "pyzx"
+    TKET = "tket"
+    DISCOPY = "discopy"
+    GRAPHIX = "graphix"
+
 class Circuit(Diagram):
     """
     A circuit that operates on qubits.
@@ -306,13 +318,15 @@ class Circuit(Diagram):
         """
         if isinstance(underlying_circuit,
                       quantum_discopy.circuit.Circuit):
-            return "discopy"
+            return ImportObjectType.DISCOPY
         if isinstance(underlying_circuit, BaseGraph):
-            return "pyzx"
+            return ImportObjectType.PYZX
         # if isinstance(underlying_circuit, tket_circuit.Circuit):
-        #     return "tket"
+        #     return ImportObjectType.TKET
         if isinstance(underlying_circuit, Diagram):
-            return "zx"
+            return ImportObjectType.ZX
+        if isinstance(underlying_circuit, graphix.pattern.Pattern):
+            return ImportObjectType.GRAPHIX
         raise TypeError("Unsupported circuit type")  # pragma: no cover
 
     @classmethod
@@ -321,14 +335,16 @@ class Circuit(Diagram):
         Convert the circuit to an optyx channel diagram.
         """
         type_ = cls._detect_type(underlying_circuit)
-        if type_ == "discopy":
+        if type_ == ImportObjectType.DISCOPY:
             return cls._to_optyx_from_discopy(underlying_circuit)
-        if type_ == "pyzx":
+        if type_ == ImportObjectType.PYZX:
             return cls._to_optyx_from_pyzx(underlying_circuit)
-        # if type_ == "tket":
+        # if type_ == ImportObjectType.TKET:
         #     return cls._to_optyx_from_tket(underlying_circuit)
-        if type_ == "zx":
+        if type_ == ImportObjectType.ZX:
             return cls._to_optyx_from_zx(underlying_circuit)
+        if type_ == ImportObjectType.GRAPHIX:
+            return cls._to_optyx_from_graphix(underlying_circuit)
         raise TypeError("Unsupported circuit type")  # pragma: no cover
 
     # @classmethod
@@ -384,6 +400,20 @@ class Circuit(Diagram):
     def _to_optyx_from_zx(cls, underlying_circuit):
         return underlying_circuit
 
+    @classmethod
+    def _to_optyx_from_graphix(cls, underlying_circuit):
+        """
+        Convert a Graphix measurement pattern to an optyx ZX diagram.
+        """
+        # pylint: disable=import-outside-toplevel
+        from graphix import opengraph
+        from graphix import pyzx
+
+        og = opengraph.OpenGraph.from_pattern(underlying_circuit)
+        pyzx_diagram = pyzx.to_pyzx_graph(og)
+        pyzx_diagram._inputs = tuple(pyzx_diagram._inputs)
+        pyzx_diagram._outputs = tuple(pyzx_diagram._outputs)
+        return cls._to_optyx_from_pyzx(pyzx_diagram)
 
 class QubitChannel(Channel):
     """Qubit channel."""
