@@ -132,8 +132,7 @@ class EvalResult:
             return density_matrix
         return self.tensor
 
-    @property
-    def amplitudes(self) -> dict[tuple[int, ...], float]:
+    def amplitudes(self, normalise=True) -> dict[tuple[int, ...], float]:
         """
         Get the amplitudes from the result tensor.
         Returns:
@@ -149,7 +148,11 @@ class EvalResult:
             raise ValueError(
                 "Result tensor must represent a state without inputs."
             )
-        return self._convert_array_to_dict(self.tensor.array)
+
+        dic = self._convert_array_to_dict(self.tensor.array)
+        if normalise:
+            return {key: value / np.sqrt(np.sum(np.abs(list(dic.values()))**2)) for key, value in dic.items()}
+        return dic
 
     def prob_dist(self, round_digits: int = None) -> dict:
         """
@@ -223,7 +226,8 @@ class EvalResult:
             self.tensor.array,
             round_digits=round_digits
         )
-        return {key: abs(value) ** 2 for key, value in values.items()}
+        sum_ = np.sum(np.abs(list(values.values())) ** 2)
+        return {key: (abs(value) ** 2)/sum_ for key, value in values.items()}
 
     def _prob_dist_mixed(
             self,
@@ -266,8 +270,12 @@ class EvalResult:
 
         for occ in all_measured:
             probs.setdefault(occ, 0.0)
-
-        return dict(probs)
+        sum_ = np.sum(list(probs.values()))
+        prob = {
+            key: value / sum_
+            for key, value in probs.items()
+        }
+        return prob
 
 
 # pylint: disable=too-few-public-methods
