@@ -145,6 +145,7 @@ from optyx import (
     bit,
     mode,
     qmode,
+    qubit,
     Discard,
     CQMap,
     Channel,
@@ -169,16 +170,26 @@ class BitControlledGate(Channel):
                 assert control_gate.is_pure, \
                     "The input gates must be pure quantum channels"
                 control_gate_single = control_gate.get_kraus()
+            else:
+                control_gate_single = control_gate
             if isinstance(default_gate, (Diagram, Channel)):
                 assert default_gate.is_pure, \
                     "The input gates must be pure quantum channels"
-                default_gate = default_gate.get_kraus()
-            kraus = control.BitControlledBox(control_gate_single, default_gate)
+                default_gate_single = default_gate.get_kraus()
+            else:
+                default_gate_single = default_gate
+
+            if control_gate_single.dom[0] == bit:
+                tp = qubit
+            else:
+                tp = qmode
+
+            kraus = control.BitControlledBox(control_gate_single, default_gate_single)
             super().__init__(
                 f"BitControlledGate({control_gate}, {default_gate})",
                 kraus,
-                bit @ control_gate.dom,
-                control_gate.cod
+                bit @ tp**len(control_gate_single.dom),
+                tp**len(control_gate_single.cod)
             )
 
     def __new__(cls, diag, default_box=None, is_dagger=False):
