@@ -236,6 +236,7 @@ class Diagram(frobenius.Diagram):
     @property
     def is_pure(self):
         are_layers_pure = []
+        are_layers_classical = []
         for layer in self:
             generator = layer.inside[0][1]
 
@@ -245,7 +246,12 @@ class Diagram(frobenius.Diagram):
                 isinstance(generator, Discard)
             )
 
-        return not any(are_layers_pure)
+            are_layers_classical.append(
+                all(ty.is_classical for ty in generator.cod.inside) and
+                all(ty.is_classical for ty in generator.dom.inside)
+            )
+
+        return not any(are_layers_pure) or all(are_layers_classical)
 
     def get_kraus(self):
         assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
