@@ -300,6 +300,7 @@ class ImportObjectType(Enum):
     DISCOPY = "discopy"
     GRAPHIX = "graphix"
 
+
 class Circuit(Diagram):
     """
     A circuit that operates on qubits.
@@ -414,6 +415,7 @@ class Circuit(Diagram):
         pyzx_diagram._inputs = tuple(pyzx_diagram._inputs)
         pyzx_diagram._outputs = tuple(pyzx_diagram._outputs)
         return cls._to_optyx_from_pyzx(pyzx_diagram)
+
 
 class QubitChannel(Channel):
     """Qubit channel."""
