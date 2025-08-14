@@ -384,6 +384,10 @@ class Diagram(frobenius.Diagram):
         """
         Convert pcvl.Circuit or pcvl.Processor
         into optyx diagrams.
+
+        Cannot convert objects involving components
+        acting on polarisation modes, time delays,
+        and with symbols.
         """
         from optyx import photonic
         from optyx.utils import perceval
