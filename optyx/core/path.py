@@ -143,7 +143,7 @@ from discopy.cat import assert_iscomposable
 from discopy.utils import unbiased
 import discopy.matrix as underlying
 from discopy.tensor import Tensor
-from optyx._utils import occupation_numbers, amplitudes_2_tensor
+from optyx.utils.utils import occupation_numbers, amplitudes_2_tensor
 
 
 def npperm(matrix):

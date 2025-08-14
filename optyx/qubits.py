@@ -271,7 +271,7 @@ from pyzx.graph.base import BaseGraph
 from discopy import quantum as quantum_discopy
 from discopy import symmetric
 # from pytket import circuit as tket_circuit
-from optyx._utils import explode_channel
+from optyx.utils.utils import explode_channel
 from optyx.core import (
     channel,
     diagram,

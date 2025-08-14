@@ -272,7 +272,7 @@ from optyx.core import (
 )
 
 from optyx.classical import ClassicalFunction, DiscardMode
-from optyx._utils import matrix_to_zw
+from optyx.utils.utils import matrix_to_zw
 
 from optyx import (
     bit,

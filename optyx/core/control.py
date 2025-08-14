@@ -49,7 +49,7 @@ from typing import Callable, List, Tuple, Iterable
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-from optyx._utils import BasisTransition
+from optyx.utils.utils import BasisTransition
 
 from optyx.core import diagram, zw
 

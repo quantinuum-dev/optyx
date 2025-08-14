@@ -115,7 +115,7 @@ from optyx.core import zx, diagram
 from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
 
-from optyx._utils import explode_channel
+from optyx.utils.utils import explode_channel
 
 
 class Ob(symmetric.Ob):
@@ -378,6 +378,55 @@ class Diagram(frobenius.Diagram):
                 n_modes, operators, scalar=scalar
             )
         )
+
+    @classmethod
+    def from_perceval(cls, p):
+        """
+        Convert pcvl.Circuit or pcvl.Processor
+        into optyx diagrams.
+        """
+        from optyx import photonic
+        from optyx.utils import perceval
+        import perceval as pcvl
+    
+        if isinstance(p, pcvl.Circuit):
+            p_ = pcvl.Processor("SLOS", p.m)
+            p_.add(0, p)
+
+            p_new = pcvl.Processor("SLOS", p.m)
+            for c in p_.flatten():
+                p_new.add(c[0][0], c[1])
+            p = p_new
+
+        n_modes = p.circuit_size
+        circuit = photonic.Id(n_modes)
+        heralds = p.heralds
+
+        circuit = perceval.heralds_diagram(heralds, n_modes, circuit, "in") >> circuit
+
+        for wires, component in p.components:
+            left = circuit.cod[:min(wires)]
+            right = circuit.cod[max(wires) + 1:]
+
+            if isinstance(component, pcvl.Detector):
+                box = perceval.detector(component, wires)
+            elif isinstance(component, pcvl.components.feed_forward_configurator.FFCircuitProvider):
+                box, left, right = perceval.ff_circuit_provider(component, wires, circuit)
+            elif isinstance(component, pcvl.components.feed_forward_configurator.FFConfigurator):
+                box, left, right = perceval.ff_configurator(component, wires, circuit)
+            elif isinstance(component, pcvl.components.Barrier):
+                continue
+            elif hasattr(component, "U"):
+                box = perceval.unitary(component, wires)
+            else:
+                raise ValueError(f"Unsupported perceval component type: {type(component)}")
+
+            circuit >>= (left @ box @ right)
+
+        circuit >>= perceval.heralds_diagram(heralds, n_modes, circuit, "out")
+        if p.post_select_fn is not None:
+            circuit >>= perceval.postselection(circuit, p)
+        return circuit
 
     # pylint: disable=invalid-name
     def __pow__(self, n):

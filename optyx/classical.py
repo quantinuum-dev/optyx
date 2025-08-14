@@ -173,6 +173,7 @@ class BitControlledGate(Channel):
                 control_gate_single = control_gate.get_kraus()
             else:
                 control_gate_single = control_gate
+
             if isinstance(default_gate, (Diagram, Channel)):
                 assert default_gate.is_pure, \
                     "The input gates must be pure quantum channels"
@@ -180,12 +181,13 @@ class BitControlledGate(Channel):
             else:
                 default_gate_single = default_gate
 
-            if control_gate_single.dom[0] == bit:
+            if control_gate_single.dom[0] == diagram.bit:
                 tp = qubit if not classical else bit
             else:
                 tp = qmode if not classical else mode
 
             kraus = control.BitControlledBox(control_gate_single, default_gate_single)
+            
             super().__init__(
                 f"BitControlledGate({control_gate}, {default_gate})",
                 kraus,
