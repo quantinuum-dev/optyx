@@ -151,7 +151,9 @@ class EvalResult:
 
         dic = self._convert_array_to_dict(self.tensor.array)
         if normalise:
-            return {key: value / np.sqrt(np.sum(np.abs(list(dic.values()))**2)) for key, value in dic.items()}
+            return {key: value /
+                    np.sqrt(np.sum(np.abs(list(dic.values()))**2))
+                    for key, value in dic.items()}
         return dic
 
     def prob_dist(self, round_digits: int = None) -> dict:
