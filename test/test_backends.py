@@ -103,10 +103,10 @@ class TestQuimbBackend:
             result_approx.tensor.array,
         )
 
-        # assert np.allclose(
-        #     result_exact.density_matrix.array,
-        #     result_approx.density_matrix.array,
-        # )
+        assert np.allclose(
+            result_exact.density_matrix,
+            result_approx.density_matrix,
+        )
 
 class TestPercevalBackend:
     # compare with matrix.probs
@@ -163,10 +163,10 @@ class TestDiscopyBackend:
             result_discopy.tensor.array,
         )
 
-        # assert np.allclose(
-        #     result_exact.density_matrix.array,
-        #     result_approx.density_matrix.array,
-        # )
+        assert np.allclose(
+            result_exact.density_matrix,
+            result_discopy.density_matrix,
+        )
 
 class TestEvalResult:
     # compare circuits with measurements and dangling wires with

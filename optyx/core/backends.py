@@ -130,7 +130,7 @@ class EvalResult:
         if self.state_type is StateType.AMP:
             density_matrix = self.tensor.dagger() >> self.tensor
             return density_matrix
-        return self.tensor
+        return self.tensor.array
 
     def amplitudes(self, normalise=True) -> dict[tuple[int, ...], float]:
         """
