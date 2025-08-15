@@ -390,9 +390,9 @@ class Diagram(frobenius.Diagram):
         and with symbols.
         """
         from optyx import photonic
-        from optyx.utils import perceval
+        from optyx.utils import perceval_conversion
         import perceval as pcvl
-    
+
         if isinstance(p, pcvl.Circuit):
             p_ = pcvl.Processor("SLOS", p.m)
             p_.add(0, p)
@@ -406,30 +406,46 @@ class Diagram(frobenius.Diagram):
         circuit = photonic.Id(n_modes)
         heralds = p.heralds
 
-        circuit = perceval.heralds_diagram(heralds, n_modes, circuit, "in") >> circuit
+        circuit = perceval_conversion.heralds_diagram(
+            heralds, n_modes, circuit, "in"
+        ) >> circuit
 
         for wires, component in p.components:
             left = circuit.cod[:min(wires)]
             right = circuit.cod[max(wires) + 1:]
 
             if isinstance(component, pcvl.Detector):
-                box = perceval.detector(component, wires)
-            elif isinstance(component, pcvl.components.feed_forward_configurator.FFCircuitProvider):
-                box, left, right = perceval.ff_circuit_provider(component, wires, circuit)
-            elif isinstance(component, pcvl.components.feed_forward_configurator.FFConfigurator):
-                box, left, right = perceval.ff_configurator(component, wires, circuit)
+                box = perceval_conversion.detector(component, wires)
+            elif isinstance(
+                component,
+                pcvl.components.feed_forward_configurator.FFCircuitProvider
+            ):
+                box, left, right = perceval_conversion.ff_circuit_provider(
+                    component, wires, circuit
+                )
+            elif isinstance(
+                component,
+                pcvl.components.feed_forward_configurator.FFConfigurator
+            ):
+                box, left, right = perceval_conversion.ff_configurator(
+                    component, wires, circuit
+                )
             elif isinstance(component, pcvl.components.Barrier):
                 continue
             elif hasattr(component, "U"):
-                box = perceval.unitary(component, wires)
+                box = perceval_conversion.unitary(component, wires)
             else:
-                raise ValueError(f"Unsupported perceval component type: {type(component)}")
+                raise ValueError(
+                    f"Unsupported perceval component type: {type(component)}"
+                )
 
             circuit >>= (left @ box @ right)
 
-        circuit >>= perceval.heralds_diagram(heralds, n_modes, circuit, "out")
+        circuit >>= perceval_conversion.heralds_diagram(
+            heralds, n_modes, circuit, "out"
+        )
         if p.post_select_fn is not None:
-            circuit >>= perceval.postselection(circuit, p)
+            circuit >>= perceval_conversion.postselection(circuit, p)
         return circuit
 
     # pylint: disable=invalid-name

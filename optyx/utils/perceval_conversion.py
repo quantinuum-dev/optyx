@@ -12,7 +12,9 @@ import perceval as pcvl
 
 
 def _default_action(component):
-    return matrix_to_zw(np.array(component.default_circuit.U, dtype=np.complex128))
+    return matrix_to_zw(
+        np.array(component.default_circuit.U, dtype=np.complex128)
+    )
 
 
 def _state_predicate(state):
@@ -22,30 +24,34 @@ def _state_predicate(state):
     return ClassicalFunction(f, mode**len(state), bit)
 
 
-def _rewire_and_context(*, component, wires, circuit, n_classical, n_action, n_offset,
+def _rewire_and_context(*, component, wires, circuit,
+                        n_classical, n_action, n_offset,
                         perm_dom_neg, perm_dom_pos):
-    """Compute (input_perm, output_perm, left, right) based on component._offset sign."""
+    """Compute (input_perm, output_perm, left, right)
+    based on component._offset sign."""
     if component._offset < 0:
         # classical wires after action+offset
         p_input = (
-            list(range(n_action + n_offset, n_action + n_offset + n_classical)) +
+            list(range(n_action + n_offset,
+                       n_action + n_offset + n_classical)) +
             list(range(0, n_action)) +
             list(range(n_action, n_action + n_offset))
         )
         input_perm = Diagram.permutation(p_input, perm_dom_neg)
         output_perm = Diagram.permutation(invert_perm(p_input), input_perm.cod)
-        left  = circuit.cod[:min(wires) - n_offset - n_action]
+        left = circuit.cod[:min(wires) - n_offset - n_action]
         right = circuit.cod[max(wires) + 1:]
     else:
         # classical wires before offset+action
         p_input = (
             list(range(n_classical, n_classical + n_offset)) +
             list(range(0, n_classical)) +
-            list(range(n_classical + n_offset, n_classical + n_offset + n_action))
+            list(range(n_classical + n_offset,
+                       n_classical + n_offset + n_action))
         )
         input_perm = Diagram.permutation(p_input, perm_dom_pos)
         output_perm = Diagram.permutation(invert_perm(p_input), input_perm.cod)
-        left  = circuit.cod[:min(wires)]
+        left = circuit.cod[:min(wires)]
         right = circuit.cod[max(wires) + n_offset + n_action + 1:]
     return input_perm, output_perm, left, right
 
@@ -81,7 +87,8 @@ def _assemble_controlled_box(map_items, *, default_action):
     return box
 
 
-def _feedforward_common(*, component, wires, circuit, map_iter, action_from_item,
+def _feedforward_common(*, component, wires, circuit,
+                        map_iter, action_from_item,
                         use_provider_dom: bool):
     """
     Shared implementation for both FFCircuitProvider and FFConfigurator.
@@ -99,8 +106,10 @@ def _feedforward_common(*, component, wires, circuit, map_iter, action_from_item
         perm_dom_pos = mode**n_classical @ qmode**(n_action + n_offset)
     else:
         # configurator: the dom is a slice of the current circuit wires
-        perm_dom_neg = circuit.cod[min(wires) - n_offset - n_action : max(wires) + 1]
-        perm_dom_pos = circuit.cod[min(wires) : max(wires) + n_offset + n_action + 1]
+        perm_dom_neg = circuit.cod[min(wires) - n_offset -
+                                   n_action: max(wires) + 1]
+        perm_dom_pos = circuit.cod[min(wires): max(wires) +
+                                   n_offset + n_action + 1]
 
     input_perm, output_perm, left, right = _rewire_and_context(
         component=component, wires=wires, circuit=circuit,
@@ -118,11 +127,11 @@ def _feedforward_common(*, component, wires, circuit, map_iter, action_from_item
     # figure out the "offset wires" identity block to thread through
     if component._offset < 0:
         offset_wires = circuit.cod[
-            len(left) + n_action : len(left) + n_action + n_offset
+            len(left) + n_action: len(left) + n_action + n_offset
         ]
     else:
         offset_wires = circuit.cod[
-            len(left) + n_classical : len(left) + n_classical + n_offset
+            len(left) + n_classical: len(left) + n_classical + n_offset
         ]
 
     return (input_perm >> offset_wires @ box >> output_perm), left, right
@@ -149,7 +158,10 @@ def ff_configurator(component, wires, circuit):
     def action_from_item(symbol_values):
         # substitute symbol values and convert to ZW
         subs_map = {s: v for s, v in zip(free_symbols, symbol_values.values())}
-        action_U = np.array(component._controlled.U.subs(subs_map).evalf(), dtype=np.complex128)
+        action_U = np.array(
+            component._controlled.U.subs(subs_map).evalf(),
+            dtype=np.complex128
+        )
         return matrix_to_zw(action_U)
 
     box, left, right = _feedforward_common(
@@ -175,7 +187,10 @@ def unitary(component, wires):
 
 def heralds_diagram(heralds, n_modes, circuit, in_out):
     layer = photonic.Id(0)
-    create_select = Create if in_out == "in" else Select if in_out == "out" else None
+    create_select = (
+        Create if in_out == "in" else
+        Select if in_out == "out" else None
+    )
     if create_select is None:
         raise ValueError("in_out must be either 'in' or 'out'")
 
@@ -207,7 +222,9 @@ def postselection(circuit, p):
     )
     measure >>= copy >> permutation
 
-    postselect_f = ClassicalFunction(compile_postselect(str(p.post_select_fn)), mode**n_post, bit)
+    postselect_f = ClassicalFunction(
+        compile_postselect(str(p.post_select_fn)), mode**n_post, bit
+    )
     measure >>= postselect_f @ mode**n_post
 
     postselection = BitControlledGate(

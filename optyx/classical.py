@@ -186,8 +186,11 @@ class BitControlledGate(Channel):
             else:
                 tp = qmode if not classical else mode
 
-            kraus = control.BitControlledBox(control_gate_single, default_gate_single)
-            
+            kraus = control.BitControlledBox(
+                control_gate_single,
+                default_gate_single
+            )
+
             super().__init__(
                 f"BitControlledGate({control_gate}, {default_gate})",
                 kraus,
@@ -200,7 +203,11 @@ class BitControlledGate(Channel):
             return cls._BitControlledSingleBox(
                 diag, default_box, classical=classical
             ).dagger() if is_dagger else \
-                 cls._BitControlledSingleBox(diag, default_box, classical=classical)
+                 cls._BitControlledSingleBox(
+                    diag,
+                    default_box,
+                    classical=classical
+                )
 
         boxes = []
         for i in range(len(diag)):

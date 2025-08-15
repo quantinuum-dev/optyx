@@ -1,11 +1,13 @@
 
 import re
-from typing import List, Tuple, Callable, Union
+from typing import List
+
 
 class _Tok:
     def __init__(self, kind: str, value: str):
         self.kind = kind
         self.value = value
+
 
 def _tokenize(s: str):
     s = s.strip()
@@ -23,70 +25,100 @@ def _tokenize(s: str):
             i += 1
             continue
         if c in "[](),&|^!":
-            tokens.append(_Tok(c, c)); i += 1; continue
+            tokens.append(_Tok(c, c))
+            i += 1
+            continue
         if c in "<>=":
             if s.startswith("==", i):
-                tokens.append(_Tok("OP", "==")); i += 2; continue
+                tokens.append(_Tok("OP", "=="))
+                i += 2
+                continue
             if s.startswith(">=", i):
-                tokens.append(_Tok("OP", ">=")); i += 2; continue
+                tokens.append(_Tok("OP", ">="))
+                i += 2
+                continue
             if s.startswith("<=", i):
-                tokens.append(_Tok("OP", "<=")); i += 2; continue
+                tokens.append(_Tok("OP", "<="))
+                i += 2
+                continue
             if c == ">":
-                tokens.append(_Tok("OP", ">")); i += 1; continue
+                tokens.append(_Tok("OP", ">"))
+                i += 1
+                continue
             if c == "<":
-                tokens.append(_Tok("OP", "<")); i += 1; continue
+                tokens.append(_Tok("OP", "<"))
+                i += 1
+                continue
             raise ValueError(f"Unexpected operator at position {i}")
         if c.isdigit():
             j = i
             while j < len(s) and s[j].isdigit():
                 j += 1
-            tokens.append(_Tok("INT", s[i:j])); i = j; continue
+            tokens.append(_Tok("INT", s[i:j]))
+            i = j
+            continue
         if c == ",":
-            tokens.append(_Tok(",", ",")); i += 1; continue
+            tokens.append(_Tok(",", ","))
+            i += 1
+            continue
         raise ValueError(f"Unexpected character {c!r} at position {i}")
     tokens.append(_Tok("EOF", ""))
     return tokens
+
 
 class _Cond:
     def __init__(self, modes: List[int], op: str, rhs: int):
         self.modes = modes
         self.op = op
         self.rhs = rhs
+
     def eval(self, counts: List[int]) -> bool:
         s = 0
         for m in self.modes:
             if m < 0:
                 raise ValueError("Mode indices must be non-negative")
             s += counts[m] if m < len(counts) else 0
-        if self.op == "==": return s == self.rhs
-        if self.op == ">=": return s >= self.rhs
-        if self.op == "<=": return s <= self.rhs
-        if self.op == ">":  return s >  self.rhs
-        if self.op == "<":  return s <  self.rhs
+        if self.op == "==":
+            return s == self.rhs
+        if self.op == ">=":
+            return s >= self.rhs
+        if self.op == "<=":
+            return s <= self.rhs
+        if self.op == ">":
+            return s > self.rhs
+        if self.op == "<":
+            return s < self.rhs
         raise ValueError(f"Unknown operator {self.op!r}")
+
 
 class _Not:
     def __init__(self, x): self.x = x
     def eval(self, counts: List[int]) -> bool: return not self.x.eval(counts)
 
+
 class _Bin:
     def __init__(self, op: str, xs):
         self.op = op
         self.xs = xs
+
     def eval(self, counts: List[int]) -> bool:
         if self.op == "&":
             out = True
-            for x in self.xs: out = out and x.eval(counts)
+            for x in self.xs:
+                out = out and x.eval(counts)
             return out
         if self.op == "|":
             out = False
-            for x in self.xs: out = out or x.eval(counts)
+            for x in self.xs:
+                out = out or x.eval(counts)
             return out
         if self.op == "^":
             acc = False
-            for x in self.xs: acc ^= x.eval(counts)
+            for x in self.xs:
+                acc ^= x.eval(counts)
             return acc
         raise ValueError(f"Unknown logical op {self.op!r}")
+
 
 class _Parser:
     def __init__(self, tokens):
@@ -98,7 +130,11 @@ class _Parser:
 
     def _eat(self, kind):
         t = self._peek()
-        if (isinstance(kind, tuple) and t.kind in kind) or t.kind == kind or t.value == kind:
+        if (
+            (isinstance(kind, tuple) and
+                t.kind in kind) or
+                t.kind == kind or t.value == kind
+        ):
             self.i += 1
             return t
         raise ValueError(f"Expected {kind}, got {t.kind}:{t.value}")
@@ -161,6 +197,7 @@ class _Parser:
             return _Cond(modes, op, rhs)
         raise ValueError(f"Expected condition or '(', got {t.kind}:{t.value}")
 
+
 def compile_postselect(expression: str):
     """
     Compile a PostSelect expression into a callable:
@@ -170,6 +207,7 @@ def compile_postselect(expression: str):
     - Missing modes referenced by the expression are treated as 0.
     """
     ast = _Parser(_tokenize(expression)).parse()
+
     def predicate(counts):
         ok = ast.eval(counts)
         return [1] if ok else [0]
