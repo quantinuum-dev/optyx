@@ -174,7 +174,6 @@ class BitControlledGate(Channel):
             else:
                 control_gate_single = control_gate
 
-
             if isinstance(default_gate, (Diagram, Channel)):
                 assert default_gate.is_pure, \
                     "The input gates must be pure quantum channels"
