@@ -183,7 +183,6 @@ class BitControlledGate(Channel):
                 default_gate_single = default_gate
 
             if control_gate_single.dom[0] == diagram.bit:
-            if control_gate_single.dom[0] == diagram.bit:
                 tp = qubit if not classical else bit
             else:
                 tp = qmode if not classical else mode
