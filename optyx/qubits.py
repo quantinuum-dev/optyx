@@ -7,7 +7,7 @@ via ZX-calculus or using tket or discopy circuits.
 
 
 Circuits (from tket, discopy, or PyZX)
-------------------------
+---------------------------------------
 
 .. autosummary::
     :template: class.rst

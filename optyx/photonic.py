@@ -36,7 +36,7 @@ Linear optical gates
     ansatz
 
 Dual rail encoded operators
-------------------------
+----------------------------
 
 .. autosummary::
     :template: class.rst
@@ -242,18 +242,6 @@ The probability of detecting one photon in each output mode is
 ...         .dot(np.array(internal_state_2).conjugate()))**2, 3
 ... )
 
-References
-----------
-.. [FC23] de Felice, G., & Coecke, B. (2023). Quantum Linear Optics \
-    via String Diagrams. In Proceedings 19th International \
-    Conference on Quantum Physics and Logic, Wolfson College, \
-    Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). \
-        Open Publishing Association.
-.. [FSP+23] de Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., \
-    & Coecke, B. (2023). Light-Matter Interaction in the \
-    ZXW Calculus. In  Proceedings of the Twentieth \
-    International Conference on Quantum Physics and Logic,  \
-    Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
 """
 
 

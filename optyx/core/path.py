@@ -122,14 +122,6 @@ We can define the number operator and compute its expectation.
 >>> expectation = lambda n: Create(n) >> num_op >> Select(n)
 >>> assert np.allclose(expectation(5).to_path().eval().array, np.array([5.]))
 
-References
-----------
-.. [FGL+23] Heurtel, N., Fyrillas, A., Gliniasty, G., Le Bihan, R., \
-    Malherbe, S., Pailhas, M., Bertasi, E., Bourdoncle, B., Emeriau, \
-    P.E., Mezher, R., Music, L., Belabas, N., Valiron, B., Senellart, \
-    P., Mansfield, S., & Senellart, J. (2023). Perceval: A Software \
-    Platform for Discrete Variable Photonic Quantum Computing. Quantum, 7, 931.
-
 """
 
 from __future__ import annotations

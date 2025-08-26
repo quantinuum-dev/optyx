@@ -1,4 +1,5 @@
 """
+
 Overview
 --------
 
@@ -26,7 +27,6 @@ Classes
     :nosignatures:
     :toctree:
 
-    StateType
     EvalResult
     AbstractBackend
     QuimbBackend
@@ -136,8 +136,8 @@ class EvalResult:
         """
         Get the amplitudes from the result tensor.
         Returns:
-            dict: A dictionary mapping
-            occupation configurations to amplitudes.
+            dict: A dictionary mapping occupation
+        configurations to amplitudes.
         """
         if self.state_type != StateType.AMP:
             raise TypeError(

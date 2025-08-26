@@ -27,7 +27,6 @@ Generators and diagrams
     Create
     Select
     Endo
-    Scalar
 
 
 Examples of usage

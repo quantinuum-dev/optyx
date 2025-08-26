@@ -19,15 +19,6 @@ Classes
     BitControlledBox
     ControlledPhaseShift
 
-Functions
----------
-
-.. autosummary::
-    :template: function.rst
-    :nosignatures:
-    :toctree:
-
-    truncation_tensor
 
 Examples
 --------

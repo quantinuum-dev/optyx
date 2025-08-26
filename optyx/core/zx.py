@@ -15,7 +15,7 @@ Generators
     :nosignatures:
     :toctree:
 
-    Box
+    ZXBox
     Spider
     Z
     X
@@ -30,7 +30,6 @@ Functions
     zx_to_path
     decomp
     zx2path
-    circuit2zx
 
 
 Examples of usage

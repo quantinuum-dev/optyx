@@ -62,7 +62,7 @@ Control & routing
     BinaryMatrix
 
 Bits, digits, & selection
-------------------------
+--------------------------
 
 .. autosummary::
     :template: class.rst

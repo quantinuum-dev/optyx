@@ -13,4 +13,5 @@ languages of ZX, ZW, and Path.
     path
     zw
     zx
+    backends
 """
