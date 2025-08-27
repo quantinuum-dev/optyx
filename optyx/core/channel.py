@@ -479,7 +479,14 @@ class Channel(symmetric.Box, Diagram):
     Channel initialised by its Kraus map.
     """
 
-    def __init__(self, name, kraus, dom=None, cod=None, env=diagram.Ty()):
+    def __init__(
+            self,
+            name,
+            kraus,
+            dom=None,
+            cod=None,
+            env=diagram.Ty()
+        ):
         assert isinstance(kraus, diagram.Diagram)
         if dom is None:
             dom = Ty.from_optyx(kraus.dom)

@@ -542,7 +542,7 @@ class PercevalBackend(AbstractBackend):
         result = sim.probs(perceval_state)
         result = {tuple(k): v for k, v in result.items()}
 
-        array = np.zeros(tensor_diagram.cod.inside)
+        array = np.zeros(tensor_diagram.cod.inside) # REPLACE THIS WITH MAX KEY OCC NUMBERS FROM result
 
         if result:
             configs = np.fromiter(
