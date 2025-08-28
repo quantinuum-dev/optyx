@@ -373,6 +373,13 @@ class Diagram(frobenius.Diagram):
             )
         )
 
+    @classmethod
+    def from_graphix(cls, measurement_pattern):
+        """Convert from Graphix measurement pattern."""
+        # pylint: disable=import-outside-toplevel
+        from optyx.qubits import Circuit
+        return Circuit(measurement_pattern)
+
     # pylint: disable=invalid-name
     def __pow__(self, n):
         if n == 1:

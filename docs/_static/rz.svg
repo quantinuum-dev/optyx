@@ -6,11 +6,11 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2025-07-02T16:25:37.981345</dc:date>
+    <dc:date>2025-08-14T12:24:42.750596</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
-      <dc:title>Matplotlib v3.10.0, https://matplotlib.org/</dc:title>
+      <dc:title>Matplotlib v3.10.5, https://matplotlib.org/</dc:title>
      </cc:Agent>
     </dc:creator>
    </cc:Work>
@@ -35,31 +35,31 @@ L 72 72
 L 72 0 
 L 0 0 
 z
-" clip-path="url(#p474c294201)" style="fill: #ffffff; stroke: #ffffff; stroke-linejoin: miter"/>
+" clip-path="url(#pb3f7ceaa33)" style="fill: #ffffff; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_3">
     <path d="M 36 36 
 Q 36 36 36 54 
-" clip-path="url(#p474c294201)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#pb3f7ceaa33)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
     <path d="M 36 0 
 Q 36 18 36 18 
-" clip-path="url(#p474c294201)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#pb3f7ceaa33)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="patch_5">
     <path d="M 36 18 
 Q 36 36 36 36 
-" clip-path="url(#p474c294201)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#pb3f7ceaa33)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="patch_6">
     <path d="M 36 54 
 Q 36 72 36 72 
-" clip-path="url(#p474c294201)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#pb3f7ceaa33)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="PathCollection_1">
     <defs>
-     <path id="m8592e14b68" d="M 0 8.660254 
+     <path id="m1da616f38a" d="M 0 8.660254 
 C 2.296726 8.660254 4.499694 7.747755 6.123724 6.123724 
 C 7.747755 4.499694 8.660254 2.296726 8.660254 0 
 C 8.660254 -2.296726 7.747755 -4.499694 6.123724 -6.123724 
@@ -71,8 +71,8 @@ C -4.499694 7.747755 -2.296726 8.660254 0 8.660254
 z
 " style="stroke: #d8f8d8"/>
     </defs>
-    <g clip-path="url(#p474c294201)">
-     <use xlink:href="#m8592e14b68" x="36" y="36" style="fill: #d8f8d8; stroke: #d8f8d8"/>
+    <g clip-path="url(#pb3f7ceaa33)">
+     <use xlink:href="#m1da616f38a" x="36" y="36" style="fill: #d8f8d8; stroke: #d8f8d8"/>
     </g>
    </g>
    <g id="text_1">
@@ -206,7 +206,7 @@ z
     </g>
    </g>
    <g id="text_3">
-    <g clip-path="url(#p474c294201)">
+    <g clip-path="url(#pb3f7ceaa33)">
      <!-- Z(0.5) -->
      <g transform="translate(17.66625 39.31125) scale(0.12 -0.12)">
       <defs>
@@ -315,7 +315,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="p474c294201">
+  <clipPath id="pb3f7ceaa33">
    <rect x="0" y="0" width="72" height="72"/>
   </clipPath>
  </defs>

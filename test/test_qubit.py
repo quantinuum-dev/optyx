@@ -19,6 +19,31 @@ def test_pyzx():
     c2 = pyzx.extract_circuit(channel.Diagram.from_pyzx(g).to_pyzx().copy())
     assert c1.verify_equality(c2)
 
+def test_graphix():
+    import graphix
+    from graphix.simulator import PatternSimulator
+    for _ in range(5):
+        rng = np.random.default_rng()
+        theta = rng.random(4)
+
+        circuit = graphix.Circuit(2)
+        circuit.rz(0, theta[0])
+        circuit.rz(1, theta[1])
+        circuit.cnot(0, 1)
+        circuit.s(0)
+        circuit.cnot(1, 0)
+        circuit.rz(1, theta[2])
+        circuit.cnot(1, 0)
+        circuit.rz(0, theta[3])
+        pattern = circuit.transpile().pattern
+        optyx_res = (qubits.Ket("+")**2 >> qubits.Circuit(pattern)).eval().amplitudes()
+
+        simulator = PatternSimulator(pattern, backend="statevector")
+        graphix_result = simulator.run().psi.conj()
+        for keys in optyx_res.keys():
+            assert np.isclose(optyx_res[keys], graphix_result[keys], atol=1e-6)
+
+
 # def test_tket_discopy():
 #     from optyx import classical, bit
 #     ghz_circ = Circuit(3)
