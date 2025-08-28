@@ -779,7 +779,8 @@ class MZI(AbstractGate):
 
     def dagger(self):
         return MZI(self.theta, self.phi,
-                   is_gate_dagger=not self.is_gate_dagger, is_conj=self.is_conj)
+                   is_gate_dagger=not self.is_gate_dagger,
+                   is_conj=self.is_conj)
 
     def conjugate(self):
         return MZI(self.theta, self.phi, self.is_gate_dagger, not self.is_conj)
@@ -817,10 +818,10 @@ def ansatz(width, depth):
         n_mzi = (width - 1) // 2 if i % 2 else width // 2
         left = qmode**(i % 2)
         right = qmode**(width - (i % 2) - 2 * n_mzi)
-        l = Diagram.id(qmode**0)
+        wire = Diagram.id(qmode**0)
         for j in range(n_mzi):
-            l @= MZI(*p(i, j))
-        d >>= left @ l @ right
+            wire @= MZI(*p(i, j))
+        d >>= left @ wire @ right
 
     return d
 
