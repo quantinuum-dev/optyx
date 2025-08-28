@@ -59,8 +59,7 @@ def _rewire_and_context(*, component, wires, circuit,
 def _assemble_controlled_box(
         map_items, *,
         input_wires,
-        default_action,
-    ):
+        default_action,):
     """
     Build the feed-forward controlled box from (state, action_box) pairs.
     action_box must already be a ZW diagram (matrix_to_zw applied).
@@ -98,7 +97,6 @@ def _feedforward_common(*, component, wires, circuit,
     """
     default_action = _default_action(component)
 
-    # numbers and offset
     n_classical = len(next(iter(map_iter.keys())))
     n_action = len(default_action.dom)
     n_offset = abs(component._offset)
@@ -108,11 +106,11 @@ def _feedforward_common(*, component, wires, circuit,
     #    perm_dom_neg = qmode**(n_action + n_offset) @ mode**n_classical
     #    perm_dom_pos = mode**n_classical @ qmode**(n_action + n_offset)
     # else:
-        # configurator: the dom is a slice of the current circuit wires
+    # configurator: the dom is a slice of the current circuit wires
     perm_dom_neg = circuit.cod[min(wires) - n_offset -
-                                n_action: max(wires) + 1]
+                               n_action: max(wires) + 1]
     perm_dom_pos = circuit.cod[min(wires): max(wires) +
-                                n_offset + n_action + 1]
+                               n_offset + n_action + 1]
 
     input_perm, output_perm, left, right = _rewire_and_context(
         component=component, wires=wires, circuit=circuit,

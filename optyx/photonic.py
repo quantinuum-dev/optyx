@@ -680,7 +680,8 @@ class TBS(AbstractGate):
         return TBS(self.theta, self.is_gate_dagger, not self.is_conj)
 
     def dagger(self):
-        return TBS(self.theta, is_gate_dagger=not self.is_gate_dagger, is_conj=self.is_conj)
+        return TBS(self.theta, is_gate_dagger=not self.is_gate_dagger,
+                   is_conj=self.is_conj)
 
 
 class MZI(AbstractGate):
@@ -777,7 +778,8 @@ class MZI(AbstractGate):
         return self._decomp().grad(var)
 
     def dagger(self):
-        return MZI(self.theta, self.phi, is_gate_dagger=not self.is_gate_dagger, is_conj=self.is_conj)
+        return MZI(self.theta, self.phi,
+                   is_gate_dagger=not self.is_gate_dagger, is_conj=self.is_conj)
 
     def conjugate(self):
         return MZI(self.theta, self.phi, self.is_gate_dagger, not self.is_conj)

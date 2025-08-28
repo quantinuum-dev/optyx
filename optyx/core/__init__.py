@@ -1,5 +1,6 @@
 """
-Core back-end classes of Optyx. These include the graphical
+Core back-end classes of Optyx.
+These include the graphical
 languages of ZX, ZW, and Path.
 
 .. autosummary::
