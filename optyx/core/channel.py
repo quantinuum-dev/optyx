@@ -379,6 +379,18 @@ class Diagram(frobenius.Diagram):
             return self
         return self @ self ** (n - 1)
 
+    def eval(self, backend=None, **kwargs):
+        """
+        Evaluate the diagram using the specified backend.
+        If no backend is specified, it uses the QuimbBackend.
+        """
+        # pylint: disable=import-outside-toplevel
+        from optyx.core.backends import QuimbBackend
+        if backend is None:
+            backend = QuimbBackend()
+
+        return backend.eval(self, **kwargs)
+
 
 class Channel(symmetric.Box, Diagram):
     """
