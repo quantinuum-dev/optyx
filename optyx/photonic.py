@@ -330,11 +330,11 @@ class PhotonThresholdMeasurement(Channel):
     Detects whether one or more photons are present.
     """
 
-    def __init__(self):
+    def __init__(self, n=1):
         super().__init__(
             "PhotonThresholdMeasurement",
-            diagram.PhotonThresholdDetector(),
-            cod=bit
+            diagram.PhotonThresholdDetector()**n,
+            cod=bit**n
         )
 
 

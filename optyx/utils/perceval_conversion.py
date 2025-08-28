@@ -13,15 +13,15 @@ import perceval as pcvl
 
 def _default_action(component):
     return matrix_to_zw(
-        np.array(component.default_circuit.U, dtype=np.complex128)
+        np.array(component.default_circuit.U.T, dtype=np.complex128)
     )
 
 
-def _state_predicate(state):
+def _state_predicate(state, ty):
     """Return ClassicalFunction that outputs 1 iff input equals 'state'."""
     def f(x):
         return [1 if all(s == a for s, a in zip(state, x)) else 0]
-    return ClassicalFunction(f, mode**len(state), bit)
+    return ClassicalFunction(f, ty**len(state), bit)
 
 
 def _rewire_and_context(*, component, wires, circuit,
@@ -56,7 +56,11 @@ def _rewire_and_context(*, component, wires, circuit,
     return input_perm, output_perm, left, right
 
 
-def _assemble_controlled_box(map_items, *, default_action):
+def _assemble_controlled_box(
+        map_items, *,
+        input_wires,
+        default_action,
+    ):
     """
     Build the feed-forward controlled box from (state, action_box) pairs.
     action_box must already be a ZW diagram (matrix_to_zw applied).
@@ -65,15 +69,14 @@ def _assemble_controlled_box(map_items, *, default_action):
     n_action = len(default_action.dom)
     for i, (state, action) in enumerate(map_items):
         if i == 0:
-            box = mode**len(state) @ photonic.Id(n_action)
-
+            box = input_wires[:len(state)] @ photonic.Id(n_action)
         # duplicate classical control and compute predicate
-        copy = Spider(1, 2, mode)**len(state)
+        copy = Spider(1, 2, input_wires[0])**len(state)
         permutation = Diagram.permutation(
             list(range(0, 2*len(state), 2)) + list(range(1, 2*len(state), 2)),
-            mode**(2*len(state))
+            input_wires[0]**(2*len(state))
         )
-        func = _state_predicate(list(state))
+        func = _state_predicate(list(state), input_wires[0])
 
         ctrl_box = BitControlledGate(action, default_action)
         q_wires = qmode**n_action
@@ -81,8 +84,8 @@ def _assemble_controlled_box(map_items, *, default_action):
         box >>= (
             copy @ q_wires >>
             permutation @ q_wires >>
-            Diagram.id(mode**len(state)) @ func @ q_wires >>
-            Diagram.id(mode**len(state)) @ ctrl_box
+            Diagram.id(input_wires[:len(state)]) @ func @ q_wires >>
+            Diagram.id(input_wires[:len(state)]) @ ctrl_box
         )
     return box
 
@@ -101,15 +104,15 @@ def _feedforward_common(*, component, wires, circuit,
     n_offset = abs(component._offset)
 
     # build permutation domains for input permutation
-    if use_provider_dom:
-        perm_dom_neg = qmode**(n_action + n_offset) @ mode**n_classical
-        perm_dom_pos = mode**n_classical @ qmode**(n_action + n_offset)
-    else:
+    # if use_provider_dom:
+    #    perm_dom_neg = qmode**(n_action + n_offset) @ mode**n_classical
+    #    perm_dom_pos = mode**n_classical @ qmode**(n_action + n_offset)
+    # else:
         # configurator: the dom is a slice of the current circuit wires
-        perm_dom_neg = circuit.cod[min(wires) - n_offset -
-                                   n_action: max(wires) + 1]
-        perm_dom_pos = circuit.cod[min(wires): max(wires) +
-                                   n_offset + n_action + 1]
+    perm_dom_neg = circuit.cod[min(wires) - n_offset -
+                                n_action: max(wires) + 1]
+    perm_dom_pos = circuit.cod[min(wires): max(wires) +
+                                n_offset + n_action + 1]
 
     input_perm, output_perm, left, right = _rewire_and_context(
         component=component, wires=wires, circuit=circuit,
@@ -122,8 +125,6 @@ def _feedforward_common(*, component, wires, circuit,
     for state, payload in map_iter.items():
         action_pairs.append((state, action_from_item(payload)))
 
-    box = _assemble_controlled_box(action_pairs, default_action=default_action)
-
     # figure out the "offset wires" identity block to thread through
     if component._offset < 0:
         offset_wires = circuit.cod[
@@ -134,12 +135,18 @@ def _feedforward_common(*, component, wires, circuit,
             len(left) + n_classical: len(left) + n_classical + n_offset
         ]
 
+    box = _assemble_controlled_box(
+            action_pairs,
+            input_wires=input_perm.cod[len(offset_wires):],
+            default_action=default_action
+        )
+
     return (input_perm >> offset_wires @ box >> output_perm), left, right
 
 
 def ff_circuit_provider(component, wires, circuit):
     def action_from_item(action_circuit):
-        return matrix_to_zw(np.array(action_circuit.U, dtype=np.complex128))
+        return matrix_to_zw(np.array(action_circuit.U.T, dtype=np.complex128))
 
     box, left, right = _feedforward_common(
         component=component,
@@ -159,7 +166,7 @@ def ff_configurator(component, wires, circuit):
         # substitute symbol values and convert to ZW
         subs_map = {s: v for s, v in zip(free_symbols, symbol_values.values())}
         action_U = np.array(
-            component._controlled.U.subs(subs_map).evalf(),
+            component._controlled.U.subs(subs_map).evalf().T,
             dtype=np.complex128
         )
         return matrix_to_zw(action_U)
@@ -182,7 +189,7 @@ def unitary(component, wires):
     U = np.array(component.U, dtype=np.complex128)
     if U.shape[0] != len(wires):
         raise ValueError("A component acting on polarisation modes.")
-    return Channel(name=component.name, kraus=matrix_to_zw(U))
+    return Channel(name=component.name, kraus=matrix_to_zw(U.T))
 
 
 def heralds_diagram(heralds, n_modes, circuit, in_out):
