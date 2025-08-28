@@ -45,10 +45,11 @@ A bit-controlled gate can be composed as:
 >>> control.draw(path='docs/_static/binary_control.svg')
 """
 
-from typing import Callable, List
+from typing import Callable, List, Tuple, Iterable
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
+from optyx._utils import BasisTransition
 
 from optyx.core import diagram, zw
 
@@ -166,24 +167,24 @@ class BitControlledBox(ControlBox):
 
         array[0, :, :] = (
             (
-                default_box_tensor
-                >> diagram.truncation_tensor(
-                    default_box_tensor.cod.inside, output_dims
-                )
-            )
-            .eval()
-            .array.reshape(array[0, :, :].shape)
+                (
+                    default_box_tensor
+                    >> diagram.truncation_tensor(
+                        default_box_tensor.cod.inside, output_dims
+                    )
+                ).to_quimb() ^ ...
+            ).data.reshape(array[0, :, :].shape)
         )
 
         array[1, :, :] = (
             (
-                action_box_tensor
-                >> diagram.truncation_tensor(
-                    action_box_tensor.cod.inside, output_dims
-                )
-            )
-            .eval()
-            .array.reshape(array[1, :, :].shape)
+                (
+                    action_box_tensor
+                    >> diagram.truncation_tensor(
+                        action_box_tensor.cod.inside, output_dims
+                    )
+                ).to_quimb() ^ ...
+            ).data.reshape(array[1, :, :].shape)
         )
 
         if self.is_dagger:
@@ -334,41 +335,27 @@ class ClassicalFunctionBox(ClassicalBox):
         self.output_size = len(cod)
         self.is_dagger = is_dagger
 
-    def truncation(
-        self, input_dims: List[int], output_dims: List[int]
-    ) -> tensor.Box:
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        out = self.function(inp)
+        if out is None:
+            return
 
-        if self.is_dagger:
-            input_dims, output_dims = output_dims, input_dims
+        if isinstance(out, (list, tuple)):
+            out = tuple(int(x) for x in out)
+        else:
+            out = (int(out),)
 
-        array = np.zeros((*input_dims, *output_dims), dtype=complex)
-        input_ranges = [range(i) for i in input_dims]
-        input_combinations = np.array(np.meshgrid(*input_ranges)).T.reshape(
-            -1, len(input_dims)
-        )
+        if any(
+            x < 0 or x >= int(max_output_dims[i])
+            for i, x in enumerate(out)
+        ):
+            return
 
-        outputs = [
-            (i, self.function(i))
-            for i in input_combinations
-            if self.function(i) != 0
-        ]
-
-        full_indices = np.array(
-            [tuple(input_) + tuple(output) for input_, output in outputs]
-        )
-        array[tuple(full_indices.T)] = 1
-
-        input_dims = [int(d) for d in input_dims]
-        output_dims = [int(d) for d in output_dims]
-
-        if self.is_dagger:
-            return tensor.Box(
-                self.name, Dim(*input_dims), Dim(*output_dims), array
-            ).dagger()
-
-        return tensor.Box(
-            self.name, Dim(*input_dims), Dim(*output_dims), array
-        )
+        yield BasisTransition(out=out, amp=1.0)
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.cod == diagram.Mode(self.output_size):
@@ -421,13 +408,11 @@ class BinaryMatrixBox(ClassicalBox):
         self.matrix = matrix
         self.is_dagger = is_dagger
 
-    def truncation(
-        self, input_dims: List[int], output_dims: List[int]
-    ) -> tensor.Box:
-
-        if self.is_dagger:
-            input_dims, output_dims = output_dims, input_dims
-
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
         def f(x):
             if not isinstance(x, np.ndarray):
                 x = np.array(x, dtype=np.uint8)
@@ -437,13 +422,9 @@ class BinaryMatrixBox(ClassicalBox):
 
             return list(((A @ x) % 2).reshape(1, -1)[0])
 
-        classical_function = ClassicalFunctionBox(f, self.dom, self.cod)
-
-        if self.is_dagger:
-            return classical_function.truncation(
-                input_dims, output_dims
-            ).dagger()
-        return classical_function.truncation(input_dims, output_dims)
+        yield from ClassicalFunctionBox(
+            f, self.dom, self.cod
+        ).truncation_specification(inp, max_output_dims)
 
     def determine_output_dimensions(self,
                                     input_dims: List[int]) -> List[int]:

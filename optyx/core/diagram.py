@@ -226,8 +226,11 @@ from discopy import (
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
-from optyx._utils import modify_io_dims_against_max_dim
-from typing import List
+from optyx._utils import (
+    modify_io_dims_against_max_dim,
+    BasisTransition
+)
+from typing import List, Tuple, Iterable
 
 MAX_DIM = 10
 
@@ -494,9 +497,48 @@ class Box(frobenius.Box, Diagram):
                 cod=tensor.Dim(2) ** len(self.cod),
                 data=self._array,
             )
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not support dagger"
+
+        if input_dims is None:
+            raise ValueError("Input dimensions must be provided.")
+
+        if output_dims is None:
+            output_dims = self.determine_output_dimensions(input_dims)
+
+        if self.is_dagger:
+            input_dims, output_dims = output_dims, input_dims
+
+        shape = (
+            *[int(i) for i in output_dims],
+            *[int(i) for i in input_dims]
         )
+        result_matrix = np.zeros(shape, dtype=complex)
+
+        input_ranges = [range(int(d)) for d in input_dims]
+        input_combinations = np.array(
+            np.meshgrid(*input_ranges)).T.reshape(-1, len(input_dims)) \
+            if input_ranges else np.array([[]])
+
+        non_zero_indices = []
+        for inp in map(tuple, input_combinations):
+            for trans in self.truncation_specification(
+                inp, tuple(output_dims)
+            ):
+                idx = tuple(trans.out + inp)
+                non_zero_indices.append((idx, trans.amp))
+
+        if non_zero_indices:
+            configs, coeffs = map(np.array, zip(*non_zero_indices))
+            idx = tuple(configs.T)
+            result_matrix[idx] = coeffs
+
+        out_dims = Dim(*[int(i) for i in output_dims])
+        in_dims = Dim(*[int(i) for i in input_dims])
+
+        if self.is_dagger:
+            return tensor.Box(self.name, out_dims, in_dims, result_matrix)
+        return tensor.Box(
+            self.name, out_dims, in_dims, result_matrix
+        ).dagger()
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions.
@@ -549,6 +591,13 @@ class Box(frobenius.Box, Diagram):
         """
         self._array = value
 
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        pass
+
     def __pow__(self, n):
         if n == 1:
             return self
@@ -563,8 +612,6 @@ class Spider(frobenius.Spider, Box):
 
     draw_as_spider = True
     color = "green"
-
-    # dagger - inherited?
 
     def conjugate(self):
         return self
@@ -614,8 +661,6 @@ class Sum(symmetric.Sum, Box):
     """
     Formal sum of optyx diagrams
     """
-
-    # dagger - inherited?
 
     __ambiguous_inheritance__ = (symmetric.Sum,)
 
@@ -687,8 +732,6 @@ class Swap(frobenius.Swap, Box):
         from optyx.core.path import Matrix
 
         return Matrix([0, 1, 1, 0], 2, 2)
-
-    # dagger - inherited?
 
     def determine_output_dimensions(self, input_dims: list[int]) -> list[int]:
         """Determine the output dimensions based on the input dimensions."""
@@ -789,21 +832,16 @@ class DualRail(Box):
     def conjugate(self):
         return self
 
-    def truncation(
-        self, input_dims: list[int] = None, output_dims: list[int] = None
-    ) -> tensor.Box:
-        if self.is_dagger:
-            array = np.zeros((2, input_dims[0], input_dims[1]), dtype=complex)
-        else:
-            array = np.zeros((2, 2, 2), dtype=complex)
-        array[0, 1, 0] = 1
-        array[1, 0, 1] = 1
-        if self.is_dagger:
-            return tensor.Box(
-                self.name + ".dagger()", Dim(2),
-                Dim(*[int(i) for i in input_dims]), array
-            ).dagger()
-        return tensor.Box(self.name, Dim(2), Dim(2, 2), array)
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        out = (1, 0) if inp[0] == 0 else (0, 1)
+        yield BasisTransition(
+            out=out,
+            amp=1.0
+        )
 
     def determine_output_dimensions(self,
                                     input_dims: list[int]) -> list[int]:
@@ -850,17 +888,15 @@ class PhotonThresholdDetector(Box):
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
 
-    def truncation(self, input_dims=None, output_dims=None):
-        if self.is_dagger:
-            array = np.zeros((2, 2), dtype=complex)
-        else:
-            array = np.zeros((input_dims[0], 2), dtype=complex)
-        array[0, 0] = 1
-        array[1: input_dims[0], 1] = 1
-        if self.is_dagger:
-            return tensor.Box(self.name, Dim(2), Dim(2), array).dagger()
-
-        return tensor.Box(self.name, Dim(int(input_dims[0])), Dim(2), array)
+    def truncation_specification(
+        self,
+        inp: Tuple[int, ...] = None,
+        max_output_dims: Tuple[int, ...] = None
+    ) -> Iterable[BasisTransition]:
+        yield BasisTransition(
+            out=(0,) if inp[0] == 0 else (1,),
+            amp=1.0
+        )
 
     def determine_output_dimensions(self, input_dims):
         if self.is_dagger:
