@@ -145,6 +145,7 @@ from optyx import (
     bit,
     mode,
     qmode,
+    qubit,
     Discard,
     CQMap,
     Channel,
@@ -163,30 +164,50 @@ class BitControlledGate(Channel):
         def __init__(
             self,
             control_gate,
-            default_gate=None
+            default_gate=None,
+            classical=False
         ):
             if isinstance(control_gate, (Diagram, Channel)):
                 assert control_gate.is_pure, \
                     "The input gates must be pure quantum channels"
                 control_gate_single = control_gate.get_kraus()
+            else:
+                control_gate_single = control_gate
+
             if isinstance(default_gate, (Diagram, Channel)):
                 assert default_gate.is_pure, \
                     "The input gates must be pure quantum channels"
-                default_gate = default_gate.get_kraus()
-            kraus = control.BitControlledBox(control_gate_single, default_gate)
+                default_gate_single = default_gate.get_kraus()
+            else:
+                default_gate_single = default_gate
+
+            if control_gate_single.dom[0] == diagram.bit:
+                tp = qubit if not classical else bit
+            else:
+                tp = qmode if not classical else mode
+
+            kraus = control.BitControlledBox(
+                control_gate_single,
+                default_gate_single
+            )
+
             super().__init__(
                 f"BitControlledGate({control_gate}, {default_gate})",
                 kraus,
-                bit @ control_gate.dom,
-                control_gate.cod
+                bit @ tp**len(control_gate_single.dom),
+                tp**len(control_gate_single.cod)
             )
 
-    def __new__(cls, diag, default_box=None, is_dagger=False):
+    def __new__(cls, diag, default_box=None, is_dagger=False, classical=False):
         if default_box is not None:
             return cls._BitControlledSingleBox(
-                diag, default_box
+                diag, default_box, classical=classical
             ).dagger() if is_dagger else \
-                 cls._BitControlledSingleBox(diag, default_box)
+                 cls._BitControlledSingleBox(
+                    diag,
+                    default_box,
+                    classical=classical
+                )
 
         boxes = []
         for i in range(len(diag)):

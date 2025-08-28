@@ -296,6 +296,13 @@ def filter_occupation_numbers(
     ]
 
 
+def invert_perm(p):
+    q = [0] * len(p)
+    for out, inn in enumerate(p):
+        q[inn] = out
+    return q
+
+
 class BasisTransition(NamedTuple):
     """
     A single non-zero transition emitted by `truncation_specification`.

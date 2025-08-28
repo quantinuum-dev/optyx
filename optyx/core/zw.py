@@ -27,7 +27,6 @@ Generators and diagrams
     Create
     Select
     Endo
-    Scalar
 
 
 Examples of usage
@@ -40,7 +39,7 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 
 **W commutativity**
 
->>> from optyx._utils import compare_arrays_of_different_sizes
+>>> from optyx.utils.utils import compare_arrays_of_different_sizes
 >>> from discopy.drawing import Equation
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> SWAP
@@ -151,7 +150,7 @@ import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.core import diagram
-from optyx._utils import (
+from optyx.utils.utils import (
     occupation_numbers,
     multinomial,
     BasisTransition
