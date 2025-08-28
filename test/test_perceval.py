@@ -1,11 +1,12 @@
 import pytest
-
+import math
 from optyx.core.zw import *
 from optyx.photonic import (
     BS as BS_,
 	BBS as BBS_,
 	Phase as Phase_,
-	Create as Create_
+	Create as Create_,
+    ansatz
 )
 from perceval.components.unitary_components import BS as BS_p
 from optyx.core.diagram import Mode, Diagram
@@ -16,7 +17,6 @@ from optyx.qubits import Z, Scalar, Ket
 from optyx.photonic import DualRail
 from optyx import Channel
 import random
-
 from perceval.backends import SLOSBackend
 from perceval.simulators import Simulator
 from perceval.components import Source
@@ -49,6 +49,16 @@ def test_perceval_probs_equivalence(circuit: Diagram, n_photons: int):
 	assert np.isclose(qpath_probs.array, perceval_probs.array).all()
 
 @pytest.mark.skip(reason="Helper function for testing")
+def dict_allclose(d1: dict, d2: dict, *, rel_tol=1e-05, abs_tol=1e-10) -> bool:
+    all_keys = set(d1.keys()) | set(d2.keys())
+    for key in all_keys:
+        v1 = d1.get(key, 0.0)
+        v2 = d2.get(key, 0.0)
+        if not math.isclose(v1, v2, rel_tol=rel_tol, abs_tol=abs_tol):
+            return False
+    return True
+
+@pytest.mark.skip(reason="Helper function for testing")
 def check_dict_agreement(d1, d2, rtol=1e-5, atol=1e-8):
     for key in d1.keys() - d2.keys():
         assert np.isclose(d1[key], 0, rtol=rtol, atol=atol)
@@ -56,7 +66,7 @@ def check_dict_agreement(d1, d2, rtol=1e-5, atol=1e-8):
         assert np.isclose(d2[key], 0, rtol=rtol, atol=atol)
     for key in d1.keys() & d2.keys():
         assert np.isclose(d1[key], d2[key], rtol=rtol, atol=atol)
-            
+
 def test_perceval_ff_teleportation():
 	p = pcvl.Processor("SLOS", 6)
 	p.add(0, catalog["postprocessed cnot"].build_processor())
@@ -73,7 +83,7 @@ def test_perceval_ff_teleportation():
 	ff_Z = pcvl.FFConfigurator(2, 3, pcvl.PS(phi), {"phi": 0}).add_configuration([0, 1], {"phi": np.pi})
 	p.add(0, ff_Z)
 
-	to_transmit = (0.7071067811865476+0j)*pcvl.BasicState([1, 0]) + (-0.21850801222441052+0.6724985119639574j)*pcvl.BasicState([0, 1]) 
+	to_transmit = (0.7071067811865476+0j)*pcvl.BasicState([1, 0]) + (-0.21850801222441052+0.6724985119639574j)*pcvl.BasicState([0, 1])
 	to_transmit.normalize()
 
 	sg = pcvl.StateGenerator(pcvl.Encoding.DUAL_RAIL)
@@ -89,13 +99,13 @@ def test_perceval_ff_teleportation():
 
 	bell_state = Z(0, 2) @ Scalar(0.5**0.5)
 	transmit = Ket("+") >> Z(1, 1, 0.3)
-      
+
 	dist = (
 		transmit @ bell_state >>
 		DualRail(3) >>
 		Channel.from_perceval(p)
 	).eval().prob_dist()
-     
+
 	check_dict_agreement(
     	{tuple(k): v for k, v in dict(res["results"]).items()},
     	dist
@@ -108,11 +118,11 @@ def test_timedelay():
 	HOM.add(0, pcvl.BS())
 	HOM.add(1, pcvl.TD(1))
 	HOM.add(0, pcvl.BS())
-    
+
 	with pytest.raises(ValueError):
 		Channel.from_perceval(HOM)
-    
-	
+
+
 def test_symbolic():
 	N=5
 
@@ -236,3 +246,34 @@ def test_cnot():
     	{tuple(k): v for k, v in dict(output_distribution).items()},
     	dist_optyx
 	)
+
+def test_unitaries():
+	from optyx import Diagram
+	from optyx.photonic import Create
+
+	def chip_mzi(w, l):
+		ansatz_ = ansatz(w, l)
+		symbs = list(ansatz_.free_symbols)
+		s = [(i, np.random.uniform(0, 1)) for i in symbs]
+		return ansatz_.subs(*s)
+
+	ansatz_ = chip_mzi(6, 3)
+	m = ansatz_.to_path().array
+	c = pcvl.Matrix(m.T)
+	c = pcvl.components.Unitary(U=c)
+	state = pcvl.BasicState([1, 1, 1, 1, 1, 1])
+	p = pcvl.Processor("SLOS", 6)
+	p.add(0, c)
+	p.with_input(state)
+	p_res = p.probs()["results"]
+	p_res = {tuple(key): val for key, val in p_res.items()}
+
+	o_res = (Create(1, 1, 1, 1, 1, 1) >> Diagram.from_perceval(p)).eval().prob_dist()
+
+	rounded_result_optyx = {idx: np.round(val, 6) for idx, val in o_res.items()}
+	non_zero_dict_optyx = {idx: val for idx, val in rounded_result_optyx.items() if val != 0}
+
+	rounded_result_perceval = {idx: np.round(val, 6) for idx, val in p_res.items()}
+	non_zero_dict_perceval = {idx: val for idx, val in rounded_result_perceval.items() if val != 0}
+
+	assert dict_allclose(non_zero_dict_optyx, non_zero_dict_perceval, rel_tol=1e-03)
