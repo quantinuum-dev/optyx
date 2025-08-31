@@ -296,6 +296,13 @@ def filter_occupation_numbers(
     ]
 
 
+def invert_perm(p):
+    q = [0] * len(p)
+    for out, inn in enumerate(p):
+        q[inn] = out
+    return q
+
+
 class BasisTransition(NamedTuple):
     """
     A single non-zero transition emitted by `truncation_specification`.
@@ -316,3 +323,25 @@ class BasisTransition(NamedTuple):
     """
     out: Tuple[int, ...]
     amp: Number
+
+
+def preprocess_quimb_tensors_safe(tn, epsilon=1e-12, value_limit=1e10):
+    for t in tn:
+        data = t.data
+
+        if data.dtype.kind in {'i', 'u'}:
+            t.modify(data=data.astype('complex128'))
+            continue
+
+        if data.ndim == 2 and np.linalg.matrix_rank(data) < min(data.shape):
+            data += np.random.normal(0, epsilon, size=data.shape)
+
+        if np.any(data == 0):
+            data[data == 0] = epsilon
+
+        if np.max(np.abs(data)) > value_limit:
+            data = np.clip(data, -value_limit, value_limit)
+
+        t.modify(data=data)
+
+    return tn

@@ -2,6 +2,8 @@ from optyx.core.zw import *
 from optyx.core.diagram import mode, Swap
 import numpy as np
 import pytest
+from optyx.photonic import ansatz, MZI, TBS
+from optyx.utils.utils import matrix_to_zw
 
 @pytest.mark.skip(reason="Helper function for testing")
 def kron_truncation_swap(input_dims: list[int]) -> np.ndarray[complex]:
@@ -168,3 +170,38 @@ def kron_truncation_Z(diagram, input_dims: list[int]) -> np.ndarray[complex]:
         else:
             result_matrix += np.outer(vec_out, vec_in) * diagram.amplitudes[i]
     return result_matrix
+
+@pytest.mark.skip(reason="Helper function for testing")
+def chip_mzi(w, l):
+    ansatz_ = ansatz(w, l)
+    symbs = list(ansatz_.free_symbols)
+    s = [(i, np.random.uniform(0, 1)) for i in symbs]
+    return ansatz_.subs(*s)
+
+unitaries = [
+    chip_mzi(6, 3),
+    chip_mzi(2, 5),
+    chip_mzi(4, 4),
+]
+
+@pytest.mark.parametrize("unitary", unitaries)
+def test_unitary_array_commutation(unitary):
+
+    array1 = unitary.to_path().array
+    array2 = matrix_to_zw(array1).to_path().array
+    assert np.allclose(array1, array2)
+
+    array1 = unitary.dagger().to_path().array
+    array2 = matrix_to_zw(unitary.to_path().array).dagger().to_path().array
+    assert np.allclose(array1, array2)
+
+def test_MZI_TBS_array_commutation():
+    unitary = MZI(0.32, -0.2)
+    assert np.allclose(unitary.array, unitary.to_path().array)
+
+    assert np.allclose(unitary.dagger().array, unitary.dagger().to_path().array)
+
+    unitary = TBS(-0.2)
+    assert np.allclose(unitary.array, unitary.to_path().array)
+
+    assert np.allclose(unitary.dagger().array, unitary.dagger().to_path().array)
