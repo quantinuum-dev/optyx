@@ -229,7 +229,8 @@ from discopy.quantum.gates import format_number
 from optyx.utils.utils import (
     modify_io_dims_against_max_dim,
     BasisTransition,
-    total_photons_created
+    total_photons_created,
+    max_postselection
 )
 from typing import List, Tuple, Iterable
 
@@ -314,6 +315,10 @@ class Diagram(frobenius.Diagram):
             layer_dims = input_dims
 
         max_dim = total_photons_created(self, layer_dims) + 1
+        max_post_selection = max_postselection(self, layer_dims) + 1
+
+        if max_dim < max_post_selection:
+            max_dim = max_post_selection
 
         layer_dims, _ = modify_io_dims_against_max_dim(
             layer_dims, None, max_dim
@@ -331,7 +336,8 @@ class Diagram(frobenius.Diagram):
             if hasattr(box, "output_photons"):
                 output_photons = int(max(dims_out, default=0))
                 if max_dim < output_photons:
-                    max_dim = output_photons
+                    max_dim = output_photons + 1
+
             #if max_dim is not None:
             dims_out, _ = modify_io_dims_against_max_dim(
                 dims_out, None, max_dim

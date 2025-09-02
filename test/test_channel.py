@@ -57,10 +57,5 @@ def test_from_bosonic_op():
             terms.append(term)
 
     hamiltonian = Diagram.sum_factory(terms)
-    sum_1 = np.sum([(term.double().to_tensor(input_dims = [3,3,3,3], max_dim=3).to_quimb()^...).data for term in terms])
-
-    terms_2 = hamiltonian.double().terms
-
-    sum = np.sum([(term_2.to_tensor(input_dims = [3,3,3,3], max_dim=3).to_quimb()^...).data for term_2 in terms_2])
-
-    assert np.allclose(sum, sum_1)
+    sum_1 = hamiltonian.eval()
+    assert np.allclose(sum_1.array, 0.0)

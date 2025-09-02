@@ -279,6 +279,7 @@ class TestControlledPhaseShift:
     @pytest.mark.parametrize("f", REAL_FUNCS)
     @pytest.mark.parametrize("x", xs)
     def test_controlled_phase_shift_numeric(self, f, x):
+        print(f"Testing ControlledPhaseShift with x: {x}")
         """
         For each real-valued function f and input x, build a circuit with
         ControlledPhaseShift, compare to a ZBox with the matching phase exponent.

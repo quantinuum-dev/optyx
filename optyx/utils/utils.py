@@ -350,7 +350,6 @@ def preprocess_quimb_tensors_safe(tn, epsilon=1e-12, value_limit=1e10):
 
     return tn
 
-
 def total_photons_created(diagram, input_dims: Optional[List[int]] = None) -> int:
     """
     Scan `diagram` once and return the total number of photons created.
@@ -383,3 +382,35 @@ def total_photons_created(diagram, input_dims: Optional[List[int]] = None) -> in
             continue
 
     return max(int(created) + int(sum(input_dims, 0)), 3)
+
+def max_postselection(diagram, input_dims: Optional[List[int]] = None) -> int:
+    """
+    Scan `diagram` once and return the maximum post-selection dimension.
+
+    Counts:
+      - zw.Create(*photons) -> +sum(photons)
+    Everything else is ignored for 'selection'
+    Parameters
+    ----------
+    diagram : optyx.core.diagram.Diagram
+        The diagram to scan (sequential list of boxes is in `diagram.boxes`).
+    input_dims : Optional[List[int]]
+
+    Returns
+    -------
+    int
+        Maximum post-selection dimension in the diagram.
+    """
+    max_dim = 0
+
+    from optyx.core import zw
+
+    if input_dims is None:
+        input_dims = []
+
+    for box in diagram.boxes:
+        if isinstance(box, zw.Select):
+            max_dim = max(max_dim, max(int(p) for p in box.photons))
+            continue
+
+    return max(int(max_dim) + int(sum(input_dims, 0)), 3)
