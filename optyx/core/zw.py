@@ -291,6 +291,7 @@ class ZBox(diagram.Spider, ZWBox):
         super().__init__(legs_in, legs_out, diagram.Mode(1))
         self.legs_in = legs_in
         self.legs_out = legs_out
+        self.output_photons = self.determine_output_dimensions
 
     def conjugate(self):
         return ZBox(self.legs_in, self.legs_out, self.amplitudes.conjugate())
@@ -429,6 +430,7 @@ class Create(ZWBox):
 
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
+        self.output_photons = self.determine_output_dimensions
 
     def conjugate(self):
         return self
@@ -532,6 +534,7 @@ class Select(ZWBox):
         self.photons = photons or (1,)
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
+        self.output_photons = lambda _: 0
 
     def inflate(self, d):
 
@@ -700,8 +703,7 @@ class Multiply(ZWBox):
         cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
 
         super().__init__("Multiply", dom, cod)
-
-        self.is_dagger = is_dagger
+        self.output_photons = self.determine_output_dimensions
 
     def truncation_specification(
         self,
@@ -740,10 +742,9 @@ class Divide(ZWBox):
     def __init__(self, is_dagger: bool = False):
         dom = diagram.Mode(1) if is_dagger else diagram.Mode(2)
         cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
-
         super().__init__("Divide", dom, cod)
-
         self.is_dagger = is_dagger
+        self.output_photons = self.determine_output_dimensions
 
     def truncation_specification(
         self,

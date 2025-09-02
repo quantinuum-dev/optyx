@@ -228,7 +228,8 @@ from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from optyx.utils.utils import (
     modify_io_dims_against_max_dim,
-    BasisTransition
+    BasisTransition,
+    total_photons_created
 )
 from typing import List, Tuple, Iterable
 
@@ -312,10 +313,11 @@ class Diagram(frobenius.Diagram):
         else:
             layer_dims = input_dims
 
-            if max_dim is not None:
-                layer_dims, _ = modify_io_dims_against_max_dim(
-                    layer_dims, None, max_dim
-                )
+        max_dim = total_photons_created(self, layer_dims) + 1
+
+        layer_dims, _ = modify_io_dims_against_max_dim(
+            layer_dims, None, max_dim
+        )
 
         if len(self.boxes) == 0 and len(self.offsets) == 0:
             return tensor.Diagram.id(list_to_dim(layer_dims))
@@ -326,10 +328,14 @@ class Diagram(frobenius.Diagram):
 
             dims_out = box.determine_output_dimensions(dims_in)
 
-            if max_dim is not None:
-                dims_out, _ = modify_io_dims_against_max_dim(
-                    dims_out, None, max_dim
-                )
+            if hasattr(box, "output_photons"):
+                output_photons = int(max(dims_out, default=0))
+                if max_dim < output_photons:
+                    max_dim = output_photons
+            #if max_dim is not None:
+            dims_out, _ = modify_io_dims_against_max_dim(
+                dims_out, None, max_dim
+            )
 
             left = Dim()
             if off > 0:
@@ -828,6 +834,7 @@ class DualRail(Box):
         super().__init__("2R", dom, cod)
         self.internal_state = internal_state
         self.is_dagger = is_dagger
+        self.output_photons = self.determine_output_dimensions
 
     def conjugate(self):
         return self
