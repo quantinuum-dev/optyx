@@ -299,7 +299,7 @@ class Diagram(frobenius.Diagram):
 
     # pylint: disable=too-many-locals
     def to_tensor(
-        self, input_dims: list = None, max_dim: int = None
+        self, input_dims: list = None
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
         # pylint: disable=import-outside-toplevel
@@ -697,9 +697,9 @@ class Sum(symmetric.Sum, Box):
             for term in self.terms
         )
 
-    def to_tensor(self, input_dims=None, max_dim=None):
+    def to_tensor(self, input_dims=None):
 
-        terms = [t.to_tensor(input_dims, max_dim) for t in self]
+        terms = [t.to_tensor(input_dims) for t in self]
         cods = [list(t.cod.inside) for t in terms]
 
         # figure out the max dims for each idx and set it for all the terms

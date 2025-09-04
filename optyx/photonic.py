@@ -224,7 +224,7 @@ evaluation of the channel taking into account the internal states:
 
 >>> channel_HOM = channel_HOM.inflate(len(internal_state_1))
 >>> result = (
-...     channel_HOM.double().to_tensor(max_dim=3).to_quimb()^...
+...     channel_HOM.double().to_tensor().to_quimb()^...
 ... ).data
 
 Let's get the probabilities of the outcomes:

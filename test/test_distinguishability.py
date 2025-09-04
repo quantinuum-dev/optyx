@@ -60,7 +60,7 @@ def test_beamsplitter_non_distinguishable(internal_state: np.ndarray) -> None:
 
     probs = (
         channel_bs.double()
-        .to_tensor(max_dim=3)
+        .to_tensor()
         .eval()
         .array
     )
@@ -81,7 +81,7 @@ def test_beamsplitter_distinguishable(state1: np.ndarray, state2: np.ndarray) ->
 
     probs = (
         channel_bs.double()
-        .to_tensor(max_dim=3)
+        .to_tensor()
         .eval()
         .array
     )
@@ -104,7 +104,7 @@ def test_dualrail_identity(qubit_state, internal_state) -> None:
     dr_drdagger = (
         encoded
         >> DualRail(internal_state=internal_state).inflate(len(internal_state)).dagger()
-    ).to_tensor(max_dim=2).eval().array
+    ).to_tensor().eval().array
 
     expected = qubit_state.to_tensor().eval().array
     assert np.allclose(dr_drdagger, expected)
@@ -143,8 +143,8 @@ def test_photon_threshold_detector():
     d_1 = Create(1, internal_states=([1, 0])) >> PhotonThresholdDetector()
     d_2 = X(1, 0, 0.5) @ Scalar(0.5**0.5)
 
-    arr_1 = d_1.inflate(2).to_tensor(max_dim=3).eval().array
-    arr_2 = d_2.to_tensor(max_dim=3).eval().array
+    arr_1 = d_1.inflate(2).to_tensor().eval().array
+    arr_2 = d_2.to_tensor().eval().array
 
     assert np.allclose(arr_1, arr_2)
 
