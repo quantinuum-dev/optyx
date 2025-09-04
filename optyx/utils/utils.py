@@ -17,6 +17,7 @@ from typing import (
 )
 from numbers import Number
 
+
 def _build_w_layer(n_nonzero_counts, dagger=False):
     # pylint: disable=import-outside-toplevel
     from optyx.core import zw
@@ -350,18 +351,24 @@ def preprocess_quimb_tensors_safe(tn, epsilon=1e-12, value_limit=1e10):
 
     return tn
 
-def total_photons_created(diagram, input_dims: Optional[List[int]] = None) -> int:
+
+def total_photons_created(
+        diagram,
+        input_dims: Optional[List[int]] = None
+) -> int:
     """
     Scan `diagram` once and return the total number of photons created.
 
     Counts:
       - zw.Create(*photons) -> +sum(photons)
-    Everything else is ignored for 'creation' (they conserve or consume photons).
+    Everything else is ignored for 'creation'
+    (they conserve or consume photons).
 
     Parameters
     ----------
     diagram : optyx.core.diagram.Diagram
-        The diagram to scan (sequential list of boxes is in `diagram.boxes`).
+        The diagram to scan (sequential list of
+        boxes is in `diagram.boxes`).
     input_dims : Optional[List[int]]
 
     Returns
@@ -383,9 +390,14 @@ def total_photons_created(diagram, input_dims: Optional[List[int]] = None) -> in
 
     return max(int(created) + int(sum(input_dims, 0)), 3)
 
-def max_postselection(diagram, input_dims: Optional[List[int]] = None) -> int:
+
+def max_postselection(
+        diagram,
+        input_dims: Optional[List[int]] = None
+) -> int:
     """
-    Scan `diagram` once and return the maximum post-selection dimension.
+    Scan `diagram` once and return the
+    maximum post-selection dimension.
 
     Counts:
       - zw.Create(*photons) -> +sum(photons)
@@ -393,7 +405,8 @@ def max_postselection(diagram, input_dims: Optional[List[int]] = None) -> int:
     Parameters
     ----------
     diagram : optyx.core.diagram.Diagram
-        The diagram to scan (sequential list of boxes is in `diagram.boxes`).
+        The diagram to scan (sequential list
+        of boxes is in `diagram.boxes`).
     input_dims : Optional[List[int]]
 
     Returns

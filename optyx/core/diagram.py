@@ -333,12 +333,12 @@ class Diagram(frobenius.Diagram):
 
             dims_out = box.determine_output_dimensions(dims_in)
 
-            if hasattr(box, "output_photons"):
-                output_photons = int(max(dims_out, default=0))
-                if max_dim < output_photons:
-                    max_dim = output_photons + 1
+            if hasattr(box, "photon_sum_preserving"):
+                if not box.photon_sum_preserving:
+                    output_photons = int(max(dims_out, default=0))
+                    if max_dim < output_photons:
+                        max_dim = output_photons + 1
 
-            #if max_dim is not None:
             dims_out, _ = modify_io_dims_against_max_dim(
                 dims_out, None, max_dim
             )
@@ -445,6 +445,7 @@ class Box(frobenius.Box, Diagram):
 
     def __init__(self, name, dom, cod, array=None, **params):
         self._array = array
+        self.photon_sum_preserving = True
         super().__init__(name, dom, cod, **params)
 
     @classmethod
@@ -840,7 +841,7 @@ class DualRail(Box):
         super().__init__("2R", dom, cod)
         self.internal_state = internal_state
         self.is_dagger = is_dagger
-        self.output_photons = self.determine_output_dimensions
+        self.photon_sum_preserving = False
 
     def conjugate(self):
         return self

@@ -119,19 +119,8 @@ class BitControlledBox(ControlBox):
         self.action_box = action_box
         self.default_box = default_box
         self.is_dagger = is_dagger
-        # --- Photon-budget contract: max over the two branches.
-        def _safe_out(b):
-            f = getattr(b, "output_photons", None)
-            return f if callable(f) else (lambda s: s)
+        self.photon_sum_preserving = False
 
-        f_action  = _safe_out(self.action_box)
-        f_default = _safe_out(self.default_box)
-
-        # Bits carry no photons; total_in is the sum over Mode inputs only.
-        self.output_photons = lambda total_in: max(
-            int(f_action(total_in)),
-            int(f_default(total_in))
-        )
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
 
         action_box_dims = (
