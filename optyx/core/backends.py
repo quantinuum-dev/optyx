@@ -393,17 +393,19 @@ class QuimbBackend(AbstractBackend):
             The result of the evaluation.
         """
 
+        tensor_diagram = self._get_discopy_tensor(diagram)
+
         if hasattr(diagram, 'terms'):
-            results = sum(self._process_term(term) for term in diagram.terms)
+            results = sum(
+                self._process_term(term) for term in tensor_diagram.terms
+            )
         else:
-            results = self._process_term(diagram)
+            results = self._process_term(tensor_diagram)
 
         if diagram.is_pure:
             state_type = StateType.AMP
         else:
             state_type = StateType.DM
-
-        tensor_diagram = self._get_discopy_tensor(diagram)
 
         return EvalResult(
             discopy_tensor.Box(
@@ -426,7 +428,7 @@ class QuimbBackend(AbstractBackend):
         Returns:
             np.ndarray: The processed term as a numpy array.
         """
-        quimb_tn = self._get_quimb_tensor(term)
+        quimb_tn = term.to_quimb()
 
         for t in quimb_tn:
             dt = t.data.dtype

@@ -394,26 +394,26 @@ class Diagram(frobenius.Diagram):
         diagram >>= zboxes
         return diagram
 
-    @classmethod
-    def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """Create a :class:`zw` diagram from a bosonic operator."""
-        # pylint: disable=import-outside-toplevel
-        from optyx.core import zw
+    # @classmethod
+    # def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+    #     """Create a :class:`zw` diagram from a bosonic operator."""
+    #     # pylint: disable=import-outside-toplevel
+    #     from optyx.core import zw
 
-        # pylint: disable=invalid-name
-        d = cls.id(Mode(n_modes))
-        annil = zw.Split(2) >> zw.Select(1) @ zw.Id(1)
-        create = annil.dagger()
-        for idx, dagger in operators:
-            if not 0 <= idx < n_modes:
-                raise ValueError(f"Index {idx} out of bounds.")
-            box = create if dagger else annil
-            d = d >> zw.Id(idx) @ box @ zw.Id(n_modes - idx - 1)
+    #     # pylint: disable=invalid-name
+    #     d = cls.id(Mode(n_modes))
+    #     annil = zw.Split(2) >> zw.Select(1) @ zw.Id(1)
+    #     create = annil.dagger()
+    #     for idx, dagger in operators:
+    #         if not 0 <= idx < n_modes:
+    #             raise ValueError(f"Index {idx} out of bounds.")
+    #         box = create if dagger else annil
+    #         d = d >> zw.Id(idx) @ box @ zw.Id(n_modes - idx - 1)
 
-        if scalar != 1:
-            # pylint: disable=invalid-name
-            d = Scalar(scalar) @ d
-        return d
+    #     if scalar != 1:
+    #         # pylint: disable=invalid-name
+    #         d = Scalar(scalar) @ d
+    #     return d
 
     def to_pyzx(self):
         # pylint: disable=import-outside-toplevel

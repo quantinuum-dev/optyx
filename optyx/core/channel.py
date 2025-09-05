@@ -410,16 +410,36 @@ class Diagram(frobenius.Diagram):
         from optyx.qubits import Circuit
         return Circuit(discopy_circuit)
 
+    # @classmethod
+    # def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+    #     return Channel(
+    #         "Bosonic operator",
+    #         diagram.Diagram.from_bosonic_operator(
+    #             n_modes, operators, scalar=scalar
+    #         )
+    #     )
+
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """Convert from a list of bosonic operators. Based on
-        diagram.Diagram.from_bosonic_operator."""
-        return Channel(
-            "Bosonic operator",
-            diagram.Diagram.from_bosonic_operator(
-                n_modes, operators, scalar=scalar
-            )
-        )
+        """Create a :class:`zw` diagram from a bosonic operator."""
+        # pylint: disable=import-outside-toplevel
+        from optyx.core import zw
+        from optyx.photonic import Scalar
+
+        # pylint: disable=invalid-name
+        d = Diagram.id(qmode**n_modes)
+        annil = Channel("n", zw.Split(2) >> zw.Select(1) @ zw.Id(1))
+        create = annil.dagger()
+        for idx, dagger in operators:
+            if not 0 <= idx < n_modes:
+                raise ValueError(f"Index {idx} out of bounds.")
+            box = create if dagger else annil
+            d = d >> qmode**idx @ box @ qmode**(n_modes - idx - 1)
+
+        if scalar != 1:
+            # pylint: disable=invalid-name
+            d = Scalar(scalar) @ d
+        return d
 
     @classmethod
     def from_graphix(cls, measurement_pattern):

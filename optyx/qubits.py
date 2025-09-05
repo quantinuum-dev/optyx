@@ -636,7 +636,7 @@ class Z(Channel):
     def _make_spiders(n):
         """Constructs the Z spider 1 -> n from spiders 1 -> 2.
 
-        >>> assert len(make_spiders(6)) == 5
+        >>> assert len(Z._make_spiders(6)) == 5
         """
         from optyx import qubits
 

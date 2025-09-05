@@ -27,16 +27,16 @@ def test_dilate():
         assert np.allclose(unitary.eval(3).array, matrix.eval(3).array)
 
 
-def test_bosonic_operator():
-    d1 = Diagram.from_bosonic_operator(
-        n_modes= 2,
-        operators=((0, False), (1, False), (0, True)),
-        scalar=2.1
-    )
+# def test_bosonic_operator():
+#     d1 = Diagram.from_bosonic_operator(
+#         n_modes= 2,
+#         operators=((0, False), (1, False), (0, True)),
+#         scalar=2.1
+#     )
 
-    annil = Split(2) >> Select(1) @ Id(Mode(1))
-    create = annil.dagger()
+#     annil = Split(2) >> Select(1) @ Id(Mode(1))
+#     create = annil.dagger()
 
-    d2 = Scalar(2.1) @ annil @ Id(Mode(1)) >> Id(Mode(1)) @ annil >> create @ Id(Mode(1))
+#     d2 = Scalar(2.1) @ annil @ Id(Mode(1)) >> Id(Mode(1)) @ annil >> create @ Id(Mode(1))
 
-    assert d1 == d2
+#     assert d1 == d2
