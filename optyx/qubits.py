@@ -265,13 +265,14 @@ We can create a graph state as follows
 
 """  # noqa E501
 
-from typing import Literal
+from typing import Literal, Iterable
 from enum import Enum
 import numpy as np
 from pyzx.graph.base import BaseGraph
 import graphix
 from discopy import quantum as quantum_discopy
 from discopy import symmetric
+from sympy import Expr, lambdify, Symbol, Mul
 # from pytket import circuit as tket_circuit
 from optyx.utils.utils import explode_channel
 from optyx.core import (
@@ -422,22 +423,28 @@ class Circuit(Diagram):
 class QubitChannel(Channel):
     """Qubit channel."""
 
-    def _decomp(self):
-        decomposed = zx.decomp(self.kraus)
-        return explode_channel(
-            decomposed,
-            QubitChannel,
-            Diagram
-        )
+    # def decomp(self):
+    #     """Decompose into elementary gates."""
+    #     from optyx.utils.utils import decomp_ar
+    #     from discopy import symmetric
+    #     return symmetric.Functor(
+    #         ob=lambda x: qubit**len(x),
+    #         ar=decomp_ar,
+    #         cod=symmetric.Category(channel.Ty, channel.Diagram),
+    #     )(self)
 
-    def to_dual_rail(self):
-        """Convert to dual-rail encoding."""
-        kraus_path = zx.zx2path(self.kraus)
-        return explode_channel(
-            kraus_path,
-            Channel,
-            Diagram
-        )
+    # def to_dual_rail(self):
+    #     """Convert to dual-rail encoding."""
+    #     from optyx.utils.utils import ar_zx2path
+    #     from optyx import qmode
+    #     from discopy import symmetric
+
+    #     return symmetric.Functor(
+    #         ob=lambda x: qmode**(2 * len(x)),
+    #         ar=lambda ar : ar_zx2path(ar.decomp()),
+    #         cod=symmetric.Category(channel.Ty, channel.Diagram),
+    #     )(self)
+
 
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-return-statements
@@ -605,7 +612,89 @@ class Z(Channel):
             qubit**n_legs_in,
             qubit**n_legs_out,
         )
+        self.data = phase
+        self.phase = phase
 
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            len(self.dom),
+            len(self.cod),
+            lambdify(symbols, self.phase, **kwargs)(*xs)
+        )
+
+    def decomp(self):
+        n, m = len(self.dom), len(self.cod)
+        phase = self.phase
+        rot = Id(1) if phase == 0 else Z(1, 1, phase)
+        if n == 0:
+            return X(0, 1) >> H() >> rot >> self._make_spiders(m)
+        if m == 0:
+            return X(1, 0) << H() << rot << self._make_spiders(n).dagger()
+        return self._make_spiders(n).dagger() >> rot >> self._make_spiders(m)
+
+    @staticmethod
+    def _make_spiders(n):
+        """Constructs the Z spider 1 -> n from spiders 1 -> 2.
+
+        >>> assert len(make_spiders(6)) == 5
+        """
+        from optyx import qubits
+
+        spider = qubits.Id(1)
+        for k in range(n - 1):
+            spider = spider >> qubits.Z(1, 2) @ qubits.Id(k)
+        return spider
+
+    def to_dual_rail(self):
+        """Convert to dual-rail encoding."""
+
+        from optyx import (
+            photonic,
+            qmode,
+            classical
+        )
+        from optyx.core import zw
+        create = photonic.Create(1)
+        annil = classical.Select(1)
+        comonoid = Channel("Split", zw.Split(2))
+        monoid = Channel("Merge", zw.Merge(2))
+        BS = photonic.BS
+
+        n, m = len(self.dom), len(self.cod)
+        phase = self.phase
+        if (n, m) == (0, 1):
+            return create >> comonoid
+        if (n, m) == (1, 1):
+            return qmode @ photonic.Phase(phase)
+        if (n, m, phase) == (2, 1, 0):
+            return (
+                qmode @
+                (monoid >> annil) @
+                qmode
+                )
+        if (n, m, phase) == (1, 2, 0):
+            plus = create >> comonoid
+            bot = (
+                (plus >> qmode @ plus @ qmode) @
+                (qmode @ plus @ qmode)
+            )
+            mid = qmode**2 @ BS.dagger() @ BS @ qmode**2
+            fusion = (
+                qmode @ plus.dagger() @
+                qmode >> plus.dagger()
+            )
+            return (
+                bot >> mid >> (qmode**2 @
+                               fusion @ qmode**2)
+                )
+        raise NotImplementedError(f"No translation of {self} in QPath.")
+
+    def dagger(self):
+        return type(self)(
+            len(self.cod),
+            len(self.dom),
+            -self.phase
+        )
 
 # pylint: disable=invalid-name
 class X(Channel):
@@ -623,7 +712,62 @@ class X(Channel):
             qubit**n_legs_in,
             qubit**n_legs_out,
         )
+        self.data = phase
+        self.phase = phase
 
+    def lambdify(self, *symbols, **kwargs):
+        return lambda *xs: type(self)(
+            len(self.dom),
+            len(self.cod),
+            lambdify(symbols, self.phase, **kwargs)(*xs),
+        )
+
+    def decomp(self):
+        n, m = len(self.dom), len(self.cod)
+        phase = self.phase
+        if (n, m) in ((1, 0), (0, 1)):
+            return self
+        box = (
+            Id(0).tensor(*[H()] * n) >> Z(n, m, phase) >> Id(0).tensor(*[H()] * m)
+        )
+        return box.decomp()
+
+    def to_dual_rail(self):
+        """Convert to dual-rail encoding."""
+        from optyx import (
+            photonic,
+            classical
+        )
+        from optyx.core import zw
+
+        root2 = photonic.Scalar(2**0.5)
+        unit = photonic.Create(0)
+        counit = classical.Select(0)
+        create = photonic.Create(1)
+        annil = classical.Select(1)
+        BS = photonic.BS
+        n, m = len(self.dom), len(self.cod)
+        phase = 1 + self.phase if self.phase < 0 else self.phase
+        if (n, m, phase) == (0, 1, 0):
+            return create @ unit @ root2
+        if (n, m, phase) == (0, 1, 0.5):
+            return unit @ create @ root2
+        if (n, m, phase) == (1, 0, 0):
+            return annil @ counit @ root2
+        if (n, m, phase) == (1, 0, 0.5):
+            return counit @ annil @ root2
+        if (n, m, phase) == (1, 1, 0.25):
+            return BS.dagger()
+        if (n, m, phase) == (1, 1, -0.25):
+            return BS
+        raise NotImplementedError(f"No translation of {self} in QPath.")
+
+    def dagger(self):
+        return type(self)(
+            len(self.cod),
+            len(self.dom),
+            -self.phase
+        )
 
 # pylint: disable=invalid-name
 class H(Channel):
@@ -640,6 +784,16 @@ class H(Channel):
             qubit,
         )
 
+    def decomp(self):
+        return H()
+
+    def to_dual_rail(self):
+        """Convert to dual-rail encoding."""
+        from optyx import photonic
+        return photonic.HadamardBS()
+
+    def dagger(self):
+        return self
 
 class Scalar(Channel):
     """
@@ -653,7 +807,18 @@ class Scalar(Channel):
             qubit**0,
             qubit**0,
         )
+        self.data = value
 
+    def decomp(self):
+        return Scalar(self.data)
+
+    def to_dual_rail(self):
+        """Convert to dual-rail encoding."""
+        from optyx import photonic
+        return photonic.Scalar(self.data)
+
+    def dagger(self):
+        return type(self)(np.conj(self.data))
 
 class BitFlipError(Channel):
     """

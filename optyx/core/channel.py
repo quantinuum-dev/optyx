@@ -108,6 +108,7 @@ We can construct a lossy optical channel and compute its probabilities:
 
 from __future__ import annotations
 
+import numpy as np
 from discopy import tensor
 from discopy import symmetric, frobenius, hypergraph
 from discopy.cat import factory
@@ -115,6 +116,7 @@ from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
 from optyx.core import zx, diagram
 from optyx.utils.utils import explode_channel
+from optyx.core.path import Matrix
 
 
 class Ob(frobenius.Ob):
@@ -334,8 +336,7 @@ class Diagram(frobenius.Diagram):
             cod=frobenius.Category(int, path.Matrix[dtype]),
         )(self)
 
-    def _decomp(self):
-
+    def decomp(self):
         # pylint: disable=protected-access
         return frobenius.Functor(
             ob=lambda x: qubit**len(x),
@@ -590,14 +591,10 @@ class Channel(Diagram, frobenius.Box):
             cod=self.dom,
         )
 
-    def _decomp(self):
+    def decomp(self):
         # pylint: disable=import-outside-toplevel
-        from optyx.qubits import QubitChannel
-        decomposed = zx.decomp(self.kraus)
-        return explode_channel(
-            decomposed,
-            QubitChannel,
-            Diagram
+        raise NotImplementedError(
+            "Decomposition is only implemented for ZX channels."
         )
 
     def to_dual_rail(self):
@@ -658,19 +655,64 @@ class Sum(symmetric.Sum, Diagram):
             return self.sum_factory((), self.dom, self.cod)
         return sum(term.grad(var, **params) for term in self.terms)
 
-    def eval(self, n_photons=0, permanent=None, dtype=complex):
-        """Evaluate the sum of diagrams."""
-        # we need to implement the proper sums of qpath diagrams
-        # this is only a temporary solution, so that the grad tests pass
-        if permanent is None:
-            # pylint: disable=import-outside-toplevel
-            from optyx.core.path import npperm
+    def get_kraus(self):
+        if len(self.terms) == 0:
+            return diagram.Scalar(0)
 
-            permanent = npperm
-        return sum(
-            term.to_path(dtype).eval(n_photons, permanent)
-            for term in self.terms
+        return diagram.Diagram.sum_factory(
+            [term.get_kraus() for term in self.terms]
         )
+
+    # def to_path(self, dtype: type = complex):
+    #     """Evaluate the sum of diagrams."""
+    #     array = 0
+    #     doms = []
+    #     cods = []
+    #     creations = []
+    #     selections = []
+    #     normalisations = []
+    #     for term in self.terms:
+    #         path_diagram = term.to_path(dtype)
+    #         array += path_diagram.array
+    #         creations.append(path_diagram.creations)
+    #         selections.append(path_diagram.selections)
+    #         doms.append(path_diagram.dom)
+    #         cods.append(path_diagram.cod)
+    #         normalisations.append(path_diagram.normalisation)
+
+    #     assert all(d == doms[0] for d in doms), "All terms must have the same dom"
+    #     assert all(c == cods[0] for c in cods), "All terms must have the same cod"
+    #     assert all(creations[0] == cr for cr in creations), "All creations tuples must be identical"
+    #     assert all(selections[0] == se for se in selections), "All selections tuples must be identical"
+    #     assert all(normalisations[0] == n for n in normalisations), "All normalisations must be identical"
+
+    #     array = array/len(self.terms)
+
+    #     dom = doms[0]
+    #     cod = cods[0]
+
+    #     return Matrix[dtype](
+    #         array,
+    #         dom,
+    #         cod,
+    #         creations=creations[0],
+    #         selections=selections[0],
+    #         normalisation=normalisations[0]
+    #     )
+
+    # def eval(self, n_photons=0, permanent=None, dtype=complex):
+    #     """Evaluate the sum of diagrams."""
+    #     # we need to implement the proper sums of qpath diagrams
+    #     # this is only a temporary solution, so that the grad tests pass
+    #     if permanent is None:
+    #         # pylint: disable=import-outside-toplevel
+    #         from optyx.core.path import npperm
+
+    #         permanent = npperm
+    #     return sum(
+    #         term.to_path(dtype).eval(n_photons, permanent)
+    #         for term in self.terms
+    #     )
 
 
 class CQMap(Diagram, frobenius.Box):
