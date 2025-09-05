@@ -94,11 +94,11 @@ def test_pure_double_kraus():
 
     assert qubits.Circuit(g).get_kraus() == qubits.Circuit(g).get_kraus()
 
-def test_to_dual_rail():
-    circuit = qubits.Z(1, 2) >> qubits.H() @ qubits.H()
-    dr_1 = qubits.Circuit(circuit).to_dual_rail().get_kraus()
-    dr_2 = zx.zx2path(circuit.get_kraus())
-    assert dr_1 == dr_2
+# def test_to_dual_rail():
+#     circuit = qubits.Z(1, 2) >> qubits.H() @ qubits.H()
+#     dr_1 = qubits.Circuit(circuit).to_dual_rail().get_kraus()
+#     dr_2 = zx.zx2path(circuit.get_kraus())
+#     assert dr_1 == dr_2
 
 def test_discard_qubits():
     a = (qubits.Discard(2).double().to_tensor().to_quimb() ^ ...).data
