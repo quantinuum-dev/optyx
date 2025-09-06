@@ -904,7 +904,7 @@ class FusionTypeI(Diagram):
 
     **Codomain**
         ``qmode ** 2 @ bit ** 2``
-        – the surviving dual-rail qubit followed by two classical bits
+        - the surviving dual-rail qubit followed by two classical bits
         ``[s, k]`` where
 
         * ``s`` is the parity (success) bit
@@ -1042,8 +1042,8 @@ class FusionTypeII(Diagram):
         ``bit ** 2``
         containing
 
-        * ``s`` – success / parity bit
-        * ``k`` – Pauli-correction bit (applied to neighbouring nodes).
+        * ``s`` - success / parity bit
+        * ``k`` - Pauli-correction bit (applied to neighbouring nodes).
 
     Notes
     -----
