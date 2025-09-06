@@ -104,6 +104,46 @@ We can construct a lossy optical channel and compute its probabilities:
 >>> lossy_prob = (state >> lossy_channel >> effect).double(\\
 ...     ).to_tensor().eval().array
 >>> assert np.allclose(lossy_prob, prob * (eff ** 2))
+
+**Diagrams from Bosonic Operators**
+
+The :code:`from_bosonic_operator` method
+supports creating :class:`path` diagrams:
+
+>>> from optyx.core.zw import Split, Select, Id
+>>> from optyx.core.diagram import Mode
+>>> from optyx.photonic import Scalar
+>>> d1 = Diagram.from_bosonic_operator(
+...     n_modes=2,
+...     operators=((0, False), (1, False), (0, True)),
+...     scalar=2.1
+... )
+
+>>> annil = Channel(
+...     "annil", Split(2) >> Select(1) @ Id(Mode(1))
+... )
+>>> create = annil.dagger()
+
+>>> d2 = Scalar(2.1) @ annil @ qmode >> \\
+... qmode @ annil >> create @ qmode
+
+>>> assert d1 == d2
+
+We can map ZX diagrams to :class:`path` diagrams using
+dual-rail encoding. For example, we can create a GHZ state:
+
+>>> from discopy.drawing import Equation
+>>> from optyx.qubits import Z
+>>> from optyx.photonic import DualRail
+>>> ghz = Z(0, 3)
+>>> ghz_path = ghz.to_dual_rail()
+>>> Equation(ghz >> DualRail(3), ghz_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 10), \\
+... path="docs/_static/ghz_dr.svg")
+
+.. image:: /_static/ghz_dr.svg
+    :align: center
+
 """
 
 from __future__ import annotations
@@ -428,7 +468,7 @@ class Diagram(frobenius.Diagram):
 
         # pylint: disable=invalid-name
         d = Diagram.id(qmode**n_modes)
-        annil = Channel("n", zw.Split(2) >> zw.Select(1) @ zw.Id(1))
+        annil = Channel("annil", zw.Split(2) >> zw.Select(1) @ zw.Id(1))
         create = annil.dagger()
         for idx, dagger in operators:
             if not 0 <= idx < n_modes:
@@ -611,13 +651,13 @@ class Channel(Diagram, frobenius.Box):
             cod=self.dom,
         )
 
-    def decomp(self):
+    def _decomp(self):
         # pylint: disable=import-outside-toplevel
         raise NotImplementedError(
             "Decomposition is only implemented for ZX channels."
         )
 
-    def to_dual_rail(self):
+    def _to_dual_rail(self):
         raise TypeError(
             "Only ZX channels can be converted to dual rail."
             )

@@ -149,26 +149,6 @@ diagrams like the Hong-Ou-Mandel effect:
 ...             Hong_Ou_Mandel.to_tensor().eval().array,\\
 ...             np.array([0]))
 
-**:class:`zw` diagrams from Bosonic Operators**
-
-The :code:`from_bosonic_operator` method
-supports creating :class:`path` diagrams:
-
->>> from optyx.core.zw import Split, Select, Id
->>> d1 = Diagram.from_bosonic_operator(
-...     n_modes= 2,
-...     operators=((0, False), (1, False), (0, True)),
-...     scalar=2.1
-... )
-
->>> annil = Split(2) >> Select(1) @ Id(Mode(1))
->>> create = annil.dagger()
-
->>> d2 = Scalar(2.1) @ annil @ Id(Mode(1)) >> \\
-... Id(Mode(1)) @ annil >> create @ Id(Mode(1))
-
->>> assert d1 == d2
-
 **Permanent evaluation for QPath diagrams**
 
 The :code:`to_path` method supports evaluation by

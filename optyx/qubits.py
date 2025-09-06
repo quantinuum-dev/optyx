@@ -622,7 +622,7 @@ class Z(Channel):
             lambdify(symbols, self.phase, **kwargs)(*xs)
         )
 
-    def decomp(self):
+    def _decomp(self):
         n, m = len(self.dom), len(self.cod)
         phase = self.phase
         rot = Id(1) if phase == 0 else Z(1, 1, phase)
@@ -645,7 +645,7 @@ class Z(Channel):
             spider = spider >> qubits.Z(1, 2) @ qubits.Id(k)
         return spider
 
-    def to_dual_rail(self):
+    def _to_dual_rail(self):
         """Convert to dual-rail encoding."""
 
         from optyx import (
@@ -722,7 +722,7 @@ class X(Channel):
             lambdify(symbols, self.phase, **kwargs)(*xs),
         )
 
-    def decomp(self):
+    def _decomp(self):
         n, m = len(self.dom), len(self.cod)
         phase = self.phase
         if (n, m) in ((1, 0), (0, 1)):
@@ -732,7 +732,7 @@ class X(Channel):
         )
         return box.decomp()
 
-    def to_dual_rail(self):
+    def _to_dual_rail(self):
         """Convert to dual-rail encoding."""
         from optyx import (
             photonic,
@@ -784,10 +784,10 @@ class H(Channel):
             qubit,
         )
 
-    def decomp(self):
+    def _decomp(self):
         return H()
 
-    def to_dual_rail(self):
+    def _to_dual_rail(self):
         """Convert to dual-rail encoding."""
         from optyx import photonic
         return photonic.HadamardBS()
@@ -809,10 +809,10 @@ class Scalar(Channel):
         )
         self.data = value
 
-    def decomp(self):
+    def _decomp(self):
         return Scalar(self.data)
 
-    def to_dual_rail(self):
+    def _to_dual_rail(self):
         """Convert to dual-rail encoding."""
         from optyx import photonic
         return photonic.Scalar(self.data)
