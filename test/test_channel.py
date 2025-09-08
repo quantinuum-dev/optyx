@@ -1,7 +1,7 @@
 import pytest
 
 from optyx.core.channel import *
-from optyx.core import diagram
+from optyx.core import diagram, zx
 import numpy as np
 
 bell_density_re = np.array([

@@ -148,7 +148,6 @@ dual-rail encoding. For example, we can create a GHZ state:
 
 from __future__ import annotations
 
-import numpy as np
 from discopy import tensor
 from discopy import symmetric, frobenius, hypergraph
 from discopy.cat import factory
@@ -722,57 +721,6 @@ class Sum(symmetric.Sum, Diagram):
         return diagram.Diagram.sum_factory(
             [term.get_kraus() for term in self.terms]
         )
-
-    # def to_path(self, dtype: type = complex):
-    #     """Evaluate the sum of diagrams."""
-    #     array = 0
-    #     doms = []
-    #     cods = []
-    #     creations = []
-    #     selections = []
-    #     normalisations = []
-    #     for term in self.terms:
-    #         path_diagram = term.to_path(dtype)
-    #         array += path_diagram.array
-    #         creations.append(path_diagram.creations)
-    #         selections.append(path_diagram.selections)
-    #         doms.append(path_diagram.dom)
-    #         cods.append(path_diagram.cod)
-    #         normalisations.append(path_diagram.normalisation)
-
-    #     assert all(d == doms[0] for d in doms), "All terms must have the same dom"
-    #     assert all(c == cods[0] for c in cods), "All terms must have the same cod"
-    #     assert all(creations[0] == cr for cr in creations), "All creations tuples must be identical"
-    #     assert all(selections[0] == se for se in selections), "All selections tuples must be identical"
-    #     assert all(normalisations[0] == n for n in normalisations), "All normalisations must be identical"
-
-    #     array = array/len(self.terms)
-
-    #     dom = doms[0]
-    #     cod = cods[0]
-
-    #     return Matrix[dtype](
-    #         array,
-    #         dom,
-    #         cod,
-    #         creations=creations[0],
-    #         selections=selections[0],
-    #         normalisation=normalisations[0]
-    #     )
-
-    # def eval(self, n_photons=0, permanent=None, dtype=complex):
-    #     """Evaluate the sum of diagrams."""
-    #     # we need to implement the proper sums of qpath diagrams
-    #     # this is only a temporary solution, so that the grad tests pass
-    #     if permanent is None:
-    #         # pylint: disable=import-outside-toplevel
-    #         from optyx.core.path import npperm
-
-    #         permanent = npperm
-    #     return sum(
-    #         term.to_path(dtype).eval(n_photons, permanent)
-    #         for term in self.terms
-    #     )
 
 
 class CQMap(Diagram, frobenius.Box):

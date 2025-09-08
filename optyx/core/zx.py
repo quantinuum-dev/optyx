@@ -127,7 +127,6 @@ from math import pi
 from typing import List
 
 import numpy as np
-from discopy import symmetric
 from discopy import cat
 from discopy.utils import factory_name
 from discopy.frobenius import Dim

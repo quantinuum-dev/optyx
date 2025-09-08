@@ -265,14 +265,14 @@ We can create a graph state as follows
 
 """  # noqa E501
 
-from typing import Literal, Iterable
+from typing import Literal
 from enum import Enum
 import numpy as np
 from pyzx.graph.base import BaseGraph
 import graphix
 from discopy import quantum as quantum_discopy
 from discopy import symmetric
-from sympy import Expr, lambdify, Symbol, Mul
+from sympy import lambdify
 # from pytket import circuit as tket_circuit
 from optyx.utils.utils import explode_channel
 from optyx.core import (
@@ -444,7 +444,6 @@ class QubitChannel(Channel):
     #         ar=lambda ar : ar_zx2path(ar.decomp()),
     #         cod=symmetric.Category(channel.Ty, channel.Diagram),
     #     )(self)
-
 
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-return-statements
@@ -696,6 +695,7 @@ class Z(Channel):
             -self.phase
         )
 
+
 # pylint: disable=invalid-name
 class X(Channel):
     """X spider."""
@@ -728,7 +728,9 @@ class X(Channel):
         if (n, m) in ((1, 0), (0, 1)):
             return self
         box = (
-            Id(0).tensor(*[H()] * n) >> Z(n, m, phase) >> Id(0).tensor(*[H()] * m)
+            Id(0).tensor(*[H()] * n) >>
+            Z(n, m, phase) >>
+            Id(0).tensor(*[H()] * m)
         )
         return box.decomp()
 
@@ -738,7 +740,6 @@ class X(Channel):
             photonic,
             classical
         )
-        from optyx.core import zw
 
         root2 = photonic.Scalar(2**0.5)
         unit = photonic.Create(0)
@@ -769,6 +770,7 @@ class X(Channel):
             -self.phase
         )
 
+
 # pylint: disable=invalid-name
 class H(Channel):
     """Hadamard gate."""
@@ -795,6 +797,7 @@ class H(Channel):
     def dagger(self):
         return self
 
+
 class Scalar(Channel):
     """
     Scalar.
@@ -819,6 +822,7 @@ class Scalar(Channel):
 
     def dagger(self):
         return type(self)(np.conj(self.data))
+
 
 class BitFlipError(Channel):
     """
