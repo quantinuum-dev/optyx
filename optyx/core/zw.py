@@ -821,3 +821,13 @@ def Merge(n):
 def Id(n):
     return diagram.Diagram.id(n) if \
           isinstance(n, diagram.Ty) else diagram.Diagram.id(diagram.Mode(n))
+
+
+LO_ELEMENTS = (
+    Create,
+    W,
+    Select,
+    Add,
+    Endo,
+    diagram.Swap
+)

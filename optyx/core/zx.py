@@ -70,7 +70,7 @@ ensure the tensor dimensions match):
 
 >>> assert np.allclose(graph_path.to_tensor().eval().array, \\
 ... ((graph >> dual_rail(4)).to_tensor() >> \\
-... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 5))).eval().array)
+... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 4))).eval().array)
 
 As shown in the example above, we need to decompose a ZX diagram
 into more elementary spiders before mapping it to a path diagram.
