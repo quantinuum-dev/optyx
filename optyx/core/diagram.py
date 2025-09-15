@@ -387,11 +387,6 @@ class Diagram(frobenius.Diagram):
 
         zboxes = tensor.Id(Dim(1))
 
-        # print("------------------")
-        # for d_ in prev_layers:
-        #     d_[1].draw()
-        # print("------------------")
-
         # pylint: disable=invalid-name
         for c in diagram.cod:
             zboxes @= zw.ZBox(1, 1, lambda i: 1).truncation(
