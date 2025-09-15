@@ -546,6 +546,9 @@ def get_max_dim_for_box(
 
         previous_right_offset = calculate_right_offset(total, adj_left, cod_len)
 
+        # if isinstance(previous_box, Create):
+        #     print(previous_box.photons)
+
         # If connected, count created photons that lie on LC wires.
         if is_previous_box_connected_to_current_box(
             wires_in_light_cone,
@@ -562,6 +565,9 @@ def get_max_dim_for_box(
                 )
                 if idxs:
                     dim_for_box += sum(previous_box.photons[i] for i in idxs)
+                if sum(previous_box.photons) == 2:
+                    print(idxs)
+                    print(dim_for_box)
 
         # Pull the LC back through this box (use the same clamped offsets)
         if isinstance(previous_box, Swap):

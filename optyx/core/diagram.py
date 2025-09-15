@@ -346,14 +346,20 @@ class Diagram(frobenius.Diagram):
             if isinstance(box, zw.LO_ELEMENTS):
                 prev_layers.append((left_offset, box))
             else:
-                d = Id(mode**(len(dims_in)))
                 if len(dims_in) > 0:
-                    d >>= zw.Select(*dims_in)
+                    prev_layers.append(
+                        (
+                            left_offset,
+                            zw.Select(*[int(i) for i in np.array(dims_in)-1])
+                        )
+                    )
                 if len(dims_out) > 0:
-                    d >>= zw.Create(*dims_out)
-                prev_layers.append(
-                    (left_offset, d)
-                )
+                    prev_layers.append(
+                        (
+                            left_offset,
+                            zw.Create(*[int(i) for i in np.array(dims_out)-1])
+                        )
+                    )
 
             left = Dim()
             if left_offset > 0:
@@ -380,6 +386,11 @@ class Diagram(frobenius.Diagram):
             layer_dims = cod_layer_dims
 
         zboxes = tensor.Id(Dim(1))
+
+        # print("------------------")
+        # for d_ in prev_layers:
+        #     d_[1].draw()
+        # print("------------------")
 
         # pylint: disable=invalid-name
         for c in diagram.cod:
