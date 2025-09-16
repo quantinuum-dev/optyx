@@ -334,6 +334,8 @@ def preprocess_quimb_tensors_safe(tn, epsilon=1e-12, value_limit=1e10):
     for t in tn:
         data = t.data
 
+        data = np.array(data, copy=True)
+
         if data.dtype.kind in {'i', 'u'}:
             t.modify(data=data.astype('complex128'))
             continue
@@ -514,7 +516,7 @@ def get_max_dim_for_box(
     input_dims: List[int],
     prev_layers,
 ):
-    from optyx.core.diagram import Swap
+    from optyx.core.diagram import Swap, DualRail
     from optyx.core.zw import Create, Endo
 
     # Boxes with no inputs (or a pure Swap) don't constrain the bound here.
@@ -529,7 +531,6 @@ def get_max_dim_for_box(
         + [True] * len(box.dom)
         + [False] * right_offset
     )
-
     # Walk previous layers from nearest to farthest
     for previous_left_offset, previous_box in prev_layers[::-1]:
         total = len(wires_in_light_cone)
@@ -563,6 +564,9 @@ def get_max_dim_for_box(
                 if idxs:
                     dim_for_box += sum(previous_box.photons[i] for i in idxs)
 
+            if isinstance(previous_box, DualRail):
+                dim_for_box += 1
+
         # Pull the LC back through this box (use the same clamped offsets)
         if isinstance(previous_box, Swap):
             # Swaps always connect all their wires
@@ -579,7 +583,5 @@ def get_max_dim_for_box(
                 previous_box,
                 previous_right_offset,
             )
-
-    # Baseline contribution from current inputs still in the LC (+1 safety)
     dim_for_box += sum(2 * dim for wire, dim in zip(wires_in_light_cone, input_dims) if wire) + 1
     return max(dim_for_box, 3)

@@ -122,7 +122,7 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
         if self.state_type not in {StateType.AMP, StateType.DM}:
             raise TypeError(
@@ -147,7 +147,7 @@ class EvalResult:
             )
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
 
         dic = self._convert_array_to_dict(self.tensor.array)
@@ -167,7 +167,7 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
         if self.state_type is StateType.AMP:
             return self._prob_dist_pure(round_digits)

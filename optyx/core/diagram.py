@@ -345,6 +345,10 @@ class Diagram(frobenius.Diagram):
             )
             if isinstance(box, zw.LO_ELEMENTS):
                 prev_layers.append((left_offset, box))
+            elif isinstance(box, DualRail):
+                prev_layers.append((left_offset, zw.Select(1)))
+                prev_layers.append((left_offset, zw.Create(0)))
+                prev_layers.append((left_offset, box))
             else:
                 if len(dims_in) > 0:
                     prev_layers.append(
