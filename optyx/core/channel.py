@@ -118,7 +118,7 @@ from pyzx import extract_circuit
 from optyx.utils.utils import explode_channel
 
 
-class Ob(symmetric.Ob):
+class Ob(frobenius.Ob):
     """Basic object: bit, mode, qubit or qmode"""
 
     _classical = {
@@ -156,7 +156,7 @@ class Ob(symmetric.Ob):
 
 
 @factory
-class Ty(symmetric.Ty):
+class Ty(frobenius.Ty):
     """Classical and quantum types."""
 
     ob_factory = Ob
@@ -213,10 +213,10 @@ class Diagram(frobenius.Diagram):
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
-        dom = symmetric.Category(Ty, Diagram)
-        cod = symmetric.Category(Ty, Diagram)
+        dom = frobenius.Category(Ty, Diagram)
+        cod = frobenius.Category(Ty, Diagram)
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             lambda x: x.inflate(d),
             lambda f: f.inflate(d),
             dom,
@@ -227,9 +227,9 @@ class Diagram(frobenius.Diagram):
         """Returns the diagram.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
-        dom = symmetric.Category(Ty, Diagram)
-        cod = symmetric.Category(diagram.Ty, diagram.Diagram)
-        return symmetric.Functor(
+        dom = frobenius.Category(Ty, Diagram)
+        cod = frobenius.Category(diagram.Ty, diagram.Diagram)
+        return frobenius.Functor(
             lambda x: x.double(), lambda f: f.double(), dom, cod
         )(self)
 
@@ -289,19 +289,19 @@ class Diagram(frobenius.Diagram):
 
         assert self.is_pure, "Diagram must be pure to convert to path."
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=len,
             ar=lambda f: f.get_kraus().to_path(dtype),
-            cod=symmetric.Category(int, path.Matrix[dtype]),
+            cod=frobenius.Category(int, path.Matrix[dtype]),
         )(self)
 
     def _decomp(self):
 
         # pylint: disable=protected-access
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=lambda x: qubit**len(x),
             ar=lambda arr: arr._decomp(),
-            cod=symmetric.Category(Ty, Diagram),
+            cod=frobenius.Category(Ty, Diagram),
         )(self)
 
     def to_dual_rail(self):
@@ -309,10 +309,10 @@ class Diagram(frobenius.Diagram):
 
         assert self.is_pure, "Diagram must be pure to convert to dual rail."
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=lambda x: qmode**(2*len(x)),
             ar=lambda arr: arr.to_dual_rail(),
-            cod=symmetric.Category(Ty, Diagram),
+            cod=frobenius.Category(Ty, Diagram),
         )(self._decomp())
 
     def to_tket(self):
@@ -474,7 +474,7 @@ class Diagram(frobenius.Diagram):
         return backend.eval(self, **kwargs)
 
 
-class Channel(symmetric.Box, Diagram):
+class Channel(frobenius.Box, Diagram):
     """
     Channel initialised by its Kraus map.
     """
@@ -628,7 +628,7 @@ class Sum(symmetric.Sum, Diagram):
         )
 
 
-class CQMap(symmetric.Box, Diagram):
+class CQMap(frobenius.Box, Diagram):
     """
     Channel initialised by its Density matrix.
     """
@@ -675,7 +675,7 @@ class CQMap(symmetric.Box, Diagram):
         return self @ self ** (n - 1)
 
 
-class Swap(symmetric.Swap, Channel):
+class Swap(frobenius.Swap, Channel):
     def dagger(self):
         return self
 
@@ -835,11 +835,35 @@ class Functor(frobenius.Functor):  # pragma: no cover
         return frobenius.Functor.__call__(self, other)
 
 
+class Cup(frobenius.Cup, Channel):
+    """
+    A frobenius cup is a compact cup in a frobenius diagram.
+
+    Parameters:
+        left (Ty) : The atomic type.
+        right (Ty) : Its adjoint.
+    """
+    __ambiguous_inheritance__ = (frobenius.Cup, )
+
+
+class Cap(frobenius.Cap, Channel):
+    """
+    A frobenius cap is a compact cap in a frobenius diagram.
+
+    Parameters:
+        left (Ty) : The atomic type.
+        right (Ty) : Its adjoint.
+    """
+    __ambiguous_inheritance__ = (frobenius.Cap, )
+
+
 class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
     category, functor = Category, Functor
 
-
+Hypergraph.ty_factory = Ty
 Diagram.spider_factory = Spider
+Diagram.cup_factory = Cup
+Diagram.cap_factory = Cap
 Diagram.hypergraph_factory = Hypergraph
 Diagram.braid_factory = Swap
 Diagram.sum_factory = Sum

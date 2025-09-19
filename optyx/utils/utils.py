@@ -519,25 +519,24 @@ def get_max_dim_for_box(
     from optyx.core.diagram import Swap, DualRail
     from optyx.core.zw import Create, Endo
 
-    # Boxes with no inputs (or a pure Swap) don't constrain the bound here.
     if len(box.dom) == 0 or isinstance(box, (Swap, Endo)):
         return 1e20
 
     dim_for_box = 0
 
-    # Light-cone at the current layer inputs
+    # light-cone at the current layer inputs
     wires_in_light_cone: List[bool] = (
         [False] * left_offset
         + [True] * len(box.dom)
         + [False] * right_offset
     )
-    # Walk previous layers from nearest to farthest
+    # walk previous layers from nearest to farthest
     for previous_left_offset, previous_box in prev_layers[::-1]:
         total = len(wires_in_light_cone)
         cod_len = len(previous_box.cod)
 
-        # Clamp the left offset so the (left, cod_len) span fits this frame.
-        # This guarantees previous_right_offset >= 0 and len(mask) == total.
+        # Clamp the left offset so the (left, cod_len) span fits this frame
+        # this guarantees previous_right_offset>= 0 and len(mask) == total
         max_left = max(0, total - cod_len)
         adj_left = previous_left_offset
         if adj_left < 0:
@@ -547,7 +546,6 @@ def get_max_dim_for_box(
 
         previous_right_offset = calculate_right_offset(total, adj_left, cod_len)
 
-        # If connected, count created photons that lie on LC wires.
         if is_previous_box_connected_to_current_box(
             wires_in_light_cone,
             adj_left,
@@ -567,9 +565,7 @@ def get_max_dim_for_box(
             if isinstance(previous_box, DualRail):
                 dim_for_box += 1
 
-        # Pull the LC back through this box (use the same clamped offsets)
         if isinstance(previous_box, Swap):
-            # Swaps always connect all their wires
             wires_in_light_cone = (
                 wires_in_light_cone[:adj_left]
                 + [wires_in_light_cone[adj_left + 1]]
