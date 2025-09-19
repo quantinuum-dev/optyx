@@ -390,9 +390,9 @@ class Diagram(frobenius.Diagram):
 
         return frobenius.Functor(
             ob=lambda x: qmode**(2*len(x)),
-            ar=lambda arr: arr.to_dual_rail(),
+            ar=lambda arr: arr._to_dual_rail(),
             cod=frobenius.Category(Ty, Diagram),
-        )(self._decomp())
+        )(self.decomp())
 
     def to_tket(self):
         """
