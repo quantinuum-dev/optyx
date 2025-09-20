@@ -250,7 +250,7 @@ class EvalResult:
 
         if not any(t in {bit, mode} for t in self.output_types):
             raise ValueError(
-                "Types must contain at least one 'bit' or 'mode'."
+                "Output types must contain at least one 'bit' or 'mode'."
             )
 
         values = self._convert_array_to_dict(self.tensor.array, round_digits)

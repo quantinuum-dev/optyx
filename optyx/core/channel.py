@@ -240,12 +240,30 @@ class Diagram(frobenius.Diagram):
         for layer in self:
             generator = layer.inside[0][1]
 
+            # if we have a discard/measure acting on quantum types, it's not pure
+            if (
+                isinstance(generator, (Discard, Measure)) and
+                any(not ty.is_classical for ty in generator.dom.inside)
+            ):
+                return False
+            if hasattr(generator, 'env') and generator.env != diagram.Ty():
+                return False
+
+            # if we prepare quantum from classical types, it's not pure
+            if (
+                isinstance(generator, Encode) and
+                any(ty.is_classical for ty in generator.cod.inside)
+            ):
+                return False
+
+            # if we're mixing classical and quantum types, it's not pure
             are_layers_pure.append(
                 any(ty.is_classical for ty in generator.cod.inside) or
                 any(ty.is_classical for ty in generator.dom.inside) or
                 isinstance(generator, Discard)
             )
 
+            # assume all classical maps are pure
             are_layers_classical.append(
                 all(ty.is_classical for ty in generator.cod.inside) and
                 all(ty.is_classical for ty in generator.dom.inside)
