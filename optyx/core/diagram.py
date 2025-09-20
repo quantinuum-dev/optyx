@@ -121,7 +121,7 @@ We can check their equivalence as tensors.
 Let's check the branching law from [FC23]_.
 
 >>> from optyx.core.zw import Create, W
->>> from optyx._utils import compare_arrays_of_different_sizes
+>>> from optyx.utils.utils import compare_arrays_of_different_sizes
 >>> branching_l = Create(1) >> W(2)
 >>> branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
@@ -148,26 +148,6 @@ diagrams like the Hong-Ou-Mandel effect:
 >>> assert compare_arrays_of_different_sizes(\\
 ...             Hong_Ou_Mandel.to_tensor().eval().array,\\
 ...             np.array([0]))
-
-**:class:`zw` diagrams from Bosonic Operators**
-
-The :code:`from_bosonic_operator` method
-supports creating :class:`path` diagrams:
-
->>> from optyx.core.zw import Split, Select, Id
->>> d1 = Diagram.from_bosonic_operator(
-...     n_modes= 2,
-...     operators=((0, False), (1, False), (0, True)),
-...     scalar=2.1
-... )
-
->>> annil = Split(2) >> Select(1) @ Id(Mode(1))
->>> create = annil.dagger()
-
->>> d2 = Scalar(2.1) @ annil @ Id(Mode(1)) >> \\
-... Id(Mode(1)) @ annil >> create @ Id(Mode(1))
-
->>> assert d1 == d2
 
 **Permanent evaluation for QPath diagrams**
 
@@ -226,9 +206,11 @@ from discopy import (
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
-from optyx._utils import (
+from optyx.utils.utils import (
     modify_io_dims_against_max_dim,
-    BasisTransition
+    BasisTransition,
+    calculate_right_offset,
+    get_max_dim_for_box
 )
 from typing import List, Tuple, Iterable
 
@@ -297,62 +279,93 @@ class Diagram(frobenius.Diagram):
 
     # pylint: disable=too-many-locals
     def to_tensor(
-        self, input_dims: list = None, max_dim: int = None
+        self, input_dims: list = None
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
-        # pylint: disable=import-outside-toplevel
         from optyx.core import zw
 
+        prev_layers: List[Tuple[int, Box]] = []
+
+        # pylint: disable=import-outside-toplevel
         def list_to_dim(dims: np.ndarray | list) -> Dim:
             """Converts a list of dimensions to a Dim object"""
             return Dim(*[int(i) for i in dims])
 
-        if input_dims is None:
-            layer_dims = [2 for _ in range(len(self.dom))]
-        else:
-            layer_dims = input_dims
+        number_of_input_layer_wires = len(self.dom)
 
-            if max_dim is not None:
-                layer_dims, _ = modify_io_dims_against_max_dim(
-                    layer_dims, None, max_dim
-                )
+        if input_dims is None:
+            input_dims = [2 for _ in range(len(self.dom))]
+        else:
+            assert len(self.dom) == len(input_dims), (
+                f"Input dims length {len(input_dims)} does not match number of input wires {len(self.dom)}"
+            )
+        layer_dims = input_dims
 
         if len(self.boxes) == 0 and len(self.offsets) == 0:
             return tensor.Diagram.id(list_to_dim(layer_dims))
 
-        right_dim = len(self.dom)
-        for i, (box, off) in enumerate(zip(self.boxes, self.offsets)):
-            dims_in = layer_dims[off:off + len(box.dom)]
-
-            dims_out = box.determine_output_dimensions(dims_in)
-
-            if max_dim is not None:
-                dims_out, _ = modify_io_dims_against_max_dim(
-                    dims_out, None, max_dim
-                )
-
-            left = Dim()
-            if off > 0:
-                left = list_to_dim(layer_dims[0:off])
-            right = Dim()
-            if off + len(box.dom) < right_dim:
-                right = list_to_dim(
-                    layer_dims[off + len(box.dom): right_dim]
-                )
-
-            cod_right_dim = right_dim - len(box.dom) + len(box.cod)
-            cod_layer_dims = (
-                layer_dims[0:off]
-                + dims_out
-                + layer_dims[off + len(box.dom):]
+        for i, (box, left_offset) in enumerate(zip(self.boxes, self.offsets)):
+            right_offset = calculate_right_offset(
+                number_of_input_layer_wires, left_offset, len(box.dom)
             )
 
+            max_dim = get_max_dim_for_box(
+                left_offset,
+                box,
+                right_offset,
+                input_dims,
+                prev_layers
+            )
+            dims_in = layer_dims[left_offset:left_offset + len(box.dom)]
+            dims_out, _ = modify_io_dims_against_max_dim(
+                box.determine_output_dimensions(dims_in),
+                None,
+                max_dim
+            )
+            if isinstance(box, zw.LO_ELEMENTS):
+                prev_layers.append((left_offset, box))
+            elif isinstance(box, DualRail):
+                prev_layers.append((left_offset, zw.Select(1)))
+                prev_layers.append((left_offset, zw.Create(0)))
+                prev_layers.append((left_offset, box))
+            else:
+                if len(dims_in) > 0:
+                    prev_layers.append(
+                        (
+                            left_offset,
+                            zw.Select(*[int(i) for i in np.array(dims_in)-1])
+                        )
+                    )
+                if len(dims_out) > 0:
+                    prev_layers.append(
+                        (
+                            left_offset,
+                            zw.Create(*[int(i) for i in np.array(dims_out)-1])
+                        )
+                    )
+
+            left = Dim()
+            if left_offset > 0:
+                left = list_to_dim(layer_dims[0:left_offset])
+            right = Dim()
+            if left_offset + len(box.dom) < number_of_input_layer_wires:
+                right = list_to_dim(
+                    layer_dims[left_offset + len(box.dom): number_of_input_layer_wires]
+                )
+
+            number_of_input_layer_wires += -len(box.dom) + len(box.cod)
+            cod_layer_dims = (
+                layer_dims[0:left_offset]
+                + dims_out
+                + layer_dims[left_offset + len(box.dom):]
+            )
             diagram_ = left @ box.truncation(dims_in, dims_out) @ right
+
             if i == 0:
                 diagram = diagram_
             else:
                 diagram = diagram >> diagram_
-            right_dim = cod_right_dim
+
             layer_dims = cod_layer_dims
 
         zboxes = tensor.Id(Dim(1))
@@ -365,26 +378,26 @@ class Diagram(frobenius.Diagram):
         diagram >>= zboxes
         return diagram
 
-    @classmethod
-    def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """Create a :class:`zw` diagram from a bosonic operator."""
-        # pylint: disable=import-outside-toplevel
-        from optyx.core import zw
+    # @classmethod
+    # def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+    #     """Create a :class:`zw` diagram from a bosonic operator."""
+    #     # pylint: disable=import-outside-toplevel
+    #     from optyx.core import zw
 
-        # pylint: disable=invalid-name
-        d = cls.id(Mode(n_modes))
-        annil = zw.Split(2) >> zw.Select(1) @ zw.Id(1)
-        create = annil.dagger()
-        for idx, dagger in operators:
-            if not 0 <= idx < n_modes:
-                raise ValueError(f"Index {idx} out of bounds.")
-            box = create if dagger else annil
-            d = d >> zw.Id(idx) @ box @ zw.Id(n_modes - idx - 1)
+    #     # pylint: disable=invalid-name
+    #     d = cls.id(Mode(n_modes))
+    #     annil = zw.Split(2) >> zw.Select(1) @ zw.Id(1)
+    #     create = annil.dagger()
+    #     for idx, dagger in operators:
+    #         if not 0 <= idx < n_modes:
+    #             raise ValueError(f"Index {idx} out of bounds.")
+    #         box = create if dagger else annil
+    #         d = d >> zw.Id(idx) @ box @ zw.Id(n_modes - idx - 1)
 
-        if scalar != 1:
-            # pylint: disable=invalid-name
-            d = Scalar(scalar) @ d
-        return d
+    #     if scalar != 1:
+    #         # pylint: disable=invalid-name
+    #         d = Scalar(scalar) @ d
+    #     return d
 
     def to_pyzx(self):
         # pylint: disable=import-outside-toplevel
@@ -433,6 +446,7 @@ class Box(frobenius.Box, Diagram):
 
     def __init__(self, name, dom, cod, array=None, **params):
         self._array = array
+        self.photon_sum_preserving = True
         super().__init__(name, dom, cod, **params)
 
     @classmethod
@@ -684,9 +698,9 @@ class Sum(symmetric.Sum, Box):
             for term in self.terms
         )
 
-    def to_tensor(self, input_dims=None, max_dim=None):
+    def to_tensor(self, input_dims=None):
 
-        terms = [t.to_tensor(input_dims, max_dim) for t in self]
+        terms = [t.to_tensor(input_dims) for t in self]
         cods = [list(t.cod.inside) for t in terms]
 
         # figure out the max dims for each idx and set it for all the terms
@@ -828,6 +842,7 @@ class DualRail(Box):
         super().__init__("2R", dom, cod)
         self.internal_state = internal_state
         self.is_dagger = is_dagger
+        self.photon_sum_preserving = False
 
     def conjugate(self):
         return self

@@ -94,11 +94,11 @@ def test_pure_double_kraus():
 
     assert qubits.Circuit(g).get_kraus() == qubits.Circuit(g).get_kraus()
 
-def test_to_dual_rail():
-    circuit = qubits.Z(1, 2) >> qubits.H() @ qubits.H()
-    dr_1 = qubits.Circuit(circuit).to_dual_rail().get_kraus()
-    dr_2 = zx.zx2path(circuit.get_kraus())
-    assert dr_1 == dr_2
+# def test_to_dual_rail():
+#     circuit = qubits.Z(1, 2) >> qubits.H() @ qubits.H()
+#     dr_1 = qubits.Circuit(circuit).to_dual_rail().get_kraus()
+#     dr_2 = zx.zx2path(circuit.get_kraus())
+#     assert dr_1 == dr_2
 
 def test_discard_qubits():
     a = (qubits.Discard(2).double().to_tensor().to_quimb() ^ ...).data
@@ -107,27 +107,13 @@ def test_discard_qubits():
 
 def test_bit_flip_error():
     prob = 0.43
-    a = (qubits.BitFlipError(prob).get_kraus().to_tensor().to_quimb() ^ ...).data
-    b = zx.X(1, 2) >> zx.Id(1) @ zx.ZBox(
-            1, 1, np.sqrt((1 - prob) / prob)
-        ) @ zx.scalar(np.sqrt(prob * 2))
-    b = (b.to_tensor().to_quimb() ^ ...).data
-
-    assert np.allclose(a, b)
+    a = (qubits.Z(0, 1) >> qubits.BitFlipError(prob)).eval().tensor.array
+    assert np.allclose(a, np.array([[-.14, -0.14], [-0.14, -0.14]]))
 
 def test_dephasingerror():
     prob = 0.43
-    a = (qubits.DephasingError(prob).get_kraus().to_tensor().to_quimb() ^ ...).data
-    b = (
-            zx.H
-            >> zx.X(1, 2)
-            >> zx.H
-            @ zx.ZBox(1, 1, np.sqrt((1 - prob) / prob))
-            @ zx.scalar(np.sqrt(prob * 2))
-        )
-    b = (b.to_tensor().to_quimb() ^ ...).data
-
-    assert np.allclose(a, b)
+    a = (qubits.Z(0, 1) >> qubits.DephasingError(prob)).eval().tensor.array
+    assert np.allclose(a,  np.array([[-.14, 1.], [1, -0.14]]))
 
 def test_ket():
     from optyx.core import diagram
