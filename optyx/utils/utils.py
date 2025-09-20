@@ -9,7 +9,12 @@ Utility functions which are used in the package.
 """
 
 import numpy as np
-from typing import NamedTuple, Tuple
+from typing import (
+    NamedTuple,
+    Tuple,
+    Optional,
+    List
+)
 from numbers import Number
 
 
@@ -296,6 +301,13 @@ def filter_occupation_numbers(
     ]
 
 
+def invert_perm(p):
+    q = [0] * len(p)
+    for out, inn in enumerate(p):
+        q[inn] = out
+    return q
+
+
 class BasisTransition(NamedTuple):
     """
     A single non-zero transition emitted by `truncation_specification`.
@@ -316,3 +328,262 @@ class BasisTransition(NamedTuple):
     """
     out: Tuple[int, ...]
     amp: Number
+
+
+def preprocess_quimb_tensors_safe(tn, epsilon=1e-12, value_limit=1e10):
+    for t in tn:
+        data = t.data
+
+        data = np.array(data, copy=True)
+
+        if data.dtype.kind in {'i', 'u'}:
+            t.modify(data=data.astype('complex128'))
+            continue
+
+        if data.ndim == 2 and np.linalg.matrix_rank(data) < min(data.shape):
+            data += np.random.normal(0, epsilon, size=data.shape)
+
+        if np.any(data == 0):
+            data[data == 0] = epsilon
+
+        if np.max(np.abs(data)) > value_limit:
+            data = np.clip(data, -value_limit, value_limit)
+
+        t.modify(data=data)
+
+    return tn
+
+
+def total_photons_created(
+        diagram,
+        input_dims: Optional[List[int]] = None
+) -> int:
+    """
+    Scan `diagram` once and return the total number of photons created.
+
+    Counts:
+      - zw.Create(*photons) -> +sum(photons)
+    Everything else is ignored for 'creation'
+    (they conserve or consume photons).
+
+    Parameters
+    ----------
+    diagram : optyx.core.diagram.Diagram
+        The diagram to scan (sequential list of
+        boxes is in `diagram.boxes`).
+    input_dims : Optional[List[int]]
+
+    Returns
+    -------
+    int
+        Total number of photons created in the diagram.
+    """
+    created = 0
+
+    from optyx.core import zw
+
+    if input_dims is None:
+        input_dims = []
+
+    for box in diagram.boxes:
+        if isinstance(box, zw.Create):
+            created += sum(int(p) for p in box.photons)
+            continue
+
+    return max(int(created) + int(sum(input_dims, 0)), 3)
+
+
+def max_postselection(
+        diagram,
+        input_dims: Optional[List[int]] = None
+) -> int:
+    """
+    Scan `diagram` once and return the
+    maximum post-selection dimension.
+
+    Counts:
+      - zw.Create(*photons) -> +sum(photons)
+    Everything else is ignored for 'selection'
+    Parameters
+    ----------
+    diagram : optyx.core.diagram.Diagram
+        The diagram to scan (sequential list
+        of boxes is in `diagram.boxes`).
+    input_dims : Optional[List[int]]
+
+    Returns
+    -------
+    int
+        Maximum post-selection dimension in the diagram.
+    """
+    max_dim = 0
+
+    from optyx.core import zw
+
+    if input_dims is None:
+        input_dims = []
+
+    for box in diagram.boxes:
+        if isinstance(box, zw.Select):
+            max_dim = max(max_dim, max(int(p) for p in box.photons))
+            continue
+
+    return max(int(max_dim) + int(sum(input_dims, 0)), 3)
+
+
+def update_connections(
+    wires_in_light_cone: List[bool],
+    previous_left_offset: int,
+    previous_box,
+    previous_right_offset: int,
+) -> List[bool]:
+    """
+    Replace the previous box's COD segment in the light-cone by a DOM-length
+    segment that is either all True (if connected) or all False.
+    This pulls the cone one layer backward.
+    """
+    connected = is_previous_box_connected_to_current_box(
+        wires_in_light_cone,
+        previous_left_offset,
+        len(previous_box.cod),
+        previous_right_offset,
+    )
+
+    start = previous_left_offset
+    end = len(wires_in_light_cone) - previous_right_offset
+
+    # replace cod slice with a dom-length slice of the same boolean
+    return (
+        wires_in_light_cone[:start]
+        + [connected] * len(previous_box.dom)
+        + wires_in_light_cone[end:]
+    )
+
+def calculate_right_offset(total_wires: int, left_offset: int, span_len: int) -> int:
+    """Right offset = number of wires to the right of a span."""
+    return total_wires - span_len - left_offset
+
+def is_previous_box_connected_to_current_box(
+    wires_in_light_cone: List[bool],
+    previous_left_offset: int,
+    previous_box_cod_len: int,
+    previous_right_offset: int,
+) -> bool:
+    """
+    Do the current light-cone wires intersect the COD of the previous box?
+    """
+    mask = (
+        [False] * previous_left_offset
+        + [True] * previous_box_cod_len
+        + [False] * previous_right_offset
+    )
+    # lengths should match by construction
+    assert len(mask) == len(wires_in_light_cone), (
+        f"Mask/wires length mismatch: {len(mask)} != {len(wires_in_light_cone)}"
+    )
+
+    return any(w and m for w, m in zip(wires_in_light_cone, mask))
+
+def get_previous_box_cod_index_in_light_cone(
+    wires_in_light_cone: List[bool],
+    previous_left_offset: int,
+    previous_box_cod_len: int,
+    previous_right_offset: int,
+) -> List[int]:
+    """
+    Get the indices of the COD of the previous box that are in the current light-cone.
+    """
+    mask = (
+        [False] * previous_left_offset
+        + [True] * previous_box_cod_len
+        + [False] * previous_right_offset
+    )
+    # lengths should match by construction
+    assert len(mask) == len(wires_in_light_cone), (
+        f"Mask/wires length mismatch: {len(mask)} != {len(wires_in_light_cone)}"
+    )
+
+    return [
+        i - previous_left_offset for i, (w, m) in enumerate(zip(wires_in_light_cone, mask))
+        if w and m
+    ]
+
+
+def get_max_dim_for_box(
+    left_offset: int,
+    box,
+    right_offset: int,
+    input_dims: List[int],
+    prev_layers,
+):
+    from optyx.core.diagram import Swap, DualRail
+    from optyx.core.zw import Create, Endo
+    from optyx.core.control import BitControlledBox
+
+    if len(box.dom) == 0 or isinstance(box, (Swap, Endo)):
+        return 1e20
+
+    dim_for_box = 0
+
+    # light-cone at the current layer inputs
+    wires_in_light_cone: List[bool] = (
+        [False] * left_offset
+        + [True] * len(box.dom)
+        + [False] * right_offset
+    ) if not isinstance(box, BitControlledBox) else (
+        [False] * (left_offset + 1)
+        + [True] * (len(box.dom) - 1)
+        + [False] * right_offset
+
+    )
+    # walk previous layers from nearest to farthest
+    for previous_left_offset, previous_box in prev_layers[::-1]:
+        total = len(wires_in_light_cone)
+        cod_len = len(previous_box.cod)
+
+        # Clamp the left offset so the (left, cod_len) span fits this frame
+        # this guarantees previous_right_offset>= 0 and len(mask) == total
+        max_left = max(0, total - cod_len)
+        adj_left = previous_left_offset
+        if adj_left < 0:
+            adj_left = 0
+        elif adj_left > max_left:
+            adj_left = max_left
+
+        previous_right_offset = calculate_right_offset(total, adj_left, cod_len)
+
+        if is_previous_box_connected_to_current_box(
+            wires_in_light_cone,
+            adj_left,
+            cod_len,
+            previous_right_offset,
+        ):
+            if isinstance(previous_box, Create):
+                idxs = get_previous_box_cod_index_in_light_cone(
+                    wires_in_light_cone,
+                    adj_left,
+                    cod_len,
+                    previous_right_offset,
+                )
+                if idxs:
+                    dim_for_box += sum(previous_box.photons[i] for i in idxs)
+
+            if isinstance(previous_box, DualRail):
+                dim_for_box += 1
+
+        if isinstance(previous_box, Swap):
+            wires_in_light_cone = (
+                wires_in_light_cone[:adj_left]
+                + [wires_in_light_cone[adj_left + 1]]
+                + [wires_in_light_cone[adj_left]]
+                + wires_in_light_cone[adj_left + 2:]
+            )
+        else:
+            wires_in_light_cone = update_connections(
+                wires_in_light_cone,
+                adj_left,
+                previous_box,
+                previous_right_offset,
+            )
+    dim_for_box += sum(2 * dim for wire, dim in zip(wires_in_light_cone, input_dims) if wire) + 1
+    return max(dim_for_box, 3)

@@ -19,15 +19,6 @@ Classes
     BitControlledBox
     ControlledPhaseShift
 
-Functions
----------
-
-.. autosummary::
-    :template: function.rst
-    :nosignatures:
-    :toctree:
-
-    truncation_tensor
 
 Examples
 --------
@@ -49,7 +40,7 @@ from typing import Callable, List, Tuple, Iterable
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-from optyx._utils import BasisTransition
+from optyx.utils.utils import BasisTransition
 
 from optyx.core import diagram, zw
 
@@ -128,6 +119,7 @@ class BitControlledBox(ControlBox):
         self.action_box = action_box
         self.default_box = default_box
         self.is_dagger = is_dagger
+        self.photon_sum_preserving = False
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
 

@@ -1,4 +1,5 @@
 """
+
 Overview
 --------
 
@@ -26,7 +27,6 @@ Classes
     :nosignatures:
     :toctree:
 
-    StateType
     EvalResult
     AbstractBackend
     QuimbBackend
@@ -81,6 +81,7 @@ import perceval as pcvl
 from quimb.tensor import TensorNetwork
 from optyx.core.channel import Diagram
 from optyx.core.channel import Ty, mode, bit
+from optyx.utils.utils import preprocess_quimb_tensors_safe
 
 
 class StateType(Enum):
@@ -121,7 +122,7 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
         if self.state_type not in {StateType.AMP, StateType.DM}:
             raise TypeError(
@@ -136,8 +137,8 @@ class EvalResult:
         """
         Get the amplitudes from the result tensor.
         Returns:
-            dict: A dictionary mapping
-            occupation configurations to amplitudes.
+            dict: A dictionary mapping occupation
+        configurations to amplitudes.
         """
         if self.state_type != StateType.AMP:
             raise TypeError(
@@ -146,7 +147,7 @@ class EvalResult:
             )
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
 
         dic = self._convert_array_to_dict(self.tensor.array)
@@ -166,7 +167,7 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
         if self.state_type is StateType.AMP:
             return self._prob_dist_pure(round_digits)
@@ -249,7 +250,7 @@ class EvalResult:
 
         if not any(t in {bit, mode} for t in self.output_types):
             raise ValueError(
-                "Types must contain at least one 'bit' or 'mode'."
+                "Output types must contain at least one 'bit' or 'mode'."
             )
 
         values = self._convert_array_to_dict(self.tensor.array, round_digits)
@@ -396,6 +397,11 @@ class QuimbBackend(AbstractBackend):
         quimb_tn = self._get_quimb_tensor(diagram)
         tensor_diagram = self._get_discopy_tensor(diagram)
 
+        for t in quimb_tn:
+            dt = t.data.dtype
+            if dt.kind in {'i', 'u', 'b'}:
+                t.modify(data=t.data.astype(np.complex128, copy=False))
+
         if self.hyperoptimiser is None:
             results = quimb_tn ^ ...
         else:
@@ -416,6 +422,9 @@ class QuimbBackend(AbstractBackend):
                     "ReusableHyperCompressedOptimizer, or " +
                     "HyperCompressedOptimizer."
                 )
+
+            if is_approx:
+                quimb_tn = preprocess_quimb_tensors_safe(quimb_tn)
 
             contract = quimb_tn.contract_compressed if \
                 is_approx else quimb_tn.contract

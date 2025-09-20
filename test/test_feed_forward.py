@@ -6,7 +6,7 @@ from optyx.core.control import *
 from optyx.core.zw import Create, W, ZBox
 from optyx.core.diagram import PhotonThresholdDetector, Mode, Swap, Bit, Id
 from optyx.photonic import Phase, BS, MZI
-from optyx._utils import matrix_to_zw
+from optyx.utils.utils import matrix_to_zw
 from optyx.classical import BitControlledGate, BitControlledPhaseShift
 from optyx.core.channel import Channel, qmode
 from optyx import photonic
@@ -279,6 +279,7 @@ class TestControlledPhaseShift:
     @pytest.mark.parametrize("f", REAL_FUNCS)
     @pytest.mark.parametrize("x", xs)
     def test_controlled_phase_shift_numeric(self, f, x):
+        print(f"Testing ControlledPhaseShift with x: {x}")
         """
         For each real-valued function f and input x, build a circuit with
         ControlledPhaseShift, compare to a ZBox with the matching phase exponent.

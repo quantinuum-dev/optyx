@@ -115,10 +115,10 @@ from optyx.core import zx, diagram
 from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
 
-from optyx._utils import explode_channel
+from optyx.utils.utils import explode_channel
 
 
-class Ob(symmetric.Ob):
+class Ob(frobenius.Ob):
     """Basic object: bit, mode, qubit or qmode"""
 
     _classical = {
@@ -156,7 +156,7 @@ class Ob(symmetric.Ob):
 
 
 @factory
-class Ty(symmetric.Ty):
+class Ty(frobenius.Ty):
     """Classical and quantum types."""
 
     ob_factory = Ob
@@ -213,10 +213,10 @@ class Diagram(frobenius.Diagram):
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
-        dom = symmetric.Category(Ty, Diagram)
-        cod = symmetric.Category(Ty, Diagram)
+        dom = frobenius.Category(Ty, Diagram)
+        cod = frobenius.Category(Ty, Diagram)
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             lambda x: x.inflate(d),
             lambda f: f.inflate(d),
             dom,
@@ -227,25 +227,49 @@ class Diagram(frobenius.Diagram):
         """Returns the diagram.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
-        dom = symmetric.Category(Ty, Diagram)
-        cod = symmetric.Category(diagram.Ty, diagram.Diagram)
-        return symmetric.Functor(
+        dom = frobenius.Category(Ty, Diagram)
+        cod = frobenius.Category(diagram.Ty, diagram.Diagram)
+        return frobenius.Functor(
             lambda x: x.double(), lambda f: f.double(), dom, cod
         )(self)
 
     @property
     def is_pure(self):
         are_layers_pure = []
+        are_layers_classical = []
         for layer in self:
             generator = layer.inside[0][1]
 
+            # if we have a discard/measure acting on quantum types, it's not pure
+            if (
+                isinstance(generator, (Discard, Measure)) and
+                any(not ty.is_classical for ty in generator.dom.inside)
+            ):
+                return False
+            if hasattr(generator, 'env') and generator.env != diagram.Ty():
+                return False
+
+            # if we prepare quantum from classical types, it's not pure
+            if (
+                isinstance(generator, Encode) and
+                any(ty.is_classical for ty in generator.cod.inside)
+            ):
+                return False
+
+            # if we're mixing classical and quantum types, it's not pure
             are_layers_pure.append(
                 any(ty.is_classical for ty in generator.cod.inside) or
                 any(ty.is_classical for ty in generator.dom.inside) or
                 isinstance(generator, Discard)
             )
 
-        return not any(are_layers_pure)
+            # assume all classical maps are pure
+            are_layers_classical.append(
+                all(ty.is_classical for ty in generator.cod.inside) and
+                all(ty.is_classical for ty in generator.dom.inside)
+            )
+
+        return not any(are_layers_pure) or all(are_layers_classical)
 
     def get_kraus(self):
         assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
@@ -283,19 +307,19 @@ class Diagram(frobenius.Diagram):
 
         assert self.is_pure, "Diagram must be pure to convert to path."
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=len,
             ar=lambda f: f.get_kraus().to_path(dtype),
-            cod=symmetric.Category(int, path.Matrix[dtype]),
+            cod=frobenius.Category(int, path.Matrix[dtype]),
         )(self)
 
     def _decomp(self):
 
         # pylint: disable=protected-access
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=lambda x: qubit**len(x),
             ar=lambda arr: arr._decomp(),
-            cod=symmetric.Category(Ty, Diagram),
+            cod=frobenius.Category(Ty, Diagram),
         )(self)
 
     def to_dual_rail(self):
@@ -303,10 +327,10 @@ class Diagram(frobenius.Diagram):
 
         assert self.is_pure, "Diagram must be pure to convert to dual rail."
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=lambda x: qmode**(2*len(x)),
             ar=lambda arr: arr.to_dual_rail(),
-            cod=symmetric.Category(Ty, Diagram),
+            cod=frobenius.Category(Ty, Diagram),
         )(self._decomp())
 
     def to_tket(self):
@@ -380,6 +404,75 @@ class Diagram(frobenius.Diagram):
         from optyx.qubits import Circuit
         return Circuit(measurement_pattern)
 
+    @classmethod
+    def from_perceval(cls, p):
+        """
+        Convert pcvl.Circuit or pcvl.Processor
+        into optyx diagrams.
+
+        Cannot convert objects involving components
+        acting on polarisation modes, time delays,
+        and with symbols.
+        """
+        from optyx import photonic
+        from optyx.utils import perceval_conversion
+        import perceval as pcvl
+
+        if isinstance(p, pcvl.Circuit):
+            p_ = pcvl.Processor("SLOS", p.m)
+            p_.add(0, p)
+
+            p_new = pcvl.Processor("SLOS", p.m)
+            for c in p_.flatten():
+                p_new.add(c[0][0], c[1])
+            p = p_new
+
+        n_modes = p.circuit_size
+        circuit = photonic.Id(n_modes)
+        heralds = p.heralds
+
+        circuit = perceval_conversion.heralds_diagram(
+            heralds, n_modes, circuit, "in"
+        ) >> circuit
+
+        for wires, component in p.components:
+            left = circuit.cod[:min(wires)]
+            right = circuit.cod[max(wires) + 1:]
+
+            if isinstance(component, pcvl.Detector):
+                box = perceval_conversion.detector(component, wires)
+            elif isinstance(
+                component,
+                pcvl.components.feed_forward_configurator.FFCircuitProvider
+            ):
+                box, left, right = perceval_conversion.ff_circuit_provider(
+                    component, wires, circuit
+                )
+            elif isinstance(
+                component,
+                pcvl.components.feed_forward_configurator.FFConfigurator
+            ):
+                box, left, right = perceval_conversion.ff_configurator(
+                    component, wires, circuit
+                )
+            elif isinstance(component, pcvl.components.Barrier):
+                continue
+            elif hasattr(component, "U"):
+                box = perceval_conversion.unitary(component, wires)
+            else:
+                raise ValueError(
+                    f"Unsupported perceval component type: {type(component)}"
+                )
+
+            circuit >>= (left @ box @ right)
+
+        circuit >>= perceval_conversion.heralds_diagram(
+            heralds, n_modes, circuit, "out"
+        )
+        if p.post_select_fn is not None:
+            circuit >>= perceval_conversion.postselection(circuit, p)
+        return circuit
+
     # pylint: disable=invalid-name
     def __pow__(self, n):
         if n == 1:
@@ -399,12 +492,18 @@ class Diagram(frobenius.Diagram):
         return backend.eval(self, **kwargs)
 
 
-class Channel(symmetric.Box, Diagram):
+class Channel(frobenius.Box, Diagram):
     """
     Channel initialised by its Kraus map.
     """
 
-    def __init__(self, name, kraus, dom=None, cod=None, env=diagram.Ty()):
+    def __init__(
+            self,
+            name,
+            kraus,
+            dom=None,
+            cod=None,
+            env=diagram.Ty()):
         assert isinstance(kraus, diagram.Diagram)
         if dom is None:
             dom = Ty.from_optyx(kraus.dom)
@@ -547,7 +646,7 @@ class Sum(symmetric.Sum, Diagram):
         )
 
 
-class CQMap(symmetric.Box, Diagram):
+class CQMap(frobenius.Box, Diagram):
     """
     Channel initialised by its Density matrix.
     """
@@ -594,7 +693,7 @@ class CQMap(symmetric.Box, Diagram):
         return self @ self ** (n - 1)
 
 
-class Swap(symmetric.Swap, Channel):
+class Swap(frobenius.Swap, Channel):
     def dagger(self):
         return self
 
@@ -754,11 +853,35 @@ class Functor(frobenius.Functor):  # pragma: no cover
         return frobenius.Functor.__call__(self, other)
 
 
+class Cup(frobenius.Cup, Channel):
+    """
+    A frobenius cup is a compact cup in a frobenius diagram.
+
+    Parameters:
+        left (Ty) : The atomic type.
+        right (Ty) : Its adjoint.
+    """
+    __ambiguous_inheritance__ = (frobenius.Cup, )
+
+
+class Cap(frobenius.Cap, Channel):
+    """
+    A frobenius cap is a compact cap in a frobenius diagram.
+
+    Parameters:
+        left (Ty) : The atomic type.
+        right (Ty) : Its adjoint.
+    """
+    __ambiguous_inheritance__ = (frobenius.Cap, )
+
+
 class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
     category, functor = Category, Functor
 
-
+Hypergraph.ty_factory = Ty
 Diagram.spider_factory = Spider
+Diagram.cup_factory = Cup
+Diagram.cap_factory = Cap
 Diagram.hypergraph_factory = Hypergraph
 Diagram.braid_factory = Swap
 Diagram.sum_factory = Sum
