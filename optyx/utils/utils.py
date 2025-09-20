@@ -518,6 +518,7 @@ def get_max_dim_for_box(
 ):
     from optyx.core.diagram import Swap, DualRail
     from optyx.core.zw import Create, Endo
+    from optyx.core.control import BitControlledBox
 
     if len(box.dom) == 0 or isinstance(box, (Swap, Endo)):
         return 1e20
@@ -529,6 +530,11 @@ def get_max_dim_for_box(
         [False] * left_offset
         + [True] * len(box.dom)
         + [False] * right_offset
+    ) if not isinstance(box, BitControlledBox) else (
+        [False] * (left_offset + 1)
+        + [True] * (len(box.dom) - 1)
+        + [False] * right_offset
+
     )
     # walk previous layers from nearest to farthest
     for previous_left_offset, previous_box in prev_layers[::-1]:

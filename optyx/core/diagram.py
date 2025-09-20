@@ -314,12 +314,12 @@ class Diagram(frobenius.Diagram):
         number_of_input_layer_wires = len(self.dom)
 
         if input_dims is None:
-            layer_dims = [2 for _ in range(len(self.dom))]
+            input_dims = [2 for _ in range(len(self.dom))]
         else:
             assert len(self.dom) == len(input_dims), (
                 f"Input dims length {len(input_dims)} does not match number of input wires {len(self.dom)}"
             )
-            layer_dims = input_dims
+        layer_dims = input_dims
 
         if len(self.boxes) == 0 and len(self.offsets) == 0:
             return tensor.Diagram.id(list_to_dim(layer_dims))
@@ -333,10 +333,9 @@ class Diagram(frobenius.Diagram):
                 left_offset,
                 box,
                 right_offset,
-                layer_dims,
+                input_dims,
                 prev_layers
             )
-
             dims_in = layer_dims[left_offset:left_offset + len(box.dom)]
             dims_out, _ = modify_io_dims_against_max_dim(
                 box.determine_output_dimensions(dims_in),
