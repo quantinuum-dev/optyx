@@ -205,15 +205,17 @@ class EvalResult:
         entries of an array.
         """
 
-        if round_digits is not None:
-            array = np.round(array, round_digits)
-
         nz_flat = np.flatnonzero(array)
         if nz_flat.size == 0:
             return {}
 
         nz_vals = array.flat[nz_flat]
         nz_multi = np.vstack(np.unravel_index(nz_flat, array.shape)).T
+
+        if round_digits is not None:
+            return {tuple(idx): np.round(val, round_digits) for
+                    idx, val in zip(nz_multi, nz_vals)}
+
         return {tuple(idx): val for idx, val in zip(nz_multi, nz_vals)}
 
     def _prob_dist_pure(self, round_digits: int = None) -> dict:
