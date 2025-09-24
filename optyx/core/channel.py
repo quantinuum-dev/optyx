@@ -240,7 +240,8 @@ class Diagram(frobenius.Diagram):
         for layer in self:
             generator = layer.inside[0][1]
 
-            # if we have a discard/measure acting on quantum types, it's not pure
+            # if we have a discard/measure
+            # acting on quantum types, it's not pure
             if (
                 isinstance(generator, (Discard, Measure)) and
                 any(not ty.is_classical for ty in generator.dom.inside)
@@ -877,6 +878,7 @@ class Cap(frobenius.Cap, Channel):
 
 class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
     category, functor = Category, Functor
+
 
 Hypergraph.ty_factory = Ty
 Diagram.spider_factory = Spider

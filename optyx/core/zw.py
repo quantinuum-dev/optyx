@@ -171,6 +171,8 @@ class ZWBox(diagram.Box, ZWDiagram):
         if isinstance(cod, int):
             cod = diagram.Mode(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.LO
 
 
 class IndexableAmplitudes:
@@ -291,6 +293,8 @@ class ZBox(diagram.Spider, ZWBox):
         super().__init__(legs_in, legs_out, diagram.Mode(1))
         self.legs_in = legs_in
         self.legs_out = legs_out
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.NON_LO
 
     def conjugate(self):
         return ZBox(self.legs_in, self.legs_out, self.amplitudes.conjugate())
@@ -426,9 +430,13 @@ class Create(ZWBox):
                 "All internal states must be of the same length"
 
         self.internal_states = internal_states
-
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.CUSTOM
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
+
+    def photon_number_transform(self, dims_in, dims_out):
+        return super().photon_number_transform(dims_in, dims_out)
 
     def conjugate(self):
         return self
@@ -530,8 +538,13 @@ class Select(ZWBox):
 
         self.internal_states = internal_states
         self.photons = photons or (1,)
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.CUSTOM
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
+
+    def photon_number_transform(self, dims_in, dims_out):
+        return super().photon_number_transform(dims_in, dims_out)
 
     def inflate(self, d):
 
@@ -701,6 +714,8 @@ class Multiply(ZWBox):
         cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
         super().__init__("Multiply", dom, cod)
         self.is_dagger = is_dagger
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.NON_LO
 
     def truncation_specification(
         self,
@@ -742,6 +757,8 @@ class Divide(ZWBox):
         cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
         super().__init__("Divide", dom, cod)
         self.is_dagger = is_dagger
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.NON_LO
 
     def truncation_specification(
         self,
@@ -784,6 +801,19 @@ class Mod2(ZWBox):
         cod = diagram.Mode(1) if is_dagger else diagram.Bit(1)
         super().__init__("Mod2", dom, cod)
         self.is_dagger = is_dagger
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.CUSTOM
+
+    def photon_number_transform(self, dims_in, dims_out):
+        from optyx.core.zx import Z
+        prev_layers = []
+        if self.is_dagger:
+            prev_layers.append(Z(1, 0))
+            prev_layers.append(Create(dims_out[0] - 1))
+        else:
+            prev_layers.append(Select(0))
+            prev_layers.append(Z(0, 1))
+        return prev_layers
 
     def truncation_specification(
         self,
@@ -828,5 +858,6 @@ LO_ELEMENTS = (
     Select,
     Add,
     Endo,
-    diagram.Swap
+    diagram.Swap,
+    Add
 )

@@ -158,15 +158,6 @@ def basis_vector_from_kets(
     return j
 
 
-def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
-    """Modify the input and output dimensions against the maximum dimension"""
-    if input_dims is not None:
-        input_dims = [max_dim if i > max_dim else i for i in input_dims]
-    if output_dims is not None:
-        output_dims = [max_dim if i > max_dim else i for i in output_dims]
-    return input_dims, output_dims
-
-
 def amplitudes_2_tensor(perceval_result, input_occ, output_occ):
     # pylint: disable=import-outside-toplevel
     from discopy.tensor import Tensor
@@ -437,8 +428,9 @@ def update_connections(
     previous_box,
     previous_right_offset: int,
 ) -> List[bool]:
+    from optyx.core.diagram import mode
     """
-    Replace the previous box's COD segment in the light-cone by a DOM-length
+    Replace the previous box's cod segment in the light-cone by a dom-length
     segment that is either all True (if connected) or all False.
     This pulls the cone one layer backward.
     """
@@ -452,23 +444,21 @@ def update_connections(
     start = previous_left_offset
     end = len(wires_in_light_cone) - previous_right_offset
 
-    # replace cod slice with a dom-length slice of the same boolean
-    from optyx.core.control import BitControlledBox
-    if isinstance(previous_box, BitControlledBox):
-        return (
-            wires_in_light_cone[:start]
-            + [False]  # control wire always out of light-cone
-            + [connected] * (len(previous_box.dom) - 1)
-            + wires_in_light_cone[end:]
-        )
     return (
         wires_in_light_cone[:start]
-        + [connected] * len(previous_box.dom)
+        + [connected if t == mode else False for t in previous_box.dom]
         + wires_in_light_cone[end:]
     )
-def calculate_right_offset(total_wires: int, left_offset: int, span_len: int) -> int:
+
+
+def calculate_right_offset(
+        total_wires: int,
+        left_offset: int,
+        span_len: int
+) -> int:
     """Right offset = number of wires to the right of a span."""
     return total_wires - span_len - left_offset
+
 
 def is_previous_box_connected_to_current_box(
     wires_in_light_cone: List[bool],
@@ -486,10 +476,12 @@ def is_previous_box_connected_to_current_box(
     )
     # lengths should match by construction
     assert len(mask) == len(wires_in_light_cone), (
-        f"Mask/wires length mismatch: {len(mask)} != {len(wires_in_light_cone)}"
+        (f"Mask/wires length mismatch: {len(mask)}"
+         + f" != {len(wires_in_light_cone)}")
     )
 
     return any(w and m for w, m in zip(wires_in_light_cone, mask))
+
 
 def get_previous_box_cod_index_in_light_cone(
     wires_in_light_cone: List[bool],
@@ -498,7 +490,8 @@ def get_previous_box_cod_index_in_light_cone(
     previous_right_offset: int,
 ) -> List[int]:
     """
-    Get the indices of the COD of the previous box that are in the current light-cone.
+    Get the indices of the cod of the previous box
+    that are in the current light-cone.
     """
     mask = (
         [False] * previous_left_offset
@@ -507,11 +500,13 @@ def get_previous_box_cod_index_in_light_cone(
     )
     # lengths should match by construction
     assert len(mask) == len(wires_in_light_cone), (
-        f"Mask/wires length mismatch: {len(mask)} != {len(wires_in_light_cone)}"
+        (f"Mask/wires length mismatch: {len(mask)}"
+         + f" != {len(wires_in_light_cone)}")
     )
 
     return [
-        i - previous_left_offset for i, (w, m) in enumerate(zip(wires_in_light_cone, mask))
+        i - previous_left_offset for i, (w, m) in
+        enumerate(zip(wires_in_light_cone, mask))
         if w and m
     ]
 
@@ -523,27 +518,24 @@ def get_max_dim_for_box(
     input_dims: List[int],
     prev_layers,
 ):
-    from optyx.core.diagram import Swap, DualRail
+    from optyx.core.diagram import Swap, mode
     from optyx.core.zw import Create, Endo, Divide, Multiply
-    from optyx.core.control import BitControlledBox
 
-    if (len(box.dom) == 0 or
-        isinstance(box, (Swap, Endo, Divide, Multiply))):
+    if (
+        len(box.dom) == 0 or
+        isinstance(box, (Swap, Endo, Divide, Multiply))
+    ):
         return 1e20
 
     dim_for_box = 0
 
-    # light-cone at the current layer inputs
+    # light-cone at the current layer [connected] * len(previous_box.dom)inputs
     wires_in_light_cone: List[bool] = (
         [False] * left_offset
-        + [True] * len(box.dom)
+        + [True if t == mode else False for t in box.dom]
         + [False] * right_offset
-    ) if not isinstance(box, BitControlledBox) else (
-        [False] * (left_offset + 1)
-        + [True] * (len(box.dom) - 1)
-        + [False] * right_offset
-
     )
+
     # walk previous layers from nearest to farthest
     for previous_left_offset, previous_box in prev_layers[::-1]:
         total = len(wires_in_light_cone)
@@ -558,7 +550,8 @@ def get_max_dim_for_box(
         elif adj_left > max_left:
             adj_left = max_left
 
-        previous_right_offset = calculate_right_offset(total, adj_left, cod_len)
+        previous_right_offset = \
+            calculate_right_offset(total, adj_left, cod_len)
 
         if is_previous_box_connected_to_current_box(
             wires_in_light_cone,
@@ -575,8 +568,7 @@ def get_max_dim_for_box(
                 )
                 if idxs:
                     dim_for_box += sum(previous_box.photons[i] for i in idxs)
-            if isinstance(previous_box, DualRail):
-                dim_for_box += 1
+
         if isinstance(previous_box, Swap):
             wires_in_light_cone = (
                 wires_in_light_cone[:adj_left]
@@ -591,7 +583,8 @@ def get_max_dim_for_box(
                 previous_box,
                 previous_right_offset,
             )
-    dim_for_box += sum(2 * dim for wire, dim in zip(wires_in_light_cone, input_dims) if wire) + 1
+    dim_for_box += sum(2 * dim for wire, dim in
+                       zip(wires_in_light_cone, input_dims) if wire) + 1
     return max(dim_for_box, 2)
 
 
@@ -608,4 +601,6 @@ def is_diagram_LO(diagram):
 
     return True
 
-is_identity = lambda box: len(box.boxes) == 0 and len(box.offsets) == 0
+
+is_identity = lambda box: (len(box.boxes) == 0 and  # noqa: E731
+                           len(box.offsets) == 0)

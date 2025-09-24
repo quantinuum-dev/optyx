@@ -226,8 +226,8 @@ from discopy import (
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
+from enum import Enum
 from optyx.utils.utils import (
-    modify_io_dims_against_max_dim,
     BasisTransition,
     calculate_right_offset,
     get_max_dim_for_box
@@ -235,6 +235,24 @@ from optyx.utils.utils import (
 from typing import List, Tuple, Iterable
 
 MAX_DIM = 10
+
+
+class PhotonNumberPreservation(Enum):
+    """This is used as a flag to indicate how a box acts
+    on the incoming photons. Used by the tensor network building
+    algorithm to determine the bond dimensions / truncations.
+
+    LO: Linear Optical - preserves photon number between input and output
+    NON_LO: Does not preserve photon number between input and output
+    CUSTOM: Custom behaviour defined by the user
+                (a box need to implement a method)
+    QUBIT: Qubit - does not act on photons
+    """
+
+    LO = "lo"
+    NON_LO = "non_lo"
+    CUSTOM = "custom"
+    QUBIT = "qubit"
 
 
 class Ob(frobenius.Ob):
@@ -303,28 +321,21 @@ class Diagram(frobenius.Diagram):
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
         from optyx.core import zw
-        from optyx.utils.utils import is_diagram_LO, is_identity
-
-        prev_layers: List[Tuple[int, Box]] = []
-
-        # pylint: disable=import-outside-toplevel
-        def list_to_dim(dims: np.ndarray | list) -> Dim:
-            """Converts a list of dimensions to a Dim object"""
-            return Dim(*[int(i) for i in dims])
-
-        number_of_input_layer_wires = len(self.dom)
+        from optyx.utils.utils import is_identity
 
         if input_dims is None:
             input_dims = [2 for _ in range(len(self.dom))]
         else:
             assert len(self.dom) == len(input_dims), (
-                f"Input dims length {len(input_dims)} does not match number of input wires {len(self.dom)}"
+                "Input dims length does not match number of input wires"
             )
         layer_dims = input_dims
 
         if is_identity(self):
-            return tensor.Diagram.id(list_to_dim(layer_dims))
+            return tensor.Diagram.id(Dim(*[int(i) for i in layer_dims]))
 
+        number_of_input_layer_wires = len(self.dom)
+        prev_layers: List[Tuple[int, Box]] = []
         for i, (box, left_offset) in enumerate(zip(self.boxes, self.offsets)):
             right_offset = calculate_right_offset(
                 number_of_input_layer_wires, left_offset, len(box.dom)
@@ -337,47 +348,23 @@ class Diagram(frobenius.Diagram):
                 input_dims,
                 prev_layers
             )
-
             dims_in = layer_dims[left_offset:left_offset + len(box.dom)]
+            dims_out = [max_dim if i > max_dim else i
+                        for i in box.determine_output_dimensions(dims_in)]
 
-            dims_out, _ = modify_io_dims_against_max_dim(
-                box.determine_output_dimensions(dims_in),
-                None,
-                max_dim
-            )
-
-            if (
-                isinstance(box, zw.LO_ELEMENTS) or
-                is_identity(box)
-            ):
-                prev_layers.append((left_offset, box))
-            elif isinstance(box, DualRail):
-                prev_layers.append((left_offset, zw.Select(1)))
-                prev_layers.append((left_offset, zw.Create(0)))
-                prev_layers.append((left_offset, box))
-            else:
-                if len(dims_in) > 0:
-                    prev_layers.append(
-                        (
-                            left_offset,
-                            zw.Select(*[int(i) for i in np.array(dims_in)-1])
-                        )
-                    )
-                if len(dims_out) > 0:
-                    prev_layers.append(
-                        (
-                            left_offset,
-                            zw.Create(*[int(i) for i in np.array(dims_out)-1])
-                        )
-                    )
+            prev_layers += [
+                (left_offset, replacement_box) for replacement_box in
+                box.photon_number_transform(dims_in, dims_out)
+            ]
 
             left = Dim()
             if left_offset > 0:
-                left = list_to_dim(layer_dims[0:left_offset])
+                left = Dim(*[int(i) for i in layer_dims[0:left_offset]])
             right = Dim()
             if left_offset + len(box.dom) < number_of_input_layer_wires:
-                right = list_to_dim(
-                    layer_dims[left_offset + len(box.dom): number_of_input_layer_wires]
+                right = Dim(
+                    *[int(i) for i in layer_dims[left_offset + len(box.dom):
+                                                 number_of_input_layer_wires]]
                 )
 
             number_of_input_layer_wires += -len(box.dom) + len(box.cod)
@@ -404,7 +391,6 @@ class Diagram(frobenius.Diagram):
             )
         diagram >>= zboxes
         return diagram
-
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
@@ -474,8 +460,42 @@ class Box(frobenius.Box, Diagram):
 
     def __init__(self, name, dom, cod, array=None, **params):
         self._array = array
-        self.photon_sum_preserving = True
         super().__init__(name, dom, cod, **params)
+        self.photon_preservation_behaviour = PhotonNumberPreservation.NON_LO
+
+    def photon_number_transform(
+        self, dims_in: list[int], dims_out: list[int]
+    ) -> Box:
+        if (
+            self.photon_preservation_behaviour ==
+            PhotonNumberPreservation.LO or
+            self.photon_preservation_behaviour ==
+            PhotonNumberPreservation.QUBIT
+        ):
+            return [self]
+        elif self.photon_preservation_behaviour == \
+                PhotonNumberPreservation.NON_LO:
+            from optyx.core.zw import Create, Select
+
+            return_list = []
+            if len(dims_in) > 0:
+                return_list.append(
+                    (
+                        Select(*[int(i) for i in np.array(dims_in)-1])
+                    )
+                )
+            if len(dims_out) > 0:
+                return_list.append(
+                    (
+                        Create(*[int(i) for i in np.array(dims_out)-1])
+                    )
+                )
+            return return_list
+        else:
+            raise NotImplementedError(
+                f"{self.__class__.__name__} does not implement "
+                "photon_number_transform method"
+            )
 
     @classmethod
     def get_perm(self, n, d):
@@ -654,6 +674,7 @@ class Spider(frobenius.Spider, Box):
 
     draw_as_spider = True
     color = "green"
+    photon_preservation_behaviour = PhotonNumberPreservation.NON_LO
 
     def conjugate(self):
         return self
@@ -766,6 +787,8 @@ class Sum(symmetric.Sum, Box):
 class Swap(frobenius.Swap, Box):
     """Swap in optyx diagram"""
 
+    photon_preservation_behaviour = PhotonNumberPreservation.LO
+
     def conjugate(self):
         return self
 
@@ -811,6 +834,7 @@ class Scalar(Box):
         super().__init__(
             name="scalar", dom=Mode(0), cod=Mode(0), data=self.scalar
         )
+        self.photon_preservation_behaviour = PhotonNumberPreservation.LO
 
     def conjugate(self):
         return Scalar(self.scalar.conjugate())
@@ -870,7 +894,22 @@ class DualRail(Box):
         super().__init__("2R", dom, cod)
         self.internal_state = internal_state
         self.is_dagger = is_dagger
-        self.photon_sum_preserving = False
+        self.photon_preservation_behaviour = \
+            PhotonNumberPreservation.CUSTOM
+
+    def photon_number_transform(self, dims_in, dims_out):
+        from optyx.core.zw import Create
+        from optyx.core.zx import Z
+        from copy import deepcopy
+
+        prev_layers = []
+        prev_layers.append(Z(1, 0) if not self.is_dagger else Z(0, 1))
+        prev_layers.append(Create(1) if not self.is_dagger else Z(1, 0))
+        box = deepcopy(self)
+        if not self.is_dagger:
+            box.dom = Mode(1)
+        prev_layers.append(box)
+        return prev_layers if not self.is_dagger else prev_layers[::-1]
 
     def conjugate(self):
         return self
@@ -930,6 +969,21 @@ class PhotonThresholdDetector(Box):
         else:
             super().__init__("PTD", Mode(1), Bit(1))
         self.is_dagger = is_dagger
+        self.photon_preservation_behaviour = \
+            PhotonNumberPreservation.CUSTOM
+
+    def photon_number_transform(self, dims_in, dims_out):
+        from optyx.core.zw import Create, Select
+        from optyx.core.zx import Z
+
+        prev_layers = []
+        if self.is_dagger:
+            prev_layers.append(Z(1, 0))
+            prev_layers.append(Create(dims_out[0]-1))
+        else:
+            prev_layers.append(Select(0))
+            prev_layers.append(Z(0, 1))
+        return prev_layers
 
     def truncation_specification(
         self,

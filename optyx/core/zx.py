@@ -375,6 +375,8 @@ class ZXBox(diagram.Box, ZXDiagram):
         if isinstance(cod, int):
             cod = diagram.Bit(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.QUBIT
 
     def conjugate(self):
         raise NotImplementedError
@@ -413,6 +415,8 @@ class Spider(diagram.Spider, ZXBox):
         phase_str = f", {self.phase}" if self.phase else ""
         self.name = f"{factory_str}({n_legs_in}, {n_legs_out}{phase_str})"
         self.n_legs_in, self.n_legs_out = n_legs_in, n_legs_out
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.QUBIT
 
     def conjugate(self):
         return type(self)(self.n_legs_in, self.n_legs_out, -self.phase)

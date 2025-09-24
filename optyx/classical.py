@@ -192,7 +192,7 @@ class BitControlledGate(Channel):
             )
 
             super().__init__(
-                f"BitControlledGate",
+                "BitControlledGate",
                 kraus,
                 bit @ tp**len(control_gate_single.dom),
                 tp**len(control_gate_single.cod)
