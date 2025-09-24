@@ -291,7 +291,6 @@ class ZBox(diagram.Spider, ZWBox):
         super().__init__(legs_in, legs_out, diagram.Mode(1))
         self.legs_in = legs_in
         self.legs_out = legs_out
-        self.photon_sum_preserving = False
 
     def conjugate(self):
         return ZBox(self.legs_in, self.legs_out, self.amplitudes.conjugate())
@@ -430,7 +429,6 @@ class Create(ZWBox):
 
         name = "Create(1)" if self.photons == (1,) else f"Create({photons})"
         super().__init__(name, 0, len(self.photons))
-        self.photon_sum_preserving = False
 
     def conjugate(self):
         return self
@@ -534,7 +532,6 @@ class Select(ZWBox):
         self.photons = photons or (1,)
         name = "Select(1)" if self.photons == (1,) else f"Select({photons})"
         super().__init__(name, len(self.photons), 0)
-        self.photon_sum_preserving = False
 
     def inflate(self, d):
 
@@ -690,20 +687,20 @@ class Multiply(ZWBox):
 
     Example
     -------
-    >>> mbox = Multiply()
-    >>> result = mbox.to_tensor(input_dims=[3, 3]).eval().array
-    >>> import numpy as np
-    >>> assert result.shape == (3, 3, 9)
-    >>> nonzero = np.nonzero(result)
-    >>> assert len(nonzero[0]) > 0
+    >>> mbox = Create(3, 2) >> Multiply() >> Select(6)
+    >>> mbox_dagger = mbox.dagger()
+    >>> tensor = mbox.to_tensor().eval().array
+    >>> assert np.allclose(tensor, 1.0)
+    >>> tensor_dagger = mbox_dagger.to_tensor().eval().array
+    >>> assert np.allclose(tensor_dagger, 1.0)
+
     """
 
     def __init__(self, is_dagger: bool = False):
         dom = diagram.Mode(1) if is_dagger else diagram.Mode(2)
         cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
-
         super().__init__("Multiply", dom, cod)
-        self.photon_sum_preserving = False
+        self.is_dagger = is_dagger
 
     def truncation_specification(
         self,
@@ -716,7 +713,7 @@ class Multiply(ZWBox):
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
-            return [int(input_dims[0])]
+            return [int(input_dims[0]), int(input_dims[0])]
         return [int(np.prod(input_dims))]
 
     def conjugate(self):
@@ -732,11 +729,12 @@ class Divide(ZWBox):
 
     Example
     -------
-    >>> dbox = Divide()
-    >>> result = dbox.to_tensor(input_dims=[3, 3]).eval().array
-    >>> import numpy as np
-    >>> assert result.shape == (3, 3, 9)
-    >>> assert np.all(result >= 0)
+    >>> dbox = Create(9, 3) >> Divide() >> Select(3)
+    >>> dbox_dagger = dbox.dagger()
+    >>> result = dbox.to_tensor().eval().array
+    >>> assert np.allclose(result, 1.0)
+    >>> result_dagger = dbox_dagger.to_tensor().eval().array
+    >>> assert np.allclose(result_dagger, 1.0)
     """
 
     def __init__(self, is_dagger: bool = False):
@@ -744,7 +742,6 @@ class Divide(ZWBox):
         cod = diagram.Mode(2) if is_dagger else diagram.Mode(1)
         super().__init__("Divide", dom, cod)
         self.is_dagger = is_dagger
-        self.photon_sum_preserving = False
 
     def truncation_specification(
         self,
@@ -759,8 +756,8 @@ class Divide(ZWBox):
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
-            return [int(input_dims[0])]
-        return [int(np.prod(input_dims))]
+            return [diagram.MAX_DIM, diagram.MAX_DIM]
+        return [int(input_dims[0])]
 
     def conjugate(self):
         return self

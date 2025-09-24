@@ -453,12 +453,19 @@ def update_connections(
     end = len(wires_in_light_cone) - previous_right_offset
 
     # replace cod slice with a dom-length slice of the same boolean
+    from optyx.core.control import BitControlledBox
+    if isinstance(previous_box, BitControlledBox):
+        return (
+            wires_in_light_cone[:start]
+            + [False]  # control wire always out of light-cone
+            + [connected] * (len(previous_box.dom) - 1)
+            + wires_in_light_cone[end:]
+        )
     return (
         wires_in_light_cone[:start]
         + [connected] * len(previous_box.dom)
         + wires_in_light_cone[end:]
     )
-
 def calculate_right_offset(total_wires: int, left_offset: int, span_len: int) -> int:
     """Right offset = number of wires to the right of a span."""
     return total_wires - span_len - left_offset
@@ -517,10 +524,11 @@ def get_max_dim_for_box(
     prev_layers,
 ):
     from optyx.core.diagram import Swap, DualRail
-    from optyx.core.zw import Create, Endo
+    from optyx.core.zw import Create, Endo, Divide, Multiply
     from optyx.core.control import BitControlledBox
 
-    if len(box.dom) == 0 or isinstance(box, (Swap, Endo)):
+    if (len(box.dom) == 0 or
+        isinstance(box, (Swap, Endo, Divide, Multiply))):
         return 1e20
 
     dim_for_box = 0
@@ -567,10 +575,8 @@ def get_max_dim_for_box(
                 )
                 if idxs:
                     dim_for_box += sum(previous_box.photons[i] for i in idxs)
-
             if isinstance(previous_box, DualRail):
                 dim_for_box += 1
-
         if isinstance(previous_box, Swap):
             wires_in_light_cone = (
                 wires_in_light_cone[:adj_left]
@@ -586,4 +592,20 @@ def get_max_dim_for_box(
                 previous_right_offset,
             )
     dim_for_box += sum(2 * dim for wire, dim in zip(wires_in_light_cone, input_dims) if wire) + 1
-    return max(dim_for_box, 3)
+    return max(dim_for_box, 2)
+
+
+def is_diagram_LO(diagram):
+    from optyx.core.zw import LO_ELEMENTS
+    if is_identity(diagram):
+        return True
+
+    for box in diagram.boxes:
+        if is_identity(box):
+            continue
+        if not isinstance(box, LO_ELEMENTS):
+            return False
+
+    return True
+
+is_identity = lambda box: len(box.boxes) == 0 and len(box.offsets) == 0

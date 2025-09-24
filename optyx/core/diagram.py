@@ -303,6 +303,7 @@ class Diagram(frobenius.Diagram):
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
         from optyx.core import zw
+        from optyx.utils.utils import is_diagram_LO, is_identity
 
         prev_layers: List[Tuple[int, Box]] = []
 
@@ -321,7 +322,7 @@ class Diagram(frobenius.Diagram):
             )
         layer_dims = input_dims
 
-        if len(self.boxes) == 0 and len(self.offsets) == 0:
+        if is_identity(self):
             return tensor.Diagram.id(list_to_dim(layer_dims))
 
         for i, (box, left_offset) in enumerate(zip(self.boxes, self.offsets)):
@@ -336,13 +337,19 @@ class Diagram(frobenius.Diagram):
                 input_dims,
                 prev_layers
             )
+
             dims_in = layer_dims[left_offset:left_offset + len(box.dom)]
+
             dims_out, _ = modify_io_dims_against_max_dim(
                 box.determine_output_dimensions(dims_in),
                 None,
                 max_dim
             )
-            if isinstance(box, zw.LO_ELEMENTS):
+
+            if (
+                isinstance(box, zw.LO_ELEMENTS) or
+                is_identity(box)
+            ):
                 prev_layers.append((left_offset, box))
             elif isinstance(box, DualRail):
                 prev_layers.append((left_offset, zw.Select(1)))
