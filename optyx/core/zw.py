@@ -780,7 +780,9 @@ class Mod2(ZWBox):
     """
 
     def __init__(self, is_dagger: bool = False):
-        super().__init__("Mod2", diagram.Mode(1), diagram.Bit(1))
+        dom = diagram.Bit(1) if is_dagger else diagram.Mode(1)
+        cod = diagram.Mode(1) if is_dagger else diagram.Bit(1)
+        super().__init__("Mod2", dom, cod)
         self.is_dagger = is_dagger
 
     def truncation_specification(
@@ -794,7 +796,7 @@ class Mod2(ZWBox):
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
         if self.is_dagger:
-            return [input_dims[0]]
+            return [diagram.MAX_DIM]
         return [2]
 
     def conjugate(self):
