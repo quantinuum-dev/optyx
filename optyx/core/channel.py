@@ -111,11 +111,11 @@ from __future__ import annotations
 from discopy import tensor
 from discopy import symmetric, frobenius, hypergraph
 from discopy.cat import factory
-from optyx.core import zx, diagram
 from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
-
+from optyx.core import zx, diagram
 from optyx.utils.utils import explode_channel
+
 
 
 class Ob(frobenius.Ob):
@@ -175,15 +175,24 @@ class Ty(frobenius.Ty):
     @staticmethod
     # pylint: disable=invalid-name
     def from_optyx(ty):
+        """
+        Get quantum types from core/diagram.Ty.
+        """
         assert isinstance(ty, diagram.Ty)
         # pylint: disable=protected-access
         return Ty(*[Ob._quantum[ob.name] for ob in ty.inside])
 
     def needs_inflation(self) -> bool:
+        """
+        Diagrams with at least one :code:`qmode` need inflation.
+        """
         return "qmode" in self.name
 
     # pylint: disable=invalid-name
     def inflate(self, d) -> Ty:
+        """
+        Inflate the type.
+        """
         return (mode**0).tensor(
                 *(o**d if o.needs_inflation() else o for o in self)
         )
@@ -203,6 +212,10 @@ class Diagram(frobenius.Diagram):
     grad = tensor.Diagram.grad
 
     def needs_inflation(self) -> bool:
+        """
+        If the domain or codomain need inflation,
+        the diagram needs inflation.
+        """
         return self.dom.needs_inflation() or self.cod.needs_inflation()
 
     # pylint: disable=invalid-name
@@ -235,6 +248,11 @@ class Diagram(frobenius.Diagram):
 
     @property
     def is_pure(self):
+        """
+        Check if the diagram is pure, i.e. it does not
+        contain any discards or measures acting on quantum types,
+        and does not prepare quantum types from classical types.
+        """
         are_layers_pure = []
         are_layers_classical = []
         for layer in self:
@@ -273,6 +291,9 @@ class Diagram(frobenius.Diagram):
         return not any(are_layers_pure) or all(are_layers_classical)
 
     def get_kraus(self):
+        """
+        Obtain the Kraus map of a pure circuit.
+        """
         assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
         kraus_maps = [diagram.Id(self.dom.single())]
         for layer in self:
@@ -363,7 +384,7 @@ class Diagram(frobenius.Diagram):
         )
 
     def to_pyzx(self):
-
+        """Convert to PyZX circuit. The circuit must be a pure circuit."""
         assert self.is_pure, "Diagram must be pure for conversion."
 
         return self.get_kraus().to_pyzx()
@@ -391,6 +412,8 @@ class Diagram(frobenius.Diagram):
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+        """Convert from a list of bosonic operators. Based on
+        diagram.Diagram.from_bosonic_operator."""
         return Channel(
             "Bosonic operator",
             diagram.Diagram.from_bosonic_operator(
@@ -415,6 +438,7 @@ class Diagram(frobenius.Diagram):
         acting on polarisation modes, time delays,
         and with symbols.
         """
+        # pylint: disable=import-outside-toplevel
         from optyx import photonic
         from optyx.utils import perceval_conversion
         import perceval as pcvl
@@ -605,6 +629,9 @@ class Channel(Diagram, frobenius.Box):
 
 
 class Spider(frobenius.Spider, Channel):  # pragma: no cover
+    """
+    Spider as a channel.
+    """
     def __init__(self, n_legs_in: int, n_legs_out: int, typ: Ty, data=None,
                  **params):
         super().__init__(
@@ -726,7 +753,6 @@ class Measure(Channel):
         return diagram.Diagram.tensor(*diagrams)
 
     # pylint: disable=invalid-name
-    # pylint: disable=no-self-use
     def _measure_wire(self, ob, d):
         """Return the diagram that measures one `ob`."""
         # pylint: disable=import-outside-toplevel
