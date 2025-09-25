@@ -245,13 +245,13 @@ The probability of detecting one photon in each output mode is
 """
 
 
+from functools import cached_property
+from abc import abstractmethod, ABC
+from collections.abc import Iterable
 import numpy as np
 import sympy as sp
 from sympy import Expr, lambdify, Symbol, Mul
 from discopy.cat import rsubs
-from functools import cached_property
-from abc import abstractmethod, ABC
-from collections.abc import Iterable
 
 from optyx.core import (
     channel,
@@ -384,6 +384,9 @@ class AbstractGate(Channel, ABC):
 
     @cached_property
     def array(self):
+        """
+        Array to be used for building zw diagrams.
+        """
         return np.asarray(self._compute_array())
 
     @abstractmethod
@@ -417,9 +420,7 @@ class Gate(AbstractGate):
     ...                 diagram.Id(diagram.Mode(2)).to_path().eval(2).array)
     """
 
-    # need to make it a Circuit?
-    # this should also take a perceval matrix
-    # as an input
+    # pylint: disable=too-many-positional-arguments
     def __init__(
         self,
         matrix,
@@ -443,6 +444,9 @@ class Gate(AbstractGate):
         )
 
     def conjugate(self):
+        """
+        Conjugate defined on the underlying matrix.
+        """
         return Gate(
             np.conjugate(self.array),
             len(self.dom),
@@ -497,10 +501,16 @@ class Phase(AbstractGate):
         return Phase(-self.angle)
 
     def conjugate(self):
+        """
+        Conjugate defined on the underlying matrix.
+        """
         return Phase(-self.angle)
 
 
 class NumOp(Channel):
+    """
+    Number operator.
+    """
     def __init__(self):
         super().__init__(
             "NumOp",
@@ -589,6 +599,9 @@ class BBS(AbstractGate):
         return BBS(0.5 - self.bias)
 
     def conjugate(self):
+        """
+        Conjugate defined on the underlying matrix.
+        """
         return BBS(self.bias, not self.is_conj)
 
 
@@ -641,6 +654,9 @@ class TBS(AbstractGate):
 
     @cached_property
     def global_phase(self):
+        """
+        Global phase of the TBS.
+        """
         backend = sp if self.dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
@@ -677,6 +693,9 @@ class TBS(AbstractGate):
         return self._decomp().grad(var)
 
     def conjugate(self):
+        """
+        Conjugate defined on the underlying matrix.
+        """
         return TBS(self.theta, self.is_gate_dagger, not self.is_conj)
 
     def dagger(self):
@@ -740,6 +759,9 @@ class MZI(AbstractGate):
 
     @cached_property
     def global_phase(self):
+        """
+        Global phase of the MZI.
+        """
         backend = sp if self.dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
@@ -783,6 +805,9 @@ class MZI(AbstractGate):
                    is_conj=self.is_conj)
 
     def conjugate(self):
+        """
+        Conjugate defined on the underlying matrix.
+        """
         return MZI(self.theta, self.phi, self.is_gate_dagger, not self.is_conj)
 
 
@@ -864,11 +889,11 @@ class PhaseShiftDR(Channel):
 
 
 class ZMeasurementDR(Diagram):
+    """
+    ZMeasurement circuit that performs a measurement in the Z basis
+    after applying a phase shift of alpha.
+    """
     def __new__(cls, alpha):
-        """
-        ZMeasurement circuit that performs a measurement in the Z basis
-        after applying a phase shift of alpha.
-        """
         return (
             qmode @ Phase(alpha) >>
             HadamardBS() >>
@@ -878,11 +903,11 @@ class ZMeasurementDR(Diagram):
 
 
 class XMeasurementDR(Diagram):
+    """
+    XMeasurement circuit that performs a measurement in the X basis
+    after applying a Hadamard beam splitter.
+    """
     def __new__(cls, alpha):
-        """
-        XMeasurement circuit that performs a measurement in the X basis
-        after applying a Hadamard beam splitter.
-        """
         return (
             HadamardBS() >>
             ZMeasurementDR(alpha)
@@ -926,6 +951,7 @@ class FusionTypeI(Diagram):
         :align: center
     """
     def __new__(cls):
+        # pylint: disable=invalid-name
         kraus_map_fusion_I = (
             diagram.Mode(1) @ diagram.Swap(
                 diagram.Mode(1),
@@ -971,6 +997,9 @@ class FusionTypeI(Diagram):
 
 
 class Swap(channel.Swap):
+    """
+    Swap channel for qmodes.
+    """
     def __init__(self, left, right):
         super().__init__(qmode**left, qmode**right)
 
@@ -1061,6 +1090,7 @@ class FusionTypeII(Diagram):
         :align: center
     """
     def __new__(cls):
+        # pylint: disable=invalid-name
         fusion_II = Channel(
             "Fusion II",
             (
