@@ -117,7 +117,6 @@ from optyx.core import zx, diagram
 from optyx.utils.utils import explode_channel
 
 
-
 class Ob(frobenius.Ob):
     """Basic object: bit, mode, qubit or qmode"""
 
