@@ -195,7 +195,6 @@ class EvalResult:
         prob_dist = self.prob_dist()
         return prob_dist.get(occupation, 0.0)
 
-    # pylint: disable=no-self-use
     def _convert_array_to_dict(
             self,
             array: np.ndarray,
@@ -290,7 +289,6 @@ class AbstractBackend(ABC):
     All backends must implement the `eval` method.
     """
 
-    # pylint: disable=no-self-use
     def _get_matrix(
         self,
         diagram: Diagram
@@ -321,7 +319,6 @@ class AbstractBackend(ABC):
         """
         return self._get_discopy_tensor(diagram).to_quimb()
 
-    # pylint: disable=no-self-use
     def _umatrix_to_perceval_circuit(
             self,
             matrix: np.ndarray) -> pcvl.Circuit:
@@ -332,7 +329,6 @@ class AbstractBackend(ABC):
         perceval_matrix = pcvl.Matrix(matrix.T)
         return pcvl.components.Unitary(U=perceval_matrix)
 
-    # pylint: disable=no-self-use
     def _get_discopy_tensor(
         self,
         diagram: Diagram
