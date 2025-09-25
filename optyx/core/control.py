@@ -153,7 +153,7 @@ class BitControlledBox(ControlBox):
         return dims
 
     def truncation(
-        self, input_dims: List[int], output_dims: List[int]
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
 
         if self.is_dagger:
@@ -260,7 +260,7 @@ class ControlledPhaseShift(ControlBox):
         self.n_control_modes = n_control_modes
 
     def truncation(
-        self, input_dims: List[int], output_dims: List[int]
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
 
         if self.is_dagger:
