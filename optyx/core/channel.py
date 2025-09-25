@@ -493,7 +493,7 @@ class Diagram(frobenius.Diagram):
         return backend.eval(self, **kwargs)
 
 
-class Channel(frobenius.Box, Diagram):
+class Channel(Diagram, frobenius.Box):
     """
     Channel initialised by its Kraus map.
     """
@@ -647,7 +647,7 @@ class Sum(symmetric.Sum, Diagram):
         )
 
 
-class CQMap(frobenius.Box, Diagram):
+class CQMap(Diagram, frobenius.Box):
     """
     Channel initialised by its Density matrix.
     """
