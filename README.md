@@ -6,7 +6,7 @@ Optyx is an open-source Python library for designing, simulating, and optimizing
 
 We will present the basics of Optyx with a simple example from linear optics.
 
-The Hong–Ou–Mandel (HOM) effect is a two-photon interference phenomenon where indistinguishable photons entering a 50:50 beamsplitter “bunch” and exit together through the same port. When their temporal, spectral, polarization, and spatial modes overlap perfectly, destructive interference suppresses the outcome with one photon in each output. This effect is a standard benchmark for photon indistinguishability and alignment in photonic experiments.
+The Hong–Ou–Mandel (HOM) effect is a two-photon interference phenomenon where indistinguishable photons entering a 50:50 beamsplitter “bunch” and exit together through the same output register. When their temporal, spectral, polarization, and spatial modes overlap perfectly, destructive interference suppresses the outcome with one photon in each output. This effect is a standard benchmark for photon indistinguishability in photonic experiments.
 
 ### Experiment definition
 
@@ -360,7 +360,7 @@ plt.title('Fusion-based Teleportation similarity vs Contraction Chi')
 
 ### Photon loss and channel fidelity
 
-Photon loss is when a photon that should arrive simply doesn’t, so counts drop and patterns get noisier. In Optyx, you model this by placing a dedicated loss generator exactly where the loss occurs; its single parameter is the photon survival probability. Photon loss is the primary failure mode for photonic qubits. In photonic computing it breaks multi-photon interference and reduces the success of fusion/measurement steps. That’s why if we want to study architectures, thresholds, and mitigation (repeaters, multiplexing, loss-tolerant encodings), we need to be able to model photon loss accurately.
+Photon loss is when a photon that should arrive simply doesn’t. In Optyx, you model this by placing a dedicated loss generator exactly where the loss occurs; its single parameter is the photon survival probability. Photon loss is the primary failure mode for photonic qubits. In photonic computing it breaks multi-photon interference and reduces the success of fusion/measurement steps. That’s why if we want to study architectures, thresholds, and mitigation (repeaters, multiplexing, loss-tolerant encodings), we need to be able to model photon loss accurately.
 
 
 ```python
