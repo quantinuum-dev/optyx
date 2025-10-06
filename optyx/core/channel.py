@@ -879,36 +879,12 @@ class Functor(frobenius.Functor):  # pragma: no cover
         return frobenius.Functor.__call__(self, other)
 
 
-class Cup(frobenius.Cup, Channel):
-    """
-    A frobenius cup is a compact cup in a frobenius diagram.
-
-    Parameters:
-        left (Ty) : The atomic type.
-        right (Ty) : Its adjoint.
-    """
-    __ambiguous_inheritance__ = (frobenius.Cup, )
-
-
-class Cap(frobenius.Cap, Channel):
-    """
-    A frobenius cap is a compact cap in a frobenius diagram.
-
-    Parameters:
-        left (Ty) : The atomic type.
-        right (Ty) : Its adjoint.
-    """
-    __ambiguous_inheritance__ = (frobenius.Cap, )
-
-
 class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
     category, functor = Category, Functor
 
 
 Hypergraph.ty_factory = Ty
 Diagram.spider_factory = Spider
-Diagram.cup_factory = Cup
-Diagram.cap_factory = Cap
 Diagram.hypergraph_factory = Hypergraph
 Diagram.braid_factory = Swap
 Diagram.sum_factory = Sum

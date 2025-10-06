@@ -240,7 +240,9 @@ MAX_DIM = 10
 class PhotonNumberPreservation(Enum):
     """This is used as a flag to indicate how a box acts
     on the incoming photons. Used by the tensor network building
-    algorithm to determine the bond dimensions / truncations.
+    algorithm to determine the bond dimensions / truncations
+    based on number of photons in the past light
+    cone of the Box to minimise the truncation dimensions.
 
     LO: Linear Optical - preserves photon number between input and output
     NON_LO: Does not preserve photon number between input and output
