@@ -121,7 +121,7 @@ We can check their equivalence as tensors.
 Let's check the branching law from [FC23]_.
 
 >>> from optyx.core.zw import Create, W
->>> from optyx._utils import compare_arrays_of_different_sizes
+>>> from optyx.utils.utils import compare_arrays_of_different_sizes
 >>> branching_l = Create(1) >> W(2)
 >>> branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
@@ -226,7 +226,7 @@ from discopy import (
 from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
-from optyx._utils import (
+from optyx.utils.utils import (
     modify_io_dims_against_max_dim,
     BasisTransition
 )

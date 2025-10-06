@@ -7,7 +7,7 @@ via ZX-calculus or using tket or discopy circuits.
 
 
 Circuits (from tket, discopy, or PyZX)
-------------------------
+---------------------------------------
 
 .. autosummary::
     :template: class.rst
@@ -273,7 +273,7 @@ import graphix
 from discopy import quantum as quantum_discopy
 from discopy import symmetric
 # from pytket import circuit as tket_circuit
-from optyx._utils import explode_channel
+from optyx.utils.utils import explode_channel
 from optyx.core import (
     channel,
     diagram,

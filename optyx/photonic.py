@@ -36,7 +36,7 @@ Linear optical gates
     ansatz
 
 Dual rail encoded operators
-------------------------
+----------------------------
 
 .. autosummary::
     :template: class.rst
@@ -242,18 +242,6 @@ The probability of detecting one photon in each output mode is
 ...         .dot(np.array(internal_state_2).conjugate()))**2, 3
 ... )
 
-References
-----------
-.. [FC23] de Felice, G., & Coecke, B. (2023). Quantum Linear Optics \
-    via String Diagrams. In Proceedings 19th International \
-    Conference on Quantum Physics and Logic, Wolfson College, \
-    Oxford, UK, 27 June - 1 July 2022 (pp. 83-100). \
-        Open Publishing Association.
-.. [FSP+23] de Felice, G., Shaikh, R., Poór, B., Yeh, L., Wang, Q., \
-    & Coecke, B. (2023). Light-Matter Interaction in the \
-    ZXW Calculus. In  Proceedings of the Twentieth \
-    International Conference on Quantum Physics and Logic,  \
-    Paris, France, 17-21st July 2023 (pp. 20-46). Open Publishing Association.
 """
 
 
@@ -272,7 +260,7 @@ from optyx.core import (
 )
 
 from optyx.classical import ClassicalFunction, DiscardMode
-from optyx._utils import matrix_to_zw
+from optyx.utils.utils import matrix_to_zw
 
 from optyx import (
     bit,
@@ -342,11 +330,11 @@ class PhotonThresholdMeasurement(Channel):
     Detects whether one or more photons are present.
     """
 
-    def __init__(self):
+    def __init__(self, n=1):
         super().__init__(
             "PhotonThresholdMeasurement",
-            diagram.PhotonThresholdDetector(),
-            cod=bit
+            diagram.PhotonThresholdDetector()**n,
+            cod=bit**n
         )
 
 
@@ -590,7 +578,7 @@ class BBS(AbstractGate):
             array = [-1j * cos, sin, sin, -1j * cos]
         else:
             array = [1j * cos, sin, sin, 1j * cos]
-        return np.array(array)
+        return np.array(array).reshape(2, 2)
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
@@ -640,24 +628,23 @@ class TBS(AbstractGate):
 
     def __init__(self,
                  theta,
-                 is_dagger=False,
+                 is_gate_dagger=False,
                  is_conj=False):
         self.theta = theta
-        self.is_dagger = is_dagger
+        self.is_gate_dagger = is_gate_dagger
         self.is_conj = is_conj
         super().__init__(
             2, 2,
             f"TBS({theta})",
             data=theta
         )
-        self.is_dagger = is_dagger
 
     @cached_property
     def global_phase(self):
         backend = sp if self.dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
-            if self.is_dagger
+            if self.is_gate_dagger or self.is_conj
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
@@ -665,19 +652,23 @@ class TBS(AbstractGate):
         backend = sp if self.dtype is Expr else np
         sin = backend.sin(self.theta * backend.pi)
         cos = backend.cos(self.theta * backend.pi)
-        array = np.array([sin, cos, cos, -sin])
-        return np.conjugate(array * self.global_phase) if \
-            self.is_conj else array * self.global_phase
+        array = np.array([sin, cos, cos, -sin]).reshape(2, 2)
+        if self.is_gate_dagger:
+            array = np.conjugate(array.T)
+        if self.is_conj:
+            array = np.conjugate(array)
+        return array * self.global_phase
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
             lambdify(symbols, self.theta, **kwargs)(*xs),
-            is_dagger=self.is_dagger,
+            is_gate_dagger=self.is_gate_dagger,
+            is_conj=self.is_conj
         )
 
     def _decomp(self):
         d = BS >> qmode @ Phase(self.theta) >> BS
-        return d.dagger() if self.is_dagger else d
+        return d.dagger() if self.is_gate_dagger else d
 
     def grad(self, var):
         """Gradient with respect to :code:`var`."""
@@ -686,10 +677,11 @@ class TBS(AbstractGate):
         return self._decomp().grad(var)
 
     def conjugate(self):
-        return TBS(self.theta, self.is_dagger, not self.is_conj)
+        return TBS(self.theta, self.is_gate_dagger, not self.is_conj)
 
     def dagger(self):
-        return TBS(self.theta, is_dagger=not self.is_dagger)
+        return TBS(self.theta, is_gate_dagger=not self.is_gate_dagger,
+                   is_conj=self.is_conj)
 
 
 class MZI(AbstractGate):
@@ -735,24 +727,23 @@ class MZI(AbstractGate):
     def __init__(self,
                  theta,
                  phi,
-                 is_dagger=False,
+                 is_gate_dagger=False,
                  is_conj=False):
         self.theta, self.phi = theta, phi
-        self.is_dagger = is_dagger
+        self.is_gate_dagger = is_gate_dagger
         self.is_conj = is_conj
         super().__init__(
             2, 2,
             f"MZI({theta}, {phi})",
             data=(theta, phi)
         )
-        self.is_dagger = is_dagger
 
     @cached_property
     def global_phase(self):
         backend = sp if self.dtype is Expr else np
         return (
             -1j * backend.exp(-1j * self.theta * backend.pi)
-            if self.is_dagger
+            if self.is_gate_dagger or self.is_conj
             else 1j * backend.exp(1j * self.theta * backend.pi)
         )
 
@@ -761,20 +752,24 @@ class MZI(AbstractGate):
         cos = backend.cos(backend.pi * self.theta)
         sin = backend.sin(backend.pi * self.theta)
         exp = backend.exp(1j * 2 * backend.pi * self.phi)
-        array = np.array([exp * sin, cos, exp * cos, -sin])
-        return np.conjugate(array * self.global_phase) if \
-            self.is_conj else array * self.global_phase
+        array = np.array([exp * sin, cos, exp * cos, -sin]).reshape(2, 2)
+        if self.is_gate_dagger:
+            array = np.conjugate(array.T)
+        if self.is_conj:
+            array = np.conjugate(array)
+        return array * self.global_phase
 
     def lambdify(self, *symbols, **kwargs):
         return lambda *xs: type(self)(
             *lambdify(symbols, [self.theta, self.phi], **kwargs)(*xs),
-            is_dagger=self.is_dagger,
+            is_gate_dagger=self.is_gate_dagger,
+            is_conj=self.is_conj
         )
 
     def _decomp(self):
         x, y = self.theta, self.phi
         d = BS >> qmode @ Phase(x) >> BS >> Phase(y) @ qmode
-        return d.dagger() if self.is_dagger else d
+        return d.dagger() if self.is_gate_dagger else d
 
     def grad(self, var):
         """Gradient with respect to :code:`var`."""
@@ -783,10 +778,12 @@ class MZI(AbstractGate):
         return self._decomp().grad(var)
 
     def dagger(self):
-        return MZI(self.theta, self.phi, is_dagger=not self.is_dagger)
+        return MZI(self.theta, self.phi,
+                   is_gate_dagger=not self.is_gate_dagger,
+                   is_conj=self.is_conj)
 
     def conjugate(self):
-        return MZI(self.theta, self.phi, self.is_dagger, not self.is_conj)
+        return MZI(self.theta, self.phi, self.is_gate_dagger, not self.is_conj)
 
 
 def ansatz(width, depth):
@@ -821,8 +818,10 @@ def ansatz(width, depth):
         n_mzi = (width - 1) // 2 if i % 2 else width // 2
         left = qmode**(i % 2)
         right = qmode**(width - (i % 2) - 2 * n_mzi)
-        d >>= left @ Diagram.tensor(*[MZI(*p(i, j))
-                                      for j in range(n_mzi)]) @ right
+        wire = Diagram.id(qmode**0)
+        for j in range(n_mzi):
+            wire @= MZI(*p(i, j))
+        d >>= left @ wire @ right
 
     return d
 

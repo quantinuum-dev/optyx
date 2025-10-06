@@ -37,14 +37,14 @@ def test_conjugation_LO_Gate():
 def test_conjugation_LO_channel(box):
     gate = box(0.27)
     hbs_array = gate.array
-    assert np.allclose(gate.conjugate().to_path().array.flatten(),
+    assert np.allclose(gate.conjugate().to_path().array,
                        hbs_array.conjugate())
 
 
 def test_conjugation_MZI_channel():
     gate = photonic.MZI(0.27, 0.76)
     hbs_array = gate.array
-    assert np.allclose(gate.conjugate().to_path().array.flatten(),
+    assert np.allclose(gate.conjugate().to_path().array,
                        hbs_array.conjugate())
 
 
@@ -65,4 +65,3 @@ def test_conjugation_ZW():
     lhs_tensor = lhs.double().to_tensor().eval().array
     rhs_tensor = rhs.double().to_tensor().eval().array
     assert np.allclose(lhs_tensor, rhs_tensor)
-
