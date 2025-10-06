@@ -257,7 +257,7 @@ The diagram is a double identity diagram.
 
 ## Approximate contraction and photon loss: fusion teleportation
 
-Teleportation with **fusion measurements** uses a Bell pair of dual-rail qubits as the channel: Alice fuses the input with her half using a Type-II fusion, reads the classical outcomes, and Bob applies the corresponding correction. In the **success** branch, the overall map is the **identity** on the teleported qubit up to a known Pauli byproduct, which Bob removes with a conditioned \(X\) correction. In the **failure** branch, the input is effectively measured and the opposite state is prepared at the output. For the standard Type-II scheme this yields identity with probability \(1/2\), and failure otherwise; the paper’s diagrams show both branches explicitly and how the correction restores the state.
+Teleportation with **fusion measurements** uses a Bell pair of dual-rail qubits as the channel: Alice fuses the input with her half using a Type-II fusion, reads the classical outcomes, and Bob applies the corresponding correction. In the **success** branch, the overall map is the **identity** on the teleported qubit up to a known Pauli byproduct, which Bob removes with a conditioned \(X\) correction. In the **failure** branch, the input is effectively measured and the opposite state is prepared at the output. For the standard Type-II scheme this yields identity with probability \(1/2\), and failure otherwise; the diagrams show both branches explicitly and how the correction restores the state.
 
 
 Ursin, R., Jennewein, T., Aspelmeyer, M. et al. Quantum teleportation across the Danube. Nature 430, 849 (2004). https://doi.org/10.1038/430849a :
