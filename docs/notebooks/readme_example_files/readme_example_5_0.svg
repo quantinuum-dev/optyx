@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2025-10-06T10:51:58.654000</dc:date>
+    <dc:date>2025-10-06T13:32:06.995543</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -35,27 +35,27 @@ L 151.2 79.2
 L 151.2 7.2 
 L 7.2 7.2 
 z
-" clip-path="url(#p7ec12db398)" style="fill: #ffffff; stroke: #ffffff; stroke-linejoin: miter"/>
+" clip-path="url(#p99fb8a6430)" style="fill: #ffffff; stroke: #ffffff; stroke-linejoin: miter"/>
    </g>
    <g id="patch_3">
     <path d="M 43.2 7.2 
 Q 43.2 25.2 43.2 25.2 
-" clip-path="url(#p7ec12db398)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#p99fb8a6430)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="patch_4">
     <path d="M 115.2 7.2 
 Q 115.2 25.2 115.2 25.2 
-" clip-path="url(#p7ec12db398)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#p99fb8a6430)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="patch_5">
     <path d="M 43.2 61.2 
 Q 43.2 79.2 43.2 79.2 
-" clip-path="url(#p7ec12db398)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#p99fb8a6430)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="patch_6">
     <path d="M 115.2 61.2 
 Q 115.2 79.2 115.2 79.2 
-" clip-path="url(#p7ec12db398)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#p99fb8a6430)" style="fill: none; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="patch_7">
     <path d="M 25.2 61.2 
@@ -63,7 +63,7 @@ L 25.2 25.2
 L 133.2 25.2 
 L 133.2 61.2 
 z
-" clip-path="url(#p7ec12db398)" style="fill: #ffffff; stroke: #000000; stroke-linejoin: miter"/>
+" clip-path="url(#p99fb8a6430)" style="fill: #ffffff; stroke: #000000; stroke-linejoin: miter"/>
    </g>
    <g id="text_1">
     <!-- qmode -->
@@ -361,7 +361,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="p7ec12db398">
+  <clipPath id="p99fb8a6430">
    <rect x="7.2" y="7.2" width="144" height="72"/>
   </clipPath>
  </defs>
