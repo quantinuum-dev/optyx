@@ -380,7 +380,7 @@ class Diagram(frobenius.Diagram):
         n_modes,
         operators,
         scalar=1
-    ): # pragma: no cover
+    ):  # pragma: no cover
         """Create a :class:`zw` diagram from a bosonic operator."""
         # pylint: disable=import-outside-toplevel
         from optyx.core import zw

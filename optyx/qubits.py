@@ -282,7 +282,7 @@ For example, we can create a GHZ state:
 We can also create a graph state as follows
 (where we omit the labels):
 
->>> graph = (Z(0, 2) >> Id(1) @ H() >> Id(1) @ Z(1, 2) >> \\
+>>> graph = (Z(0, 2) >> Id(1) @ H() >> Id(1) @ X(1, 2, 0.5) >> \\
 ... Id(2) @ H() >> Id(2) @ Z(1, 2))
 >>> graph_decom = graph.decomp()
 >>> graph_path = graph_decom.to_dual_rail()
@@ -765,7 +765,7 @@ class X(Channel):
         )
         return box.decomp()
 
-    def _to_dual_rail(self):
+    def _to_dual_rail(self):  # pragma: no cover
         """Convert to dual-rail encoding."""
         from optyx import (
             photonic,
