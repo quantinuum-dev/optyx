@@ -420,7 +420,7 @@ class QuimbBackend(AbstractBackend):
 
     def _process_term(self, term: Diagram) -> np.ndarray:
         """
-        Process a term in a diagram with multiple terms.
+        Process a term in a sum of diagrams.
 
         Args:
             term (Diagram): The term to process.
