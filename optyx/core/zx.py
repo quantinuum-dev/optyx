@@ -70,7 +70,7 @@ ensure the tensor dimensions match):
 
 >>> assert np.allclose(graph_path.to_tensor().eval().array, \\
 ... ((graph >> dual_rail(4)).to_tensor() >> \\
-... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 5))).eval().array)
+... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 4))).eval().array)
 
 As shown in the example above, we need to decompose a ZX diagram
 into more elementary spiders before mapping it to a path diagram.
@@ -375,6 +375,8 @@ class ZXBox(diagram.Box, ZXDiagram):
         if isinstance(cod, int):
             cod = diagram.Bit(cod)
         super().__init__(name=name, dom=dom, cod=cod, **params)
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.QUBIT
 
     def conjugate(self):
         raise NotImplementedError
@@ -413,6 +415,8 @@ class Spider(diagram.Spider, ZXBox):
         phase_str = f", {self.phase}" if self.phase else ""
         self.name = f"{factory_str}({n_legs_in}, {n_legs_out}{phase_str})"
         self.n_legs_in, self.n_legs_out = n_legs_in, n_legs_out
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.QUBIT
 
     def conjugate(self):
         return type(self)(self.n_legs_in, self.n_legs_out, -self.phase)

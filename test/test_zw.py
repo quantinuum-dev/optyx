@@ -15,7 +15,6 @@ legs_b_in = range(1, 3)
 legs_a_out = range(1, 3)
 legs_b_out = range(1, 3)
 legs_between = range(1, 3)
-max_dim = [None, 2, 4, 6]
 
 # a set of arbitrary functions of i
 fs = [
@@ -27,13 +26,13 @@ fs = [
 # get all combinations of legs etc
 fs_legs_combinations = list(
     itertools.product(
-        fs, legs_a_in, legs_b_in, legs_a_out, legs_b_out, legs_between, max_dim
+        fs, legs_a_in, legs_b_in, legs_a_out, legs_b_out, legs_between
     )
 )
 
 
 @pytest.mark.parametrize(
-    "fs, legs_a_in, legs_b_in, legs_a_out, legs_b_out, legs_between, max_dim",
+    "fs, legs_a_in, legs_b_in, legs_a_out, legs_b_out, legs_between",
     fs_legs_combinations,
 )
 def test_spider_fusion(
@@ -42,8 +41,7 @@ def test_spider_fusion(
     legs_b_in: int,
     legs_a_out: int,
     legs_b_out: int,
-    legs_between: int,
-    max_dim: int
+    legs_between: int
 ):
 
     S1_infty_l = ZBox(legs_a_in, legs_a_out + legs_between, fs) @ Id(legs_b_in)
@@ -57,8 +55,8 @@ def test_spider_fusion(
     S1_infty_r = ZBox(legs_a_in + legs_b_in, legs_a_out + legs_b_out, fn_mult)
 
     assert compare_arrays_of_different_sizes(
-        S1_infty_l.to_tensor(max_dim = max_dim).eval().array,
-        S1_infty_r.to_tensor(max_dim = max_dim).eval().array,
+        S1_infty_l.to_tensor().eval().array,
+        S1_infty_r.to_tensor().eval().array,
     )
 
 
@@ -183,16 +181,15 @@ def test_Id_dagger_Id(k: int):
     )
 
 
-@pytest.mark.parametrize("max_dim", [None, 3, 4, 6])
-def test_bBa(max_dim):
+def test_bBa():
     bBa_l = (
         W(2) @ W(2) >> Id(1) @ Swap(mode, mode) @ Id(1) >> W(2).dagger() @ W(2).dagger()
     )
     bBa_r = W(2).dagger() >> W(2)
 
     assert compare_arrays_of_different_sizes(
-        bBa_l.to_tensor(max_dim=max_dim).eval().array,
-        bBa_r.to_tensor(max_dim=max_dim).eval().array,
+        bBa_l.to_tensor().eval().array,
+        bBa_r.to_tensor().eval().array,
     )
 
 
@@ -206,8 +203,7 @@ def test_bId():
     )
 
 
-@pytest.mark.parametrize("max_dim", [None, 2, 4, 6])
-def test_bZBA(max_dim):
+def test_bZBA():
     from math import factorial
 
     N = [float(np.sqrt(factorial(i))) for i in range(5)]
@@ -222,12 +218,11 @@ def test_bZBA(max_dim):
     bZBA_r = W(2).dagger() >> ZBox(1, 2, lambda i: 1)
 
     assert compare_arrays_of_different_sizes(
-        bZBA_l.to_tensor(max_dim=max_dim).eval().array,
-        bZBA_r.to_tensor(max_dim=max_dim).eval().array,
+        bZBA_l.to_tensor().eval().array,
+        bZBA_r.to_tensor().eval().array,
     )
 
-@pytest.mark.parametrize("max_dim", [None, 2, 4, 6])
-def test_bZBA_optyx_Spider(max_dim):
+def test_bZBA_optyx_Spider():
     from math import factorial
 
     N = [float(np.sqrt(factorial(i))) for i in range(5)]
@@ -243,8 +238,8 @@ def test_bZBA_optyx_Spider(max_dim):
     bZBA_r = W(2).dagger() >> Spider(1, 2, Mode(1))
 
     assert compare_arrays_of_different_sizes(
-        bZBA_l.to_tensor(max_dim=max_dim).eval().array,
-        bZBA_r.to_tensor(max_dim=max_dim).eval().array,
+        bZBA_l.to_tensor().eval().array,
+        bZBA_r.to_tensor().eval().array,
     )
 
 def test_K0_infty():
@@ -355,8 +350,7 @@ def test_calculate_num_creations_selections():
     ) == calculate_num_creations_selections(d3)
 
 
-@pytest.mark.parametrize("max_dim", [None, 2, 4, 6])
-def test_lemma_B8(max_dim):
+def test_lemma_B8():
     lemma_B8_l = (
             Create(1)
             >> ZBox(1, 2, [1, 1])
@@ -367,13 +361,12 @@ def test_lemma_B8(max_dim):
     lemma_B8_r = Create(1) >> W(2) >> ZBox(1, 2, [1, 1]) @ ZBox(1, 0, [1, 1])
 
     assert compare_arrays_of_different_sizes(
-        lemma_B8_l.to_tensor(max_dim=max_dim).eval().array,
-        lemma_B8_r.to_tensor(max_dim=max_dim).eval().array,
+        lemma_B8_l.to_tensor().eval().array,
+        lemma_B8_r.to_tensor().eval().array,
     )
 
 
-@pytest.mark.parametrize("max_dim", [None, 2, 4, 6])
-def test_lemma_B7(max_dim):
+def test_lemma_B7():
     lemma_B7_l = Id(1) @ W(2).dagger() >> ZBox(2, 0, lambda i: 1)
 
     lemma_B7_r = (
@@ -384,13 +377,12 @@ def test_lemma_B7(max_dim):
     )
 
     assert compare_arrays_of_different_sizes(
-        lemma_B7_l.to_tensor(max_dim=max_dim).eval().array,
-        lemma_B7_r.to_tensor(max_dim=max_dim).eval().array,
+        lemma_B7_l.to_tensor().eval().array,
+        lemma_B7_r.to_tensor().eval().array,
     )
 
 
-@pytest.mark.parametrize("max_dim", [None, 3, 4, 6])
-def test_prop_54(max_dim):
+def test_prop_54():
     prop_54_l = (
             Create(1) @ Id(1)
             >> ZBox(1, 2, lambda i: 1) @ Id(1)
@@ -409,8 +401,8 @@ def test_prop_54(max_dim):
     )
 
     assert compare_arrays_of_different_sizes(
-        prop_54_l.to_tensor(max_dim=max_dim).eval().array,
-        prop_54_r.to_tensor(max_dim=max_dim).eval().array,
+        prop_54_l.to_tensor().eval().array,
+        prop_54_r.to_tensor().eval().array,
     )
 
 

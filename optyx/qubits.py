@@ -412,7 +412,9 @@ class Circuit(Diagram):
 
         og = opengraph.OpenGraph.from_pattern(underlying_circuit)
         pyzx_diagram = pyzx.to_pyzx_graph(og)
+        # pylint: disable=protected-access
         pyzx_diagram._inputs = tuple(pyzx_diagram._inputs)
+        # pylint: disable=protected-access
         pyzx_diagram._outputs = tuple(pyzx_diagram._outputs)
         return cls._to_optyx_from_pyzx(pyzx_diagram)
 

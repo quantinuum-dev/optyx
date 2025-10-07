@@ -40,7 +40,7 @@ from typing import Callable, List, Tuple, Iterable
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-from optyx.utils.utils import BasisTransition
+from optyx.utils.utils import BasisTransition, is_diagram_LO
 
 from optyx.core import diagram, zw
 
@@ -119,6 +119,18 @@ class BitControlledBox(ControlBox):
         self.action_box = action_box
         self.default_box = default_box
         self.is_dagger = is_dagger
+        self.photon_preservation_behaviour = \
+            diagram.PhotonNumberPreservation.CUSTOM
+
+    def photon_number_transform(self, dims_in, dims_out):
+        if is_diagram_LO(self.action_box) and is_diagram_LO(self.default_box):
+            from optyx.core.zx import Z
+            return Z(1, 0) @ self.default_box if not self.is_dagger else \
+                Z(0, 1) @ self.default_box
+        else:
+            self.photon_preservation_behaviour = \
+                diagram.PhotonNumberPreservation.NON_LO
+            return super().photon_number_transform(dims_in, dims_out)
 
     def determine_output_dimensions(self, input_dims: List[int]) -> List[int]:
 
@@ -141,7 +153,7 @@ class BitControlledBox(ControlBox):
         return dims
 
     def truncation(
-        self, input_dims: List[int], output_dims: List[int]
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
 
         if self.is_dagger:
@@ -248,7 +260,7 @@ class ControlledPhaseShift(ControlBox):
         self.n_control_modes = n_control_modes
 
     def truncation(
-        self, input_dims: List[int], output_dims: List[int]
+        self, input_dims: list[int] = None, output_dims: list[int] = None
     ) -> tensor.Box:
 
         if self.is_dagger:

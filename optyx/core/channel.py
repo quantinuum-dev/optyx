@@ -111,14 +111,13 @@ from __future__ import annotations
 from discopy import tensor
 from discopy import symmetric, frobenius, hypergraph
 from discopy.cat import factory
-from optyx.core import zx, diagram
 from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
-
+from optyx.core import zx, diagram
 from optyx.utils.utils import explode_channel
 
 
-class Ob(symmetric.Ob):
+class Ob(frobenius.Ob):
     """Basic object: bit, mode, qubit or qmode"""
 
     _classical = {
@@ -156,7 +155,7 @@ class Ob(symmetric.Ob):
 
 
 @factory
-class Ty(symmetric.Ty):
+class Ty(frobenius.Ty):
     """Classical and quantum types."""
 
     ob_factory = Ob
@@ -175,15 +174,24 @@ class Ty(symmetric.Ty):
     @staticmethod
     # pylint: disable=invalid-name
     def from_optyx(ty):
+        """
+        Get quantum types from core/diagram.Ty.
+        """
         assert isinstance(ty, diagram.Ty)
         # pylint: disable=protected-access
         return Ty(*[Ob._quantum[ob.name] for ob in ty.inside])
 
     def needs_inflation(self) -> bool:
+        """
+        Diagrams with at least one :code:`qmode` need inflation.
+        """
         return "qmode" in self.name
 
     # pylint: disable=invalid-name
     def inflate(self, d) -> Ty:
+        """
+        Inflate the type.
+        """
         return (mode**0).tensor(
                 *(o**d if o.needs_inflation() else o for o in self)
         )
@@ -203,6 +211,10 @@ class Diagram(frobenius.Diagram):
     grad = tensor.Diagram.grad
 
     def needs_inflation(self) -> bool:
+        """
+        If the domain or codomain need inflation,
+        the diagram needs inflation.
+        """
         return self.dom.needs_inflation() or self.cod.needs_inflation()
 
     # pylint: disable=invalid-name
@@ -213,10 +225,10 @@ class Diagram(frobenius.Diagram):
         assert isinstance(d, int), "Dimension must be an integer"
         assert d > 0, "Dimension must be positive"
 
-        dom = symmetric.Category(Ty, Diagram)
-        cod = symmetric.Category(Ty, Diagram)
+        dom = frobenius.Category(Ty, Diagram)
+        cod = frobenius.Category(Ty, Diagram)
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             lambda x: x.inflate(d),
             lambda f: f.inflate(d),
             dom,
@@ -227,25 +239,49 @@ class Diagram(frobenius.Diagram):
         """Returns the diagram.Diagram obtained by
         doubling every quantum dimension
         and building the completely positive map."""
-        dom = symmetric.Category(Ty, Diagram)
-        cod = symmetric.Category(diagram.Ty, diagram.Diagram)
-        return symmetric.Functor(
+        dom = frobenius.Category(Ty, Diagram)
+        cod = frobenius.Category(diagram.Ty, diagram.Diagram)
+        return frobenius.Functor(
             lambda x: x.double(), lambda f: f.double(), dom, cod
         )(self)
 
     @property
     def is_pure(self):
+        """
+        Check if the diagram is pure, i.e. it does not
+        contain any discards or measures acting on quantum types,
+        and does not prepare quantum types from classical types.
+        """
         are_layers_pure = []
         are_layers_classical = []
         for layer in self:
             generator = layer.inside[0][1]
 
+            # if we have a discard/measure
+            # acting on quantum types, it's not pure
+            if (
+                isinstance(generator, (Discard, Measure)) and
+                any(not ty.is_classical for ty in generator.dom.inside)
+            ):
+                return False
+            if hasattr(generator, 'env') and generator.env != diagram.Ty():
+                return False
+
+            # if we prepare quantum from classical types, it's not pure
+            if (
+                isinstance(generator, Encode) and
+                any(ty.is_classical for ty in generator.cod.inside)
+            ):
+                return False
+
+            # if we're mixing classical and quantum types, it's not pure
             are_layers_pure.append(
                 any(ty.is_classical for ty in generator.cod.inside) or
                 any(ty.is_classical for ty in generator.dom.inside) or
                 isinstance(generator, Discard)
             )
 
+            # assume all classical maps are pure
             are_layers_classical.append(
                 all(ty.is_classical for ty in generator.cod.inside) and
                 all(ty.is_classical for ty in generator.dom.inside)
@@ -254,6 +290,9 @@ class Diagram(frobenius.Diagram):
         return not any(are_layers_pure) or all(are_layers_classical)
 
     def get_kraus(self):
+        """
+        Obtain the Kraus map of a pure circuit.
+        """
         assert self.is_pure, "Cannot get a Kraus map of non-pure circuit"
         kraus_maps = [diagram.Id(self.dom.single())]
         for layer in self:
@@ -289,19 +328,19 @@ class Diagram(frobenius.Diagram):
 
         assert self.is_pure, "Diagram must be pure to convert to path."
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=len,
             ar=lambda f: f.get_kraus().to_path(dtype),
-            cod=symmetric.Category(int, path.Matrix[dtype]),
+            cod=frobenius.Category(int, path.Matrix[dtype]),
         )(self)
 
     def _decomp(self):
 
         # pylint: disable=protected-access
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=lambda x: qubit**len(x),
             ar=lambda arr: arr._decomp(),
-            cod=symmetric.Category(Ty, Diagram),
+            cod=frobenius.Category(Ty, Diagram),
         )(self)
 
     def to_dual_rail(self):
@@ -309,10 +348,10 @@ class Diagram(frobenius.Diagram):
 
         assert self.is_pure, "Diagram must be pure to convert to dual rail."
 
-        return symmetric.Functor(
+        return frobenius.Functor(
             ob=lambda x: qmode**(2*len(x)),
             ar=lambda arr: arr.to_dual_rail(),
-            cod=symmetric.Category(Ty, Diagram),
+            cod=frobenius.Category(Ty, Diagram),
         )(self._decomp())
 
     def to_tket(self):
@@ -344,7 +383,7 @@ class Diagram(frobenius.Diagram):
         )
 
     def to_pyzx(self):
-
+        """Convert to PyZX circuit. The circuit must be a pure circuit."""
         assert self.is_pure, "Diagram must be pure for conversion."
 
         return self.get_kraus().to_pyzx()
@@ -372,6 +411,8 @@ class Diagram(frobenius.Diagram):
 
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+        """Convert from a list of bosonic operators. Based on
+        diagram.Diagram.from_bosonic_operator."""
         return Channel(
             "Bosonic operator",
             diagram.Diagram.from_bosonic_operator(
@@ -396,6 +437,7 @@ class Diagram(frobenius.Diagram):
         acting on polarisation modes, time delays,
         and with symbols.
         """
+        # pylint: disable=import-outside-toplevel
         from optyx import photonic
         from optyx.utils import perceval_conversion
         import perceval as pcvl
@@ -474,7 +516,7 @@ class Diagram(frobenius.Diagram):
         return backend.eval(self, **kwargs)
 
 
-class Channel(symmetric.Box, Diagram):
+class Channel(Diagram, frobenius.Box):
     """
     Channel initialised by its Kraus map.
     """
@@ -586,6 +628,9 @@ class Channel(symmetric.Box, Diagram):
 
 
 class Spider(frobenius.Spider, Channel):  # pragma: no cover
+    """
+    Spider as a channel.
+    """
     def __init__(self, n_legs_in: int, n_legs_out: int, typ: Ty, data=None,
                  **params):
         super().__init__(
@@ -628,7 +673,7 @@ class Sum(symmetric.Sum, Diagram):
         )
 
 
-class CQMap(symmetric.Box, Diagram):
+class CQMap(Diagram, frobenius.Box):
     """
     Channel initialised by its Density matrix.
     """
@@ -675,7 +720,7 @@ class CQMap(symmetric.Box, Diagram):
         return self @ self ** (n - 1)
 
 
-class Swap(symmetric.Swap, Channel):
+class Swap(frobenius.Swap, Channel):
     def dagger(self):
         return self
 
@@ -707,7 +752,6 @@ class Measure(Channel):
         return diagram.Diagram.tensor(*diagrams)
 
     # pylint: disable=invalid-name
-    # pylint: disable=no-self-use
     def _measure_wire(self, ob, d):
         """Return the diagram that measures one `ob`."""
         # pylint: disable=import-outside-toplevel
@@ -839,6 +883,7 @@ class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
     category, functor = Category, Functor
 
 
+Hypergraph.ty_factory = Ty
 Diagram.spider_factory = Spider
 Diagram.hypergraph_factory = Hypergraph
 Diagram.braid_factory = Swap

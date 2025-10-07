@@ -122,7 +122,7 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
         if self.state_type not in {StateType.AMP, StateType.DM}:
             raise TypeError(
@@ -147,7 +147,7 @@ class EvalResult:
             )
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
 
         dic = self._convert_array_to_dict(self.tensor.array)
@@ -167,7 +167,7 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state without inputs."
+                "Result tensor must represent a state with inputs."
             )
         if self.state_type is StateType.AMP:
             return self._prob_dist_pure(round_digits)
@@ -195,7 +195,6 @@ class EvalResult:
         prob_dist = self.prob_dist()
         return prob_dist.get(occupation, 0.0)
 
-    # pylint: disable=no-self-use
     def _convert_array_to_dict(
             self,
             array: np.ndarray,
@@ -205,15 +204,17 @@ class EvalResult:
         entries of an array.
         """
 
-        if round_digits is not None:
-            array = np.round(array, round_digits)
-
         nz_flat = np.flatnonzero(array)
         if nz_flat.size == 0:
             return {}
 
         nz_vals = array.flat[nz_flat]
         nz_multi = np.vstack(np.unravel_index(nz_flat, array.shape)).T
+
+        if round_digits is not None:
+            return {tuple(idx): np.round(val, round_digits) for
+                    idx, val in zip(nz_multi, nz_vals)}
+
         return {tuple(idx): val for idx, val in zip(nz_multi, nz_vals)}
 
     def _prob_dist_pure(self, round_digits: int = None) -> dict:
@@ -250,7 +251,7 @@ class EvalResult:
 
         if not any(t in {bit, mode} for t in self.output_types):
             raise ValueError(
-                "Types must contain at least one 'bit' or 'mode'."
+                "Output types must contain at least one 'bit' or 'mode'."
             )
 
         values = self._convert_array_to_dict(self.tensor.array, round_digits)
@@ -288,7 +289,6 @@ class AbstractBackend(ABC):
     All backends must implement the `eval` method.
     """
 
-    # pylint: disable=no-self-use
     def _get_matrix(
         self,
         diagram: Diagram
@@ -319,7 +319,6 @@ class AbstractBackend(ABC):
         """
         return self._get_discopy_tensor(diagram).to_quimb()
 
-    # pylint: disable=no-self-use
     def _umatrix_to_perceval_circuit(
             self,
             matrix: np.ndarray) -> pcvl.Circuit:
@@ -330,7 +329,6 @@ class AbstractBackend(ABC):
         perceval_matrix = pcvl.Matrix(matrix.T)
         return pcvl.components.Unitary(U=perceval_matrix)
 
-    # pylint: disable=no-self-use
     def _get_discopy_tensor(
         self,
         diagram: Diagram

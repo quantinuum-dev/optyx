@@ -9,7 +9,11 @@ Utility functions which are used in the package.
 """
 
 import numpy as np
-from typing import NamedTuple, Tuple
+from typing import (
+    NamedTuple,
+    Tuple,
+    List
+)
 from numbers import Number
 
 
@@ -151,15 +155,6 @@ def basis_vector_from_kets(
     for k, i_k in enumerate(indices):
         j += i_k * (np.prod(np.array(max_index_sizes[k + 1:]), dtype=int))
     return j
-
-
-def modify_io_dims_against_max_dim(input_dims, output_dims, max_dim):
-    """Modify the input and output dimensions against the maximum dimension"""
-    if input_dims is not None:
-        input_dims = [max_dim if i > max_dim else i for i in input_dims]
-    if output_dims is not None:
-        output_dims = [max_dim if i > max_dim else i for i in output_dims]
-    return input_dims, output_dims
 
 
 def amplitudes_2_tensor(perceval_result, input_occ, output_occ):
@@ -329,6 +324,8 @@ def preprocess_quimb_tensors_safe(tn, epsilon=1e-12, value_limit=1e10):
     for t in tn:
         data = t.data
 
+        data = np.array(data, copy=True)
+
         if data.dtype.kind in {'i', 'u'}:
             t.modify(data=data.astype('complex128'))
             continue
@@ -345,3 +342,187 @@ def preprocess_quimb_tensors_safe(tn, epsilon=1e-12, value_limit=1e10):
         t.modify(data=data)
 
     return tn
+
+
+def update_connections(
+    wires_in_light_cone: List[bool],
+    previous_left_offset: int,
+    previous_box,
+    previous_right_offset: int,
+) -> List[bool]:
+    from optyx.core.diagram import mode
+    """
+    Replace the previous box's cod segment in the light-cone by a dom-length
+    segment that is either all True (if connected) or all False.
+    This pulls the cone one layer backward.
+    """
+    connected = is_previous_box_connected_to_current_box(
+        wires_in_light_cone,
+        previous_left_offset,
+        len(previous_box.cod),
+        previous_right_offset,
+    )
+
+    start = previous_left_offset
+    end = len(wires_in_light_cone) - previous_right_offset
+
+    return (
+        wires_in_light_cone[:start]
+        + [connected if t == mode else False for t in previous_box.dom]
+        + wires_in_light_cone[end:]
+    )
+
+
+def calculate_right_offset(
+        total_wires: int,
+        left_offset: int,
+        span_len: int
+) -> int:
+    """Right offset = number of wires to the right of a span."""
+    return total_wires - span_len - left_offset
+
+
+def is_previous_box_connected_to_current_box(
+    wires_in_light_cone: List[bool],
+    previous_left_offset: int,
+    previous_box_cod_len: int,
+    previous_right_offset: int,
+) -> bool:
+    """
+    Do the current light-cone wires intersect the COD of the previous box?
+    """
+    mask = (
+        [False] * previous_left_offset
+        + [True] * previous_box_cod_len
+        + [False] * previous_right_offset
+    )
+    # lengths should match by construction
+    assert len(mask) == len(wires_in_light_cone), (
+        (f"Mask/wires length mismatch: {len(mask)}"
+         + f" != {len(wires_in_light_cone)}")
+    )
+
+    return any(w and m for w, m in zip(wires_in_light_cone, mask))
+
+
+def get_previous_box_cod_index_in_light_cone(
+    wires_in_light_cone: List[bool],
+    previous_left_offset: int,
+    previous_box_cod_len: int,
+    previous_right_offset: int,
+) -> List[int]:
+    """
+    Get the indices of the cod of the previous box
+    that are in the current light-cone.
+    """
+    mask = (
+        [False] * previous_left_offset
+        + [True] * previous_box_cod_len
+        + [False] * previous_right_offset
+    )
+    # lengths should match by construction
+    assert len(mask) == len(wires_in_light_cone), (
+        (f"Mask/wires length mismatch: {len(mask)}"
+         + f" != {len(wires_in_light_cone)}")
+    )
+
+    return [
+        i - previous_left_offset for i, (w, m) in
+        enumerate(zip(wires_in_light_cone, mask))
+        if w and m
+    ]
+
+
+def get_max_dim_for_box(
+    left_offset: int,
+    box,
+    right_offset: int,
+    input_dims: List[int],
+    prev_layers,
+):
+    from optyx.core.diagram import Swap, mode
+    from optyx.core.zw import Create, Endo, Divide, Multiply
+
+    if (
+        len(box.dom) == 0 or
+        isinstance(box, (Swap, Endo, Divide, Multiply))
+    ):
+        return 1e20
+
+    dim_for_box = 0
+
+    # light-cone at the current layer [connected] * len(previous_box.dom)inputs
+    wires_in_light_cone: List[bool] = (
+        [False] * left_offset
+        + [True if t == mode else False for t in box.dom]
+        + [False] * right_offset
+    )
+
+    # walk previous layers from nearest to farthest
+    for previous_left_offset, previous_box in prev_layers[::-1]:
+        total = len(wires_in_light_cone)
+        cod_len = len(previous_box.cod)
+
+        # Clamp the left offset so the (left, cod_len) span fits this frame
+        # this guarantees previous_right_offset>= 0 and len(mask) == total
+        max_left = max(0, total - cod_len)
+        adj_left = previous_left_offset
+        if adj_left < 0:
+            adj_left = 0
+        elif adj_left > max_left:
+            adj_left = max_left
+
+        previous_right_offset = \
+            calculate_right_offset(total, adj_left, cod_len)
+
+        if is_previous_box_connected_to_current_box(
+            wires_in_light_cone,
+            adj_left,
+            cod_len,
+            previous_right_offset,
+        ):
+            if isinstance(previous_box, Create):
+                idxs = get_previous_box_cod_index_in_light_cone(
+                    wires_in_light_cone,
+                    adj_left,
+                    cod_len,
+                    previous_right_offset,
+                )
+                if idxs:
+                    dim_for_box += sum(previous_box.photons[i] for i in idxs)
+
+        if isinstance(previous_box, Swap):
+            wires_in_light_cone = (
+                wires_in_light_cone[:adj_left]
+                + [wires_in_light_cone[adj_left + 1]]
+                + [wires_in_light_cone[adj_left]]
+                + wires_in_light_cone[adj_left + 2:]
+            )
+        else:
+            wires_in_light_cone = update_connections(
+                wires_in_light_cone,
+                adj_left,
+                previous_box,
+                previous_right_offset,
+            )
+    dim_for_box += sum(2 * dim for wire, dim in
+                       zip(wires_in_light_cone, input_dims) if wire) + 1
+    return max(dim_for_box, 2)
+
+
+def is_diagram_LO(diagram):
+    from optyx.core.zw import LO_ELEMENTS
+    if is_identity(diagram):
+        return True
+
+    for box in diagram.boxes:
+        if is_identity(box):
+            continue
+        if not isinstance(box, LO_ELEMENTS):
+            return False
+
+    return True
+
+
+is_identity = lambda box: (len(box.boxes) == 0 and  # noqa: E731
+                           len(box.offsets) == 0)
