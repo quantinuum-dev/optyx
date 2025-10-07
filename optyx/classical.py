@@ -696,8 +696,8 @@ Bit = lambda *bits: PostselectBit(*bits).dagger()  # noqa: E731
 CtrlX = Channel(
   "Controlled-X",
   zx.X(2, 1) @ diagram.Scalar(2 ** 0.5),
-  dom = bit @ qubit,
-  cod = qubit
+  dom=bit @ qubit,
+  cod=qubit
 )
 
 CtrlZ = Channel(
@@ -706,9 +706,10 @@ CtrlZ = Channel(
     zx.H @ diagram.bit >>
     zx.Z(2, 1) @ diagram.Scalar(2 ** 0.5)
   ),
-  dom = bit @ qubit,
-  cod = qubit
+  dom=bit @ qubit,
+  cod=qubit
 )
+
 
 def Id(n):
     """

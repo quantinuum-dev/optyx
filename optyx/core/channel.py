@@ -153,9 +153,7 @@ from discopy import symmetric, frobenius, hypergraph
 from discopy.cat import factory
 from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
-from optyx.core import zx, diagram
-from optyx.utils.utils import explode_channel
-from optyx.core.path import Matrix
+from optyx.core import diagram
 
 
 class Ob(frobenius.Ob):
