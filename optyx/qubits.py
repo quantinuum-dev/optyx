@@ -263,6 +263,37 @@ We can create a graph state as follows
 .. image:: /_static/graph_dr_qubit.svg
     :align: center
 
+We can map ZX diagrams to dual-rail encoding.
+For example, we can create a GHZ state:
+
+>>> from discopy.drawing import Equation
+>>> from optyx.photonic import DualRail
+>>> from optyx.core.diagram import embedding_tensor
+>>> ghz = Z(0, 3)
+>>> ghz_decom = ghz.decomp()
+>>> ghz_path = ghz_decom.to_dual_rail()
+>>> Equation(ghz >> DualRail(3), ghz_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 10), \\
+... path="docs/_static/ghz_dr.svg")
+
+.. image:: /_static/ghz_dr.svg
+    :align: center
+
+We can also create a graph state as follows
+(where we omit the labels):
+
+>>> graph = (Z(0, 2) >> Id(1) @ H() >> Id(1) @ Z(1, 2) >> \\
+... Id(2) @ H() >> Id(2) @ Z(1, 2))
+>>> graph_decom = graph.decomp()
+>>> graph_path = graph_decom.to_dual_rail()
+>>> Equation(graph >> DualRail(4), graph_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 14), \\
+... path="docs/_static/graph_dr.svg", draw_type_labels=False, \\
+... draw_box_labels=False)
+
+.. image:: /_static/graph_dr.svg
+    :align: center
+
 """  # noqa E501
 
 from typing import Literal

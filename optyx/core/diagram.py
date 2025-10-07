@@ -375,7 +375,12 @@ class Diagram(frobenius.Diagram):
         return diagram
 
     @classmethod
-    def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+    def from_bosonic_operator(
+        cls,
+        n_modes,
+        operators,
+        scalar=1
+    ): # pragma: no cover
         """Create a :class:`zw` diagram from a bosonic operator."""
         # pylint: disable=import-outside-toplevel
         from optyx.core import zw

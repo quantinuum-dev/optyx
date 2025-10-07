@@ -392,7 +392,7 @@ class Diagram(frobenius.Diagram):
             cod=frobenius.Category(Ty, Diagram),
         )(self.decomp())
 
-    def to_tket(self):
+    def to_tket(self): # pragma: no cover
         """
         Convert to tket circuit. The circuit must be a pure circuit.
         """
