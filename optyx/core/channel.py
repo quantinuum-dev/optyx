@@ -104,6 +104,46 @@ We can construct a lossy optical channel and compute its probabilities:
 >>> lossy_prob = (state >> lossy_channel >> effect).double(\\
 ...     ).to_tensor().eval().array
 >>> assert np.allclose(lossy_prob, prob * (eff ** 2))
+
+**Diagrams from Bosonic Operators**
+
+The :code:`from_bosonic_operator` method
+supports creating :class:`path` diagrams:
+
+>>> from optyx.core.zw import Split, Select, Id
+>>> from optyx.core.diagram import Mode
+>>> from optyx.photonic import Scalar
+>>> d1 = Diagram.from_bosonic_operator(
+...     n_modes=2,
+...     operators=((0, False), (1, False), (0, True)),
+...     scalar=2.1
+... )
+
+>>> annil = Channel(
+...     "annil", Split(2) >> Select(1) @ Id(Mode(1))
+... )
+>>> create = annil.dagger()
+
+>>> d2 = Scalar(2.1) @ annil @ qmode >> \\
+... qmode @ annil >> create @ qmode
+
+>>> assert d1 == d2
+
+We can map ZX diagrams to :class:`path` diagrams using
+dual-rail encoding. For example, we can create a GHZ state:
+
+>>> from discopy.drawing import Equation
+>>> from optyx.qubits import Z
+>>> from optyx.photonic import DualRail
+>>> ghz = Z(0, 3)
+>>> ghz_path = ghz.to_dual_rail()
+>>> Equation(ghz >> DualRail(3), ghz_path, \\
+... symbol="$\\mapsto$").draw(figsize=(10, 10), \\
+... path="docs/_static/ghz_dr.svg")
+
+.. image:: /_static/ghz_dr.svg
+    :align: center
+
 """
 
 from __future__ import annotations
@@ -113,8 +153,7 @@ from discopy import symmetric, frobenius, hypergraph
 from discopy.cat import factory
 from pytket.extensions.pyzx import pyzx_to_tk
 from pyzx import extract_circuit
-from optyx.core import zx, diagram
-from optyx.utils.utils import explode_channel
+from optyx.core import diagram
 
 
 class Ob(frobenius.Ob):
@@ -334,8 +373,7 @@ class Diagram(frobenius.Diagram):
             cod=frobenius.Category(int, path.Matrix[dtype]),
         )(self)
 
-    def _decomp(self):
-
+    def decomp(self):
         # pylint: disable=protected-access
         return frobenius.Functor(
             ob=lambda x: qubit**len(x),
@@ -350,11 +388,11 @@ class Diagram(frobenius.Diagram):
 
         return frobenius.Functor(
             ob=lambda x: qmode**(2*len(x)),
-            ar=lambda arr: arr.to_dual_rail(),
+            ar=lambda arr: arr._to_dual_rail(),
             cod=frobenius.Category(Ty, Diagram),
-        )(self._decomp())
+        )(self.decomp())
 
-    def to_tket(self):
+    def to_tket(self):  # pragma: no cover
         """
         Convert to tket circuit. The circuit must be a pure circuit.
         """
@@ -409,16 +447,36 @@ class Diagram(frobenius.Diagram):
         from optyx.qubits import Circuit
         return Circuit(discopy_circuit)
 
+    # @classmethod
+    # def from_bosonic_operator(cls, n_modes, operators, scalar=1):
+    #     return Channel(
+    #         "Bosonic operator",
+    #         diagram.Diagram.from_bosonic_operator(
+    #             n_modes, operators, scalar=scalar
+    #         )
+    #     )
+
     @classmethod
     def from_bosonic_operator(cls, n_modes, operators, scalar=1):
-        """Convert from a list of bosonic operators. Based on
-        diagram.Diagram.from_bosonic_operator."""
-        return Channel(
-            "Bosonic operator",
-            diagram.Diagram.from_bosonic_operator(
-                n_modes, operators, scalar=scalar
-            )
-        )
+        """Create a :class:`zw` diagram from a bosonic operator."""
+        # pylint: disable=import-outside-toplevel
+        from optyx.core import zw
+        from optyx.photonic import Scalar
+
+        # pylint: disable=invalid-name
+        d = Diagram.id(qmode**n_modes)
+        annil = Channel("annil", zw.Split(2) >> zw.Select(1) @ zw.Id(1))
+        create = annil.dagger()
+        for idx, dagger in operators:
+            if not 0 <= idx < n_modes:
+                raise ValueError(f"Index {idx} out of bounds.")
+            box = create if dagger else annil
+            d = d >> qmode**idx @ box @ qmode**(n_modes - idx - 1)
+
+        if scalar != 1:
+            # pylint: disable=invalid-name
+            d = Scalar(scalar) @ d
+        return d
 
     @classmethod
     def from_graphix(cls, measurement_pattern):
@@ -592,15 +650,11 @@ class Channel(Diagram, frobenius.Box):
 
     def _decomp(self):
         # pylint: disable=import-outside-toplevel
-        from optyx.qubits import QubitChannel
-        decomposed = zx.decomp(self.kraus)
-        return explode_channel(
-            decomposed,
-            QubitChannel,
-            Diagram
+        raise NotImplementedError(
+            "Decomposition is only implemented for ZX channels."
         )
 
-    def to_dual_rail(self):
+    def _to_dual_rail(self):
         raise TypeError(
             "Only ZX channels can be converted to dual rail."
             )
@@ -658,18 +712,12 @@ class Sum(symmetric.Sum, Diagram):
             return self.sum_factory((), self.dom, self.cod)
         return sum(term.grad(var, **params) for term in self.terms)
 
-    def eval(self, n_photons=0, permanent=None, dtype=complex):
-        """Evaluate the sum of diagrams."""
-        # we need to implement the proper sums of qpath diagrams
-        # this is only a temporary solution, so that the grad tests pass
-        if permanent is None:
-            # pylint: disable=import-outside-toplevel
-            from optyx.core.path import npperm
+    def get_kraus(self):
+        if len(self.terms) == 0:
+            return diagram.Scalar(0)
 
-            permanent = npperm
-        return sum(
-            term.to_path(dtype).eval(n_photons, permanent)
-            for term in self.terms
+        return diagram.Diagram.sum_factory(
+            [term.get_kraus() for term in self.terms]
         )
 
 

@@ -392,8 +392,43 @@ class QuimbBackend(AbstractBackend):
         Returns:
             The result of the evaluation.
         """
-        quimb_tn = self._get_quimb_tensor(diagram)
+
         tensor_diagram = self._get_discopy_tensor(diagram)
+
+        if hasattr(diagram, 'terms'):
+            results = sum(
+                self._process_term(term) for term in tensor_diagram.terms
+            )
+        else:
+            results = self._process_term(tensor_diagram)
+
+        if diagram.is_pure:
+            state_type = StateType.AMP
+        else:
+            state_type = StateType.DM
+
+        return EvalResult(
+            discopy_tensor.Box(
+                "Result",
+                tensor_diagram.dom,
+                tensor_diagram.cod,
+                results
+            ),
+            output_types=diagram.cod,
+            state_type=state_type
+        )
+
+    def _process_term(self, term: Diagram) -> np.ndarray:
+        """
+        Process a term in a sum of diagrams.
+
+        Args:
+            term (Diagram): The term to process.
+
+        Returns:
+            np.ndarray: The processed term as a numpy array.
+        """
+        quimb_tn = term.to_quimb()
 
         for t in quimb_tn:
             dt = t.data.dtype
@@ -401,7 +436,7 @@ class QuimbBackend(AbstractBackend):
                 t.modify(data=t.data.astype(np.complex128, copy=False))
 
         if self.hyperoptimiser is None:
-            results = quimb_tn ^ ...
+            result = quimb_tn ^ ...
         else:
             is_approx = isinstance(
                 self.hyperoptimiser,
@@ -426,30 +461,16 @@ class QuimbBackend(AbstractBackend):
 
             contract = quimb_tn.contract_compressed if \
                 is_approx else quimb_tn.contract
-            results = contract(
+            result = contract(
                 optimize=self.hyperoptimiser,
                 output_inds=sorted(quimb_tn.outer_inds()),
                 **self.contraction_params
             )
 
-        if not isinstance(results, (complex, float, int)):
-            results = results.data
+        if not isinstance(result, (complex, float, int)):
+            result = result.data
 
-        if diagram.is_pure:
-            state_type = StateType.AMP
-        else:
-            state_type = StateType.DM
-
-        return EvalResult(
-            discopy_tensor.Box(
-                "Result",
-                tensor_diagram.dom,
-                tensor_diagram.cod,
-                results
-            ),
-            output_types=diagram.cod,
-            state_type=state_type
-        )
+        return result
 
 
 # pylint: disable=too-few-public-methods

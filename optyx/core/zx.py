@@ -35,82 +35,8 @@ Functions
 Examples of usage
 ------------------
 
-We can map ZX diagrams to :class:`path` diagrams using
-dual-rail encoding. For example, we can create a GHZ state:
-
->>> from discopy.drawing import Equation
->>> from optyx.core.diagram import dual_rail, embedding_tensor
->>> ghz = Z(0, 3)
->>> ghz_decom = decomp(ghz)
->>> ghz_path = zx_to_path(ghz_decom)
->>> Equation(ghz >> dual_rail(3), ghz_path, \\
-... symbol="$\\mapsto$").draw(figsize=(10, 10), \\
-... path="docs/_static/ghz_dr.svg")
-
-.. image:: /_static/ghz_dr.svg
-    :align: center
-
-We can also create a graph state as follows
-(where we omit the labels):
-
->>> graph = (Z(0, 2) >> Id(1) @ H >> Id(1) @ Z(1, 2) >> \\
-... Id(2) @ H >> Id(2) @ Z(1, 2))
->>> graph_decom = decomp(graph)
->>> graph_path = zx_to_path(graph_decom)
->>> Equation(graph >> dual_rail(4), graph_path, \\
-... symbol="$\\mapsto$").draw(figsize=(10, 14), \\
-... path="docs/_static/graph_dr.svg", draw_type_labels=False, \\
-... draw_box_labels=False)
-
-.. image:: /_static/graph_dr.svg
-    :align: center
-
-We can check that both diagrams produce the same tensors (we need to
-ensure the tensor dimensions match):
-
->>> assert np.allclose(graph_path.to_tensor().eval().array, \\
-... ((graph >> dual_rail(4)).to_tensor() >> \\
-... (tensor.Id(Dim(*[2]*7)) @ embedding_tensor(1, 4))).eval().array)
-
-As shown in the example above, we need to decompose a ZX diagram
-into more elementary spiders before mapping it to a path diagram.
-More explicitely:
-
->>> dgr = Z(2, 1, 0.25) >> X(1, 1, 0.35)
->>> print(decomp(dgr))
-Z(2, 1) >> Z(1, 1, 0.25) >> H >> Z(1, 1, 0.35) >> H
->>> print(zx2path(decomp(dgr))[:2])
-mode @ W[::-1] @ mode >> mode @ Select(1) @ mode
->>> assert zx2path(decomp(dgr)) == zx_to_path(dgr)
-
 Evaluating ZX diagrams using PyZX or via the dual rail
 encoding is equivalent.
-
->>> ket = lambda *xs: Id(diagram.Bit(0)).tensor(\\
-...         *[X(0, 1, 0.5 if x == 1 else 0) for x in xs])
->>> cnot = Z(1, 2) @ Id(1) >> Id(1) @ X(2, 1)
->>> control = lambda x: ket(x) @ Id(1) >> cnot >> ket(x).dagger() @ Id(1)
->>> assert np.allclose(zx_to_path(control(0)).to_path().eval(1).array, \\
-...                    control(0).to_pyzx().to_tensor())
->>> assert np.allclose(zx_to_path(control(1)).to_path().eval(1).array, \\
-...                    control(1).to_pyzx().to_tensor())
->>> cz = lambda phi: cnot >> Z(1, 1, phi) @ H
->>> amplitude = ket(1, 1) >> cz(0.7) >> ket(1, 1).dagger()
->>> assert np.allclose(zx_to_path(amplitude).to_path().eval().array, \\
-...                    amplitude.to_pyzx().to_tensor())
-
-Corner case where :code:`to_pyzx` and
-:code:`zx_to_path` agree only up to global
-phase.
-
->>> diagram = X(0, 2) @ Z(0, 1, 0.25) @ scalar(1/2)\\
-...     >> Id(1) @ Z(2, 1) >> X(2, 0, 0.35)
->>> print(decomp(diagram)[:3])
-X(0, 1) >> H >> Z(1, 2)
->>> print(zx_to_path(diagram)[:2])
-Create(1) >> mode @ Create((0,))
->>> pyzx_ampl = diagram.to_pyzx().to_tensor()
->>> assert np.allclose(pyzx_ampl, zx_to_path(diagram).to_path().eval().array)
 
 The array properties of Z and X spiders agree with PyZX.
 
@@ -127,7 +53,6 @@ from math import pi
 from typing import List
 
 import numpy as np
-from discopy import symmetric
 from discopy import cat
 from discopy.utils import factory_name
 from discopy.frobenius import Dim
@@ -339,21 +264,21 @@ class ZXDiagram(diagram.Diagram):
             elif box == H:
                 node, hadamard = scan[offset]
                 scan[offset] = (node, not hadamard)
-            # elif isinstance(box, diagram.Spider):
-            #     node = graph.add_vertex(
-            #         VertexType.Z,
-            #         phase=box.phase * 2 if box.phase else None,
-            #     )
-            #     graph.set_position(node, offset, row + 1)
-            #     for i, _ in enumerate(box.dom):
-            #         source, hadamard = scan[offset + i]
-            #       etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
-            #         graph.add_edge((source, node), etype)
-            #     scan = (
-            #         scan[:offset]
-            #         + len(box.cod) * [(node, False)]
-            #         + scan[offset + len(box.dom):]
-            #     )
+            elif isinstance(box, diagram.Spider):
+                node = graph.add_vertex(
+                    VertexType.Z,
+                    phase=box.phase * 2 if box.phase else None,
+                )
+                graph.set_position(node, offset, row + 1)
+                for i, _ in enumerate(box.dom):
+                    source, hadamard = scan[offset + i]
+                    etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
+                    graph.add_edge((source, node), etype)
+                scan = (
+                    scan[:offset]
+                    + len(box.cod) * [(node, False)]
+                    + scan[offset + len(box.dom):]
+                )
             else:
                 raise NotImplementedError
         for i, _ in enumerate(self.cod):
@@ -507,137 +432,9 @@ def scalar(data):
     return diagram.Scalar(data)
 
 
-def make_spiders(n):
-    """Constructs the Z spider 1 -> n from spiders 1 -> 2.
-
-    >>> assert len(make_spiders(6)) == 5
-    """
-    spider = Id(1)
-    for k in range(n - 1):
-        spider = spider >> Z(1, 2) @ Id(k)
-    return spider
-
-
-def decomp_ar(box):
-    """
-    Decomposes a ZX diagram into Z spiders
-    with at most two inputs/outputs and hadamards.
-
-    >>> assert len(decomp(X(2, 2, 0.25))) == 7
-    """
-    n, m = len(box.dom), len(box.cod)
-    if isinstance(box, X):
-        phase = box.phase
-        if (n, m) in ((1, 0), (0, 1)):
-            return box
-        box = (
-            Id(0).tensor(*[H] * n) >> Z(n, m, phase) >> Id(0).tensor(*[H] * m)
-        )
-        return decomp(box)
-    if isinstance(box, Z):
-        phase = box.phase
-        rot = Id(1) if phase == 0 else Z(1, 1, phase)
-        if n == 0:
-            return X(0, 1) >> H >> rot >> make_spiders(m)
-        if m == 0:
-            return X(1, 0) << H << rot << make_spiders(n).dagger()
-        return make_spiders(n).dagger() >> rot >> make_spiders(m)
-    return box
-
-
-decomp = symmetric.Functor(
-    ob=lambda x: diagram.Bit(len(x)),
-    ar=decomp_ar,
-    cod=symmetric.Category(diagram.Bit, diagram.Diagram),
-)
-
-
 def Id(n):
     return diagram.Diagram.id(n) if isinstance(n, diagram.Ty) \
           else diagram.Diagram.id(diagram.Bit(n))
-
-
-def ar_zx2path(box):
-    """Mapping from ZX generators to QPath diagrams
-
-    >>> zx2path(decomp(X(0, 1) @ X(0, 1) >> Z(2, 1))).to_path().eval()
-    Amplitudes([2.+0.j, 0.+0.j], dom=1, cod=2)
-    """
-    # pylint: disable=import-outside-toplevel
-    from optyx.photonic import HadamardBS, Phase, BS
-
-    unit = zw.Create(0)
-    counit = zw.Select(0)
-    create = zw.Create(1)
-    annil = zw.Select(1)
-    comonoid = zw.Split(2)
-    monoid = zw.Merge(2)
-    BS = BS.get_kraus()
-
-    n, m = len(box.dom), len(box.cod)
-    if isinstance(box, diagram.Scalar):
-        return diagram.Scalar(box.data)
-    if isinstance(box, X):
-        phase = 1 + box.phase if box.phase < 0 else box.phase
-        if (n, m, phase) == (0, 1, 0):
-            return create @ unit @ root2
-        if (n, m, phase) == (0, 1, 0.5):
-            return unit @ create @ root2
-        if (n, m, phase) == (1, 0, 0):
-            return annil @ counit @ root2
-        if (n, m, phase) == (1, 0, 0.5):
-            return counit @ annil @ root2
-        if (n, m, phase) == (1, 1, 0.25):
-            return BS.dagger()
-        if (n, m, phase) == (1, 1, -0.25):
-            return BS
-    if isinstance(box, Z):
-        phase = box.phase
-        if (n, m) == (0, 1):
-            return create >> comonoid
-        if (n, m) == (1, 1):
-            return Id(diagram.Mode(1)) @ Phase(phase).get_kraus()
-        if (n, m, phase) == (2, 1, 0):
-            return (
-                Id(diagram.Mode(1)) @
-                (monoid >> annil) @
-                Id(diagram.Mode(1))
-                )
-        if (n, m, phase) == (1, 2, 0):
-            plus = create >> comonoid
-            bot = (
-                (plus >> Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1))) @
-                (Id(diagram.Mode(1)) @ plus @ Id(diagram.Mode(1)))
-            )
-            mid = Id(diagram.Mode(2)) @ BS.dagger() @ BS @ Id(diagram.Mode(2))
-            fusion = (
-                Id(diagram.Mode(1)) @ plus.dagger() @
-                Id(diagram.Mode(1)) >> plus.dagger()
-            )
-            return (
-                bot >> mid >> (Id(diagram.Mode(2)) @
-                               fusion @ Id(diagram.Mode(2)))
-                )
-    if box == H:
-        return HadamardBS().get_kraus()
-    raise NotImplementedError(f"No translation of {box} in QPath.")
-
-
-zx2path = symmetric.Functor(
-    ob=lambda x: diagram.Mode(2 * len(x)),
-    ar=ar_zx2path,
-    cod=symmetric.Category(diagram.Mode, diagram.Diagram),
-)
-
-
-def zx_to_path(diagram: diagram.Diagram) -> diagram.Diagram:
-    """
-    Dual-rail encoding of any ZX diagram as a QPath diagram.
-    """
-    return zx2path(decomp(diagram))
-
-
-root2 = scalar(2**0.5)
 
 
 H = ZXBox("H", 1, 1)

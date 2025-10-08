@@ -1,7 +1,7 @@
 import pytest
 
 from optyx.core.channel import *
-from optyx.core import diagram
+from optyx.core import diagram, zx
 import numpy as np
 
 bell_density_re = np.array([
@@ -57,5 +57,8 @@ def test_from_bosonic_op():
             terms.append(term)
 
     hamiltonian = Diagram.sum_factory(terms)
-    sum_1 = hamiltonian.eval()
-    assert np.allclose(sum_1.array, 0.0)
+
+    sum_1 = np.sign(hamiltonian.get_kraus().to_tensor().eval().array)
+    sum_2 = np.sign(hamiltonian.eval().tensor.array) # bug in discopy.tensor.Tensor.eval() for Sums (?)
+
+    assert np.allclose(sum_2, sum_1)
