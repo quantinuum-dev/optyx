@@ -66,7 +66,7 @@ Examples of usage
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 from collections import defaultdict
 from enum import Enum
 from cotengra import (
@@ -79,8 +79,7 @@ from discopy import tensor as discopy_tensor
 import numpy as np
 import perceval as pcvl
 from quimb.tensor import TensorNetwork
-from optyx.core.channel import Diagram
-from optyx.core.channel import Ty, mode, bit
+from optyx.core.channel import Diagram, Ty, mode, bit
 from optyx.utils.utils import preprocess_quimb_tensors_safe
 
 
@@ -113,16 +112,16 @@ class EvalResult:
         return self._tensor
 
     @property
-    def density_matrix(self) -> discopy_tensor.Box:
+    def density_matrix(self) -> np.ndarray:
         """
         Get the density matrix from the result tensor.
 
         Returns:
-            tensor.Box: The density matrix.
+            np.ndarray: The density matrix.
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state with inputs."
+                "Result tensor must represent a state with no inputs."
             )
         if self.state_type not in {StateType.AMP, StateType.DM}:
             raise TypeError(
@@ -130,10 +129,10 @@ class EvalResult:
             )
         if self.state_type is StateType.AMP:
             density_matrix = self.tensor.dagger() >> self.tensor
-            return density_matrix
+            return density_matrix.array
         return self.tensor.array
 
-    def amplitudes(self, normalise=True) -> dict[tuple[int, ...], float]:
+    def amplitudes(self, normalise=True) -> dict[tuple[int, ...], complex]:
         """
         Get the amplitudes from the result tensor.
         Returns:
@@ -147,7 +146,7 @@ class EvalResult:
             )
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state with inputs."
+                "Result tensor must represent a state with no inputs."
             )
 
         dic = self._convert_array_to_dict(self.tensor.array)
@@ -167,7 +166,7 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state with inputs."
+                "Result tensor must represent a state with no inputs."
             )
         if self.state_type is StateType.AMP:
             return self._prob_dist_pure(round_digits)
@@ -231,6 +230,8 @@ class EvalResult:
             round_digits=round_digits
         )
         sum_ = np.sum(np.abs(list(values.values())) ** 2)
+        if sum_ == 0:
+            raise ValueError("The probability distribution sums to zero.")
         return {key: (abs(value) ** 2)/sum_ for key, value in values.items()}
 
     def _prob_dist_mixed(
@@ -240,6 +241,10 @@ class EvalResult:
         Get the probability distribution from a mixed state.
         This method computes the probability distribution by aggregating
         occupation configurations based on the output types of the tensor.
+
+        Assumes the output types contain at least one 'bit' or 'mode'
+        These will be treated as measured registers while 'qubit' and 'qmode'
+        are treated as unmeasured and traced out.
 
         Args:
             round_digits: Optional number of
@@ -251,10 +256,11 @@ class EvalResult:
 
         if not any(t in {bit, mode} for t in self.output_types):
             raise ValueError(
-                "Output types must contain at least one 'bit' or 'mode'."
+                "Output types must contain at least one 'bit' or 'mode'." +
+                "These will be treated as measured registers."
             )
 
-        values = self._convert_array_to_dict(self.tensor.array, round_digits)
+        values = self._convert_array_to_dict(self.tensor.array, None)
         mask_flat = np.concatenate(
             [[1] if t in {bit, mode} else [0, 0] for t in self.output_types]
         )
@@ -270,15 +276,25 @@ class EvalResult:
                                     zip(key, mask_flat) if not m)
             if all(occs_unmeasured[i] == occs_unmeasured[i + 1]
                    for i in range(0, len(occs_unmeasured) - 1, 2)):
-                probs[occ_measured] += amp
+
+                val = float(np.real_if_close(amp))
+                if val < 0 and abs(val) < 1e-12:
+                    val = 0.0
+                probs[occ_measured] += val
 
         for occ in all_measured:
             probs.setdefault(occ, 0.0)
         sum_ = np.sum(list(probs.values()))
+        if sum_ == 0:
+            raise ValueError("The probability distribution sums to zero.")
         prob = {
             key: value / sum_
             for key, value in probs.items()
         }
+
+        if round_digits is not None:
+            prob = {k: round(v, round_digits) for k, v in prob.items()}
+
         return prob
 
 
@@ -361,12 +377,13 @@ class QuimbBackend(AbstractBackend):
 
     def __init__(
             self,
-            hyperoptimiser: Union[
-                HyperOptimizer,
-                ReusableHyperOptimizer,
-                HyperCompressedOptimizer,
-                ReusableHyperCompressedOptimizer
-            ] = None,
+            hyperoptimiser: (
+                HyperOptimizer |
+                ReusableHyperOptimizer |
+                HyperCompressedOptimizer |
+                ReusableHyperCompressedOptimizer |
+                None
+             ) = None,
             contraction_params: dict = None):
         """
         Initialize the Quimb backend.
@@ -395,7 +412,7 @@ class QuimbBackend(AbstractBackend):
 
         tensor_diagram = self._get_discopy_tensor(diagram)
 
-        if hasattr(diagram, 'terms'):
+        if hasattr(tensor_diagram, 'terms'):
             results = sum(
                 self._process_term(term) for term in tensor_diagram.terms
             )
@@ -418,12 +435,12 @@ class QuimbBackend(AbstractBackend):
             state_type=state_type
         )
 
-    def _process_term(self, term: Diagram) -> np.ndarray:
+    def _process_term(self, term: discopy_tensor.Diagram) -> np.ndarray:
         """
         Process a term in a sum of diagrams.
 
         Args:
-            term (Diagram): The term to process.
+            term (discopy.tensor.Diagram): The term to process.
 
         Returns:
             np.ndarray: The processed term as a numpy array.
@@ -540,29 +557,34 @@ class PercevalBackend(AbstractBackend):
             The result of the evaluation.
         """
 
-        if extra:
+        perceval_state = extra.get(
+            "perceval_state",
+            pcvl.StateVector([1] * len(diagram.dom))
+        )
+
+        if not isinstance(perceval_state, pcvl.StateVector):
             try:
-                perceval_state: pcvl.StateVector = extra["perceval_state"]
-            except KeyError as error:
+                perceval_state = pcvl.StateVector(list(perceval_state))
+            except Exception as e:
                 raise TypeError(
-                    "PercevalBackend.eval requires " +
-                    "a 'perceval_state=' keyword."
-                ) from error
-        else:
-            perceval_state = pcvl.StateVector(
-                [1] * len(diagram.dom)
-            )
+                    "perceval_state must be a perceval.StateVector"
+                    " or a sequence of non-negative " +
+                    "integers (occupation numbers)."
+                ) from e
+
         tensor_diagram = self._get_discopy_tensor(diagram)
 
         sim = pcvl.Simulator(self.perceval_backend)
         matrix = self._get_matrix(diagram)
 
-        if not np.allclose(
-            np.eye(matrix.shape[0]),
-            matrix.dot(matrix.conj().T)
+        if (
+            matrix.shape[0] != matrix.shape[1] or
+            not np.allclose(np.eye(matrix.shape[0]),
+                            matrix.dot(matrix.conj().T))
         ):
             raise ValueError(
-                "The provided diagram does not represent a unitary operation."
+                "The provided diagram does not represent a" +
+                " unitary operation or the matrix is not square."
             )
 
         perceval_circuit = self._umatrix_to_perceval_circuit(matrix)
