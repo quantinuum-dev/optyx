@@ -445,7 +445,7 @@ class TestExceptions:
     )
     def test_non_lo_circuits_raise_notimplemented(self, circuit):
         backend = PermanentBackend()
-        with pytest.raises(ValueError):
+        with pytest.raises(AssertionError):
             _ = circuit.eval(backend)
 
     @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)

@@ -80,6 +80,7 @@ import numpy as np
 import perceval as pcvl
 from quimb.tensor import TensorNetwork
 from optyx.core.channel import Diagram, Ty, mode, bit
+from optyx.core.path import Matrix
 from optyx.utils.utils import preprocess_quimb_tensors_safe
 
 
@@ -308,7 +309,7 @@ class AbstractBackend(ABC):
     def _get_matrix(
         self,
         diagram: Diagram
-    ) -> np.ndarray:
+    ) -> Matrix:
         """
         Get the matrix representation of the diagram.
 
@@ -319,7 +320,7 @@ class AbstractBackend(ABC):
             np.ndarray: The matrix representation of the diagram.
         """
         try:
-            return diagram.to_path().array
+            return diagram.to_path()
         except NotImplementedError as error:
             raise NotImplementedError(
                 "The diagram cannot be converted to a matrix. " +
@@ -575,7 +576,7 @@ class PercevalBackend(AbstractBackend):
         tensor_diagram = self._get_discopy_tensor(diagram)
 
         sim = pcvl.Simulator(self.perceval_backend)
-        matrix = self._get_matrix(diagram)
+        matrix = self._get_matrix(diagram).array
 
         if (
             matrix.shape[0] != matrix.shape[1] or
@@ -641,37 +642,46 @@ class PermanentBackend(AbstractBackend):
             **extra: Additional arguments for the evaluation,
             including 'n_photons' for optyx.core.path.Matrix.eval.
         """
-        try:
-            matrix = diagram.to_path()
-        except AssertionError as error:
-            raise ValueError(
-                "The diagram cannot be converted to a matrix. " +
-                "It is not linear optical."
-            ) from error
 
         n_photons = extra.get(
             "n_photons",
             0
         )
 
-        if (
-            len(matrix.creations) == 0 and
-            n_photons == 0
-        ):
-            raise ValueError(
-                "The diagram does not include any photon creations. " +
-                "n_photons must be greater than 0."
-            )
+        def check_creations(matrix):
+            if (
+                len(matrix.creations) == 0 and
+                n_photons == 0
+            ):
+                raise ValueError(
+                    "The diagram does not include any photon creations. " +
+                    "n_photons must be greater than 0."
+                )
 
         tensor_diagram = self._get_discopy_tensor(diagram)
-        result = matrix.eval(n_photons=n_photons, as_tensor=True)
-        print(result)
+        if hasattr(
+            diagram,
+            "terms"
+        ):
+            result = 0
+            for term in diagram.terms:
+                matrix = self._get_matrix(term)
+                check_creations(matrix)
+                result += matrix.eval(
+                    n_photons=n_photons,
+                    as_tensor=True
+                ).array
+        else:
+            matrix = self._get_matrix(diagram)
+            check_creations(matrix)
+            result = matrix.eval(n_photons=n_photons, as_tensor=True).array
+
         return EvalResult(
             discopy_tensor.Box(
                 "Result",
                 tensor_diagram.dom,
                 tensor_diagram.cod,
-                result.array
+                result
             ),
             output_types=diagram.cod,
             state_type=StateType.AMP
