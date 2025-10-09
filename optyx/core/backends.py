@@ -619,3 +619,60 @@ class PercevalBackend(AbstractBackend):
             output_types=diagram.cod,
             state_type=StateType.PROB
         )
+
+
+class PermanentBackend(AbstractBackend):
+    """
+    Backend implementation using optyx' Path module to compute matrix
+    permanents.
+    """
+
+    def eval(
+        self,
+        diagram: Diagram,
+        **extra: Any
+    ):
+        """
+        Evaluate the diagram using the Permanent/Path backend.
+        Works only for LO circuits.
+
+        Args:
+            diagram (Diagram): The diagram to evaluate.
+            **extra: Additional arguments for the evaluation,
+            including 'n_photons' for optyx.core.path.Matrix.eval.
+        """
+        try:
+            matrix = diagram.to_path()
+        except AssertionError as error:
+            raise ValueError(
+                "The diagram cannot be converted to a matrix. " +
+                "It is not linear optical."
+            ) from error
+
+        n_photons = extra.get(
+            "n_photons",
+            0
+        )
+
+        if (
+            len(matrix.creations) == 0 and
+            n_photons == 0
+        ):
+            raise ValueError(
+                "The diagram does not include any photon creations. " +
+                "n_photons must be greater than 0."
+            )
+
+        tensor_diagram = self._get_discopy_tensor(diagram)
+        result = matrix.eval(n_photons=n_photons, as_tensor=True)
+        print(result)
+        return EvalResult(
+            discopy_tensor.Box(
+                "Result",
+                tensor_diagram.dom,
+                tensor_diagram.cod,
+                result.array
+            ),
+            output_types=diagram.cod,
+            state_type=StateType.AMP
+        )

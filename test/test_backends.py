@@ -1,7 +1,14 @@
 import pytest
 from optyx import photonic, qubits, classical, mode, qubit, qmode, bit
 from cotengra import ReusableHyperCompressedOptimizer
-from optyx.core.backends import QuimbBackend, PercevalBackend, DiscopyBackend, EvalResult, StateType
+from optyx.core.backends import (
+    QuimbBackend,
+    PercevalBackend,
+    DiscopyBackend,
+    EvalResult,
+    StateType,
+    PermanentBackend
+)
 import numpy as np
 import math
 from itertools import chain
@@ -431,3 +438,54 @@ class TestExceptions:
 
         with pytest.raises(ValueError):
             _ = ev.prob_dist()
+
+    @pytest.mark.parametrize(
+        "circuit",
+        MIXED_CIRCUITS_TO_TEST + CIRCUITS_WITH_DISCARDS_TO_TEST,
+    )
+    def test_non_lo_circuits_raise_notimplemented(self, circuit):
+        backend = PermanentBackend()
+        with pytest.raises(ValueError):
+            _ = circuit.eval(backend)
+
+    @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
+    def test_zero_photons_no_creations_raises_valueerror(self, circuit):
+        backend = PermanentBackend()
+        with pytest.raises(ValueError):
+            _ = circuit.eval(backend, n_photons=0)
+
+class TestPermanentBackendVsQuimb:
+    @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
+    def test_permanent_amp_matches_quimb_with_create(self, circuit):
+        """
+        Diagram has explicit Create(...), so PermanentBackend.eval returns a **state** (AMP).
+        Compare amplitudes, probs, and raw arrays with Quimb.
+        """
+        state_occ = get_state(circuit)
+        state = photonic.Create(*state_occ)
+        diagram = state >> circuit
+
+        result_quimb = diagram.eval()
+
+        backend = PermanentBackend()
+        result_perm = diagram.eval(backend)
+
+        assert dict_allclose(result_perm.amplitudes(), result_quimb.amplitudes())
+        assert dict_allclose(result_perm.prob_dist(), result_quimb.prob_dist())
+        assert np.allclose(result_perm.tensor.array, result_quimb.tensor.array, atol=1e-12)
+
+    @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
+    def test_permanent_prob_matches_quimb_with_create(self, circuit):
+        """
+        Same as above but request PROB directly from PermanentBackend.
+        """
+        state_occ = get_state(circuit)
+        state = photonic.Create(*state_occ)
+        diagram = state >> circuit
+
+        result_quimb = diagram.eval()
+
+        backend = PermanentBackend()
+        result_perm = diagram.eval(backend, return_kind="prob")
+
+        assert dict_allclose(result_perm.prob_dist(), result_quimb.prob_dist())
