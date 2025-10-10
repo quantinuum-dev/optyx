@@ -43,7 +43,7 @@ Examples of usage
 >>> diag = Create(1, 1) >> BS
 >>> backend = QuimbBackend()
 >>> result = diag.eval(backend)
->>> np.round(result.prob((2, 0)), 1)
+>>> np.round(result.single_prob((2, 0)), 1)
 0.5
 
 **Compressed contraction (hyper-optimiser reused across calls)**
@@ -52,7 +52,7 @@ Examples of usage
 >>> opt = ReusableHyperCompressedOptimizer(max_repeats=32)
 >>> backend = QuimbBackend(hyperoptimiser=opt)
 >>> result = diag.eval(backend)
->>> np.round(result.prob((2, 0)), 1)
+>>> np.round(result.single_prob((2, 0)), 1)
 0.5
 
 **Unitary circuit simulation with Perceval**
@@ -60,10 +60,11 @@ Examples of usage
 >>> from optyx.core.backends import PercevalBackend
 >>> backend = PercevalBackend()
 >>> result = BS.eval(backend)
->>> np.round(result.prob((2, 0)), 1)
+>>> np.round(result.single_prob((2, 0)), 1)
 0.5
 """
 
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -88,9 +89,11 @@ class StateType(Enum):
     """
     Enum to represent the type of state represented by the result tensor.
     """
-    AMP = "amp"     # pure-state amplitudes
-    DM = "dm"       # density matrix
-    PROB = "prob"   # classical probability distribution
+    AMP = "amp"  # pure-state amplitudes
+    DM = "dm"  # density matrix
+    PROB = "prob"  # classical probability distribution
+    SINGLE_PROB = "SINGLE_PROB"  # single |<v|U|w>|^2 probability
+    SINGLE_AMP = "SINGLE_AMP"  # single <v|U|w> amplitude
 
 
 @dataclass(frozen=True)
@@ -126,7 +129,7 @@ class EvalResult:
             )
         if self.state_type not in {StateType.AMP, StateType.DM}:
             raise TypeError(
-                "Cannot get density matrix from probability distribution."
+                f"Cannot get density matrix from {self.state_type}."
             )
         if self.state_type is StateType.AMP:
             density_matrix = self.tensor.dagger() >> self.tensor
@@ -142,8 +145,7 @@ class EvalResult:
         """
         if self.state_type != StateType.AMP:
             raise TypeError(
-                ("Cannot get amplitudes from density " +
-                 "matrix or probability distribution.")
+                (f"Cannot get amplitudes from {self.state_type}.")
             )
         if len(self.tensor.dom) != 0:
             raise ValueError(
@@ -182,7 +184,7 @@ class EvalResult:
                          "Must be StateType.AMP, StateType.DM, " +
                          "or StateType.PROB.")
 
-    def prob(self, occupation: tuple) -> float:
+    def single_prob(self, occupation: tuple) -> float:
         """
         Get the probability of a specific occupation configuration.
 
@@ -192,8 +194,27 @@ class EvalResult:
         Returns:
             float: The probability of the specified occupation configuration.
         """
+        if self.state_type == StateType.SINGLE_PROB:
+            return float(self.tensor.array)
+
         prob_dist = self.prob_dist()
         return prob_dist.get(occupation, 0.0)
+
+    def single_amplitude(self, occupation: tuple) -> complex:
+        """
+        Get the amplitude of a specific occupation configuration.
+
+        Args:
+            occupation: The occupation configuration to query.
+
+        Returns:
+            complex: The amplitude of the specified occupation configuration.
+        """
+        if self.state_type == StateType.SINGLE_AMP:
+            return complex(self.tensor.array)
+
+        dic = self.amplitudes(normalise=False)
+        return dic.get(occupation, 0.0)
 
     def _convert_array_to_dict(
             self,
@@ -539,6 +560,7 @@ class PercevalBackend(AbstractBackend):
         else:
             self.perceval_backend = perceval_backend
 
+    # pylint: disable=too-many-locals
     def eval(
             self,
             diagram: Diagram,
@@ -551,51 +573,93 @@ class PercevalBackend(AbstractBackend):
 
         Args:
             diagram (Diagram): The diagram to evaluate.
-            **extra: Additional arguments for the evaluation,
-            including 'perceval_state'.
-
+            **extra: Additional arguments for the evaluation:
+                - perceval_state: A `perceval.BasicState` or a sequence of
+                    non-negative integers (occupation numbers). Defaults
+                    to a bosonic product state |11...1> if the
+                    diagram does not include any photon creations.
+                    Either the creations for all input ports are specified
+                    by the diagram (`Create(...)`) or the user must provide
+                    the `perceval_state` argument covering all input ports.
+                - task: The Perceval task to perform. Allowed values are
+                    "probs" (default), "amps", "single_amp", "single_prob".
+                - out: Required if task is "single_amp" or "single_prob".
+                    A sequence of non-negative integers (occupation numbers)
+                    specifying the output configuration for which to compute
+                    the amplitude or probability.
         Returns:
-            The result of the evaluation.
+            The result of the evaluation (EvalResult).
         """
+
+        task = extra.get("task", "probs")
+        tensor_diagram = self._get_discopy_tensor(diagram)
+        matrix = self._get_matrix(diagram)
 
         perceval_state = extra.get(
             "perceval_state",
-            pcvl.StateVector([1] * len(diagram.dom))
+            self._get_state_from_creations(matrix, diagram)
         )
+        perceval_state = self._process_state(perceval_state)
+        perceval_effect = None
+        if task in ["single_amp", "single_prob"]:
+            perceval_effect = self._get_effect(extra)
 
-        if not isinstance(perceval_state, pcvl.StateVector):
-            try:
-                perceval_state = pcvl.StateVector(list(perceval_state))
-            except Exception as e:
-                raise TypeError(
-                    "perceval_state must be a perceval.StateVector"
-                    " or a sequence of non-negative " +
-                    "integers (occupation numbers)."
-                ) from e
-
-        tensor_diagram = self._get_discopy_tensor(diagram)
-
-        sim = pcvl.Simulator(self.perceval_backend)
-        matrix = self._get_matrix(diagram).array
-
-        if (
-            matrix.shape[0] != matrix.shape[1] or
-            not np.allclose(np.eye(matrix.shape[0]),
-                            matrix.dot(matrix.conj().T))
-        ):
-            raise ValueError(
-                "The provided diagram does not represent a" +
-                " unitary operation or the matrix is not square."
+        # pylint: disable=protected-access
+        if not matrix._umatrix_is_unitary():
+            matrix, perceval_effect, perceval_state = self._dilate(
+                matrix, task, perceval_effect, perceval_state
             )
 
-        perceval_circuit = self._umatrix_to_perceval_circuit(matrix)
+        sim = pcvl.Simulator(self.perceval_backend)
+        perceval_circuit = self._umatrix_to_perceval_circuit(matrix.array)
         sim.set_circuit(perceval_circuit)
-        result = sim.probs(perceval_state)
-        result = {tuple(k): v for k, v in result.items()}
 
-        array = np.zeros(tensor_diagram.cod.inside)
+        m_orig = len(diagram.dom)
+        k_extra = matrix.dom - m_orig
+        result = None
+        p = None
+        if task in ("probs", "amps"):
+            if task == "probs":
+                result = sim.probs(perceval_state)
+                result = {tuple(k): float(v) for k, v in result.items()}
+                return_type = StateType.PROB
+            else:
+                sv = sim.evolve(perceval_state)
+                result = {tuple(k): complex(v) for k, v in sv}
+                return_type = StateType.AMP
 
-        if result:
+            result = self._post_select_vacuum(result, m_orig, k_extra)
+            shape = tensor_diagram.cod.inside
+            output_types = diagram.cod
+            output_tensor_cod = tensor_diagram.cod
+
+        elif task in ("single_prob", "single_amp"):
+            if task == "single_prob":
+                p = float(sim.probability(perceval_state, perceval_effect))
+                return_type = StateType.SINGLE_PROB
+
+            else:
+                p = complex(
+                    sim.prob_amplitude(perceval_state, perceval_effect)
+                )
+                return_type = StateType.SINGLE_AMP
+
+            shape = (1,)
+            output_types = None
+            output_tensor_cod = discopy_tensor.Dim(1)
+
+        else:
+            raise ValueError(
+                "Invalid task. Allowed values are" +
+                " 'probs', 'amps', 'single_amp', 'single_prob'."
+            )
+
+        array = np.zeros(
+            shape,
+            dtype=float if task in ("single_prob", "probs") else complex
+        )
+
+        if result and task in ["probs", "amps"]:
             configs = np.fromiter(
                 (i for key in result for i in key),
                 dtype=int,
@@ -604,22 +668,124 @@ class PercevalBackend(AbstractBackend):
 
             coeffs = np.fromiter(
                 result.values(),
-                dtype=float,
+                dtype=float if task == "probs" else complex,
                 count=len(result)
             )
 
             array[tuple(configs.T)] = coeffs
 
+        elif task in ["single_prob", "single_amp"]:
+            array[0] = p
+        else:
+            pass
+
         return EvalResult(
             discopy_tensor.Box(
                 "Result",
-                tensor_diagram.dom**0,
-                tensor_diagram.cod,
+                discopy_tensor.Dim(1),
+                output_tensor_cod,
                 array
             ),
-            output_types=diagram.cod,
-            state_type=StateType.PROB
+            output_types=output_types,
+            state_type=return_type
         )
+
+    def _get_state_from_creations(
+        self,
+        matrix,
+        diagram
+    ):
+        if len(matrix.creations) == 0:
+            warnings.warn(
+                "The diagram does not include any photon creations. " +
+                "The default perceval_state will be " +
+                "the bosonic product state.",
+                UserWarning
+            )
+
+            return pcvl.BasicState([1] * len(diagram.dom))
+        if len(matrix.creations) != len(diagram.dom):
+            raise ValueError(
+                "The number of photon creations in the diagram " +
+                "does not match the number of input modes."
+            )
+        return pcvl.BasicState(matrix.creations)
+
+    def _post_select_vacuum(
+        self,
+        dist,
+        m_orig,
+        k_extra
+    ):
+        """Keep only entries where extra (ancilla)
+        modes are all 0, then drop them."""
+        if k_extra <= 0:
+            return dist
+        return {
+            k[:m_orig]: v
+            for k, v in dist.items()
+            if all(x == 0 for x in k[m_orig:])
+        }
+
+    def _get_effect(self, extra):
+        if "out" not in extra:
+            raise ValueError(
+                "The 'out' argument must be provided for " +
+                "task 'single_amp' or 'single_prob'."
+            )
+        perceval_effect = extra["out"]
+        if not isinstance(perceval_effect, pcvl.BasicState):
+            try:
+                perceval_effect = pcvl.BasicState(list(perceval_effect))
+            except Exception as e:
+                raise TypeError(
+                    "perceval_effect must be a perceval.BasicState"
+                    " or a sequence of non-negative " +
+                    "integers (occupation numbers)."
+                ) from e
+        return perceval_effect
+
+    def _process_state(self, perceval_state):
+        if not isinstance(perceval_state, pcvl.BasicState):
+            try:
+                perceval_state = pcvl.BasicState(list(perceval_state))
+            except Exception as e:
+                raise TypeError(
+                    "perceval_state must be a perceval.BasicState"
+                    " or a sequence of non-negative " +
+                    "integers (occupation numbers)."
+                ) from e
+        return perceval_state
+
+    def _dilate(
+        self,
+        matrix,
+        task,
+        perceval_effect,
+        perceval_state
+    ):
+        warnings.warn(
+            "The provided matrix is not unitary. "
+            "PercevalBackend expects a unitary matrix. "
+            "Dilation will be used. "
+            "This can impact performance.",
+            UserWarning,
+            stacklevel=2
+        )
+        input_state_len = matrix.dom
+        matrix = matrix.dilate()
+        if len(perceval_state) < matrix.dom:
+            perceval_state = pcvl.BasicState(
+                list(perceval_state) +
+                [0] * (matrix.dom - input_state_len)
+            )
+        if task in ["single_amp", "single_prob"]:
+            if len(perceval_effect) < matrix.cod:
+                perceval_effect = pcvl.BasicState(
+                    list(perceval_effect) +
+                    [0] * (matrix.cod - len(perceval_effect))
+                )
+        return matrix, perceval_effect, perceval_state
 
 
 class PermanentBackend(AbstractBackend):

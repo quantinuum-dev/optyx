@@ -133,6 +133,13 @@ class TestPercevalBackend:
             result_perceval.prob_dist(),
         )
 
+        result_perceval = circuit.eval(backend, perceval_state=perceval_state, task="amps")
+
+        assert dict_allclose(
+            result_quimb.amplitudes(),
+            result_perceval.amplitudes(),
+        )
+
 class TestDiscopyBackend:
     # compare with matrix.probs
     @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
@@ -235,9 +242,9 @@ class TestEvalResult:
         ev = EvalResult(_tensor=box, output_types=(mode,), state_type=StateType.AMP)
 
         p = ev.prob_dist()
-        assert ev.prob((0,)) == pytest.approx(p[(0,)], rel=1e-12)
-        assert ev.prob((1,)) == pytest.approx(p[(1,)], rel=1e-12)
-        assert ev.prob((2,)) == 0.0
+        assert ev.single_prob((0,)) == pytest.approx(p[(0,)], rel=1e-12)
+        assert ev.single_prob((1,)) == pytest.approx(p[(1,)], rel=1e-12)
+        assert ev.single_prob((2,)) == 0.0
 
     def test_density_matrix_from_amp_is_outer_product(self):
         v = np.array([1/np.sqrt(3), np.sqrt(2/3)], dtype=complex)
@@ -457,10 +464,6 @@ class TestExceptions:
 class TestPermanentBackendVsQuimb:
     @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
     def test_permanent_amp_matches_quimb_with_create(self, circuit):
-        """
-        Diagram has explicit Create(...), so PermanentBackend.eval returns a **state** (AMP).
-        Compare amplitudes, probs, and raw arrays with Quimb.
-        """
         state_occ = get_state(circuit)
         state = photonic.Create(*state_occ)
         diagram = state >> circuit
@@ -476,9 +479,6 @@ class TestPermanentBackendVsQuimb:
 
     @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
     def test_permanent_prob_matches_quimb_with_create(self, circuit):
-        """
-        Same as above but request PROB directly from PermanentBackend.
-        """
         state_occ = get_state(circuit)
         state = photonic.Create(*state_occ)
         diagram = state >> circuit
