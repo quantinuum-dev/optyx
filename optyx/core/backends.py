@@ -593,91 +593,24 @@ class PercevalBackend(AbstractBackend):
 
         task = extra.get("task", "probs")
         tensor_diagram = self._get_discopy_tensor(diagram)
-        matrix = self._get_matrix(diagram)
 
-        perceval_state = extra.get(
-            "perceval_state",
-            self._get_state_from_creations(matrix, diagram)
-        )
-        perceval_state = self._process_state(perceval_state)
-        perceval_effect = None
-        if task in ["single_amp", "single_prob"]:
-            perceval_effect = self._get_effect(extra)
-
-        # pylint: disable=protected-access
-        if not matrix._umatrix_is_unitary():
-            matrix, perceval_effect, perceval_state = self._dilate(
-                matrix, task, perceval_effect, perceval_state
-            )
-
-        sim = pcvl.Simulator(self.perceval_backend)
-        perceval_circuit = self._umatrix_to_perceval_circuit(matrix.array)
-        sim.set_circuit(perceval_circuit)
-
-        m_orig = len(diagram.dom)
-        k_extra = matrix.dom - m_orig
-        result = None
-        p = None
-        if task in ("probs", "amps"):
-            if task == "probs":
-                result = sim.probs(perceval_state)
-                result = {tuple(k): float(v) for k, v in result.items()}
-                return_type = StateType.PROB
-            else:
-                sv = sim.evolve(perceval_state)
-                result = {tuple(k): complex(v) for k, v in sv}
-                return_type = StateType.AMP
-
-            result = self._post_select_vacuum(result, m_orig, k_extra)
-            shape = tensor_diagram.cod.inside
-            output_types = diagram.cod
-            output_tensor_cod = tensor_diagram.cod
-
-        elif task in ("single_prob", "single_amp"):
-            if task == "single_prob":
-                p = float(sim.probability(perceval_state, perceval_effect))
-                return_type = StateType.SINGLE_PROB
-
-            else:
-                p = complex(
-                    sim.prob_amplitude(perceval_state, perceval_effect)
+        if hasattr(
+            diagram,
+            "terms"
+        ):
+            array = 0
+            for term in diagram.terms:
+                arr, output_types, output_tensor_cod, return_type = \
+                    self._process_term(
+                        term, diagram, task, tensor_diagram, extra
+                    )
+                array += arr
+        else:
+            array, output_types, output_tensor_cod, return_type = \
+                self._process_term(
+                    diagram, diagram, task, tensor_diagram, extra
                 )
-                return_type = StateType.SINGLE_AMP
 
-            shape = (1,)
-            output_types = None
-            output_tensor_cod = discopy_tensor.Dim(1)
-
-        else:
-            raise ValueError(
-                "Invalid task. Allowed values are" +
-                " 'probs', 'amps', 'single_amp', 'single_prob'."
-            )
-
-        array = np.zeros(
-            shape,
-            dtype=float if task in ("single_prob", "probs") else complex
-        )
-
-        if result and task in ["probs", "amps"]:
-            configs = np.fromiter(
-                (i for key in result for i in key),
-                dtype=int,
-                count=len(result) * array.ndim
-            ).reshape(len(result), array.ndim)
-
-            coeffs = np.fromiter(
-                result.values(),
-                dtype=float if task == "probs" else complex,
-                count=len(result)
-            )
-
-            array[tuple(configs.T)] = coeffs
-
-        elif task in ["single_prob", "single_amp"]:
-            array[0] = p
-        else:
-            pass
 
         return EvalResult(
             discopy_tensor.Box(
@@ -787,6 +720,99 @@ class PercevalBackend(AbstractBackend):
                 )
         return matrix, perceval_effect, perceval_state
 
+    def _process_term(self, term, diagram, task, tensor_diagram, extra):
+        """
+        Process a term in a sum of diagrams.
+
+        Args:
+            term (discopy.tensor.Diagram): The term to process.
+        """
+        matrix = self._get_matrix(term)
+
+        perceval_state = extra.get(
+            "perceval_state",
+            self._get_state_from_creations(matrix, diagram)
+        )
+        perceval_state = self._process_state(perceval_state)
+        perceval_effect = None
+        if task in ["single_amp", "single_prob"]:
+            perceval_effect = self._get_effect(extra)
+
+        # pylint: disable=protected-access
+        if not matrix._umatrix_is_unitary():
+            matrix, perceval_effect, perceval_state = self._dilate(
+                matrix, task, perceval_effect, perceval_state
+            )
+
+        sim = pcvl.Simulator(self.perceval_backend)
+        perceval_circuit = self._umatrix_to_perceval_circuit(matrix.array)
+        sim.set_circuit(perceval_circuit)
+
+        m_orig = len(diagram.dom)
+        k_extra = matrix.dom - m_orig
+        result = None
+        p = None
+        if task in ("probs", "amps"):
+            if task == "probs":
+                result = sim.probs(perceval_state)
+                result = {tuple(k): float(v) for k, v in result.items()}
+                return_type = StateType.PROB
+            else:
+                sv = sim.evolve(perceval_state)
+                result = {tuple(k): complex(v) for k, v in sv}
+                return_type = StateType.AMP
+
+            result = self._post_select_vacuum(result, m_orig, k_extra)
+            shape = tensor_diagram.cod.inside
+            output_types = diagram.cod
+            output_tensor_cod = tensor_diagram.cod
+
+        elif task in ("single_prob", "single_amp"):
+            if task == "single_prob":
+                p = float(sim.probability(perceval_state, perceval_effect))
+                return_type = StateType.SINGLE_PROB
+
+            else:
+                p = complex(
+                    sim.prob_amplitude(perceval_state, perceval_effect)
+                )
+                return_type = StateType.SINGLE_AMP
+
+            shape = (1,)
+            output_types = None
+            output_tensor_cod = discopy_tensor.Dim(1)
+
+        else:
+            raise ValueError(
+                "Invalid task. Allowed values are" +
+                " 'probs', 'amps', 'single_amp', 'single_prob'."
+            )
+
+        array = np.zeros(
+            shape,
+            dtype=float if task in ("single_prob", "probs") else complex
+        )
+
+        if result and task in ["probs", "amps"]:
+            configs = np.fromiter(
+                (i for key in result for i in key),
+                dtype=int,
+                count=len(result) * array.ndim
+            ).reshape(len(result), array.ndim)
+
+            coeffs = np.fromiter(
+                result.values(),
+                dtype=float if task == "probs" else complex,
+                count=len(result)
+            )
+
+            array[tuple(configs.T)] = coeffs
+
+        elif task in ["single_prob", "single_amp"]:
+            array[0] = p
+        else:
+            pass
+        return array, output_types, output_tensor_cod, return_type
 
 class PermanentBackend(AbstractBackend):
     """
