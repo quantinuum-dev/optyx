@@ -675,24 +675,6 @@ class PercevalBackend(AbstractBackend):
             if all(x == 0 for x in k[m_orig:])
         }
 
-    # def _get_effect(self, extra):
-    #     if "out" not in extra:
-    #         raise ValueError(
-    #             "The 'out' argument must be provided for " +
-    #             "task 'single_amp' or 'single_prob'."
-    #         )
-    #     perceval_effect = extra["out"]
-    #     if not isinstance(perceval_effect, pcvl.BasicState):
-    #         try:
-    #             perceval_effect = pcvl.BasicState(list(perceval_effect))
-    #         except Exception as e:
-    #             raise TypeError(
-    #                 "perceval_effect must be a perceval.BasicState"
-    #                 " or a sequence of non-negative " +
-    #                 "integers (occupation numbers)."
-    #             ) from e
-    #     return perceval_effect
-
     def _process_state(self, perceval_state):
         if not isinstance(perceval_state, pcvl.BasicState):
             try:
