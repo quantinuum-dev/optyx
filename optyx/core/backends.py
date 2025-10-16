@@ -611,7 +611,6 @@ class PercevalBackend(AbstractBackend):
                     diagram, diagram, task, tensor_diagram, extra
                 )
 
-
         return EvalResult(
             discopy_tensor.Box(
                 "Result",
@@ -626,23 +625,39 @@ class PercevalBackend(AbstractBackend):
     def _get_state_from_creations(
         self,
         matrix,
-        diagram
+        is_dom_closed,
+        has_diagram_creations,
     ):
-        if len(matrix.creations) == 0:
-            warnings.warn(
-                "The diagram does not include any photon creations. " +
-                "The default perceval_state will be " +
-                "the bosonic product state.",
-                UserWarning
+        if not has_diagram_creations and not is_dom_closed:
+            raise ValueError(
+                "No external 'perceval_state' provided and " +
+                "the diagram does not contain photon creations. " +
+                "The input state is not fully specified."
             )
 
-            return pcvl.BasicState([1] * len(diagram.dom))
-        if len(matrix.creations) != len(diagram.dom):
+        if has_diagram_creations and not is_dom_closed:
             raise ValueError(
                 "The number of photon creations in the diagram " +
-                "does not match the number of input modes."
+                "does not match the total number of " +
+                "modes (partially open inputs?)."
             )
         return pcvl.BasicState(matrix.creations)
+
+    def _get_effect_from_selections(
+        self,
+        matrix,
+        is_cod_closed,
+        has_diagram_selections,
+    ):
+        if not has_diagram_selections:
+            return None
+        if has_diagram_selections and not is_cod_closed:
+            raise ValueError(
+                "The number of photon selections in the diagram " +
+                "does not match the total number of " +
+                "modes (partially open outputs?)."
+            )
+        return pcvl.BasicState(matrix.selections)
 
     def _post_select_vacuum(
         self,
@@ -660,23 +675,23 @@ class PercevalBackend(AbstractBackend):
             if all(x == 0 for x in k[m_orig:])
         }
 
-    def _get_effect(self, extra):
-        if "out" not in extra:
-            raise ValueError(
-                "The 'out' argument must be provided for " +
-                "task 'single_amp' or 'single_prob'."
-            )
-        perceval_effect = extra["out"]
-        if not isinstance(perceval_effect, pcvl.BasicState):
-            try:
-                perceval_effect = pcvl.BasicState(list(perceval_effect))
-            except Exception as e:
-                raise TypeError(
-                    "perceval_effect must be a perceval.BasicState"
-                    " or a sequence of non-negative " +
-                    "integers (occupation numbers)."
-                ) from e
-        return perceval_effect
+    # def _get_effect(self, extra):
+    #     if "out" not in extra:
+    #         raise ValueError(
+    #             "The 'out' argument must be provided for " +
+    #             "task 'single_amp' or 'single_prob'."
+    #         )
+    #     perceval_effect = extra["out"]
+    #     if not isinstance(perceval_effect, pcvl.BasicState):
+    #         try:
+    #             perceval_effect = pcvl.BasicState(list(perceval_effect))
+    #         except Exception as e:
+    #             raise TypeError(
+    #                 "perceval_effect must be a perceval.BasicState"
+    #                 " or a sequence of non-negative " +
+    #                 "integers (occupation numbers)."
+    #             ) from e
+    #     return perceval_effect
 
     def _process_state(self, perceval_state):
         if not isinstance(perceval_state, pcvl.BasicState):
@@ -690,10 +705,24 @@ class PercevalBackend(AbstractBackend):
                 ) from e
         return perceval_state
 
+    def _process_effect(self, perceval_effect):
+        if perceval_effect is None:
+            return None
+        if not isinstance(perceval_effect, pcvl.BasicState):
+            try:
+                perceval_effect = pcvl.BasicState(list(perceval_effect))
+            except Exception as e:
+                raise TypeError(
+                    "perceval_effect must be a perceval.BasicState"
+                    " or a sequence of non-negative " +
+                    "integers (occupation numbers)."
+                ) from e
+        return perceval_effect
+
     def _dilate(
         self,
         matrix,
-        task,
+        single_output_task,
         perceval_effect,
         perceval_state
     ):
@@ -705,22 +734,32 @@ class PercevalBackend(AbstractBackend):
             UserWarning,
             stacklevel=2
         )
-        input_state_len = matrix.dom
+        input_state_len = len(perceval_state)
+
+        if len(matrix.creations) == input_state_len:
+            pad_zeros = len(matrix.creations) - input_state_len
+        else:
+            pad_zeros = len(matrix.creations)
+
         matrix = matrix.dilate()
-        if len(perceval_state) < matrix.dom:
-            perceval_state = pcvl.BasicState(
-                list(perceval_state) +
-                [0] * (matrix.dom - input_state_len)
+
+        perceval_state = perceval_state * pcvl.BasicState(
+            [0] * pad_zeros
+        )
+        if single_output_task:
+            perceval_effect = perceval_state * pcvl.BasicState(
+                [0] * pad_zeros
             )
-        if task in ["single_amp", "single_prob"]:
-            if len(perceval_effect) < matrix.cod:
-                perceval_effect = pcvl.BasicState(
-                    list(perceval_effect) +
-                    [0] * (matrix.cod - len(perceval_effect))
-                )
         return matrix, perceval_effect, perceval_state
 
-    def _process_term(self, term, diagram, task, tensor_diagram, extra):
+    def _process_term(
+            self,
+            term,
+            diagram,
+            task,
+            tensor_diagram,
+            extra
+    ):
         """
         Process a term in a sum of diagrams.
 
@@ -729,19 +768,66 @@ class PercevalBackend(AbstractBackend):
         """
         matrix = self._get_matrix(term)
 
-        perceval_state = extra.get(
-            "perceval_state",
-            self._get_state_from_creations(matrix, diagram)
-        )
-        perceval_state = self._process_state(perceval_state)
-        perceval_effect = None
-        if task in ["single_amp", "single_prob"]:
-            perceval_effect = self._get_effect(extra)
+        state_provided = "perceval_state" in extra
+        effect_provided = "perceval_effect" in extra
+        has_diagram_creations = len(matrix.creations) != 0
+        has_diagram_selections = len(matrix.selections) != 0
+        is_dom_closed = len(diagram.dom) == 0
+        is_cod_closed = len(diagram.cod) == 0
+        single_output_task = task in ("single_amp", "single_prob")
+
+        if state_provided and has_diagram_creations:
+            raise ValueError(
+                "External 'perceval_state' provided but the diagram contains "
+                "photon creations. Remove creations from the diagram or " +
+                "drop the external state."
+            )
+        if effect_provided and has_diagram_selections:
+            raise ValueError(
+                "External 'perceval_effect' provided but the diagram contains "
+                "photon selections. Remove selections from the diagram or " +
+                "drop the external effect."
+            )
+
+        if state_provided:
+            perceval_state = self._process_state(extra["perceval_state"])
+        else:
+            perceval_state = self._process_state(
+                self._get_state_from_creations(
+                    matrix,
+                    is_dom_closed,
+                    has_diagram_creations
+                )
+            )
+
+        if effect_provided:
+            perceval_effect = self._process_effect(extra["perceval_effect"])
+        else:
+            perceval_effect = self._process_effect(
+                self._get_effect_from_selections(
+                    matrix,
+                    is_cod_closed,
+                    has_diagram_selections
+                )
+            )
+
+        if perceval_effect is not None:
+            if task == "amps":
+                task = "single_amp"
+            if task == "probs":
+                task = "single_prob"
+
+        if single_output_task:
+            if perceval_effect is None:
+                raise ValueError(
+                    "The 'perceval_effect' argument must be provided for " +
+                    "task 'single_amp' or 'single_prob'."
+                )
 
         # pylint: disable=protected-access
         if not matrix._umatrix_is_unitary():
             matrix, perceval_effect, perceval_state = self._dilate(
-                matrix, task, perceval_effect, perceval_state
+                matrix, single_output_task, perceval_effect, perceval_state
             )
 
         sim = pcvl.Simulator(self.perceval_backend)
@@ -752,7 +838,7 @@ class PercevalBackend(AbstractBackend):
         k_extra = matrix.dom - m_orig
         result = None
         p = None
-        if task in ("probs", "amps"):
+        if not single_output_task:
             if task == "probs":
                 result = sim.probs(perceval_state)
                 result = {tuple(k): float(v) for k, v in result.items()}
@@ -767,7 +853,7 @@ class PercevalBackend(AbstractBackend):
             output_types = diagram.cod
             output_tensor_cod = tensor_diagram.cod
 
-        elif task in ("single_prob", "single_amp"):
+        elif single_output_task:
             if task == "single_prob":
                 p = float(sim.probability(perceval_state, perceval_effect))
                 return_type = StateType.SINGLE_PROB
@@ -793,7 +879,7 @@ class PercevalBackend(AbstractBackend):
             dtype=float if task in ("single_prob", "probs") else complex
         )
 
-        if result and task in ["probs", "amps"]:
+        if result and not single_output_task:
             configs = np.fromiter(
                 (i for key in result for i in key),
                 dtype=int,
@@ -808,11 +894,12 @@ class PercevalBackend(AbstractBackend):
 
             array[tuple(configs.T)] = coeffs
 
-        elif task in ["single_prob", "single_amp"]:
+        elif single_output_task:
             array[0] = p
         else:
             pass
         return array, output_types, output_tensor_cod, return_type
+
 
 class PermanentBackend(AbstractBackend):
     """
