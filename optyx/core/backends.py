@@ -59,7 +59,7 @@ Examples of usage
 
 >>> from optyx.core.backends import PercevalBackend
 >>> backend = PercevalBackend()
->>> result = BS.eval(backend)
+>>> result = (Create(1, 1) >> BS).eval(backend)
 >>> np.round(result.single_prob((2, 0)), 1)
 0.5
 """
@@ -624,40 +624,23 @@ class PercevalBackend(AbstractBackend):
 
     def _get_state_from_creations(
         self,
-        matrix,
-        is_dom_closed,
-        has_diagram_creations,
+        creations,
+        external_perceval_state
     ):
-        if not has_diagram_creations and not is_dom_closed:
-            raise ValueError(
-                "No external 'perceval_state' provided and " +
-                "the diagram does not contain photon creations. " +
-                "The input state is not fully specified."
-            )
-
-        if has_diagram_creations and not is_dom_closed:
-            raise ValueError(
-                "The number of photon creations in the diagram " +
-                "does not match the total number of " +
-                "modes (partially open inputs?)."
-            )
-        return pcvl.BasicState(matrix.creations)
+        return (
+            external_perceval_state *
+            pcvl.BasicState(creations)
+        )
 
     def _get_effect_from_selections(
         self,
-        matrix,
-        is_cod_closed,
-        has_diagram_selections,
+        selections,
+        external_perceval_effect
     ):
-        if not has_diagram_selections:
-            return None
-        if has_diagram_selections and not is_cod_closed:
-            raise ValueError(
-                "The number of photon selections in the diagram " +
-                "does not match the total number of " +
-                "modes (partially open outputs?)."
-            )
-        return pcvl.BasicState(matrix.selections)
+        return (
+            external_perceval_effect *
+            pcvl.BasicState(selections)
+        )
 
     def _post_select_vacuum(
         self,
@@ -704,8 +687,6 @@ class PercevalBackend(AbstractBackend):
     def _dilate(
         self,
         matrix,
-        single_output_task,
-        perceval_effect,
         perceval_state
     ):
         warnings.warn(
@@ -716,23 +697,15 @@ class PercevalBackend(AbstractBackend):
             UserWarning,
             stacklevel=2
         )
-        input_state_len = len(perceval_state)
-
-        if len(matrix.creations) == input_state_len:
-            pad_zeros = len(matrix.creations) - input_state_len
-        else:
-            pad_zeros = len(matrix.creations)
-
+        current_n_create = len(matrix.creations)
         matrix = matrix.dilate()
+        pad_zeros = len(matrix.creations) - current_n_create
 
         perceval_state = perceval_state * pcvl.BasicState(
             [0] * pad_zeros
         )
-        if single_output_task:
-            perceval_effect = perceval_state * pcvl.BasicState(
-                [0] * pad_zeros
-            )
-        return matrix, perceval_effect, perceval_state
+
+        return matrix, perceval_state
 
     def _process_term(
             self,
@@ -752,46 +725,46 @@ class PercevalBackend(AbstractBackend):
 
         state_provided = "perceval_state" in extra
         effect_provided = "perceval_effect" in extra
-        has_diagram_creations = len(matrix.creations) != 0
-        has_diagram_selections = len(matrix.selections) != 0
         is_dom_closed = len(diagram.dom) == 0
-        is_cod_closed = len(diagram.cod) == 0
         single_output_task = task in ("single_amp", "single_prob")
 
-        if state_provided and has_diagram_creations:
+        if not state_provided and not is_dom_closed:
             raise ValueError(
-                "External 'perceval_state' provided but the diagram contains "
-                "photon creations. Remove creations from the diagram or " +
-                "drop the external state."
-            )
-        if effect_provided and has_diagram_selections:
-            raise ValueError(
-                "External 'perceval_effect' provided but the diagram contains "
-                "photon selections. Remove selections from the diagram or " +
-                "drop the external effect."
+                "External 'perceval_state' not provided but the diagram "
+                "has open input modes. Provide a 'perceval_state' " +
+                "or close all input modes with a state."
             )
 
+        external_perceval_state = pcvl.BasicState([])
         if state_provided:
-            perceval_state = self._process_state(extra["perceval_state"])
-        else:
-            perceval_state = self._process_state(
-                self._get_state_from_creations(
-                    matrix,
-                    is_dom_closed,
-                    has_diagram_creations
-                )
+            external_perceval_state = self._process_state(
+                extra["perceval_state"]
             )
 
-        if effect_provided:
-            perceval_effect = self._process_effect(extra["perceval_effect"])
-        else:
-            perceval_effect = self._process_effect(
-                self._get_effect_from_selections(
-                    matrix,
-                    is_cod_closed,
-                    has_diagram_selections
+            if external_perceval_state.m != matrix.dom:
+                raise ValueError(
+                    "The provided 'perceval_state' does not match "
+                    "the number of input modes of the diagram."
                 )
+
+        perceval_state = self._process_state(
+            self._get_state_from_creations(
+                matrix.creations,
+                external_perceval_state
             )
+        )
+
+        perceval_effect = None
+        if effect_provided:
+            external_perceval_effect = self._process_effect(
+                extra["perceval_effect"]
+            )
+
+            if external_perceval_effect.m != matrix.cod:
+                raise ValueError(
+                    "The provided 'perceval_effect' does not match "
+                    "the number of output modes of the diagram."
+                )
 
         if perceval_effect is not None:
             if task == "amps":
@@ -808,11 +781,20 @@ class PercevalBackend(AbstractBackend):
 
         # pylint: disable=protected-access
         if not matrix._umatrix_is_unitary():
-            matrix, perceval_effect, perceval_state = self._dilate(
-                matrix, single_output_task, perceval_effect, perceval_state
+            matrix, perceval_state = self._dilate(
+                matrix, perceval_state
             )
 
+        selections = matrix.selections
+
         sim = pcvl.Simulator(self.perceval_backend)
+        postselect_conditions = [
+            f"{str([i + matrix.cod])} == {s}"
+            for i, s in enumerate(selections)
+        ]
+        sim.set_postselection(
+            pcvl.PostSelect(str.join(" & ", postselect_conditions))
+        )
         perceval_circuit = self._umatrix_to_perceval_circuit(matrix.array)
         sim.set_circuit(perceval_circuit)
 
@@ -820,6 +802,7 @@ class PercevalBackend(AbstractBackend):
         k_extra = matrix.dom - m_orig
         result = None
         p = None
+
         if not single_output_task:
             if task == "probs":
                 result = sim.probs(perceval_state)
