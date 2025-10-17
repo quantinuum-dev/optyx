@@ -726,7 +726,6 @@ class PercevalBackend(AbstractBackend):
         state_provided = "perceval_state" in extra
         effect_provided = "perceval_effect" in extra
         is_dom_closed = len(diagram.dom) == 0
-        single_output_task = task in ("single_amp", "single_prob")
 
         if not state_provided and not is_dom_closed:
             raise ValueError(
@@ -756,21 +755,30 @@ class PercevalBackend(AbstractBackend):
 
         perceval_effect = None
         if effect_provided:
-            external_perceval_effect = self._process_effect(
+            perceval_effect = self._process_effect(
                 extra["perceval_effect"]
             )
 
-            if external_perceval_effect.m != matrix.cod:
+            if perceval_effect.m != matrix.cod:
                 raise ValueError(
                     "The provided 'perceval_effect' does not match "
                     "the number of output modes of the diagram."
                 )
 
-        if perceval_effect is not None:
+        if matrix.cod == 0:
+            perceval_effect = pcvl.BasicState([matrix.selections[0]])
+            matrix.selections = matrix.selections[1:]
+            matrix.cod = 1
+
+        if (
+            perceval_effect is not None
+        ):
             if task == "amps":
                 task = "single_amp"
             if task == "probs":
                 task = "single_prob"
+
+        single_output_task = task in ("single_amp", "single_prob")
 
         if single_output_task:
             if perceval_effect is None:

@@ -15,6 +15,19 @@ from itertools import chain
 import perceval as pcvl
 import discopy.tensor as discopy_tensor
 
+unitary_circuit = photonic.BS
+non_unitary_circuit = (
+    photonic.MZI(0.23, 0.51) >>
+    photonic.NumOp() @ photonic.NumOp()
+)
+
+bs_state = lambda nmodes: tuple(1 for _ in range(nmodes))
+
+def _compare_prob_for_outcome(diagram, outcome):
+    res_q = diagram.eval()
+    d = res_q.prob_dist()
+    return float(d.get(outcome, 0.0))
+
 @pytest.mark.skip(reason="Helper function for testing")
 def chip_mzi(w, l):
     ansatz = photonic.ansatz(w, l)
@@ -489,3 +502,268 @@ class TestPermanentBackendVsQuimb:
         result_perm = diagram.eval(backend, return_kind="prob")
 
         assert dict_allclose(result_perm.prob_dist(), result_quimb.prob_dist())
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_nothing_raises_no_state(circuit):
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, task="probs")
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_state_compare_with_quimb(circuit):
+    print(circuit)
+    nmodes = len(circuit.dom)
+    perceval_state = pcvl.BasicState(bs_state(nmodes))
+    backend = PercevalBackend()
+    res_pcvl = circuit.eval(backend, perceval_state=perceval_state, task="probs")
+
+    ref = photonic.Create(*bs_state(nmodes)) >> circuit
+    d_ref = ref.eval().prob_dist()
+    d_pcvl = res_pcvl.prob_dist()
+
+    keys = set(d_ref) | set(d_pcvl)
+    for k in keys:
+        assert math.isclose(d_ref.get(k, 0.0), d_pcvl.get(k, 0.0), rel_tol=1e-9, abs_tol=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_effect_only_errors_no_state(circuit):
+    nmodes = len(circuit.dom)
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            perceval_effect=pcvl.BasicState([2] + [0]*(nmodes-1)),
+            task="probs"
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_state_plus_effect_coerces_to_single_prob_and_matches_quimb(circuit):
+
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+    outcome = (2,) + (0,)*(nmodes-1)
+
+    backend = PercevalBackend()
+    perceval_state = pcvl.BasicState(state_occ)
+    perceval_effect = pcvl.BasicState(outcome)
+
+    res = circuit.eval(
+        backend,
+        perceval_state=perceval_state,
+        perceval_effect=perceval_effect,
+        task="probs"
+    )
+    assert res.state_type is StateType.SINGLE_PROB
+    p_pcvl = float(res.single_prob(outcome))
+
+    ref = photonic.Create(*state_occ) >> circuit
+    p_ref = _compare_prob_for_outcome(ref, outcome)
+    assert math.isclose(p_pcvl, p_ref, rel_tol=1e-9, abs_tol=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_diagram_only_effect_errors_no_state(circuit):
+    nmodes = len(circuit.cod)
+    diagram = circuit >> classical.Select(*([0]*(nmodes-1) + [2]))
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = diagram.eval(backend, task="probs")
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_diagram_state_and_effect_coerces_to_single_prob_and_matches_quimb(circuit):
+    nmodes = len(circuit.dom)
+    outcome = (0,) + (0,)*(nmodes-1)
+
+    diagram = photonic.Create(*bs_state(nmodes)) >> circuit >> classical.Select(*outcome)
+    backend = PercevalBackend()
+    res = diagram.eval(backend, task="probs")
+    assert res.state_type is StateType.SINGLE_PROB
+
+    p_pcvl = float(res.single_prob(outcome))
+
+    ref = photonic.Create(*bs_state(nmodes)) >> circuit
+    p_ref = _compare_prob_for_outcome(ref, outcome)
+    assert math.isclose(p_pcvl, p_ref, rel_tol=1e-9, abs_tol=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_errors_without_state_and_effect(circuit):
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, task="single_prob")
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_errors_with_state_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            perceval_state=pcvl.BasicState(bs_state(nmodes)),
+            task="single_prob"
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_errors_with_effect_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            perceval_effect=pcvl.BasicState([2] + [0]*(nmodes-1)),
+            task="single_prob"
+        )
+
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            perceval_effect=pcvl.BasicState([2] + [0]*(nmodes-1)),
+            task="single_prob"
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_matches_quimb_selected_outcome(circuit):
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+    outcome = (2,) + (0,)*(nmodes-1) if nmodes >= 1 else tuple()
+
+    backend = PercevalBackend()
+    res = circuit.eval(
+        backend,
+        perceval_state=pcvl.BasicState(state_occ),
+        perceval_effect=pcvl.BasicState(outcome),
+        task="single_prob"
+    )
+    assert res.state_type is StateType.SINGLE_PROB
+    p_pcvl = float(res.single_prob(outcome))
+
+    ref = photonic.Create(*state_occ) >> circuit
+    p_ref = _compare_prob_for_outcome(ref, outcome)
+    assert math.isclose(p_pcvl, p_ref, rel_tol=1e-9, abs_tol=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_nothing_raises_no_state(circuit):
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, task="amps")  # no state
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_state_compare_with_quimb(circuit):
+
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+
+    backend = PercevalBackend()
+    res_pcvl = circuit.eval(
+        backend,
+        perceval_state=pcvl.BasicState(state_occ),
+        task="amps"
+    )
+
+    # reference
+    ref = photonic.Create(*state_occ) >> circuit
+    d_ref = ref.eval().amplitudes()
+    d_pcvl = res_pcvl.amplitudes()
+
+    keys = set(d_ref) | set(d_pcvl)
+    for k in keys:
+        assert complex(d_ref.get(k, 0.0)) == pytest.approx(d_pcvl.get(k, 0.0), rel=1e-9, abs=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_effect_only_errors_no_state(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            perceval_effect=pcvl.BasicState([2] + [0]*(nmodes-1)),
+            task="amps"
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_state_plus_effect_coerces_to_single_amp_and_matches_quimb(circuit):
+
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+    outcome = (2,) + (0,)*(nmodes-1)
+
+    backend = PercevalBackend()
+    res = circuit.eval(
+        backend,
+        perceval_state=pcvl.BasicState(state_occ),
+        perceval_effect=pcvl.BasicState(outcome),
+        task="amps"
+    )
+    assert res.state_type is StateType.SINGLE_AMP
+    a_pcvl = res.single_amplitude(outcome)
+
+    ref = photonic.Create(*state_occ) >> circuit
+    a_ref = ref.eval().amplitudes().get(outcome, 0.0)
+    assert a_pcvl == pytest.approx(a_ref, rel=1e-9, abs=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_diagram_state_and_effect_coerces_to_single_amp_and_matches_quimb(circuit):
+
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+    outcome = (0,) + (0,)*(nmodes-1)
+
+    diagram = photonic.Create(*state_occ) >> circuit >> classical.Select(*outcome)
+    backend = PercevalBackend()
+    res = diagram.eval(backend, task="amps")
+    assert res.state_type is StateType.SINGLE_AMP
+    a_pcvl = res.single_amplitude(outcome)
+
+    ref = photonic.Create(*state_occ) >> circuit
+    a_ref = ref.eval().amplitudes().get(outcome, 0.0)
+    assert a_pcvl == pytest.approx(a_ref, rel=1e-9, abs=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_errors_without_state_and_effect(circuit):
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, task="single_amp")
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_errors_with_state_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            perceval_state=pcvl.BasicState(bs_state(nmodes)),
+            task="single_amp"
+        )
+
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_errors_with_effect_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            perceval_effect=pcvl.BasicState([2] + [0]*(nmodes-1)),
+            task="single_amp"
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_matches_quimb_selected_outcome(circuit):
+
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+    outcome = (2,) + (0,)*(nmodes-1) if nmodes >= 1 else tuple()
+
+    backend = PercevalBackend()
+    res = circuit.eval(
+        backend,
+        perceval_state=pcvl.BasicState(state_occ),
+        perceval_effect=pcvl.BasicState(outcome),
+        task="single_amp"
+    )
+    assert res.state_type is StateType.SINGLE_AMP
+    a_pcvl = res.single_amplitude(outcome)
+
+    ref = photonic.Create(*state_occ) >> circuit
+    a_ref = ref.eval().amplitudes().get(outcome, 0.0)
+    assert a_pcvl == pytest.approx(a_ref, rel=1e-9, abs=1e-12)
