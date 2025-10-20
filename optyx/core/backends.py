@@ -176,10 +176,28 @@ class EvalResult:
         if self.state_type is StateType.DM:
             return self._prob_dist_mixed(round_digits)
         if self.state_type is StateType.PROB:
-            return self._convert_array_to_dict(
+            values = self._convert_array_to_dict(
                 self.tensor.array,
-                round_digits=round_digits
+                round_digits
             )
+
+            if np.allclose(np.sum(list(values.values())), 1):
+                return values
+
+            probs = {}
+            for k, v in values.items():
+                val = float(np.real_if_close(v))
+                if val < 0 and abs(val) < 1e-12:
+                    val = 0.0
+                probs[k] = val
+
+            total = float(np.sum(list(probs.values())))
+            if total == 0:
+                raise ValueError("The probability distribution sums to zero.")
+
+            norm = {k: v / total for k, v in probs.items()}
+            return norm
+
         raise ValueError("Unsupported state_type type. " +
                          "Must be StateType.AMP, StateType.DM, " +
                          "or StateType.PROB.")
@@ -560,7 +578,6 @@ class PercevalBackend(AbstractBackend):
         else:
             self.perceval_backend = perceval_backend
 
-    # pylint: disable=too-many-locals
     def eval(
             self,
             diagram: Diagram,
@@ -602,7 +619,7 @@ class PercevalBackend(AbstractBackend):
             for term in diagram.terms:
                 arr, output_types, output_tensor_cod, return_type = \
                     self._process_term(
-                        term, diagram, task, tensor_diagram, extra
+                        term, term, task, tensor_diagram, extra
                     )
                 array += arr
         else:
@@ -610,7 +627,6 @@ class PercevalBackend(AbstractBackend):
                 self._process_term(
                     diagram, diagram, task, tensor_diagram, extra
                 )
-
         return EvalResult(
             discopy_tensor.Box(
                 "Result",
@@ -910,29 +926,45 @@ class PermanentBackend(AbstractBackend):
                     "n_photons must be greater than 0."
                 )
 
-        tensor_diagram = self._get_discopy_tensor(diagram)
         if hasattr(
             diagram,
             "terms"
         ):
             result = 0
+            dims = []
             for term in diagram.terms:
                 matrix = self._get_matrix(term)
                 check_creations(matrix)
-                result += matrix.eval(
+                result_matrix = matrix.eval(
                     n_photons=n_photons,
                     as_tensor=True
-                ).array
+                )
+                result += result_matrix.array
+                dims.append(
+                    (
+                        result_matrix.dom.inside,  # list
+                        result_matrix.cod.inside  # list
+                    )
+                )
         else:
             matrix = self._get_matrix(diagram)
             check_creations(matrix)
-            result = matrix.eval(n_photons=n_photons, as_tensor=True).array
+            result_matrix = matrix.eval(n_photons=n_photons, as_tensor=True)
+            result = result_matrix.array
+            dims = [(result_matrix.dom.inside, result_matrix.cod.inside)]
+
+        norm = lambda x: list(x) if isinstance(  # noqa: E731
+            x, (list, tuple)
+        ) else [x]
+        dom_lists, cod_lists = zip(*((norm(d), norm(c)) for d, c in dims))
+        max_dom_dims = [max(vals) for vals in zip(*dom_lists)]
+        max_cod_dims = [max(vals) for vals in zip(*cod_lists)]
 
         return EvalResult(
             discopy_tensor.Box(
                 "Result",
-                tensor_diagram.dom,
-                tensor_diagram.cod,
+                discopy_tensor.Dim(*tuple(max_dom_dims)),
+                discopy_tensor.Dim(*tuple(max_cod_dims)),
                 result
             ),
             output_types=diagram.cod,

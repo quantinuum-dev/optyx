@@ -768,7 +768,7 @@ def test_single_amp_matches_quimb_selected_outcome(circuit):
     a_ref = ref.eval().amplitudes().get(outcome, 0.0)
     assert a_pcvl == pytest.approx(a_ref, rel=1e-9, abs=1e-12)
 
-def _test_sums():
+def test_sums():
     diagram = (
         photonic.Create(1, 1, 1, 1) >>
         photonic.MZI(0.5, 0.5) @ photonic.MZI(0.5, 0.5) >>
@@ -782,7 +782,8 @@ def _test_sums():
     res_perceval = diagram.eval(PercevalBackend()).prob_dist()
     res_permanent = diagram.eval(PermanentBackend()).prob_dist()
     res_quimb = diagram.eval().prob_dist()
-
+    print(res_perceval)
+    print(res_quimb)
     keys = set(res_perceval) | set(res_quimb)
     for k in keys:
         assert math.isclose(
