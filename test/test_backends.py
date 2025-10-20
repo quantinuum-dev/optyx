@@ -767,3 +767,26 @@ def test_single_amp_matches_quimb_selected_outcome(circuit):
     ref = photonic.Create(*state_occ) >> circuit
     a_ref = ref.eval().amplitudes().get(outcome, 0.0)
     assert a_pcvl == pytest.approx(a_ref, rel=1e-9, abs=1e-12)
+
+def _test_sums():
+    diagram = (
+        photonic.Create(1, 1, 1, 1) >>
+        photonic.MZI(0.5, 0.5) @ photonic.MZI(0.5, 0.5) >>
+        photonic.qmode @ photonic.MZI(0.5, 0.5) @ photonic.qmode
+    ) + (
+        photonic.Create(0, 2, 0, 2) >>
+        photonic.MZI(0.5, 0.5) @ photonic.MZI(0.5, 0.5) >>
+        photonic.qmode @ photonic.MZI(0.5, 0.5) @ photonic.qmode
+    )
+
+    res_perceval = diagram.eval(PercevalBackend()).prob_dist()
+    res_quimb = diagram.eval().prob_dist()
+
+    keys = set(res_perceval) | set(res_quimb)
+    for k in keys:
+        assert math.isclose(
+            res_perceval.get(k, 0.0),
+            res_quimb.get(k, 0.0),
+            rel_tol=1e-9,
+            abs_tol=1e-12
+        )
