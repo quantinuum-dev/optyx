@@ -780,12 +780,22 @@ def _test_sums():
     )
 
     res_perceval = diagram.eval(PercevalBackend()).prob_dist()
+    res_permanent = diagram.eval(PermanentBackend()).prob_dist()
     res_quimb = diagram.eval().prob_dist()
 
     keys = set(res_perceval) | set(res_quimb)
     for k in keys:
         assert math.isclose(
             res_perceval.get(k, 0.0),
+            res_quimb.get(k, 0.0),
+            rel_tol=1e-9,
+            abs_tol=1e-12
+        )
+
+    keys = set(res_permanent) | set(res_quimb)
+    for k in keys:
+        assert math.isclose(
+            res_permanent.get(k, 0.0),
             res_quimb.get(k, 0.0),
             rel_tol=1e-9,
             abs_tol=1e-12
