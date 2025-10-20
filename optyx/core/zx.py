@@ -128,15 +128,15 @@ class ZXDiagram(diagram.Diagram):
                 swaps = Id(diagram.Bit(len(scan)))
             return scan, swaps
 
-        def make_wires_adjacent(scan, diagram, inputs):
+        def make_wires_adjacent(scan, dgrm, inputs):
             if not inputs:
-                return scan, diagram, len(scan)
+                return scan, dgrm, len(scan)
             offset = scan.index(inputs[0])
             for i, _ in enumerate(inputs[1:]):
                 source, target = scan.index(inputs[i + 1]), offset + i + 1
                 scan, swaps = move(scan, source, target)
-                diagram = diagram >> swaps
-            return scan, diagram, offset
+                dgrm = dgrm >> swaps
+            return scan, dgrm, offset
 
         missing_boundary = any(
             graph.type(node) == VertexType.BOUNDARY  # noqa: E721
@@ -238,11 +238,17 @@ class ZXDiagram(diagram.Diagram):
             graph.set_inputs(graph.inputs() + (node,))
             graph.set_position(node, i, 0)
         for row, (box, offset) in enumerate(zip(self.boxes, self.offsets)):
-            if isinstance(box, Spider):
-                node = graph.add_vertex(
-                    (VertexType.Z if isinstance(box, Z) else VertexType.X),
-                    phase=box.phase * 2 if box.phase else None,
-                )
+            if isinstance(box, diagram.Spider):
+                if isinstance(box, Spider):
+                    node = graph.add_vertex(
+                        (VertexType.Z if isinstance(box, Z) else VertexType.X),
+                        phase=box.phase * 2 if box.phase else None,
+                    )
+                else:
+                    node = graph.add_vertex(
+                        VertexType.Z,
+                        phase=box.phase * 2 if box.phase else None,
+                    )
                 graph.set_position(node, offset, row + 1)
                 for i, _ in enumerate(box.dom):
                     source, hadamard = scan[offset + i]
@@ -264,21 +270,6 @@ class ZXDiagram(diagram.Diagram):
             elif box == H:
                 node, hadamard = scan[offset]
                 scan[offset] = (node, not hadamard)
-            elif isinstance(box, diagram.Spider):
-                node = graph.add_vertex(
-                    VertexType.Z,
-                    phase=box.phase * 2 if box.phase else None,
-                )
-                graph.set_position(node, offset, row + 1)
-                for i, _ in enumerate(box.dom):
-                    source, hadamard = scan[offset + i]
-                    etype = EdgeType.HADAMARD if hadamard else EdgeType.SIMPLE
-                    graph.add_edge((source, node), etype)
-                scan = (
-                    scan[:offset]
-                    + len(box.cod) * [(node, False)]
-                    + scan[offset + len(box.dom):]
-                )
             else:
                 raise NotImplementedError
         for i, _ in enumerate(self.cod):
