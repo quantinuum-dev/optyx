@@ -67,7 +67,7 @@ Examples of usage
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, Sequence
 from collections import defaultdict
 from enum import Enum
 from cotengra import (
@@ -83,6 +83,35 @@ from quimb.tensor import TensorNetwork
 from optyx.core.channel import Diagram, Ty, mode, bit
 from optyx.core.path import Matrix
 from optyx.utils.utils import preprocess_quimb_tensors_safe
+
+
+@dataclass
+class PercevalEvalConfig:
+    """
+    Configuration for Perceval backend evaluation.
+    - task: The Perceval task to perform. Allowed values are
+        "probs" (default), "amps", "single_amp", "single_prob".
+    - state: A `perceval.BasicState` or a sequence of
+        non-negative integers (occupation numbers). Defaults
+        to a bosonic product state |11...1> if the
+        diagram does not include any photon creations.
+        Either the creations for all input ports are specified
+        by the diagram (`Create(...)`) or the user must provide
+        the `state` argument covering all input ports.
+    - effect: Required if task is "single_amp" or "single_prob".
+        A sequence of non-negative integers (occupation numbers)
+        specifying the output configuration for which to compute
+        the amplitude or probability.
+    """
+    task: Literal[
+        "probs", "amps", "single_amp", "single_prob"
+    ] = "probs"
+    state: pcvl.BasicState | Sequence[int] | None = None
+    effect: pcvl.BasicState | Sequence[int] | None = None
+
+
+ProbDist = dict[tuple[int, ...], float]
+Amps = dict[tuple[int, ...], complex]
 
 
 class StateType(Enum):
@@ -102,7 +131,7 @@ class EvalResult:
     Class to encapsulate the result of an evaluation of a diagram.
     """
     _tensor: discopy_tensor.Box
-    output_types: Ty
+    output_types: Ty | None
     state_type: StateType
 
     @property
@@ -125,7 +154,8 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state with no inputs."
+                "Result tensor must represent a state with no inputs. " +
+                f"Current domain: {self.tensor.dom}"
             )
         if self.state_type not in {StateType.AMP, StateType.DM}:
             raise TypeError(
@@ -136,7 +166,10 @@ class EvalResult:
             return density_matrix.array
         return self.tensor.array
 
-    def amplitudes(self, normalise=True) -> dict[tuple[int, ...], complex]:
+    def amplitudes(
+        self,
+        normalise=True
+    ) -> Amps:
         """
         Get the amplitudes from the result tensor.
         Returns:
@@ -149,7 +182,8 @@ class EvalResult:
             )
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state with no inputs."
+                "Result tensor must represent a state with no inputs. " +
+                f"Current domain: {self.tensor.dom}"
             )
 
         dic = self._convert_array_to_dict(self.tensor.array)
@@ -159,7 +193,10 @@ class EvalResult:
                     for key, value in dic.items()}
         return dic
 
-    def prob_dist(self, round_digits: int = None) -> dict:
+    def prob_dist(
+        self,
+        round_digits: int = None
+    ) -> ProbDist:
         """
         Get the probability distribution from the result tensor.
 
@@ -169,38 +206,38 @@ class EvalResult:
         """
         if len(self.tensor.dom) != 0:
             raise ValueError(
-                "Result tensor must represent a state with no inputs."
+                "Result tensor must represent a state with no inputs. " +
+                f"Current domain: {self.tensor.dom}"
             )
         if self.state_type is StateType.AMP:
-            return self._prob_dist_pure(round_digits)
-        if self.state_type is StateType.DM:
-            return self._prob_dist_mixed(round_digits)
-        if self.state_type is StateType.PROB:
+            values = self._prob_dist_pure()
+        elif self.state_type is StateType.DM:
+            values = self._prob_dist_mixed()
+        elif self.state_type is StateType.PROB:
             values = self._convert_array_to_dict(
-                self.tensor.array,
-                round_digits
+                self.tensor.array
+            )
+        else:
+            raise ValueError(
+                f"Unsupported state_type type: {self.state_type}. " +
+                "Must be StateType.AMP, StateType.DM, " +
+                "or StateType.PROB."
             )
 
-            if np.allclose(np.sum(list(values.values())), 1):
-                return values
-
-            probs = {}
-            for k, v in values.items():
-                val = float(np.real_if_close(v))
-                if val < 0 and abs(val) < 1e-12:
-                    val = 0.0
-                probs[k] = val
-
-            total = float(np.sum(list(probs.values())))
+        if not np.allclose(
+            np.sum(list(values.values())), 1, atol=1e-12
+        ):
+            total = float(np.sum(list(values.values())))
             if total == 0:
                 raise ValueError("The probability distribution sums to zero.")
 
-            norm = {k: v / total for k, v in probs.items()}
-            return norm
+            prob = {k: v / total for k, v in values.items()}
+        else:
+            prob = values
 
-        raise ValueError("Unsupported state_type type. " +
-                         "Must be StateType.AMP, StateType.DM, " +
-                         "or StateType.PROB.")
+        if round_digits is None:
+            return prob
+        return {k: round(v, round_digits) for k, v in prob.items()}
 
     def single_prob(self, occupation: tuple) -> float:
         """
@@ -236,8 +273,7 @@ class EvalResult:
 
     def _convert_array_to_dict(
             self,
-            array: np.ndarray,
-            round_digits: int = None) -> dict:
+            array: np.ndarray) -> dict:
         """
         Return a dict that maps multi-indices - values for all non-zero
         entries of an array.
@@ -250,13 +286,9 @@ class EvalResult:
         nz_vals = array.flat[nz_flat]
         nz_multi = np.vstack(np.unravel_index(nz_flat, array.shape)).T
 
-        if round_digits is not None:
-            return {tuple(idx): np.round(val, round_digits) for
-                    idx, val in zip(nz_multi, nz_vals)}
-
         return {tuple(idx): val for idx, val in zip(nz_multi, nz_vals)}
 
-    def _prob_dist_pure(self, round_digits: int = None) -> dict:
+    def _prob_dist_pure(self) -> ProbDist:
         """
         Get the probability distribution for a pure state.
 
@@ -266,17 +298,12 @@ class EvalResult:
         """
 
         values = self._convert_array_to_dict(
-            self.tensor.array,
-            round_digits=round_digits
+            self.tensor.array
         )
-        sum_ = np.sum(np.abs(list(values.values())) ** 2)
-        if sum_ == 0:
-            raise ValueError("The probability distribution sums to zero.")
-        return {key: (abs(value) ** 2)/sum_ for key, value in values.items()}
 
-    def _prob_dist_mixed(
-            self,
-            round_digits: int | None = None) -> dict[tuple[int, ...], float]:
+        return {k: abs(v) ** 2 for k, v in values.items()}
+
+    def _prob_dist_mixed(self) -> ProbDist:
         """
         Get the probability distribution from a mixed state.
         This method computes the probability distribution by aggregating
@@ -297,10 +324,11 @@ class EvalResult:
         if not any(t in {bit, mode} for t in self.output_types):
             raise ValueError(
                 "Output types must contain at least one 'bit' or 'mode'." +
-                "These will be treated as measured registers."
+                "These will be treated as measured registers. " +
+                f"Current output types: {self.output_types}"
             )
 
-        values = self._convert_array_to_dict(self.tensor.array, None)
+        values = self._convert_array_to_dict(self.tensor.array)
         mask_flat = np.concatenate(
             [[1] if t in {bit, mode} else [0, 0] for t in self.output_types]
         )
@@ -324,18 +352,8 @@ class EvalResult:
 
         for occ in all_measured:
             probs.setdefault(occ, 0.0)
-        sum_ = np.sum(list(probs.values()))
-        if sum_ == 0:
-            raise ValueError("The probability distribution sums to zero.")
-        prob = {
-            key: value / sum_
-            for key, value in probs.items()
-        }
 
-        if round_digits is not None:
-            prob = {k: round(v, round_digits) for k, v in prob.items()}
-
-        return prob
+        return probs
 
 
 # pylint: disable=too-few-public-methods
@@ -510,7 +528,9 @@ class QuimbBackend(AbstractBackend):
                     "Unsupported hyperoptimiser type. " +
                     "Use ReusableHyperOptimizer, HyperOptimizer, " +
                     "ReusableHyperCompressedOptimizer, or " +
-                    "HyperCompressedOptimizer."
+                    "HyperCompressedOptimizer. " +
+                    f"Got: {type(self.hyperoptimiser)}"
+
                 )
 
             if is_approx:
@@ -585,25 +605,13 @@ class PercevalBackend(AbstractBackend):
         """
         Evaluate the diagram using Perceval.
         Works only for unitary operations.
-        If no `perceval_state` is provided in `extra`,
-        it defaults to a bosonic product state.
 
         Args:
             diagram (Diagram): The diagram to evaluate.
             **extra: Additional arguments for the evaluation:
-                - perceval_state: A `perceval.BasicState` or a sequence of
-                    non-negative integers (occupation numbers). Defaults
-                    to a bosonic product state |11...1> if the
-                    diagram does not include any photon creations.
-                    Either the creations for all input ports are specified
-                    by the diagram (`Create(...)`) or the user must provide
-                    the `perceval_state` argument covering all input ports.
-                - task: The Perceval task to perform. Allowed values are
-                    "probs" (default), "amps", "single_amp", "single_prob".
-                - out: Required if task is "single_amp" or "single_prob".
-                    A sequence of non-negative integers (occupation numbers)
-                    specifying the output configuration for which to compute
-                    the amplitude or probability.
+                - config: Configuration for Perceval evaluation,
+                    see :class:`PercevalEvalConfig`.
+
         Returns:
             The result of the evaluation (EvalResult).
         """
@@ -685,7 +693,8 @@ class PercevalBackend(AbstractBackend):
                 raise TypeError(
                     "perceval_state must be a perceval.BasicState"
                     " or a sequence of non-negative " +
-                    "integers (occupation numbers)."
+                    "integers (occupation numbers). " +
+                    f"Got: {type(perceval_state)}"
                 ) from e
         return perceval_state
 
@@ -695,11 +704,12 @@ class PercevalBackend(AbstractBackend):
         if not isinstance(perceval_effect, pcvl.BasicState):
             try:
                 perceval_effect = pcvl.BasicState(list(perceval_effect))
-            except Exception as e:
-                raise TypeError(
+            except ValueError as e:
+                raise ValueError(
                     "perceval_effect must be a perceval.BasicState"
                     " or a sequence of non-negative " +
-                    "integers (occupation numbers)."
+                    "integers (occupation numbers). " +
+                    f"Got: {type(perceval_effect)}"
                 ) from e
         return perceval_effect
 
@@ -739,28 +749,30 @@ class PercevalBackend(AbstractBackend):
         """
         matrix = self._get_matrix(term)
 
-        task = extra.get("task", "probs")
-        state_provided = "perceval_state" in extra
-        effect_provided = "perceval_effect" in extra
+        cfg: PercevalEvalConfig = extra.get("config", PercevalEvalConfig())
+        task = cfg.task
+        state_provided = cfg.state is not None
+        effect_provided = cfg.effect is not None
         is_dom_closed = len(term.dom) == 0
 
         if not state_provided and not is_dom_closed:
             raise ValueError(
-                "External 'perceval_state' not provided but the diagram "
-                "has open input modes. Provide a 'perceval_state' " +
-                "or close all input modes with a state."
+                "External 'state' not provided but " +
+                "the diagram has open input modes. " +
+                "Provide a 'state' or close all input modes with a state. " +
+                f"Open input modes: {term.dom}"
             )
 
         external_perceval_state = pcvl.BasicState([])
         if state_provided:
-            external_perceval_state = self._process_state(
-                extra["perceval_state"]
-            )
+            external_perceval_state = self._process_state(cfg.state)
 
             if external_perceval_state.m != matrix.dom:
                 raise ValueError(
-                    "The provided 'perceval_state' does not match "
-                    "the number of input modes of the diagram."
+                    "The provided 'state' does not match the " +
+                    "number of input modes of the diagram. " +
+                    f"Provided state has {external_perceval_state.m} " +
+                    f"modes but diagram has {matrix.dom} input modes."
                 )
 
         perceval_state = self._process_state(
@@ -772,32 +784,42 @@ class PercevalBackend(AbstractBackend):
 
         perceval_effect = None
         if effect_provided:
-            perceval_effect = self._process_effect(
-                extra["perceval_effect"]
-            )
+            perceval_effect = self._process_effect(cfg.effect)
 
             if perceval_effect.m != matrix.cod:
                 raise ValueError(
-                    "The provided 'perceval_effect' does not match "
-                    "the number of output modes of the diagram."
+                    "The provided 'effect' does not match the number " +
+                    "of output modes of the diagram. " +
+                    f"Provided effect has {perceval_effect.m} " +
+                    f"modes but diagram has {matrix.cod} output modes."
                 )
 
+        # convert post-selections to pcvl effects and post-selections
         if matrix.cod == 0:
-            perceval_effect = pcvl.BasicState([matrix.selections[0]])
-            matrix.selections = matrix.selections[1:]
-            matrix.cod = 1
+            sel0 = matrix.selections[0]
+            m = Matrix(
+                matrix.array.copy(),
+                matrix.dom,
+                1,
+                creations=list(matrix.creations),
+                selections=list(matrix.selections[1:])
+            )
+            perceval_effect = pcvl.BasicState([sel0])
+            matrix = m
 
         if (
-            perceval_effect is not None
+            perceval_effect is not None and
+            task in ("amps", "probs")
         ):
-            if task == "amps":
-                task = "single_amp"
-            if task == "probs":
-                task = "single_prob"
+            raise ValueError(
+                f"An 'effect' was provided but task='{task}'. "
+                "Use task='single_amp' or task='single_prob' " +
+                "when conditioning on an effect."
+            )
 
-        single_output_task = task in ("single_amp", "single_prob")
+        is_single_output_task = task in ("single_amp", "single_prob")
 
-        if single_output_task:
+        if is_single_output_task:
             if perceval_effect is None:
                 raise ValueError(
                     "The 'perceval_effect' argument must be provided for " +
@@ -828,7 +850,7 @@ class PercevalBackend(AbstractBackend):
         result = None
         p = None
 
-        if not single_output_task:
+        if not is_single_output_task:
             if task == "probs":
                 result = sim.probs(perceval_state)
                 result = {tuple(k): float(v) for k, v in result.items()}
@@ -842,7 +864,7 @@ class PercevalBackend(AbstractBackend):
             output_types = term.cod
             output_shape = self._get_discopy_tensor(term).cod.inside
 
-        elif single_output_task:
+        elif is_single_output_task:
             if task == "single_prob":
                 p = float(sim.probability(perceval_state, perceval_effect))
                 return_type = StateType.SINGLE_PROB
@@ -859,7 +881,8 @@ class PercevalBackend(AbstractBackend):
         else:
             raise ValueError(
                 "Invalid task. Allowed values are" +
-                " 'probs', 'amps', 'single_amp', 'single_prob'."
+                " 'probs', 'amps', 'single_amp', 'single_prob'. " +
+                f"Got: {task}"
             )
 
         array = np.zeros(
@@ -867,7 +890,7 @@ class PercevalBackend(AbstractBackend):
             dtype=float if task in ("single_prob", "probs") else complex
         )
 
-        if result and not single_output_task:
+        if result and not is_single_output_task:
             configs = np.fromiter(
                 (i for key in result for i in key),
                 dtype=int,
@@ -882,7 +905,7 @@ class PercevalBackend(AbstractBackend):
 
             array[tuple(configs.T)] = coeffs
 
-        elif single_output_task:
+        elif is_single_output_task:
             array[0] = p
         else:
             pass
