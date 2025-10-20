@@ -608,30 +608,33 @@ class PercevalBackend(AbstractBackend):
             The result of the evaluation (EvalResult).
         """
 
-        task = extra.get("task", "probs")
-        tensor_diagram = self._get_discopy_tensor(diagram)
-
         if hasattr(
             diagram,
             "terms"
         ):
             array = 0
             for term in diagram.terms:
-                arr, output_types, output_tensor_cod, return_type = \
+                arr, output_types, return_type = \
                     self._process_term(
-                        term, term, task, tensor_diagram, extra
+                        term, extra
                     )
                 array += arr
         else:
-            array, output_types, output_tensor_cod, return_type = \
+            array, output_types, return_type = \
                 self._process_term(
-                    diagram, diagram, task, tensor_diagram, extra
+                    diagram, extra
                 )
+
+        if array.shape == (1,):
+            cod = discopy_tensor.Dim(1)
+        else:
+            cod = discopy_tensor.Dim(*array.shape)
+
         return EvalResult(
             discopy_tensor.Box(
                 "Result",
                 discopy_tensor.Dim(1),
-                output_tensor_cod,
+                cod,
                 array
             ),
             output_types=output_types,
@@ -726,9 +729,6 @@ class PercevalBackend(AbstractBackend):
     def _process_term(
             self,
             term,
-            diagram,
-            task,
-            tensor_diagram,
             extra
     ):
         """
@@ -739,9 +739,10 @@ class PercevalBackend(AbstractBackend):
         """
         matrix = self._get_matrix(term)
 
+        task = extra.get("task", "probs")
         state_provided = "perceval_state" in extra
         effect_provided = "perceval_effect" in extra
-        is_dom_closed = len(diagram.dom) == 0
+        is_dom_closed = len(term.dom) == 0
 
         if not state_provided and not is_dom_closed:
             raise ValueError(
@@ -822,7 +823,7 @@ class PercevalBackend(AbstractBackend):
         perceval_circuit = self._umatrix_to_perceval_circuit(matrix.array)
         sim.set_circuit(perceval_circuit)
 
-        m_orig = len(diagram.dom)
+        m_orig = len(term.dom)
         k_extra = matrix.dom - m_orig
         result = None
         p = None
@@ -838,9 +839,8 @@ class PercevalBackend(AbstractBackend):
                 return_type = StateType.AMP
 
             result = self._post_select_vacuum(result, m_orig, k_extra)
-            shape = tensor_diagram.cod.inside
-            output_types = diagram.cod
-            output_tensor_cod = tensor_diagram.cod
+            output_types = term.cod
+            output_shape = self._get_discopy_tensor(term).cod.inside
 
         elif single_output_task:
             if task == "single_prob":
@@ -853,9 +853,8 @@ class PercevalBackend(AbstractBackend):
                 )
                 return_type = StateType.SINGLE_AMP
 
-            shape = (1,)
+            output_shape = (1,)
             output_types = None
-            output_tensor_cod = discopy_tensor.Dim(1)
 
         else:
             raise ValueError(
@@ -864,7 +863,7 @@ class PercevalBackend(AbstractBackend):
             )
 
         array = np.zeros(
-            shape,
+            output_shape,
             dtype=float if task in ("single_prob", "probs") else complex
         )
 
@@ -887,7 +886,7 @@ class PercevalBackend(AbstractBackend):
             array[0] = p
         else:
             pass
-        return array, output_types, output_tensor_cod, return_type
+        return array, output_types, return_type
 
 
 class PermanentBackend(AbstractBackend):
