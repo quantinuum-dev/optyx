@@ -1,11 +1,33 @@
 import pytest
-from optyx import photonic, qubits, classical
+from optyx import photonic, qubits, classical, mode, qubit, qmode, bit
 from cotengra import ReusableHyperCompressedOptimizer
-from optyx.core.backends import QuimbBackend, PercevalBackend, DiscopyBackend
+from optyx.core.backends import (
+    QuimbBackend,
+    PercevalBackend,
+    DiscopyBackend,
+    EvalResult,
+    StateType,
+    PermanentBackend,
+    PercevalEvalConfig
+)
 import numpy as np
 import math
 from itertools import chain
 import perceval as pcvl
+import discopy.tensor as discopy_tensor
+
+unitary_circuit = photonic.BS
+non_unitary_circuit = (
+    photonic.MZI(0.23, 0.51) >>
+    photonic.NumOp() @ photonic.NumOp()
+)
+
+bs_state = lambda nmodes: tuple(1 for _ in range(nmodes))
+
+def _compare_prob_for_outcome(diagram, outcome):
+    res_q = diagram.eval()
+    d = res_q.prob_dist()
+    return float(d.get(outcome, 0.0))
 
 @pytest.mark.skip(reason="Helper function for testing")
 def chip_mzi(w, l):
@@ -114,7 +136,8 @@ class TestPercevalBackend:
     def test_pure_circuit(self, circuit):
         backend = PercevalBackend()
         perceval_state = pcvl.BasicState(get_state(circuit))
-        result_perceval = circuit.eval(backend, perceval_state=perceval_state)
+        config = PercevalEvalConfig(state=perceval_state)
+        result_perceval = circuit.eval(backend, config=config)
 
         state = photonic.Create(*get_state(circuit))
         diagram = state >> circuit
@@ -123,6 +146,14 @@ class TestPercevalBackend:
         assert dict_allclose(
             result_quimb.prob_dist(),
             result_perceval.prob_dist(),
+        )
+
+        config = PercevalEvalConfig(state=perceval_state, task="amps")
+        result_perceval = circuit.eval(backend, config=config)
+
+        assert dict_allclose(
+            result_quimb.amplitudes(),
+            result_perceval.amplitudes(),
         )
 
 class TestDiscopyBackend:
@@ -221,6 +252,159 @@ class TestEvalResult:
         total_prob = sum(prob_dist.values())
         assert math.isclose(total_prob, 1.0)
 
+    def test_prob_lookup_and_missing_key(self):
+        v = np.array([1/np.sqrt(2), 1j/np.sqrt(2)], dtype=complex)
+        box = discopy_tensor.Tensor(v, discopy_tensor.Dim(1), discopy_tensor.Dim(2))
+        ev = EvalResult(_tensor=box, output_types=(mode,), state_type=StateType.AMP)
+
+        p = ev.prob_dist()
+        assert ev.single_prob((0,)) == pytest.approx(p[(0,)], rel=1e-12)
+        assert ev.single_prob((1,)) == pytest.approx(p[(1,)], rel=1e-12)
+        assert ev.single_prob((2,)) == 0.0
+
+    def test_density_matrix_from_amp_is_outer_product(self):
+        v = np.array([1/np.sqrt(3), np.sqrt(2/3)], dtype=complex)
+        box = discopy_tensor.Tensor(v, discopy_tensor.Dim(1), discopy_tensor.Dim(2))
+        ev = EvalResult(_tensor=box, output_types=(mode,), state_type=StateType.AMP)
+        dm = ev.density_matrix
+        assert dm.shape == (2, 2)
+        assert np.allclose(dm, np.outer(v.conj(), v), atol=1e-12)
+
+    def test_mixed_interleaved_partial_trace_numeric_hygiene(self):
+        dm = np.zeros((2, 2, 2), dtype=complex)
+        dm[0, 0, 0] = 0.499999999999   + 1e-14j
+        dm[0, 1, 1] = 0.100000000001   - 1e-14j
+        dm[1, 0, 0] = 0.2000000000005  + 1e-14j
+        dm[1, 1, 1] = 0.2000000000005  - 1e-14j
+        #off-diagonals that should be ignored by the diagonal check
+        dm[0, 0, 1] = -1e-13
+        dm[1, 1, 0] = -1e-13
+
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        #1st axis measured (mode), 2ns is quantum (unmeasured, bra/ket)
+        ev = EvalResult(_tensor=box, output_types=(mode, object()), state_type=StateType.DM)
+        probs = ev.prob_dist()
+
+        assert pytest.approx(probs[(0,)], rel=1e-12) == 0.6
+        assert pytest.approx(probs[(1,)], rel=1e-12) == 0.4
+        assert pytest.approx(sum(probs.values()), rel=1e-6) == 1.0
+
+    def test_prob_branch_rounding_and_sum(self):
+        P = np.array([[1/3, 1/6],
+                      [1/6, 1/3]], dtype=float)
+        box = discopy_tensor.Tensor(P, discopy_tensor.Dim(1), discopy_tensor.Dim(*P.shape))
+        ev = EvalResult(_tensor=box, output_types=(mode, mode), state_type=StateType.PROB)
+
+        d = ev.prob_dist(round_digits=4)
+        assert pytest.approx(sum(d.values()), rel=1e-12) == 1.0
+        print(d)
+        assert d[(0, 0)] == round(float(P[0, 0]), 4)
+        assert d[(1, 1)] == round(float(P[1, 1]), 4)
+
+    def test_density_matrix_from_amp_complex_phase(self):
+        v = np.array([np.exp(1j*0.2)/np.sqrt(3),
+                      np.exp(-1j*0.3)*np.sqrt(2/3)], dtype=complex)
+        box = discopy_tensor.Tensor(v, discopy_tensor.Dim(1), discopy_tensor.Dim(2))
+        ev = EvalResult(_tensor=box, output_types=(mode,), state_type=StateType.AMP)
+        dm = ev.density_matrix
+        assert dm.shape == (2, 2)
+        assert np.allclose(dm, dm.conj().T, atol=1e-12)
+        assert np.allclose(dm, np.outer(v.conj(), v), atol=1e-12)
+        eig = np.linalg.eigvalsh(dm)
+        assert np.all(eig >= -1e-12)
+
+    def test_density_matrix_passthrough_for_DM(self):
+        dm = np.array([[0.7, 0.1j],
+                       [-0.1j, 0.3]], dtype=complex)
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        ev = EvalResult(_tensor=box, output_types=(mode,), state_type=StateType.DM)
+        out = ev.density_matrix
+        assert out.shape == (2, 2)
+        assert np.allclose(out, dm, atol=1e-12)
+
+    def test_mixed_simple_single_measured_single_unmeasured(self):
+        dm = np.zeros((2, 2, 2), dtype=complex)
+        dm[0, 0, 0] = 0.6 + 1e-14j
+        dm[1, 1, 1] = 0.4 - 1e-14j
+        dm[0, 1, 0] = -1e-13
+        dm[1, 0, 1] = -1e-13
+
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        ev = EvalResult(_tensor=box, output_types=(mode, qubit), state_type=StateType.DM)
+        probs = ev.prob_dist()
+        assert pytest.approx(probs[(0,)], rel=1e-12) == 0.6
+        assert pytest.approx(probs[(1,)], rel=1e-12) == 0.4
+        assert pytest.approx(sum(probs.values()), rel=1e-12) == 1.0
+
+    def test_mixed_two_measured_one_unmeasured_matches_manual_trace(self):
+        P = np.array([[0.1, 0.2],
+                      [0.3, 0.4]], dtype=float)
+        W = np.array([0.6, 0.4], dtype=float)
+        dm = np.zeros((2, 2, 2, 2), dtype=complex)
+
+        for k in range(2):
+            for l in range(2):
+                dm[k, l, 0, 0] = P[k, l] * W[0]
+                dm[k, l, 1, 1] = P[k, l] * W[1]
+        dm[0, 0, 0, 1] = 1e-13
+        dm[1, 1, 1, 0] = -1e-13
+
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        ev = EvalResult(_tensor=box, output_types=(mode, bit, qubit), state_type=StateType.DM)
+
+        probs = ev.prob_dist()
+        manual = {(k, l): (dm[k, l, 0, 0].real + dm[k, l, 1, 1].real) for k in range(2) for l in range(2)}
+        Z = sum(manual.values())
+        manual = {k: v / Z for k, v in manual.items()}
+
+        for k in range(2):
+            for l in range(2):
+                assert pytest.approx(probs[(k, l)], rel=1e-12) == manual[(k, l)]
+        assert pytest.approx(sum(probs.values()), rel=1e-12) == 1.0
+
+    def test_mixed_round_digits_applied_before_normalization(self):
+        dm = np.zeros((2, 2, 2), dtype=complex)
+        dm[0, 0, 0] = 0.333333333333
+        dm[1, 1, 1] = 0.666666666667
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        ev = EvalResult(_tensor=box, output_types=(mode, qubit), state_type=StateType.DM)
+        d = ev.prob_dist(round_digits=6)
+        assert pytest.approx(sum(d.values()), rel=1e-12) == 1.0
+        assert d[(0,)] == pytest.approx(round(0.333333333333, 6) / (round(0.333333333333, 6) + round(0.666666666667, 6)), rel=1e-12)
+        assert d[(1,)] == pytest.approx(round(0.666666666667, 6) / (round(0.333333333333, 6) + round(0.666666666667, 6)), rel=1e-12)
+
+    def test_mixed_requires_at_least_one_measured_type(self):
+        dm = np.eye(4, dtype=complex).reshape(2, 2, 2, 2) / 4.0
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        ev = EvalResult(_tensor=box, output_types=(qubit, qmode), state_type=StateType.DM)
+        with pytest.raises(ValueError):
+            _ = ev.prob_dist()
+
+    def test_mixed_two_unmeasured_pairs_partial_trace(self):
+
+        dm = np.zeros((2, 2, 2, 2, 2), dtype=float)
+
+        w_m = {0: 0.55, 1: 0.45}
+        w_u1 = np.array([0.6, 0.4])
+        w_u2 = np.array([0.7, 0.3])
+
+        for m in (0, 1):
+            for r1 in (0, 1):
+                for r2 in (0, 1):
+                    dm[m, r1, r1, r2, r2] = w_m[m] * w_u1[r1] * w_u2[r2]
+
+        dm[0, 0, 1, 0, 0] = 1e-13
+        dm[1, 1, 0, 1, 0] = -1e-13
+
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        ev = EvalResult(_tensor=box, output_types=(mode, object(), object()), state_type=StateType.DM)
+        probs = ev.prob_dist()
+
+        assert pytest.approx(sum(probs.values()), rel=1e-12) == 1.0
+        assert pytest.approx(probs[(0,)], rel=1e-12) == 0.55
+        assert pytest.approx(probs[(1,)], rel=1e-12) == 0.45
+
+
 class TestExceptions:
     # EvalResult
     # density matrix/amps/prob from not a state
@@ -240,7 +424,8 @@ class TestExceptions:
         with pytest.raises(TypeError):
             backend = PercevalBackend()
             perceval_state = pcvl.BasicState(get_state(circuit))
-            result_perceval = circuit.eval(backend, perceval_state=perceval_state)
+            config = PercevalEvalConfig(state=perceval_state)
+            result_perceval = circuit.eval(backend, config=config)
 
             dm = result_perceval.density_matrix
 
@@ -265,4 +450,289 @@ class TestExceptions:
         with pytest.raises(AssertionError):
             backend = PercevalBackend()
             perceval_state = pcvl.BasicState(get_state(circuit))
-            result_perceval = circuit.eval(backend, perceval_state=perceval_state)
+            config = PercevalEvalConfig(state=perceval_state)
+            result_perceval = circuit.eval(backend, config=config)
+
+    def test_mixed_all_off_diagonal_mass_raises_zero_total(self):
+        dm = np.zeros((2, 2, 2), dtype=float)
+        dm[0, 0, 1] = 0.6
+        dm[1, 1, 0] = 0.4
+
+        box = discopy_tensor.Tensor(dm, discopy_tensor.Dim(1), discopy_tensor.Dim(*dm.shape))
+        ev = EvalResult(_tensor=box, output_types=(mode, object()), state_type=StateType.DM)
+
+        with pytest.raises(ValueError):
+            _ = ev.prob_dist()
+
+    @pytest.mark.parametrize(
+        "circuit",
+        MIXED_CIRCUITS_TO_TEST + CIRCUITS_WITH_DISCARDS_TO_TEST,
+    )
+    def test_non_lo_circuits_raise_notimplemented(self, circuit):
+        backend = PermanentBackend()
+        with pytest.raises(AssertionError):
+            _ = circuit.eval(backend)
+
+    @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
+    def test_zero_photons_no_creations_raises_valueerror(self, circuit):
+        backend = PermanentBackend()
+        with pytest.raises(ValueError):
+            _ = circuit.eval(backend, n_photons=0)
+
+class TestPermanentBackendVsQuimb:
+    @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
+    def test_permanent_amp_matches_quimb_with_create(self, circuit):
+        state_occ = get_state(circuit)
+        state = photonic.Create(*state_occ)
+        diagram = state >> circuit
+
+        result_quimb = diagram.eval()
+
+        backend = PermanentBackend()
+        result_perm = diagram.eval(backend)
+
+        assert dict_allclose(result_perm.amplitudes(), result_quimb.amplitudes())
+        assert dict_allclose(result_perm.prob_dist(), result_quimb.prob_dist())
+        assert np.allclose(result_perm.tensor.array, result_quimb.tensor.array, atol=1e-12)
+
+    @pytest.mark.parametrize("circuit", PURE_CIRCUITS_TO_TEST)
+    def test_permanent_prob_matches_quimb_with_create(self, circuit):
+        state_occ = get_state(circuit)
+        state = photonic.Create(*state_occ)
+        diagram = state >> circuit
+
+        result_quimb = diagram.eval()
+
+        backend = PermanentBackend()
+        result_perm = diagram.eval(backend, return_kind="prob")
+
+        assert dict_allclose(result_perm.prob_dist(), result_quimb.prob_dist())
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_nothing_raises_no_state(circuit):
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, task="probs")
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_state_compare_with_quimb(circuit):
+    print(circuit)
+    nmodes = len(circuit.dom)
+    perceval_state = pcvl.BasicState(bs_state(nmodes))
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(state=perceval_state)
+    res_pcvl = circuit.eval(backend, config=config)
+
+    ref = photonic.Create(*bs_state(nmodes)) >> circuit
+    d_ref = ref.eval().prob_dist()
+    d_pcvl = res_pcvl.prob_dist()
+
+    keys = set(d_ref) | set(d_pcvl)
+    for k in keys:
+        assert math.isclose(d_ref.get(k, 0.0), d_pcvl.get(k, 0.0), rel_tol=1e-9, abs_tol=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_effect_only_errors_no_state(circuit):
+    nmodes = len(circuit.dom)
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(effect=pcvl.BasicState([2] + [0]*(nmodes-1)))
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            config=config
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_prob_diagram_only_effect_errors_no_state(circuit):
+    nmodes = len(circuit.cod)
+    diagram = circuit >> classical.Select(*([0]*(nmodes-1) + [2]))
+    backend = PercevalBackend()
+    with pytest.raises(ValueError):
+        _ = diagram.eval(backend)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_errors_without_state_and_effect(circuit):
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(task="single_prob")
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_errors_with_state_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    config = PercevalEvalConfig(state=pcvl.BasicState(bs_state(nmodes)), task="single_prob")
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config)
+
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_errors_with_effect_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    config = PercevalEvalConfig(effect=pcvl.BasicState([2] + [0]*(nmodes-1)), task="single_prob")
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config)
+
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    config = PercevalEvalConfig(effect=pcvl.BasicState([2] + [0]*(nmodes-1)), task="single_prob")
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_prob_matches_quimb_selected_outcome(circuit):
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+    outcome = (2,) + (0,)*(nmodes-1) if nmodes >= 1 else tuple()
+
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(
+        state=pcvl.BasicState(state_occ),
+        effect=pcvl.BasicState(outcome),
+        task="single_prob"
+    )
+    res = circuit.eval(backend, config=config)
+
+    assert res.state_type is StateType.SINGLE_PROB
+    p_pcvl = float(res.single_prob(outcome))
+
+    ref = photonic.Create(*state_occ) >> circuit
+    p_ref = _compare_prob_for_outcome(ref, outcome)
+    assert math.isclose(p_pcvl, p_ref, rel_tol=1e-9, abs_tol=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_nothing_raises_no_state(circuit):
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(task="amps")
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_state_compare_with_quimb(circuit):
+
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(
+        state=pcvl.BasicState(state_occ),
+        task="amps"
+    )
+    res_pcvl = circuit.eval(
+        backend,
+        config=config
+    )
+
+    # reference
+    ref = photonic.Create(*state_occ) >> circuit
+    d_ref = ref.eval().amplitudes()
+    d_pcvl = res_pcvl.amplitudes()
+
+    keys = set(d_ref) | set(d_pcvl)
+    for k in keys:
+        assert complex(d_ref.get(k, 0.0)) == pytest.approx(d_pcvl.get(k, 0.0), rel=1e-9, abs=1e-12)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_amp_effect_only_errors_no_state(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    config = PercevalEvalConfig(
+        effect=pcvl.BasicState([2] + [0]*(nmodes-1)),
+        task="amps"
+    )
+    with pytest.raises(ValueError):
+        _ = circuit.eval(
+            backend,
+            config=config
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_errors_without_state_and_effect(circuit):
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(task="single_amp")
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config)
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_errors_with_state_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    config = PercevalEvalConfig(
+        state=pcvl.BasicState(bs_state(nmodes)),
+        task="single_amp"
+    )
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config)
+
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_errors_with_effect_only(circuit):
+    backend = PercevalBackend()
+    nmodes = len(circuit.dom)
+    config = PercevalEvalConfig(
+        effect=pcvl.BasicState([2] + [0]*(nmodes-1)),
+        task="single_amp"
+    )
+    with pytest.raises(ValueError):
+        _ = circuit.eval(backend, config=config
+        )
+
+@pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
+def test_single_amp_matches_quimb_selected_outcome(circuit):
+
+    nmodes = len(circuit.dom)
+    state_occ = bs_state(nmodes)
+    outcome = (2,) + (0,)*(nmodes-1) if nmodes >= 1 else tuple()
+
+    backend = PercevalBackend()
+    config = PercevalEvalConfig(
+        state=pcvl.BasicState(state_occ),
+        effect=pcvl.BasicState(outcome),
+        task="single_amp"
+    )
+    res = circuit.eval(
+        backend,
+        config=config
+    )
+    assert res.state_type is StateType.SINGLE_AMP
+    a_pcvl = res.single_amplitude(outcome)
+
+    ref = photonic.Create(*state_occ) >> circuit
+    a_ref = ref.eval().amplitudes().get(outcome, 0.0)
+    assert a_pcvl == pytest.approx(a_ref, rel=1e-9, abs=1e-12)
+
+def test_sums():
+    diagram = (
+        photonic.Create(1, 1, 1, 1) >>
+        photonic.MZI(0.5, 0.5) @ photonic.MZI(0.5, 0.5) >>
+        photonic.qmode @ photonic.MZI(0.5, 0.5) @ photonic.qmode
+    ) + (
+        photonic.Create(0, 2, 0, 2) >>
+        photonic.MZI(0.5, 0.5) @ photonic.MZI(0.5, 0.5) >>
+        photonic.qmode @ photonic.MZI(0.5, 0.5) @ photonic.qmode
+    )
+
+    res_perceval = diagram.eval(PercevalBackend()).prob_dist()
+    res_permanent = diagram.eval(PermanentBackend()).prob_dist()
+    res_quimb = diagram.eval().prob_dist()
+    print(res_perceval)
+    print(res_quimb)
+    keys = set(res_perceval) | set(res_quimb)
+    for k in keys:
+        assert math.isclose(
+            res_perceval.get(k, 0.0),
+            res_quimb.get(k, 0.0),
+            rel_tol=1e-9,
+            abs_tol=1e-12
+        )
+
+    keys = set(res_permanent) | set(res_quimb)
+    for k in keys:
+        assert math.isclose(
+            res_permanent.get(k, 0.0),
+            res_quimb.get(k, 0.0),
+            rel_tol=1e-9,
+            abs_tol=1e-12
+        )
