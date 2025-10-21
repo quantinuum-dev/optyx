@@ -673,17 +673,20 @@ class PercevalBackend(AbstractBackend):
         self,
         dist,
         m_orig,
-        k_extra
+        k_extra,
+        task
     ):
         """Keep only entries where extra (ancilla)
         modes are all 0, then drop them."""
-        if k_extra <= 0:
-            return dist
-        return {
-            k[:m_orig]: v
-            for k, v in dist.items()
-            if all(x == 0 for x in k[m_orig:])
-        }
+        if task in ("probs", "amps"):
+            if k_extra <= 0:
+                return dist
+            return {
+                k[:m_orig]: v
+                for k, v in dist.items()
+                if all(x == 0 for x in k[m_orig:])
+            }
+        return dist
 
     def _process_state(self, perceval_state):
         if not isinstance(perceval_state, pcvl.BasicState):
@@ -736,19 +739,25 @@ class PercevalBackend(AbstractBackend):
 
         return matrix, perceval_state
 
-    def _process_term(
+    def _process_io(
             self,
             term,
+            matrix,
             extra
     ):
         """
-        Process a term in a sum of diagrams.
+        Process the input and output states/effects for the diagram.
 
         Args:
             term (discopy.tensor.Diagram): The term to process.
+            matrix (Matrix): The matrix representation of the diagram.
+            extra (dict): Additional arguments for the evaluation.
+        Returns:
+            perceval_state (pcvl.BasicState): The processed input state.
+            perceval_effect (pcvl.BasicState | None):
+            The processed output effect.
+            task (str): The Perceval task to perform.
         """
-        matrix = self._get_matrix(term)
-
         cfg: PercevalEvalConfig = extra.get("config", PercevalEvalConfig())
         task = cfg.task
         state_provided = cfg.state is not None
@@ -817,21 +826,22 @@ class PercevalBackend(AbstractBackend):
                 "when conditioning on an effect."
             )
 
-        is_single_output_task = task in ("single_amp", "single_prob")
-
-        if is_single_output_task:
+        if task in ("single_amp", "single_prob"):
             if perceval_effect is None:
                 raise ValueError(
                     "The 'perceval_effect' argument must be provided for " +
                     "task 'single_amp' or 'single_prob'."
                 )
 
-        # pylint: disable=protected-access
-        if not matrix._umatrix_is_unitary():
-            matrix, perceval_state = self._dilate(
-                matrix, perceval_state
-            )
+        return perceval_state, perceval_effect, task
 
+    def _prepare_simulation(
+        self,
+        matrix
+    ):
+        """
+        Prepare the Perceval simulator with the given matrix.
+        """
         selections = matrix.selections
 
         sim = pcvl.Simulator(self.perceval_backend)
@@ -844,53 +854,78 @@ class PercevalBackend(AbstractBackend):
         )
         perceval_circuit = self._umatrix_to_perceval_circuit(matrix.array)
         sim.set_circuit(perceval_circuit)
+        return sim
 
-        m_orig = len(term.dom)
-        k_extra = matrix.dom - m_orig
-        result = None
-        p = None
+    def _simulate(
+        self,
+        sim,
+        perceval_state,
+        perceval_effect,
+        task
+    ):
 
-        if not is_single_output_task:
+        if task in ("single_amp", "single_prob"):
+            if task == "single_prob":
+                result = float(
+                    sim.probability(perceval_state, perceval_effect)
+                )
+
+            else:
+                result = complex(
+                    sim.prob_amplitude(perceval_state, perceval_effect)
+                )
+        else:
             if task == "probs":
                 result = sim.probs(perceval_state)
                 result = {tuple(k): float(v) for k, v in result.items()}
-                return_type = StateType.PROB
             else:
                 sv = sim.evolve(perceval_state)
                 result = {tuple(k): complex(v) for k, v in sv}
-                return_type = StateType.AMP
 
-            result = self._post_select_vacuum(result, m_orig, k_extra)
-            output_types = term.cod
-            output_shape = self._get_discopy_tensor(term).cod.inside
+        return result
 
-        elif is_single_output_task:
-            if task == "single_prob":
-                p = float(sim.probability(perceval_state, perceval_effect))
-                return_type = StateType.SINGLE_PROB
+    def _get_output_params(
+        self,
+        term,
+        task
+    ):
+        """
+        Get the output parameters for the diagram.
 
-            else:
-                p = complex(
-                    sim.prob_amplitude(perceval_state, perceval_effect)
-                )
-                return_type = StateType.SINGLE_AMP
+        Args:
+            term (discopy.tensor.Diagram): The term to process.
+            task (str): The Perceval task to perform.
+        Returns:
+            output_shape (tuple): The shape of the output array.
+            output_types (Ty | None): The output types of the diagram.
+        """
 
-            output_shape = (1,)
-            output_types = None
+        if task in ("single_amp", "single_prob"):
+            return (1,), None
+        return self._get_discopy_tensor(term).cod.inside, term.cod
 
-        else:
-            raise ValueError(
-                "Invalid task. Allowed values are" +
-                " 'probs', 'amps', 'single_amp', 'single_prob'. " +
-                f"Got: {task}"
-            )
+    def _get_array_from_result(
+        self,
+        result,
+        output_shape,
+        task
+    ):
+        """
+        Get the output array from the simulation result.
 
+        Args:
+            result (dict | float | complex): The simulation result.
+            output_shape (tuple): The shape of the output array.
+            task (str): The Perceval task to perform.
+        Returns:
+            np.ndarray: The output array.
+        """
         array = np.zeros(
             output_shape,
             dtype=float if task in ("single_prob", "probs") else complex
         )
 
-        if result and not is_single_output_task:
+        if task in ("probs", "amps"):
             configs = np.fromiter(
                 (i for key in result for i in key),
                 dtype=int,
@@ -905,10 +940,79 @@ class PercevalBackend(AbstractBackend):
 
             array[tuple(configs.T)] = coeffs
 
-        elif is_single_output_task:
-            array[0] = p
         else:
-            pass
+            array[0] = result
+        return array
+
+    def _process_term(
+            self,
+            term,
+            extra
+    ):
+        """
+        Process a term in a sum of diagrams.
+
+        Args:
+            term (discopy.tensor.Diagram): The term to process.
+        """
+        matrix = self._get_matrix(term)
+
+        perceval_state, perceval_effect, task = self._process_io(
+            term,
+            matrix,
+            extra
+        )
+
+        if task == "amps":
+            return_type = StateType.AMP
+        elif task == "probs":
+            return_type = StateType.PROB
+        elif task == "single_amp":
+            return_type = StateType.SINGLE_AMP
+        elif task == "single_prob":
+            return_type = StateType.SINGLE_PROB
+        else:
+            raise ValueError(
+                "Invalid task. Allowed values are" +
+                " 'probs', 'amps', 'single_amp', 'single_prob'. " +
+                f"Got: {task}"
+            )
+
+        # pylint: disable=protected-access
+        if not matrix._umatrix_is_unitary():
+            matrix, perceval_state = self._dilate(
+                matrix, perceval_state
+            )
+
+        sim = self._prepare_simulation(
+            matrix
+        )
+
+        result = self._simulate(
+            sim,
+            perceval_state,
+            perceval_effect,
+            task
+        )
+
+        result = self._post_select_vacuum(
+            result,
+            len(term.dom),
+            matrix.dom - len(term.dom),
+            task
+        )
+
+        output_shape, output_types = self._get_output_params(
+            term,
+            task
+        )
+
+        array = self._get_array_from_result(
+            result,
+            output_shape,
+            task
+        )
+
         return array, output_types, return_type
 
 
