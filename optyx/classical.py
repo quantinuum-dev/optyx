@@ -141,7 +141,7 @@ from optyx.core import (
     diagram,
     path
 )
-from optyx import (
+from optyx.core.channel import (
     bit,
     mode,
     qmode,

@@ -311,7 +311,7 @@ from optyx.core import (
     diagram,
     zx
 )
-from optyx import (
+from optyx.core.channel import (
     bit,
     qubit,
     Measure as MeasureChannel,
