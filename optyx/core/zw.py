@@ -158,11 +158,7 @@ from optyx.utils.misc import (
 from optyx.core.path import Matrix
 
 
-class ZWDiagram(diagram.Diagram):
-    pass
-
-
-class ZWBox(diagram.Box, ZWDiagram):
+class ZWBox(diagram.Box, diagram.Diagram):
     """Box in a :class:`Diagram`"""
 
     def __init__(self, name, dom, cod, **params):
