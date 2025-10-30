@@ -1,4 +1,4 @@
-from optyx.utils.utils import matrix_to_zw, invert_perm
+from optyx.utils.misc import matrix_to_zw, invert_perm
 from optyx import Channel, mode, qmode, photonic, bit
 from optyx.classical import ClassicalFunction, BitControlledGate
 from perceval.components.detector import DetectionType

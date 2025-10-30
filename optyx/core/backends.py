@@ -82,7 +82,7 @@ import perceval as pcvl
 from quimb.tensor import TensorNetwork
 from optyx.core.channel import Diagram, Ty, mode, bit
 from optyx.core.path import Matrix
-from optyx.utils.utils import preprocess_quimb_tensors_safe
+from optyx.utils.misc import preprocess_quimb_tensors_safe
 
 
 @dataclass

@@ -305,7 +305,7 @@ from discopy import quantum as quantum_discopy
 from discopy import symmetric
 from sympy import lambdify
 # from pytket import circuit as tket_circuit
-from optyx.utils.utils import explode_channel
+from optyx.utils.misc import explode_channel
 from optyx.core import (
     channel,
     diagram,
@@ -456,7 +456,7 @@ class QubitChannel(Channel):
 
     # def decomp(self):
     #     """Decompose into elementary gates."""
-    #     from optyx.utils.utils import decomp_ar
+    #     from optyx.utils.misc import decomp_ar
     #     from discopy import symmetric
     #     return symmetric.Functor(
     #         ob=lambda x: qubit**len(x),
@@ -466,7 +466,7 @@ class QubitChannel(Channel):
 
     # def to_dual_rail(self):
     #     """Convert to dual-rail encoding."""
-    #     from optyx.utils.utils import ar_zx2path
+    #     from optyx.utils.misc import ar_zx2path
     #     from optyx import qmode
     #     from discopy import symmetric
 
