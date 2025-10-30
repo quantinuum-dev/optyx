@@ -680,8 +680,7 @@ class Z(Channel):
 
         from optyx import (
             photonic,
-            qmode,
-            classical
+            qmode
         )
         from optyx.core import zw
         create = photonic.Create(1)
@@ -768,8 +767,7 @@ class X(Channel):
     def _to_dual_rail(self):  # pragma: no cover
         """Convert to dual-rail encoding."""
         from optyx import (
-            photonic,
-            classical
+            photonic
         )
 
         root2 = photonic.Scalar(2**0.5)

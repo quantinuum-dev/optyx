@@ -22,10 +22,10 @@ Logic gates
     :nosignatures:
     :toctree:
 
-    NotBit
-    XorBit
-    AndBit
-    OrBit
+    Not
+    Xor
+    And
+    Or
     CopyBit
     SwapBit
     Z
@@ -40,10 +40,10 @@ Arithmetic on modes
     :nosignatures:
     :toctree:
 
-    AddN
-    SubN
-    MultiplyN
-    DivideN
+    Add
+    Sub
+    Multiply
+    Divide
     Mod2
     CopyN
     SwapN
@@ -138,8 +138,7 @@ from optyx.core import (
     control,
     zw,
     zx,
-    diagram,
-    path
+    diagram
 )
 from optyx.core.channel import (
     bit,
