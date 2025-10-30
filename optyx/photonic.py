@@ -127,7 +127,7 @@ we need to feed the circuit with two photons.
 Finally, let's check the effect of having both
 photons on two output modes using postselection.
 
->>> from optyx.classical import Select
+>>> from optyx.photonic import Select
 >>> diagram_qpath = Create(1, 1) >> BS >> Select(1, 1)
 >>> diagram_qpath.draw(path='docs/_static/BS_hom_2.png', figsize=(3, 3))
 
@@ -256,11 +256,12 @@ from discopy.cat import rsubs
 from optyx.core import (
     channel,
     diagram,
-    zw
+    zw,
+    path
 )
 
 from optyx.classical import ClassicalFunction, DiscardMode
-from optyx.utils.utils import matrix_to_zw
+from optyx.utils.misc import matrix_to_zw
 
 from optyx.core.channel import (
     bit,
@@ -272,6 +273,24 @@ from optyx.core.channel import (
     Channel,
     Diagram
 )
+
+
+class Select(Channel):
+    """
+    Post-select on an occupation number.
+    """
+    def __init__(self, *photons: int):
+        self.photons = photons
+        super().__init__(
+            f"Select({photons})",
+            zw.Select(*photons)
+        )
+
+    def to_path(self, dtype=complex) -> path.Matrix:
+        array = np.eye(len(self.photons))
+        return path.Matrix[dtype](
+            array, len(self.photons), 0, selections=self.photons
+        )
 
 
 class Scalar(Channel):
@@ -546,7 +565,7 @@ class BBS(AbstractGate):
 
     We can check the Hong-Ou-Mandel effect:
 
-    >>> from optyx.classical import Select
+    >>> from optyx.photonic import Select
     >>> d = Create(1, 1) >> BS
     >>> assert np.isclose((d >> Select(0, 2)).to_path().prob().array,
     ...                                                                0.5)

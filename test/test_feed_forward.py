@@ -6,7 +6,7 @@ from optyx.core.control import *
 from optyx.core.zw import Create, W, ZBox
 from optyx.core.diagram import PhotonThresholdDetector, Mode, Swap, Bit, Id
 from optyx.photonic import Phase, BS, MZI
-from optyx.utils.utils import matrix_to_zw
+from optyx.utils.misc import matrix_to_zw
 from optyx.classical import BitControlledGate, BitControlledPhaseShift
 from optyx.core.channel import Channel, qmode
 from optyx import photonic

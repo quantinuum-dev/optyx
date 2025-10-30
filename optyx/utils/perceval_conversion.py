@@ -1,10 +1,9 @@
-from optyx.utils.utils import matrix_to_zw, invert_perm
+from optyx.utils.misc import matrix_to_zw, invert_perm
 from optyx import Channel, mode, qmode, photonic, bit
 from optyx.classical import ClassicalFunction, BitControlledGate
 from perceval.components.detector import DetectionType
 from optyx.core.channel import Spider, Diagram, Measure
-from optyx.classical import Select
-from optyx.photonic import Create
+from optyx.photonic import Create, Select
 from optyx.utils.postselect_parser import compile_postselect
 from optyx.core.zw import Endo
 import numpy as np

@@ -39,7 +39,7 @@ or using :code:`quimb` (with :code:`tensor.to_quimb()`).
 
 **W commutativity**
 
->>> from optyx.utils.utils import compare_arrays_of_different_sizes
+>>> from optyx.utils.misc import compare_arrays_of_different_sizes
 >>> from discopy.drawing import Equation
 >>> bSym_l = W(2)
 >>> bSym_r = W(2) >> SWAP
@@ -150,7 +150,7 @@ import numpy as np
 from discopy.frobenius import Dim
 from discopy import tensor
 from optyx.core import diagram
-from optyx.utils.utils import (
+from optyx.utils.misc import (
     occupation_numbers,
     multinomial,
     BasisTransition
@@ -158,11 +158,7 @@ from optyx.utils.utils import (
 from optyx.core.path import Matrix
 
 
-class ZWDiagram(diagram.Diagram):
-    pass
-
-
-class ZWBox(diagram.Box, ZWDiagram):
+class ZWBox(diagram.Box, diagram.Diagram):
     """Box in a :class:`Diagram`"""
 
     def __init__(self, name, dom, cod, **params):

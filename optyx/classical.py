@@ -22,10 +22,10 @@ Logic gates
     :nosignatures:
     :toctree:
 
-    NotBit
-    XorBit
-    AndBit
-    OrBit
+    Not
+    Xor
+    And
+    Or
     CopyBit
     SwapBit
     Z
@@ -40,10 +40,10 @@ Arithmetic on modes
     :nosignatures:
     :toctree:
 
-    AddN
-    SubN
-    MultiplyN
-    DivideN
+    Add
+    Sub
+    Multiply
+    Divide
     Mod2
     CopyN
     SwapN
@@ -90,7 +90,7 @@ We can implement classical functions:
 2. Using a :code:`BinaryMatrix` to define the transformation.
 3. Using primitives such as :code:`XorBit`, :code:`AddN`, etc.
 
->>> xor_gate = XorBit(2)
+>>> xor_gate = Xor(2)
 >>>
 >>> f = ClassicalFunction(lambda b: [b[0] ^ b[1]],
 ...                       bit**2, bit)
@@ -122,7 +122,7 @@ and feed the result into a controlled quantum gate.
 **3. Arithmetic on natural-number modes**
 
 >>> num = Digit(3, 2)
->>> add = AddN(2)                     # (x,y,z) => x+y+z
+>>> add = Add(2)                     # (x,y,z) => x+y+z
 >>> parity = add >> Mod2()            # outputs (x+y+z) mod 2 as a bit
 >>> post = PostselectBit(1)
 >>> assert np.allclose(
@@ -138,8 +138,7 @@ from optyx.core import (
     control,
     zw,
     zx,
-    diagram,
-    path
+    diagram
 )
 from optyx.core.channel import (
     bit,
@@ -285,7 +284,7 @@ class Scalar(ClassicalBox):
         )
 
 
-class AddN(ClassicalBox):
+class Add(ClassicalBox):
     """
     Classical addition of n natural numbers.
     The domain of the map is n modes.
@@ -300,7 +299,7 @@ class AddN(ClassicalBox):
         )
 
 
-class SubN(ClassicalBox):
+class Sub(ClassicalBox):
     """
     Classical subtraction: subtract the first number from the second.
     The domain of the map is 2 modes.
@@ -320,7 +319,7 @@ class SubN(ClassicalBox):
         )
 
 
-class MultiplyN(ClassicalBox):
+class Multiply(ClassicalBox):
     """
     Classical multiplication of 2 natural numbers.
     The domain of the map is 2 modes.
@@ -335,7 +334,7 @@ class MultiplyN(ClassicalBox):
         )
 
 
-class DivideN(ClassicalBox):
+class Divide(ClassicalBox):
     """
     Classical division: divide the first number by the second.
     The domain of the map is 2 modes.
@@ -437,7 +436,7 @@ class PostselectDigit(ClassicalBox):
         )
 
 
-class NotBit(ClassicalBox):
+class Not(ClassicalBox):
     """
     Classical NOT gate.
     The domain of the map is a bit.
@@ -453,7 +452,7 @@ class NotBit(ClassicalBox):
         )
 
 
-class XorBit(ClassicalBox):
+class Xor(ClassicalBox):
     """
     Classical XOR gate.
     The domain of the map is n bits.
@@ -462,14 +461,14 @@ class XorBit(ClassicalBox):
     """
     def __init__(self, n=2):
         super().__init__(
-            f"XorBit({n})",
+            f"Xor({n})",
             zx.X(n, 1) @ diagram.Scalar(np.sqrt(n)),
             bit**n,
             bit
         )
 
 
-class AndBit(ClassicalBox):
+class And(ClassicalBox):
     """
     Classical AND gate.
     The domain of the map is 2 bits.
@@ -517,7 +516,7 @@ class SwapBit(ClassicalBox):
         )
 
 
-class OrBit(ClassicalBox):
+class Or(ClassicalBox):
     """
     Classical OR gate.
     The domain of the map is n bits.
@@ -526,7 +525,7 @@ class OrBit(ClassicalBox):
     """
     def __init__(self, n=2):
         super().__init__(
-            f"OrBit({n})",
+            f"Or({n})",
             zx.Or(n),
             bit**n,
             bit
@@ -655,24 +654,6 @@ class BinaryMatrix(ControlChannel):
             channel.Ty(
                 *[channel.Ob._classical[ob.name] for ob in box.cod.inside]
             ),
-        )
-
-
-class Select(Channel):
-    """
-    Post-select on an occupation number.
-    """
-    def __init__(self, *photons: int):
-        self.photons = photons
-        super().__init__(
-            f"Select({photons})",
-            zw.Select(*photons)
-        )
-
-    def to_path(self, dtype=complex) -> path.Matrix:
-        array = np.eye(len(self.photons))
-        return path.Matrix[dtype](
-            array, len(self.photons), 0, selections=self.photons
         )
 
 

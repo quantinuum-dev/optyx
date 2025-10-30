@@ -40,7 +40,7 @@ from typing import Callable, List, Tuple, Iterable
 from discopy import tensor
 from discopy.frobenius import Dim
 import numpy as np
-from optyx.utils.utils import BasisTransition, is_diagram_LO
+from optyx.utils.misc import BasisTransition, is_diagram_LO
 
 from optyx.core import diagram, zw
 

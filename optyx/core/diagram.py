@@ -121,7 +121,7 @@ We can check their equivalence as tensors.
 Let's check the branching law from [FC23]_.
 
 >>> from optyx.core.zw import Create, W
->>> from optyx.utils.utils import compare_arrays_of_different_sizes
+>>> from optyx.utils.misc import compare_arrays_of_different_sizes
 >>> branching_l = Create(1) >> W(2)
 >>> branching_r = Create(1) @ Create(0) + Create(0) @ Create(1)
 
@@ -207,7 +207,7 @@ from discopy.cat import factory, rsubs
 from discopy.frobenius import Dim
 from discopy.quantum.gates import format_number
 from enum import Enum
-from optyx.utils.utils import (
+from optyx.utils.misc import (
     BasisTransition,
     calculate_right_offset,
     get_max_dim_for_box
@@ -303,7 +303,7 @@ class Diagram(frobenius.Diagram):
     ) -> tensor.Diagram:
         """Returns a :class:`tensor.Diagram` for evaluation"""
         from optyx.core import zw
-        from optyx.utils.utils import is_identity
+        from optyx.utils.misc import is_identity
 
         if input_dims is None:
             input_dims = [2 for _ in range(len(self.dom))]

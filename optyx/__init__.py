@@ -1,17 +1,24 @@
 from optyx.core import zw
 from optyx.core import zx
 from optyx.core import path
+from optyx.core import backends
+from optyx.core import diagram
+from optyx.core import control
 from optyx.core.channel import (
     Channel,
     CQMap,
     Discard,
     Encode,
     Measure,
+    Diagram,
+    Swap,
+    Spider,
+    Id,
+    Scalar,
     mode,
     qmode,
     qubit,
-    bit,
-    Diagram
+    bit
 )
 
 from optyx._version import (

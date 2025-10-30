@@ -305,7 +305,7 @@ from discopy import quantum as quantum_discopy
 from discopy import symmetric
 from sympy import lambdify
 # from pytket import circuit as tket_circuit
-from optyx.utils.utils import explode_channel
+from optyx.utils.misc import explode_channel
 from optyx.core import (
     channel,
     diagram,
@@ -456,7 +456,7 @@ class QubitChannel(Channel):
 
     # def decomp(self):
     #     """Decompose into elementary gates."""
-    #     from optyx.utils.utils import decomp_ar
+    #     from optyx.utils.misc import decomp_ar
     #     from discopy import symmetric
     #     return symmetric.Functor(
     #         ob=lambda x: qubit**len(x),
@@ -466,7 +466,7 @@ class QubitChannel(Channel):
 
     # def to_dual_rail(self):
     #     """Convert to dual-rail encoding."""
-    #     from optyx.utils.utils import ar_zx2path
+    #     from optyx.utils.misc import ar_zx2path
     #     from optyx import qmode
     #     from discopy import symmetric
 
@@ -680,12 +680,11 @@ class Z(Channel):
 
         from optyx import (
             photonic,
-            qmode,
-            classical
+            qmode
         )
         from optyx.core import zw
         create = photonic.Create(1)
-        annil = classical.Select(1)
+        annil = photonic.Select(1)
         comonoid = Channel("Split", zw.Split(2))
         monoid = Channel("Merge", zw.Merge(2))
         BS = photonic.BS
@@ -768,15 +767,14 @@ class X(Channel):
     def _to_dual_rail(self):  # pragma: no cover
         """Convert to dual-rail encoding."""
         from optyx import (
-            photonic,
-            classical
+            photonic
         )
 
         root2 = photonic.Scalar(2**0.5)
         unit = photonic.Create(0)
-        counit = classical.Select(0)
+        counit = photonic.Select(0)
         create = photonic.Create(1)
-        annil = classical.Select(1)
+        annil = photonic.Select(1)
         BS = photonic.BS
         n, m = len(self.dom), len(self.cod)
         phase = 1 + self.phase if self.phase < 0 else self.phase

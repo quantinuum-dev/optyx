@@ -931,6 +931,15 @@ class Hypergraph(hypergraph.Hypergraph):  # pragma: no cover
     category, functor = Category, Functor
 
 
+Id = Diagram.id
+Scalar = lambda s: Channel(  # noqa: E731
+    name=f"Scalar({s})",
+    kraus=diagram.Scalar(s),
+    dom=Ty(),
+    cod=Ty()
+)
+
+
 Hypergraph.ty_factory = Ty
 Diagram.spider_factory = Spider
 Diagram.hypergraph_factory = Hypergraph
