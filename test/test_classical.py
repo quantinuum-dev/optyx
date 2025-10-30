@@ -2,28 +2,28 @@ from optyx.classical import *
 from optyx.utils.misc import compare_arrays_of_different_sizes
 
 def test_addn():
-    d_1 = Digit(2, 3) >> AddN(2)
+    d_1 = Digit(2, 3) >> Add(2)
     d_2 = Digit(5)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
                        d_2.double().to_tensor().eval().array)
 
 def test_subn():
-    d_1 = Digit(2, 5) >> SubN()
+    d_1 = Digit(2, 5) >> Sub()
     d_2 = Digit(3)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
                        d_2.double().to_tensor().eval().array)
 
 def test_multiplyn():
-    d_1 = Digit(2, 3) >> MultiplyN()
+    d_1 = Digit(2, 3) >> Multiply()
     d_2 = Digit(6)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
                           d_2.double().to_tensor().eval().array)
 
 def test_dividen():
-    d_1 = Digit(6, 2) >> DivideN()
+    d_1 = Digit(6, 2) >> Divide()
     d_2 = Digit(3)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
@@ -65,21 +65,21 @@ def test_postselectdigit():
                             d_2.double().to_tensor().eval().array)
 
 def test_notbit():
-    d_1 = Bit(1) >> NotBit()
+    d_1 = Bit(1) >> Not()
     d_2 = Bit(0)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
                             d_2.double().to_tensor().eval().array)
 
 def test_xorbit():
-    d_1 = Bit(1, 0) >> XorBit()
+    d_1 = Bit(1, 0) >> Xor()
     d_2 = Bit(1)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
                             d_2.double().to_tensor().eval().array)
 
 def test_andbit():
-    d_1 = Bit(1, 0) >> AndBit()
+    d_1 = Bit(1, 0) >> And()
     d_2 = Bit(0)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
@@ -100,7 +100,7 @@ def test_swapbit():
                             d_2.double().to_tensor().eval().array)
 
 def test_orbit():
-    d_1 = Bit(1, 0) >> OrBit()
+    d_1 = Bit(1, 0) >> Or()
     d_2 = Bit(1)
 
     assert compare_arrays_of_different_sizes(d_1.double().to_tensor().eval().array,
