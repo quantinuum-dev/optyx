@@ -10,11 +10,15 @@ from optyx.core.channel import (
     Discard,
     Encode,
     Measure,
+    Diagram,
+    Swap,
+    Spider,
+    Id,
+    Scalar,
     mode,
     qmode,
     qubit,
-    bit,
-    Diagram
+    bit
 )
 
 from optyx._version import (
