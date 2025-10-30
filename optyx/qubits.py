@@ -685,7 +685,7 @@ class Z(Channel):
         )
         from optyx.core import zw
         create = photonic.Create(1)
-        annil = classical.Select(1)
+        annil = photonic.Select(1)
         comonoid = Channel("Split", zw.Split(2))
         monoid = Channel("Merge", zw.Merge(2))
         BS = photonic.BS
@@ -774,9 +774,9 @@ class X(Channel):
 
         root2 = photonic.Scalar(2**0.5)
         unit = photonic.Create(0)
-        counit = classical.Select(0)
+        counit = photonic.Select(0)
         create = photonic.Create(1)
-        annil = classical.Select(1)
+        annil = photonic.Select(1)
         BS = photonic.BS
         n, m = len(self.dom), len(self.cod)
         phase = 1 + self.phase if self.phase < 0 else self.phase

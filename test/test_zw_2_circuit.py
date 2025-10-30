@@ -132,7 +132,7 @@ def test_BS_channel(photons_1, photons_2):
     BS = photonic.BBS(0)
 
     diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    diagram_zw = diagram_qpath >> photonic.Select(photons_1, photons_2)
     tensor = diagram_zw.double().to_tensor()
 
     n_photons_out = calculate_num_creations_selections(diagram_zw)
@@ -153,7 +153,7 @@ def test_BBS_channel(photons_1, photons_2, bias):
     BS = photonic.BBS(bias)
 
     diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    diagram_zw = diagram_qpath >> photonic.Select(photons_1, photons_2)
     tensor = diagram_zw.double().to_tensor()
 
     n_photons_out = calculate_num_creations_selections(diagram_zw)
@@ -174,7 +174,7 @@ def test_TBS_channel(photons_1, photons_2, theta):
     BS = photonic.TBS(theta)
 
     diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    diagram_zw = diagram_qpath >> photonic.Select(photons_1, photons_2)
     tensor = diagram_zw.double().to_tensor()
 
     prob_zw = tensor.eval().array
@@ -192,7 +192,7 @@ def test_MZI_channel(photons_1, photons_2, theta, phi):
     BS = photonic.MZI(theta, phi)
 
     diagram_qpath = photonic.Create(photons_1, photons_2) >> BS
-    diagram_zw = diagram_qpath >> classical.Select(photons_1, photons_2)
+    diagram_zw = diagram_qpath >> photonic.Select(photons_1, photons_2)
     tensor = diagram_zw.double().to_tensor()
 
     n_photons_out = calculate_num_creations_selections(diagram_zw)

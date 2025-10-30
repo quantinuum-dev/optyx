@@ -545,7 +545,7 @@ def test_prob_effect_only_errors_no_state(circuit):
 @pytest.mark.parametrize("circuit", [unitary_circuit, non_unitary_circuit])
 def test_prob_diagram_only_effect_errors_no_state(circuit):
     nmodes = len(circuit.cod)
-    diagram = circuit >> classical.Select(*([0]*(nmodes-1) + [2]))
+    diagram = circuit >> photonic.Select(*([0]*(nmodes-1) + [2]))
     backend = PercevalBackend()
     with pytest.raises(ValueError):
         _ = diagram.eval(backend)

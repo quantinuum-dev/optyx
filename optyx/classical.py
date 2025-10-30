@@ -658,24 +658,6 @@ class BinaryMatrix(ControlChannel):
         )
 
 
-class Select(Channel):
-    """
-    Post-select on an occupation number.
-    """
-    def __init__(self, *photons: int):
-        self.photons = photons
-        super().__init__(
-            f"Select({photons})",
-            zw.Select(*photons)
-        )
-
-    def to_path(self, dtype=complex) -> path.Matrix:
-        array = np.eye(len(self.photons))
-        return path.Matrix[dtype](
-            array, len(self.photons), 0, selections=self.photons
-        )
-
-
 class Digit(ClassicalBox):
     """
     Create a classical state with
